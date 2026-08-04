@@ -27,20 +27,16 @@ answers "what does a stranger install."
 | Question | Article |
 | --- | --- |
 | What is the backend actually made of? | [`backend/component-catalog.md`](backend/component-catalog.md) |
+| How far is it from running on someone else's machine? | [`backend/portability-ledger.md`](backend/portability-ledger.md) |
 
 ## Status
 
-Early. The component catalog is the first article and currently the only one.
-It is the inventory that the packaging decision, the installer, and the
-first-time user experience all depend on, so it is deliberately first.
+Early. Two articles, both about the backend, because packaging is the gate
+everything else waits behind.
 
 Planned, in order:
 
-1. **Portability ledger.** A projection of the catalog's `assumes about this
-   machine` column: for each component, what is true only on the machine it was
-   built on. This is the honest answer to "how far are we from someone else
-   running this."
-2. **Packaging decision.** Native per-platform binaries against containers,
+1. **Packaging decision.** Native per-platform binaries against containers,
    argued from the ledger rather than from preference. The constraint that
    frames it is already known: the two components that need the GPU cannot be
    containerised on either target platform, so containers can only ever host the
