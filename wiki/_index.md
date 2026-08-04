@@ -28,22 +28,25 @@ answers "what does a stranger install."
 | --- | --- |
 | What is the backend actually made of? | [`backend/component-catalog.md`](backend/component-catalog.md) |
 | How far is it from running on someone else's machine? | [`backend/portability-ledger.md`](backend/portability-ledger.md) |
+| How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 
 ## Status
 
-Early. Two articles, both about the backend, because packaging is the gate
+Early. Three articles, all about the backend, because packaging is the gate
 everything else waits behind.
+
+The packaging question is answered as far as research can answer it. Containers
+are out: no runtime on Apple Silicon can reach the GPU, and on Windows the
+container GPU path runs through WSL2 anyway, so it adds a layer rather than
+removing one. The category ships native installers. The component blocking a
+native package is the voice engine, because it is the only reason torch is in
+the product at all.
 
 Planned, in order:
 
-1. **Packaging decision.** Native per-platform binaries against containers,
-   argued from the ledger rather than from preference. The constraint that
-   frames it is already known: the two components that need the GPU cannot be
-   containerised on either target platform, so containers can only ever host the
-   easy half.
-3. **Install guide.** What the ledger says has to happen, in the order a person
-   does it.
-4. **First-time user experience.** Meeting your first persona. Drafted in
+1. **Install guide.** What the ledger says has to happen, in the order a person
+   does it. Waits on the packaging route being chosen.
+2. **First-time user experience.** Meeting your first persona. Drafted in
    `D:\Tools\Valinor\tasks\first-time-user.md`.
 
 ## Conventions
