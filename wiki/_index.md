@@ -34,8 +34,8 @@ answers "what does a stranger install."
 
 ## Status
 
-Early. Three articles, all about the backend, because packaging is the gate
-everything else waits behind.
+Early. Five articles. Four are about the backend, because packaging is the gate
+everything else waits behind, and one describes what the person actually meets.
 
 The packaging question is answered as far as research can answer it. Containers
 are out: no runtime on Apple Silicon can reach the GPU, and on Windows the
