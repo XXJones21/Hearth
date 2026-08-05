@@ -31,11 +31,12 @@ answers "what does a stranger install."
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
+| How does the card library grow? | [`card-forge.md`](card-forge.md) |
 
 ## Status
 
-Early. Five articles. Four are about the backend, because packaging is the gate
-everything else waits behind, and one describes what the person actually meets.
+Early. Six articles. Four are about the backend, because packaging is the gate
+everything else waits behind, and two describe what the person actually meets.
 
 The packaging question is answered as far as research can answer it. Containers
 are out: no runtime on Apple Silicon can reach the GPU, and on Windows the
