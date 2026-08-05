@@ -239,7 +239,10 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
   }
 }
 
-export function useHearthWebSocket() {
+/** `enabled` is false during first-run setup: there is no backend yet, and a
+    client that dials the usual port before setup would silently adopt whatever
+    is already running on the machine. */
+export function useHearthWebSocket(enabled = true) {
   const wsRef = useRef<WebSocket | null>(null);
   const intentionalClose = useRef(false);
   const reconnectRef = useRef(0);
@@ -394,6 +397,7 @@ export function useHearthWebSocket() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) return;
     connect();
     return () => {
       intentionalClose.current = true;
@@ -404,7 +408,7 @@ export function useHearthWebSocket() {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   return {
     sendTextQuery,

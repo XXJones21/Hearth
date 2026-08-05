@@ -76,7 +76,7 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
   };
 
   return (
-    <div className="flex min-w-0 flex-col overflow-y-auto px-16 py-12 max-lg:px-7">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto px-14 py-11 text-center max-lg:px-6">
       <DevBar
         sims={sims}
         active={sim}
@@ -89,13 +89,13 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
 
       {step === 'blocked' && (
         <Panel title="Cannot go on">
-          <p className="max-w-[58ch] text-[15px] leading-relaxed text-fawn">{error}</p>
+          <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">{error}</p>
         </Panel>
       )}
 
       {step === 'scanning' && (
         <Panel title="Looking at your machine.">
-          <p className="max-w-[58ch] text-[15px] leading-relaxed text-fawn">
+          <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">
             Hearth runs entirely on your hardware, so what it can do depends on what you have.
           </p>
         </Panel>
@@ -114,7 +114,7 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-6">
+    <div className="mt-6 flex flex-col items-center">
       <h1 className="text-[26px] font-bold tracking-tight">{title}</h1>
       <div className="mt-3">{children}</div>
     </div>
@@ -139,12 +139,12 @@ function Found({
   return (
     <>
       <Panel title={plan.coexist ? 'This machine can run the full thing.' : 'A small machine. Here is the honest picture.'}>
-        <p className="max-w-[58ch] text-[15px] leading-relaxed text-fawn">
+        <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">
           Here is what Hearth will install, and why.
         </p>
       </Panel>
 
-      <div className="mt-7 grid gap-5 lg:grid-cols-2">
+      <div className="mt-7 grid w-full max-w-[740px] gap-5 text-left lg:grid-cols-2">
         <Card head="Your machine">
           <Row k="System" v={`${machine.os} / ${machine.arch}`} />
           <Row k="Graphics" v={gpu?.name ?? 'none detected'} />
@@ -183,7 +183,7 @@ function Found({
       {plan.warnings.map((w) => (
         <div
           key={w}
-          className="mt-5 flex max-w-[70ch] gap-3 rounded-xl border border-bubble-line bg-bubble px-4 py-3 text-[13.5px] leading-snug"
+          className="mt-5 flex w-full max-w-[740px] gap-3 rounded-xl border border-bubble-line bg-bubble px-4 py-3 text-left text-[13.5px] leading-snug"
         >
           <span className="grid size-5 flex-none place-items-center rounded-full bg-honey text-[12px] font-bold">
             !
@@ -192,7 +192,7 @@ function Found({
         </div>
       ))}
 
-      <Card head="What it will configure" className="mt-6">
+      <Card head="What it will configure" className="mt-6 w-full max-w-[740px] text-left">
         <Row k="Context window" v={`${plan.n_ctx.toLocaleString()} tokens`} />
         <Row k="Backend" v={plan.backend} />
         <Row k="Layers on the GPU" v={plan.n_gpu_layers === -1 ? 'all' : String(plan.n_gpu_layers)} />
@@ -200,7 +200,7 @@ function Found({
         <Row k="Mind and voice" v={plan.coexist ? 'both resident' : 'one at a time'} />
       </Card>
 
-      <div className="mt-6">
+      <div className="mt-6 w-full max-w-[740px] text-left">
         <div className="text-[11.5px] font-semibold uppercase tracking-wide text-fawn">Why</div>
         <ul className="mt-2 max-w-[74ch] space-y-1.5">
           {plan.reasons.map((r) => (
@@ -211,7 +211,7 @@ function Found({
         </ul>
       </div>
 
-      <label className="mt-6 block max-w-[560px]">
+      <label className="mt-6 block w-full max-w-[740px] text-left">
         <span className="text-[11.5px] font-semibold uppercase tracking-wide text-fawn">
           Where the weights go
         </span>
@@ -222,7 +222,7 @@ function Found({
         />
       </label>
 
-      <div className="mt-7 flex gap-3 pb-4">
+      <div className="mt-7 flex justify-center gap-3 pb-4">
         <button
           onClick={onGo}
           className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream"
@@ -254,14 +254,14 @@ function Installing({
   return (
     <>
       <Panel title={done ? 'Downloaded.' : 'Setting up.'}>
-        <p className="max-w-[58ch] text-[15px] leading-relaxed text-fawn">
+        <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">
           {done
             ? 'Everything the plan asked for is on disk.'
             : 'You can leave this running. Nothing here needs you.'}
         </p>
       </Panel>
 
-      <div className="mt-6 max-w-[600px]">
+      <div className="mt-6 w-full max-w-[600px] text-left">
         <div className="h-[7px] overflow-hidden rounded-full bg-linen">
           <div
             className="h-full rounded-full bg-gradient-to-r from-fennec to-honey transition-[width]"
@@ -303,7 +303,7 @@ function Installing({
         </div>
 
         {error && (
-          <div className="mt-5 rounded-xl border border-bubble-line bg-bubble px-4 py-3 text-[13.5px]">
+          <div className="mt-5 rounded-xl border border-bubble-line bg-bubble px-4 py-3 text-left text-[13.5px]">
             {error}
           </div>
         )}
@@ -354,7 +354,7 @@ function DevBar({
   onExit: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-linen pb-3 text-[12px]">
+    <div className="flex w-full flex-wrap items-center gap-2 border-b border-linen pb-3 text-left text-[12px]">
       {/* Machine simulation is a building tool. Close stays outside the gate,
           or turning developer mode off would trap you in the setup view. */}
       {loadSettings().developerMode && (

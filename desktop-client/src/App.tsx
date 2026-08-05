@@ -19,18 +19,16 @@ export default function App() {
   const connection = useAppStore((s) => s.connection);
   const isWaitingForResponse = useAppStore((s) => s.isWaitingForResponse);
   const activeView = useAppStore((s) => s.activeView);
-  const { sendTextQuery, switchPersona, reconnect, disconnect } = useHearthWebSocket();
-
-  /* First-run setup. Not yet on the normal path: a fresh install will land
-     here by itself once provisioning exists. Until then it opens on
-     Ctrl+Shift+S, or with #setup in the address, so it can be exercised on a
-     machine that is already set up. */
   /* A fresh install opens into setup, not into the house. Until setup has been
-     completed once, there is no backend to talk to and nothing to show. */
+     completed once there is no backend, so the socket must not dial either:
+     a client that connects before setup adopts whatever is already running on
+     the machine and presents it as the user's own. */
   const [showSetup, setShowSetup] = useState(
     !loadSettings().setupComplete ||
       (typeof window !== 'undefined' && window.location.hash === '#setup'),
   );
+  const { sendTextQuery, switchPersona, reconnect, disconnect } =
+    useHearthWebSocket(!showSetup);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
@@ -69,16 +67,22 @@ export default function App() {
 
   return (
     <div className="hearth-field flex h-full min-h-screen items-center justify-center overflow-hidden p-6">
-      <AppFrame>
-        <PersonaStage config={personaConfig} onSwitch={switchPersona} />
-        {showSetup ? (
+      {showSetup ? (
+        /* One centred column. During first run there is no persona to stand on
+           a stage and no house to put a rail beside, so the frame is a single
+           surface. This matches hearth-setup-flow.html. */
+        <div className="relative z-[1] flex h-full max-h-[min(860px,calc(100vh_-_3rem))] w-full max-w-[900px] flex-col overflow-hidden rounded-[26px] bg-fluff shadow-frame">
           <SetupFlow
             onExit={() => {
               saveSettings({ setupComplete: true });
               setShowSetup(false);
             }}
           />
-        ) : activeView === 'journal' ? (
+        </div>
+      ) : (
+      <AppFrame>
+        <PersonaStage config={personaConfig} onSwitch={switchPersona} />
+        {activeView === 'journal' ? (
           <LibraryView />
         ) : activeView === 'settings' ? (
           <SettingsView onReconnect={redial} />
@@ -96,6 +100,7 @@ export default function App() {
         )}
         <Rail />
       </AppFrame>
+      )}
     </div>
   );
 }
