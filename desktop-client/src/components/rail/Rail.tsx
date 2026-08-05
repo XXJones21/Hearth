@@ -18,7 +18,10 @@ export function Rail() {
 
   return (
     <aside
-      className="flex flex-col border-l border-linen bg-gradient-to-b from-fluff to-cream p-5 max-lg:hidden"
+      /* min-h-0: a grid item will not shrink below its content without it, so
+         one long entry in a tab would grow the row past the frame and the
+         frame's overflow-hidden would crop the bottom of every column. */
+      className="flex min-h-0 flex-col border-l border-linen bg-gradient-to-b from-fluff to-cream p-5 max-lg:hidden"
       aria-label="Mission Control"
     >
       <div className="flex justify-end gap-2.5">

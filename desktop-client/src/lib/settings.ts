@@ -23,6 +23,10 @@ export type Settings = {
      surfaces that are useful to build with and confusing to meet. Off unless
      someone deliberately turns it on. */
   developerMode: boolean;
+  /* False until first-run setup finishes. A fresh install has no backend, so
+     it must not quietly connect to anything already running on this machine
+     and adopt its data as though it were the user's own. */
+  setupComplete: boolean;
 };
 
 export const DEFAULTS: Settings = {
@@ -35,6 +39,7 @@ export const DEFAULTS: Settings = {
   voiceEnabled: true,
   voiceVolume: 0.8,
   developerMode: false,
+  setupComplete: false,
 };
 
 let cache: Settings | null = null;

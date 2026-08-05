@@ -11,7 +11,7 @@ import { SettingsView } from './components/settings/SettingsView';
 import { useHearthWebSocket } from './hooks/useHearthWebSocket';
 import { ttsPlayer } from './lib/audioPlayer';
 import { applyPersonaTheme } from './lib/personaTheme';
-import { applyDocumentSettings, loadSettings } from './lib/settings';
+import { applyDocumentSettings, loadSettings, saveSettings } from './lib/settings';
 import { useAppStore } from './store/appStore';
 
 export default function App() {
@@ -25,8 +25,11 @@ export default function App() {
      here by itself once provisioning exists. Until then it opens on
      Ctrl+Shift+S, or with #setup in the address, so it can be exercised on a
      machine that is already set up. */
+  /* A fresh install opens into setup, not into the house. Until setup has been
+     completed once, there is no backend to talk to and nothing to show. */
   const [showSetup, setShowSetup] = useState(
-    typeof window !== 'undefined' && window.location.hash === '#setup',
+    !loadSettings().setupComplete ||
+      (typeof window !== 'undefined' && window.location.hash === '#setup'),
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,7 +72,12 @@ export default function App() {
       <AppFrame>
         <PersonaStage config={personaConfig} onSwitch={switchPersona} />
         {showSetup ? (
-          <SetupFlow onExit={() => setShowSetup(false)} />
+          <SetupFlow
+            onExit={() => {
+              saveSettings({ setupComplete: true });
+              setShowSetup(false);
+            }}
+          />
         ) : activeView === 'journal' ? (
           <LibraryView />
         ) : activeView === 'settings' ? (

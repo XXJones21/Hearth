@@ -34,7 +34,7 @@ export function PersonaStage({ config, onSwitch }: Props) {
 
   return (
     <aside
-      className="flex flex-col items-center border-r border-linen bg-gradient-to-b from-fluff to-cream p-6 pb-5 max-lg:hidden"
+      className="flex min-h-0 flex-col items-center border-r border-linen bg-gradient-to-b from-fluff to-cream p-6 pb-5 max-lg:hidden"
       aria-label="Persona"
     >
       <div className="flex w-full items-center gap-2 self-start text-xs text-fawn" aria-live="polite">
