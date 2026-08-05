@@ -1,0 +1,188 @@
+@import 'tailwindcss';
+
+/*
+ * Hearth design system -- Direction B tokens (design of record 2026-07-22).
+ * Source: hearth-pitch/brand-direction.md + mockups/hearth-app-mockup-b.html.
+ * Light-first. roast on cream/fluff is the only body-text pairing;
+ * fennec/honey are fills and accents, never text colors.
+ */
+@theme {
+  /* brand palette */
+  --color-cream: #faf4ea;
+  --color-fluff: #ffffff;
+  --color-fennec: #e39a5b;
+  --color-ember: #c97f45;
+  --color-honey: #ffb84d;
+  --color-roast: #3b2b20;
+  --color-fawn: #8c7a66;
+  --color-linen: #efe6d8;
+  --color-peach: #f6dfc8;
+  --color-peach-deep: #f0d2b4;
+  /* derived tints from the mockup */
+  --color-parchment: #fbf3e7; /* search / row fill */
+  --color-glowtint: #fdf4e4; /* live chip fill */
+  --color-bubble: #f6e3cb; /* user bubble fill */
+  --color-bubble-line: #edd5b4; /* user bubble border */
+  --color-tab: #f8e2c4; /* selected pill tab */
+
+  /* legacy channel names used by ported components (Stage 4/5 retire most) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-persona: var(--persona);
+  --color-persona-glow: var(--persona-glow);
+
+  --shadow-frame: 0 18px 60px rgb(151 96 47 / 0.16), 0 2px 8px rgb(97 63 29 / 0.08);
+  --shadow-soft: 0 2px 10px rgb(97 63 29 / 0.07);
+
+  --font-sans: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  /* fixed light surfaces -- persona switching never repaints these */
+  --background: #faf4ea;
+  --foreground: #3b2b20;
+  --primary: #c97f45;
+  --primary-foreground: #faf4ea;
+  --accent: #ffb84d;
+  --accent-foreground: #3b2b20;
+  /* the persona accent channel -- the ONLY vars applyPersonaTheme writes */
+  --persona: #e39a5b;
+  --persona-glow: #ffb84d;
+}
+
+/*
+ * Ember mode -- the warm dark variant (brand-direction.md: "the room after
+ * the fire burns low"). Tailwind v4 utilities resolve var(--color-*) at
+ * runtime, so overriding the tokens under .ember flips every component.
+ * fennec/ember/honey accents stay; only surfaces and ink change.
+ */
+.ember {
+  --color-cream: #241b14;
+  --color-fluff: #2c221a;
+  --color-roast: #f3e9dc;
+  --color-fawn: #b3a18c;
+  --color-linen: #3a2e24;
+  --color-peach: #1b1410;
+  --color-peach-deep: #171009;
+  --color-parchment: #2a211a;
+  --color-glowtint: #33271c;
+  --color-bubble: #3a2b1e;
+  --color-bubble-line: #4a3729;
+  --color-tab: #3e2f22;
+  --background: #221a14;
+  --foreground: #f3e9dc;
+}
+
+.ember.hearth-field::before {
+  background: radial-gradient(circle, rgb(60 44 30 / 0.55), rgb(60 44 30 / 0) 70%);
+}
+
+.ember.hearth-field::after {
+  background: radial-gradient(circle, rgb(44 32 22 / 0.7), rgb(44 32 22 / 0) 70%);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.font-geometric .font-title,
+.font-geometric {
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.font-humanist .font-title,
+.font-humanist {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: 0.01em;
+}
+
+.theme-transition {
+  transition:
+    background-color 250ms ease,
+    color 250ms ease,
+    border-color 250ms ease,
+    outline-color 250ms ease,
+    box-shadow 250ms ease;
+}
+
+/* the orb heartbeat (mockup B) */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 12px 36px rgb(227 154 91 / 0.42));
+  }
+  50% {
+    transform: scale(1.04);
+    filter: drop-shadow(0 16px 48px rgb(255 184 77 / 0.58));
+  }
+}
+
+.breathe {
+  animation: breathe 5.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breathe {
+    animation: none;
+  }
+}
+
+/* In-app override (Settings > Appearance). The OS query above is the default;
+   this lets someone stop the motion without changing a system preference. */
+.reduce-motion .breathe {
+  animation: none;
+}
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* corner blobs for the peach page field (mockup B body::before/::after) */
+.hearth-field {
+  position: relative;
+  background: var(--color-peach);
+}
+
+.hearth-field::before,
+.hearth-field::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.hearth-field::before {
+  width: 520px;
+  height: 520px;
+  top: -190px;
+  left: -160px;
+  background: radial-gradient(circle, rgb(250 244 234 / 0.85), rgb(250 244 234 / 0) 70%);
+}
+
+.hearth-field::after {
+  width: 640px;
+  height: 640px;
+  bottom: -260px;
+  right: -200px;
+  background: radial-gradient(circle, rgb(240 210 180 / 0.9), rgb(240 210 180 / 0) 70%);
+}

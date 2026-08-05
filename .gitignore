@@ -1,0 +1,23 @@
+# Rust
+target/
+crates/*/target/
+desktop-client/src-tauri/target/
+
+# Node
+node_modules/
+desktop-client/dist/
+desktop-client/node_modules/
+
+# Local configuration. .env.example is the committed template.
+.env
+.env.local
+
+# Model weights and anything downloaded at install time.
+models/
+*.gguf
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

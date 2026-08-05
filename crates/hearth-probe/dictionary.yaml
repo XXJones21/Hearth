@@ -1,0 +1,100 @@
+# The model dictionary.
+#
+# Every byte size and every filename below was read from the Hugging Face API on
+# 2026-08-04, not from documentation prose. Tier 2's file is byte-for-byte the
+# one currently resident on VYTAL, which is the best confirmation available that
+# the naming is right.
+#
+# Sizes are the server's own content-length, not the figure printed on a model
+# card. Cards report decimal GB and everything here is bytes, so taking a card
+# at face value overstates every model by about 7 percent. `hearth-probe verify`
+# re-checks these against the server and flags drift.
+#
+# kv_bytes_per_token is an ESTIMATE used to size the context window against the
+# remaining memory budget. It is the least trustworthy number here. Derived as
+# 2 (K and V) * layers * kv_heads * head_dim elements at roughly 0.56 bytes per
+# element with a q4_0 cache, NOT measured. Erring high costs context; erring low
+# costs a failed model load, so err high.
+#
+# OPEN, and measurable: with these numbers a 16 GB card plans 65536 tokens for
+# tier 2, while valinor-rust.service pins 16384 with a comment calling that "the
+# proven 16 GB-fit value". One of the two is wrong and a single load settles it.
+
+reserves:
+  # Held out of the budget before a model is chosen.
+  voice_resident_bytes: 2362232012 # OmniVoice on the GPU, ~2.2 GiB measured
+  stt_bytes: 1073741824 # Whisper base, ~1.0 GiB
+  os_unified_bytes: 3221225472 # host OS on shared memory, ~3.0 GiB
+  headroom_bytes: 1073741824 # ~1.0 GiB, so a full card is not a wedged card
+
+voice:
+  name: OmniVoice
+  repo: k2-fsa/OmniVoice
+  download_bytes: 3328599654 # ~3.1 GiB of Hugging Face cache
+  resident_bytes: 2362232012
+
+tiers:
+  - id: 0
+    label: Minimum
+    model: Gemma 4 E2B
+    repo: unsloth/gemma-4-E2B-it-GGUF
+    file: gemma-4-E2B-it-Q4_K_M.gguf
+    quant: Q4_K_M
+    bytes: 3106738272 # 2.89 GiB, server content-length
+    max_ctx: 32768
+    kv_bytes_per_token: 12288
+    note: >-
+      Built to run on the device rather than in a datacentre. The largest model
+      that still leaves room for a voice on a small machine.
+    fallback:
+      file: gemma-4-E2B-it-Q3_K_M.gguf
+      quant: Q3_K_M
+      bytes: 2536786016 # 2.36 GiB, server content-length
+
+  - id: 1
+    label: Small
+    model: Gemma 4 E4B
+    repo: unsloth/gemma-4-E4B-it-GGUF
+    file: gemma-4-E4B-it-Q4_K_M.gguf
+    quant: Q4_K_M
+    bytes: 4977171584 # 4.64 GiB, server content-length
+    max_ctx: 32768
+    kv_bytes_per_token: 20480
+    note: >-
+      The same on-device architecture with roughly twice the active parameters.
+      Noticeably better at holding a thread.
+    fallback:
+      file: gemma-4-E4B-it-Q3_K_M.gguf
+      quant: Q3_K_M
+      bytes: 4058137728 # 3.78 GiB, server content-length
+
+  - id: 2
+    label: Recommended
+    model: Gemma 4 12B
+    repo: unsloth/gemma-4-12B-it-qat-GGUF
+    file: gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
+    quant: UD-Q4_K_XL
+    bytes: 6716356800 # 6.26 GiB, server content-length (on-disk copy is 1472 bytes smaller)
+    max_ctx: 65536
+    kv_bytes_per_token: 57344
+    note: >-
+      The quantization-aware build, which keeps its quality at four bits better
+      than a plain one. Comfortable on 16 GB with the voice alongside.
+    fallback: null
+
+  - id: 3
+    label: Large
+    model: Gemma 4 26B A4B
+    repo: unsloth/gemma-4-26B-A4B-it-GGUF
+    file: gemma-4-26B-A4B-it-UD-Q3_K_M.gguf
+    quant: UD-Q3_K_M
+    bytes: 12728497888 # 11.85 GiB, server content-length
+    max_ctx: 65536
+    kv_bytes_per_token: 49152
+    note: >-
+      A mixture-of-experts model: far more total knowledge, with only a slice of
+      it active per token. Wants a large card.
+    fallback:
+      file: gemma-4-26B-A4B-it-UD-Q4_K_S.gguf
+      quant: UD-Q4_K_S
+      bytes: 16487610080 # 15.36 GiB, server content-length

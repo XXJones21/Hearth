@@ -1,0 +1,334 @@
+/* Selene's Library -- CSS-3D books, shelves, and the open-book spread.
+   Ported from hearth-pitch/mockups/hearth-library-mockup.html; colors ride
+   the app's --color-* theme tokens so ember mode flips the room too. */
+
+.lib-root {
+  font-family: 'Palatino Linotype', 'Book Antiqua', 'Iowan Old Style', Georgia, serif;
+}
+
+.lib-room-label {
+  font-size: 11px;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+  color: var(--color-ember);
+  font-weight: bold;
+}
+.lib-room-sub {
+  font-size: 12px;
+  color: var(--color-fawn);
+  font-style: italic;
+  margin-bottom: 10px;
+}
+
+.lib-pedestal {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  align-items: flex-end;
+  padding: 22px 20px 16px;
+  background: radial-gradient(ellipse 55% 95% at 50% 100%, rgb(255 184 77 / 0.3), rgb(255 184 77 / 0.06) 62%, transparent);
+  border-radius: 18px;
+}
+.lib-shelf {
+  display: flex;
+  align-items: flex-end;
+  justify-content: safe center;
+  gap: 8px;
+  padding: 14px 18px 0;
+  min-height: 138px;
+  overflow-x: auto;
+  background: linear-gradient(180deg, rgb(217 185 143 / 0.1), rgb(217 185 143 / 0.22));
+  border-radius: 12px 12px 0 0;
+}
+.lib-shelf-board {
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #d9b98f, #c4a176);
+  box-shadow: 0 8px 18px rgb(140 90 50 / 0.18);
+  margin-top: -1px;
+}
+
+.lib-book {
+  position: relative;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transform: perspective(900px) rotateY(0deg) translateY(0);
+  transition: transform 0.65s cubic-bezier(0.22, 0.9, 0.28, 1);
+  flex-shrink: 0;
+}
+.lib-book:hover {
+  transform: perspective(900px) rotateY(-54deg) translateY(-8px);
+  z-index: 5;
+}
+.lib-book.pulling {
+  transform: perspective(900px) rotateY(-88deg) translateY(-26px) translateX(22px) scale(1.1);
+  transition: transform 0.5s cubic-bezier(0.4, 0.1, 0.3, 1);
+  z-index: 40;
+}
+.lib-spine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 0 9px;
+  border-radius: 3px 1px 1px 3px;
+  box-shadow: inset -3px 0 6px rgb(0 0 0 / 0.2), inset 2px 0 3px rgb(255 255 255 / 0.22);
+}
+.lib-spine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: repeating-linear-gradient(178deg, rgb(0 0 0 / 0.045) 0 1px, transparent 1px 3px);
+}
+.lib-spine-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-variant: small-caps;
+  color: #f3dfb6;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.45), 0 -1px 1px rgb(255 255 255 / 0.12);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.lib-bands {
+  width: 68%;
+  border-top: 2px solid rgb(255 247 234 / 0.5);
+  padding-top: 2px;
+  border-bottom: 1px solid rgb(255 247 234 / 0.3);
+}
+.lib-cover {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  height: 100%;
+  width: 96px;
+  transform-origin: left center;
+  transform: rotateY(90deg);
+  border-radius: 1px 5px 5px 1px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 8px;
+  text-align: center;
+  box-shadow: inset 0 0 0 3px rgb(255 247 234 / 0.22);
+}
+.lib-cover-title {
+  font-size: 12px;
+  color: #f3dfb6;
+  font-variant: small-caps;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.45);
+}
+.lib-cover-pages {
+  font-size: 10px;
+  color: rgb(255 247 234 / 0.75);
+}
+.lib-book.glow .lib-spine {
+  box-shadow: inset -3px 0 6px rgb(0 0 0 / 0.2), 0 0 22px rgb(255 184 77 / 0.55);
+}
+.lib-firefly {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-honey);
+  box-shadow: 0 0 8px 3px rgb(255 184 77 / 0.6);
+  animation: lib-drift 5s ease-in-out infinite alternate;
+}
+@keyframes lib-drift {
+  from { transform: translate(0, 0); }
+  to { transform: translate(9px, -14px); }
+}
+
+.lib-conservatory {
+  border: 1.5px solid rgb(140 150 160 / 0.4);
+  background: linear-gradient(160deg, rgb(240 248 252 / 0.6), rgb(240 248 252 / 0.22));
+  backdrop-filter: blur(2px);
+  border-radius: 14px;
+  padding: 12px 16px 0;
+  box-shadow: inset 0 0 30px rgb(220 238 248 / 0.55), 0 10px 24px rgb(140 90 50 / 0.1);
+}
+.lib-conservatory .lib-shelf { background: none; min-height: 100px; }
+
+.lib-sanctum {
+  text-align: center;
+  padding: 14px 0 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgb(90 52 28 / 0.92), rgb(59 33 18 / 0.96));
+  box-shadow: inset 0 0 36px rgb(255 140 50 / 0.25), 0 8px 22px rgb(59 33 18 / 0.35);
+  color: #e8c9a8;
+  font-size: 11.5px;
+  font-style: italic;
+}
+.lib-sanctum-door {
+  font-size: 10.5px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--color-honey);
+  font-style: normal;
+}
+.lib-sanctum-glow {
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin: 7px auto 5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-honey), transparent);
+  box-shadow: 0 0 12px rgb(255 184 77 / 0.8);
+}
+
+/* ---------- spread overlay ---------- */
+.lib-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  visibility: hidden;
+  opacity: 0;
+  background: rgb(59 43 32 / 0.35);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  transition: opacity 0.35s ease, visibility 0.35s;
+}
+.lib-overlay.open { visibility: visible; opacity: 1; }
+.lib-spread {
+  position: relative;
+  width: min(880px, 92vw);
+  height: min(560px, 80vh);
+  perspective: 1400px;
+  transform: scale(0.72) translateY(40px);
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.2, 0.85, 0.3, 1.05), opacity 0.35s ease;
+}
+.lib-overlay.open .lib-spread { transform: scale(1) translateY(0); opacity: 1; }
+.lib-pages {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px 14px 14px 10px;
+  box-shadow: 0 30px 60px rgb(59 43 32 / 0.4);
+  transform: rotateX(7deg);
+}
+.lib-page {
+  flex: 1;
+  padding: 28px 28px 24px;
+  overflow-y: auto;
+  position: relative;
+  color: #3b2b20;
+}
+.lib-page.left {
+  border-radius: 10px 0 0 10px;
+  border-right: 1px solid #e8d9bf;
+  background: linear-gradient(270deg, #f3e8d2, #fffdf7 12%);
+}
+.lib-page.right {
+  border-radius: 0 14px 14px 0;
+  background: linear-gradient(90deg, #f3e8d2, #fffdf7 12%);
+}
+.lib-page h2 { font-size: 19px; margin-bottom: 2px; }
+.lib-page-meta { font-size: 11px; color: #8c7a66; margin-bottom: 14px; font-style: italic; }
+.lib-keeper-note { font-size: 13px; line-height: 1.65; }
+.lib-attrib { margin-top: 12px; font-size: 10.5px; color: #8c7a66; font-style: italic; }
+.lib-stats {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px dotted #e0d0b4;
+  font-size: 11px;
+  color: #8c7a66;
+  line-height: 1.9;
+}
+.lib-entry {
+  padding: 9px 0;
+  border-bottom: 1px dotted #e0d0b4;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.lib-entry:hover { background: rgb(255 184 77 / 0.1); }
+.lib-entry-title { font-size: 13px; }
+.lib-entry-date { font-size: 10px; color: #8c7a66; margin-top: 2px; }
+.lib-entry-sum {
+  font-size: 11px;
+  color: #8c7a66;
+  margin-top: 3px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lib-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 7px;
+}
+.lib-pageturn {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: #8c7a66;
+}
+.lib-pageturn button {
+  border: 1px solid #efe6d8;
+  background: #fff;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: #c97f45;
+  font-size: 13px;
+  font-family: inherit;
+}
+.lib-pageturn button:disabled { opacity: 0.35; cursor: default; }
+.lib-entries.flipping { animation: lib-flip 0.38s ease; }
+@keyframes lib-flip {
+  0% { transform: rotateY(0); opacity: 1; }
+  45% { transform: rotateY(-26deg); opacity: 0.35; }
+  100% { transform: rotateY(0); opacity: 1; }
+}
+.lib-lifted {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  width: 330px;
+  background: #fff;
+  border: 1px solid #efe6d8;
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 44px rgb(201 127 69 / 0.35), 0 0 30px rgb(255 184 77 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
+  z-index: 60;
+  color: #3b2b20;
+}
+.lib-lifted.show { opacity: 1; top: 38%; pointer-events: auto; }
+.lib-lifted-title { font-size: 13.5px; font-weight: bold; margin-bottom: 5px; }
+.lib-lifted-sum { font-size: 12px; line-height: 1.55; }
+.lib-lifted-meta { font-size: 10px; color: #8c7a66; margin-top: 9px; font-style: italic; }
+.lib-closex {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #efe6d8;
+  font-size: 15px;
+  color: #8c7a66;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgb(59 43 32 / 0.2);
+}

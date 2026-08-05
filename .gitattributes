@@ -1,0 +1,6 @@
+# Shell scripts and unit files must use LF. Windows checkouts otherwise produce
+# files the Linux side silently refuses.
+*.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+*.conf text eol=lf

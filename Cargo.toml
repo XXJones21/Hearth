@@ -1,0 +1,14 @@
+# One workspace over the app and the crates it owns, so there is a single
+# lockfile and a single target directory rather than one per crate.
+[workspace]
+resolver = "2"
+members = [
+    "desktop-client/src-tauri",
+    "crates/hearth-probe",
+]
+
+[profile.release]
+# The shipped binary. Slower to build, smaller and faster to run.
+lto = true
+codegen-units = 1
+strip = true
