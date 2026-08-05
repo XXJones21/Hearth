@@ -30,6 +30,7 @@ answers "what does a stranger install."
 | How far is it from running on someone else's machine? | [`backend/portability-ledger.md`](backend/portability-ledger.md) |
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
+| What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
 
 ## Status
 
