@@ -75,11 +75,26 @@ export type ImageCardProps = {
   job_id?: string;
 };
 
+/** A cell in a grid. `style` is a closed set the host resolves to real CSS, so
+    a persona never authors a colour or a class. */
+export type GridCell = {
+  text: string;
+  style?: 'default' | 'muted' | 'marked' | 'accent' | 'empty';
+};
+
 export type GeneratedViewSection =
   | { kind: 'text'; body: string }
   | { kind: 'stat'; label: string; value: string }
   | { kind: 'stat_row'; stats: { label: string; value: string }[] }
   | { kind: 'image'; src: string }
+  /* A wrapping grid of cells. This is the one shape that makes a calendar, a
+     habit tracker, a seat map and a keypad reachable without an expression
+     language. Cells are emitted UNROLLED, one object per cell, with a literal
+     style on each. There is deliberately no loop and no condition: repetition
+     is a convenience for a human author and a model does not need it, and
+     every system that added one grew a small programming language that a small
+     model then has to be correct in. */
+  | { kind: 'grid'; columns: number; heading?: string; cells: GridCell[] }
   | { kind: 'divider' };
 
 export type GeneratedViewProps = {

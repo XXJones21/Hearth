@@ -87,12 +87,45 @@ two columns.
 | `stat` | one number with a label |
 | `stat_row` | up to four numbers side by side |
 | `image` | a picture, by asset path |
+| `grid` | a wrapping grid of cells, each with text and a style |
 | `divider` | a rule |
 
-Five kinds and four templates is a small vocabulary, and the first thing to
-learn from real use is which sixth kind is missing. Candidates already visible:
-a list, a two-column key and value table, and a progress meter, which the
-existing hand-built cards all implement privately.
+`grid` was added 2026-08-05 after investigating whether a calendar was
+reachable. It is the one shape that turns a fixed vocabulary into a general
+one, because a calendar, a habit tracker, a seat map, a keypad and a swatch
+board are all a grid of cells.
+
+```json
+{ "kind": "grid", "columns": 7, "heading": "August 2026",
+  "cells": [ { "text": "S", "style": "muted" },
+             { "text": "1", "style": "default" },
+             { "text": "5", "style": "marked" },
+             { "text": "",  "style": "empty" } ] }
+```
+
+**Cells are emitted unrolled, one object each, with a literal style.** There is
+no loop and no condition, deliberately, and this is the decision the whole
+design rests on.
+
+Repetition and conditional styling are compression features for a human author.
+A person writes a loop because typing forty-two cells is tedious. A model
+already knows which days are marked and can emit forty-two objects directly.
+Unrolling costs a few hundred tokens; in exchange it removes the entire
+expression-language surface, and with it every place a small model could write
+a predicate that is subtly wrong.
+
+Two pieces of outside evidence support drawing the line here. Vercel Labs
+published `json-render` in 2026 as the generic solution to this exact problem;
+it has conditionals, templates and host-registered functions, and **no loops**.
+And Adaptive Cards, which does have full templating, has it in order to
+separate a human template author from a service supplying data. Hearth has one
+model producing both, so the expression layer buys nothing and costs
+correctness: a model writing a conditional must also emit the field it tests
+and keep the two in agreement, which is strictly harder than putting the right
+style on the right cell.
+
+`style` is a closed set the host resolves to real CSS, so a persona never
+authors a colour or a class.
 
 ## The shape of the tool
 
@@ -132,15 +165,75 @@ into a source tree and that warrants review. A layout made of five safe
 primitives does not. If a card is wrong the persona makes a better one, which
 takes seconds.
 
+**No runtime code, and not because it is impossible.** This was investigated
+properly on 2026-08-05 rather than assumed. See below.
+
 **No data binding, yet.** A forged card is rendered with the values the persona
 passes when it shows it. Cards that pull their own data on a schedule are a
 larger idea and need the same decision the image card needed: who fetches, who
 waits, and what the card does while it waits.
 
+## Emitting a card reliably
+
+Two findings that apply whichever shape a card takes, and both come from
+measurement rather than preference.
+
+**Constrain the grammar.** llama.cpp supports GBNF grammars that restrict the
+sampler so only conforming tokens can be emitted, and it converts JSON Schema
+into one automatically. Hearth already runs on llama.cpp, so this is available
+today and should be mandatory for card emission. It matters at the sizes that
+matter: measured JSON parse rates put a 3B model between 48 and 57 percent and
+a 1.7B model at 26 percent. Tier 0 is a 2.3B model.
+
+**Then reason first and constrain late.** Grammar constraint fixes syntax
+completely and costs semantics. A study measuring exactly this on a
+calendar-shaped task found schema validity rising to 100 percent while
+executable accuracy fell from 91.5 to 48 percent, with the failures being
+schema-valid and wrong. So the persona should work out what to show in ordinary
+prose first, and a second short constrained pass should only serialise it. That
+matches the pipeline shape Hearth already has.
+
+The consequence for anyone testing this: **the metric is not whether the card
+parsed.** At 2.3B the common failure will be a calendar that renders perfectly
+with the wrong days marked. Instrument how often a card is valid and wrong.
+
+## The escape hatch, and why it stays shut
+
+Investigated on 2026-08-05, because "we cannot load code into a shipped app"
+turned out to be wrong and the real reason is different.
+
+A packaged, signed Tauri v2 application **can** load a plain ES module from
+disk at runtime. The asset protocol serves `.js` as `text/javascript` with the
+window origin in its CORS header, which is what a module fetch requires, and
+that path needs no `unsafe-eval`. Executing JavaScript from a user-writable
+directory does not touch or invalidate the code signature on Windows or macOS.
+The only place it becomes a policy problem is the Mac App Store, which is not
+the channel.
+
+So the door is open. What closes it is reliability, not packaging: a model that
+manages 26 to 56 percent on plain JSON will not produce reliably correct React,
+and there is no grammar that can enforce correctness on a program the way one
+can on a schema.
+
+The precedent is also clarifying. There is no shipping example of
+model-generated component code being mounted into a host application's live
+component tree. Everything embedded selects from a registry. Everything that
+genuinely generates, including Claude's own Artifacts, runs the result on a
+separate origin inside a sandboxed iframe and treats it as a foreign document.
+Google's Dynamic View does generate, with a frontier model and server-side
+tools, and reports taking a minute or more per interface, which is the wrong
+shape for a card that appears while someone is talking.
+
+**If that door is ever opened, it is a different feature.** A plugin system is
+not a bigger Card Forge. It would be off by default with explicit consent, in
+the shape Obsidian uses, and its pixels would live in a sandboxed iframe on a
+separate origin, in the shape VS Code and Artifacts use. It would not mount
+into this application's React tree.
+
 ## Open questions
 
-1. **Which sixth section kind?** Do not guess. Ship the five, watch what
-   personas try to express, and add the one that keeps being approximated.
+1. **Which section kind is missing next?** `grid` answered the calendar. Do not
+   guess the one after it; watch what personas approximate and add that.
 2. **Can a persona edit a card it made?** Making a better one is cheap, so
    editing may be unnecessary complexity. It becomes necessary the moment cards
    carry data bindings.

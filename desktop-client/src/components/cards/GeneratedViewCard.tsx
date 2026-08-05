@@ -1,7 +1,46 @@
-import type { CardProps, GeneratedViewProps, GeneratedViewSection } from './types';
+import type { CardProps, GeneratedViewProps, GeneratedViewSection, GridCell } from './types';
 import { resolvePersonaAssetUrl } from '../../lib/resolveAssetUrl';
 
 const MAX_SECTIONS = 12;
+/* Six weeks of a month plus a weekday header is 49. Anything past this is a
+   model that has lost the thread rather than a legitimate layout. */
+const MAX_CELLS = 64;
+const MAX_COLUMNS = 12;
+
+/* The closed style set. A persona picks a name; the host owns the pixels. */
+const CELL_STYLE: Record<string, string> = {
+  default: 'bg-parchment text-roast',
+  muted: 'bg-transparent text-fawn',
+  marked: 'bg-fennec font-semibold text-fluff',
+  accent: 'bg-bubble font-semibold text-roast',
+  empty: 'bg-transparent text-transparent',
+};
+
+function Grid({ columns, heading, cells }: { columns: number; heading?: string; cells: GridCell[] }) {
+  const cols = Math.min(Math.max(Math.floor(columns) || 1, 1), MAX_COLUMNS);
+  return (
+    <div>
+      {heading && (
+        <div className="mb-2 text-[13px] font-semibold text-roast">{heading}</div>
+      )}
+      <div
+        className="grid gap-1"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+      >
+        {cells.slice(0, MAX_CELLS).map((c, i) => (
+          <div
+            key={i}
+            className={`grid aspect-square place-items-center rounded-md text-[12px] ${
+              CELL_STYLE[c.style ?? 'default'] ?? CELL_STYLE.default
+            }`}
+          >
+            {c.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Section({ section, hero }: { section: GeneratedViewSection; hero: boolean }) {
   switch (section.kind) {
@@ -33,6 +72,14 @@ function Section({ section, hero }: { section: GeneratedViewSection; hero: boole
           src={resolvePersonaAssetUrl(section.src, '')}
           alt=""
           className="max-h-56 w-full rounded-xl object-cover"
+        />
+      );
+    case 'grid':
+      return (
+        <Grid
+          columns={section.columns}
+          heading={section.heading}
+          cells={Array.isArray(section.cells) ? section.cells : []}
         />
       );
     case 'divider':

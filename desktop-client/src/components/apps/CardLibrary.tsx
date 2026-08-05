@@ -64,7 +64,219 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
           '<circle cx="360" cy="80" r="38" fill="#F2C879"/></svg>',
       ),
   },
+  /* Two samples: the original stack of primitives, and a calendar, which is
+     the shape that justified adding the grid kind. The calendar cells are
+     unrolled exactly as a persona emits them. */
   generated_view: {
+    template: 'plain',
+    title: 'Your month',
+    sections: [
+      {
+            "kind": "grid",
+            "columns": 7,
+            "heading": "August 2026",
+            "cells": [
+                  {
+                        "text": "S",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "M",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "T",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "W",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "T",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "F",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "S",
+                        "style": "muted"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "1",
+                        "style": "default"
+                  },
+                  {
+                        "text": "2",
+                        "style": "default"
+                  },
+                  {
+                        "text": "3",
+                        "style": "default"
+                  },
+                  {
+                        "text": "4",
+                        "style": "default"
+                  },
+                  {
+                        "text": "5",
+                        "style": "marked"
+                  },
+                  {
+                        "text": "6",
+                        "style": "default"
+                  },
+                  {
+                        "text": "7",
+                        "style": "default"
+                  },
+                  {
+                        "text": "8",
+                        "style": "default"
+                  },
+                  {
+                        "text": "9",
+                        "style": "default"
+                  },
+                  {
+                        "text": "10",
+                        "style": "default"
+                  },
+                  {
+                        "text": "11",
+                        "style": "default"
+                  },
+                  {
+                        "text": "12",
+                        "style": "marked"
+                  },
+                  {
+                        "text": "13",
+                        "style": "default"
+                  },
+                  {
+                        "text": "14",
+                        "style": "default"
+                  },
+                  {
+                        "text": "15",
+                        "style": "default"
+                  },
+                  {
+                        "text": "16",
+                        "style": "default"
+                  },
+                  {
+                        "text": "17",
+                        "style": "default"
+                  },
+                  {
+                        "text": "18",
+                        "style": "default"
+                  },
+                  {
+                        "text": "19",
+                        "style": "marked"
+                  },
+                  {
+                        "text": "20",
+                        "style": "default"
+                  },
+                  {
+                        "text": "21",
+                        "style": "default"
+                  },
+                  {
+                        "text": "22",
+                        "style": "default"
+                  },
+                  {
+                        "text": "23",
+                        "style": "default"
+                  },
+                  {
+                        "text": "24",
+                        "style": "default"
+                  },
+                  {
+                        "text": "25",
+                        "style": "default"
+                  },
+                  {
+                        "text": "26",
+                        "style": "marked"
+                  },
+                  {
+                        "text": "27",
+                        "style": "default"
+                  },
+                  {
+                        "text": "28",
+                        "style": "default"
+                  },
+                  {
+                        "text": "29",
+                        "style": "default"
+                  },
+                  {
+                        "text": "30",
+                        "style": "default"
+                  },
+                  {
+                        "text": "31",
+                        "style": "default"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  },
+                  {
+                        "text": "",
+                        "style": "empty"
+                  }
+            ]
+      }
+    ],
+  },
+  generated_view_brief: {
     template: 'brief',
     title: 'This week',
     sections: [
