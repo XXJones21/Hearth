@@ -129,6 +129,34 @@ authors a colour or a class.
 
 ## The shape of the tool
 
+Two halves. The first shipped on 2026-08-05; the second has not.
+
+### `compose_view`, shipped
+
+Putting a card on screen. Until this existed the renderer had no driver: the
+only cards reaching a screen were built by the consult handlers, so a persona
+could describe a layout in words and had no way to show one.
+
+```yaml
+compose_view:
+  parameters:
+    title:    string
+    template: string   # plain | brief | hero_stat | comparison
+    sections: array    # the layout, in the vocabulary above
+```
+
+The handler **cleans rather than validates**, which matters at small model
+sizes. An unrecognised cell style falls back instead of passing through, a
+column count is clamped, a bare string becomes a cell, and a section it cannot
+parse is dropped while the rest of the card still renders. A model that gets one
+section wrong should still get a card. Only an entirely empty layout is refused,
+with an explanation the persona can act on.
+
+### `forge_card`, still to do
+
+Saving a composed card so it can be used again, which is what makes the library
+grow rather than each card being a one-off.
+
 `forge_card` keeps its name and its place in the conversation, and changes what
 it does.
 

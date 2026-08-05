@@ -49,6 +49,45 @@ always installs, then either provisions a backend here or connects to one it
 found. Same-host detection, designed for a different reason in
 `tasks/desktop-client-macOS.md`, is the mechanism.
 
+### A fresh install starts empty, and this is easy to get wrong
+
+Learned on 2026-08-05 by getting it wrong.
+
+A build of the client was run on the development machine, where a working
+server was already listening on the usual port with a real second brain behind
+it. The client connected to it and presented that data as though it belonged to
+the person running the build: their memory, their journal, their personas. It
+looked like a working first run and it was nothing of the kind.
+
+It also broke the layout. The rail's memory panel had just been wired to real
+operator facts, which on a real machine are long multi-paragraph entries rather
+than the two short lines the placeholder used. Grid items default to a minimum
+height of their own content, so the column could not shrink, the row grew past
+the frame, and the frame's overflow rule cropped the bottom of every column at
+once. The persona name, the chips, the dock and the composer all disappeared
+together, in three different columns, which made it look like the build was
+broken rather than the data.
+
+**A new user would never have reached that bug.** It was manufactured by
+pointing a first-run build at an existing installation.
+
+Two rules follow, and the second is the general one:
+
+- **The client does not connect until setup says so.** A fresh install has no
+  backend. It must not discover something already listening and adopt it. This
+  is tracked by a flag that is false until setup completes, and the absence of
+  that flag is what routes a new install into setup rather than into the house.
+- **Test the install as an install.** Feature work belongs on a development
+  machine wired to a working stack. First-run work belongs on a build that has
+  never seen one. Answering both questions with the same build answers neither,
+  and every time the two are mixed the result describes the developer's machine
+  rather than the product.
+
+A corollary for anyone packaging: the application identifier decides where the
+webview stores its data. Two builds sharing an identifier share settings,
+theme, and history, so a release build under a development identifier opens
+into the developer's state. They must differ.
+
 ### The scan is not only about picking a model
 
 Every hardware constant the portability ledger flags is a value this scan
