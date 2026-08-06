@@ -1,21 +1,18 @@
 [Unit]
-Description=Valar TTS service - OmniVoice (127.0.0.1:8702)
-# The OmniVoice engine instance (k2-fsa, 16-step config) on its own port for
-# A/B against / migration from the NeuTTS hearth-voice.service. Same tts_app.py,
-# different engine + venv (the isolated omnivoice-venv; its torch is newer
-# than valar-venv's cu118 pin). Internal only, like the NeuTTS instance.
+Description=Hearth voice service, OmniVoice (127.0.0.1:8702)
+# Holds the speech model resident in its own process so a harness restart costs
+# no GPU reload. Internal only. Its virtualenv is separate because its torch is
+# newer than the one the harness is pinned to.
 After=network.target
 
 [Service]
 Type=simple
-Environment=HEARTH_TTS_SERVICE=omnivoice
-Environment=HEARTH_TTS_PORT=8702
-# WSL CUDA libs (systemd does not inject WSL's PATH).
-Environment=PATH=/home/jones/omnivoice-venv/bin:/home/jones/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/lib/wsl/lib
-ExecStart=/usr/bin/env bash /mnt/d/Tools/Valinor/scripts/voice_run.sh
+Environment=PATH=@HEARTH_ROOT@/venv-voice/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/lib/wsl/lib
+EnvironmentFile=-%h/.hearth/config/hearth.env
+ExecStart=/usr/bin/env bash @HEARTH_ROOT@/scripts/voice_run.sh
 Restart=always
 RestartSec=5
-# Model load (~3s warm cache) + clone prompt + CUDA prime; never time out.
+# Model load, clone prompt and CUDA prime. Never time out.
 TimeoutStartSec=0
 
 [Install]
