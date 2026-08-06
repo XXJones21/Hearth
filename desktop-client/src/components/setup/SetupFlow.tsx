@@ -1,4 +1,5 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { OrbGlow } from '../stage/OrbGlow';
 /* The persona ships with the client, as the same JSON the server would send.
    Sulivan has to be present during first run, before any backend exists, and
@@ -14,6 +15,7 @@ const PersonaCanvas = lazy(() => import('../PersonaCanvas'));
 import {
   download,
   fixtures as loadFixtures,
+  freeDisk,
   hasProbe,
   human,
   makePlan,
@@ -25,36 +27,60 @@ import {
 } from '../../lib/probe';
 import { loadSettings } from '../../lib/settings';
 
-type Step = 'scanning' | 'found' | 'installing' | 'done' | 'blocked';
+type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'done' | 'blocked';
+
+/* The blocked panel serves three different misfortunes, and they deserve
+   different sentences. A dev server is not a broken machine, and a machine
+   that is too small is not an error: it is the product's honest refusal. */
+type BlockedKind = 'no-probe' | 'scan-failed' | 'refused';
 
 /* First run. The client is the installer, so this is the whole of the install
-   experience: look at the machine, say what it can run and why, fetch it.
+   experience: greet, look at the machine, say what it can run and why, fetch
+   it, verify it.
 
    Every number and every sentence of justification comes from the plan. None
    of it is written here, because a screen that invents its own explanation is
-   a screen that will eventually lie. */
-export function SetupFlow({ onExit }: { onExit: () => void }) {
-  const [step, setStep] = useState<Step>('scanning');
+   a screen that will eventually lie.
+
+   `onExit(installed)`: only an install that actually completed may mark setup
+   complete. Closing out of a blocked or unfinished setup leaves the flag
+   false, so the next launch comes back here instead of dropping the person
+   into an empty house that dials a backend which does not exist. */
+export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) {
+  const [step, setStep] = useState<Step>('welcome');
+  const [blockedKind, setBlockedKind] = useState<BlockedKind>('scan-failed');
   const [machine, setMachine] = useState<Machine | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [dest, setDest] = useState('');
+  const [destFree, setDestFree] = useState<number | null>(null);
   const [sims, setSims] = useState<string[]>([]);
   const [sim, setSim] = useState<string | undefined>(undefined);
+  const [connectNote, setConnectNote] = useState(false);
 
   const run = useCallback(async (simulate?: string) => {
     setStep('scanning');
     setError(null);
     setProgress([]);
+    setDestFree(null);
+    let m: Machine;
     try {
-      const m = await scan(simulate);
+      m = await scan(simulate);
       setMachine(m);
+    } catch (e) {
+      setError(String(e));
+      setBlockedKind('scan-failed');
+      setStep('blocked');
+      return;
+    }
+    try {
       const p = await makePlan(simulate);
       setPlan(p);
       setStep('found');
     } catch (e) {
       setError(String(e));
+      setBlockedKind('refused');
       setStep('blocked');
     }
   }, []);
@@ -62,16 +88,53 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (!hasProbe()) {
       setError('The hardware scan only runs inside the packaged app, not the browser dev server.');
+      setBlockedKind('no-probe');
       setStep('blocked');
       return;
     }
     loadFixtures().then(setSims).catch(() => {});
     modelDir().then(setDest).catch(() => {});
-    run();
-  }, [run]);
+  }, []);
+
+  /* The chosen destination decides which volume the free-disk figure and the
+     disk warning describe, so the plan follows the box. Debounced: this fires
+     per keystroke while someone types a path. Fixtures keep their recorded
+     numbers; recomputing them against this machine's disks would overwrite
+     the story the fixture exists to tell. */
+  const destSeq = useRef(0);
+  useEffect(() => {
+    if (step !== 'found' || sim || !dest.trim()) return;
+    const seq = ++destSeq.current;
+    const t = window.setTimeout(() => {
+      Promise.all([freeDisk(dest), makePlan(undefined, dest)])
+        .then(([free, p]) => {
+          if (seq !== destSeq.current) return;
+          setDestFree(free);
+          setPlan(p);
+        })
+        .catch(() => {
+          /* an unfinished path mid-typing; the last good plan stands */
+        });
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [dest, sim, step]);
+
+  const browse = async () => {
+    try {
+      const picked = await openDialog({
+        directory: true,
+        defaultPath: dest || undefined,
+        title: 'Where the model weights go',
+      });
+      if (typeof picked === 'string' && picked) setDest(picked);
+    } catch {
+      /* dialog unavailable; the text box still works */
+    }
+  };
 
   const startDownload = async () => {
     setStep('installing');
+    setError(null);
     try {
       await download(
         (p) =>
@@ -106,13 +169,45 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
           setSim(s);
           run(s);
         }}
-        onExit={onExit}
+        onExit={() => onExit(step === 'done')}
       />
 
+      {step === 'welcome' && (
+        <>
+          <Panel title="Let's build your Hearth.">
+            <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">
+              A companion that lives on your own machine. Your conversations, your memory, and
+              your persona's voice never leave it.
+            </p>
+            <p className="mx-auto mt-3 max-w-[58ch] text-[15px] leading-relaxed text-fawn">
+              Setting up takes about fifteen minutes, and most of that is waiting for downloads.
+            </p>
+          </Panel>
+          <div className="mt-8 flex items-center justify-center gap-3">
+            <button
+              onClick={() => run()}
+              className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream"
+            >
+              Get started
+            </button>
+            <button
+              onClick={() => setConnectNote(true)}
+              className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn"
+            >
+              I already have a Hearth
+            </button>
+          </div>
+          {connectNote && (
+            <p className="mx-auto mt-4 max-w-[52ch] text-[13.5px] leading-snug text-fawn">
+              Connecting to a Hearth that already runs on another machine is coming, but this
+              build cannot do it yet. It can only install a new one here.
+            </p>
+          )}
+        </>
+      )}
+
       {step === 'blocked' && (
-        <Panel title="Cannot go on">
-          <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">{error}</p>
-        </Panel>
+        <Blocked kind={blockedKind} error={error} onRescan={() => run(sim)} />
       )}
 
       {step === 'scanning' && (
@@ -124,11 +219,26 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
       )}
 
       {step === 'found' && machine && plan && (
-        <Found machine={machine} plan={plan} dest={dest} onDest={setDest} onGo={startDownload} />
+        <Found
+          machine={machine}
+          plan={plan}
+          dest={dest}
+          destFree={destFree}
+          onDest={setDest}
+          onBrowse={browse}
+          onGo={startDownload}
+        />
       )}
 
       {(step === 'installing' || step === 'done') && plan && (
-        <Installing plan={plan} progress={progress} done={step === 'done'} error={error} />
+        <Installing
+          plan={plan}
+          progress={progress}
+          done={step === 'done'}
+          error={error}
+          onRetry={startDownload}
+          onFinish={() => onExit(true)}
+        />
       )}
       </div>
     </div>
@@ -144,17 +254,70 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+/* Three causes, three answers.
+
+   The refusal is the one a real person can meet, and it must not strand them:
+   the plan's own sentence says why, and the way forward is the client-only
+   path once it exists. Close here deliberately does NOT mark setup complete;
+   nothing was installed, so there is no house to drop into. */
+function Blocked({
+  kind,
+  error,
+  onRescan,
+}: {
+  kind: BlockedKind;
+  error: string | null;
+  onRescan: () => void;
+}) {
+  if (kind === 'refused') {
+    return (
+      <Panel title="Hearth cannot run on this machine.">
+        <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">{error}</p>
+        <p className="mx-auto mt-4 max-w-[58ch] text-[15px] leading-relaxed text-fawn">
+          This is about memory, not disk space, so freeing things up will not change it. A
+          machine like this will still be able to join a Hearth that runs on another computer
+          in your home. That is coming; this build cannot do it yet.
+        </p>
+      </Panel>
+    );
+  }
+  if (kind === 'scan-failed') {
+    return (
+      <Panel title="The scan could not read this machine.">
+        <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">{error}</p>
+        <div className="mt-5">
+          <button
+            onClick={onRescan}
+            className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream"
+          >
+            Try again
+          </button>
+        </div>
+      </Panel>
+    );
+  }
+  return (
+    <Panel title="Cannot go on">
+      <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">{error}</p>
+    </Panel>
+  );
+}
+
 function Found({
   machine,
   plan,
   dest,
+  destFree,
   onDest,
+  onBrowse,
   onGo,
 }: {
   machine: Machine;
   plan: Plan;
   dest: string;
+  destFree: number | null;
   onDest: (v: string) => void;
+  onBrowse: () => void;
   onGo: () => void;
 }) {
   const gpu = machine.gpu;
@@ -172,7 +335,7 @@ function Found({
           <Row k="System" v={`${machine.os} / ${machine.arch}`} />
           <Row k="Graphics" v={gpu?.name ?? 'none detected'} />
           <Row k={gpu?.vram_bytes ? 'Video memory' : 'Memory'} v={human(memory)} />
-          <Row k="Free disk" v={human(machine.free_disk_bytes)} />
+          <Row k="Free disk" v={human(destFree ?? machine.free_disk_bytes)} />
           {machine.wsl_present !== null && (
             <Row k="Linux subsystem" v={machine.wsl_present ? 'Ready' : 'Not installed'} />
           )}
@@ -238,11 +401,24 @@ function Found({
         <span className="text-[11.5px] font-semibold uppercase tracking-wide text-fawn">
           Where the weights go
         </span>
-        <input
-          value={dest}
-          onChange={(e) => onDest(e.target.value)}
-          className="mt-2 w-full rounded-full border border-linen bg-parchment px-4 py-2.5 text-[14px] outline-none"
-        />
+        <div className="mt-2 flex gap-2">
+          <input
+            value={dest}
+            onChange={(e) => onDest(e.target.value)}
+            className="w-full flex-1 rounded-full border border-linen bg-parchment px-4 py-2.5 text-[14px] outline-none"
+          />
+          <button
+            onClick={onBrowse}
+            className="rounded-full border border-linen bg-parchment px-4 py-2.5 text-[13.5px] font-semibold text-fawn"
+          >
+            Browse
+          </button>
+        </div>
+        {destFree !== null && (
+          <span className="mt-1.5 block text-[12.5px] text-fawn">
+            {human(destFree)} free where this points.
+          </span>
+        )}
       </label>
 
       <div className="mt-7 flex justify-center gap-3 pb-4">
@@ -262,24 +438,42 @@ function Installing({
   progress,
   done,
   error,
+  onRetry,
+  onFinish,
 }: {
   plan: Plan;
   progress: Progress[];
   done: boolean;
   error: string | null;
+  onRetry: () => void;
+  onFinish: () => void;
 }) {
-  const total = plan.total_download_bytes;
-  const got = progress.reduce(
-    (n, p) => n + (p.state === 'done' ? p.totalBytes : p.doneBytes),
+  /* Items the runtime fetches later are skipped here, so they cannot count
+     toward this screen's total: a bar whose denominator includes bytes it
+     will never fetch tops out at a fraction and reads as a freeze. Measure
+     against what this screen actually downloads. */
+  const skippedBytes = progress.reduce(
+    (n, p) => n + (p.state === 'skipped' ? p.totalBytes : 0),
     0,
   );
-  const pct = total ? Math.min(100, (got / total) * 100) : 0;
+  const total = plan.total_download_bytes - skippedBytes;
+  const got = progress.reduce(
+    (n, p) =>
+      n +
+      (p.state === 'done' || p.state === 'verifying'
+        ? p.totalBytes
+        : p.state === 'skipped'
+          ? 0
+          : p.doneBytes),
+    0,
+  );
+  const pct = total ? Math.min(100, (got / total) * 100) : done ? 100 : 0;
   return (
     <>
       <Panel title={done ? 'Downloaded.' : 'Setting up.'}>
         <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">
           {done
-            ? 'Everything the plan asked for is on disk.'
+            ? 'Everything the plan asked for is on disk, checked against its published fingerprint.'
             : 'You can leave this running. Nothing here needs you.'}
         </p>
       </Panel>
@@ -314,11 +508,13 @@ function Installing({
                 <span className="ml-auto text-[13px] tabular-nums text-fawn">
                   {p && state === 'downloading'
                     ? `${human(p.doneBytes)} / ${human(p.totalBytes)}`
-                    : state === 'skipped'
-                      ? p?.message
-                      : state === 'done'
-                        ? human(d.bytes)
-                        : ''}
+                    : p && state === 'verifying'
+                      ? `checking ${human(p.doneBytes)} / ${human(p.totalBytes)}`
+                      : state === 'skipped'
+                        ? p?.message
+                        : state === 'done'
+                          ? human(d.bytes)
+                          : ''}
                 </span>
               </div>
             );
@@ -327,7 +523,26 @@ function Installing({
 
         {error && (
           <div className="mt-5 rounded-xl border border-bubble-line bg-bubble px-4 py-3 text-left text-[13.5px]">
-            {error}
+            <p>{error}</p>
+            {/* The fetch resumes from where it stopped, so retrying a dropped
+                connection is cheap and the button says so. */}
+            <button
+              onClick={onRetry}
+              className="mt-3 rounded-full bg-roast px-5 py-2 text-[13.5px] font-bold text-cream"
+            >
+              Retry download
+            </button>
+          </div>
+        )}
+
+        {done && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={onFinish}
+              className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream"
+            >
+              Go to the house
+            </button>
           </div>
         )}
       </div>
@@ -379,7 +594,9 @@ function DevBar({
   return (
     <div className="flex w-full flex-wrap items-center gap-2 border-b border-linen pb-3 text-left text-[12px]">
       {/* Machine simulation is a building tool. Close stays outside the gate,
-          or turning developer mode off would trap you in the setup view. */}
+          or turning developer mode off would trap you in the setup view. It
+          leaves setup without claiming an install happened; only a finished
+          download marks setup complete. */}
       {loadSettings().developerMode && (
         <>
       <span className="text-fawn">Pretend to be:</span>

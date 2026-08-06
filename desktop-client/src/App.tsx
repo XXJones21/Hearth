@@ -73,8 +73,12 @@ export default function App() {
            surface. This matches hearth-setup-flow.html. */
         <div className="relative z-[1] flex h-full max-h-[min(860px,calc(100vh_-_3rem))] w-full max-w-[900px] flex-col overflow-hidden rounded-[26px] bg-fluff shadow-frame">
           <SetupFlow
-            onExit={() => {
-              saveSettings({ setupComplete: true });
+            onExit={(installed) => {
+              /* Only a completed install marks setup complete. Closing out of
+                 a blocked or unfinished setup must not: the flag is the only
+                 thing standing between a fresh install and adopting whatever
+                 backend is already listening on this machine. */
+              if (installed) saveSettings({ setupComplete: true });
               setShowSetup(false);
             }}
           />

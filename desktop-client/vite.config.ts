@@ -5,8 +5,9 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  // 18700 is Hearth's own block; see src/lib/config.ts for why it is not 8700.
   const personaAssetTarget =
-    env.VITE_HEARTH_HTTP_ORIGIN || 'http://127.0.0.1:8700';
+    env.VITE_HEARTH_HTTP_ORIGIN || 'http://127.0.0.1:18700';
 
   return {
     plugins: [react(), tailwindcss()],

@@ -93,7 +93,7 @@ export function parseAddress(raw: string): { ws: string; http: string } | null {
   const stripped = trimmed.replace(/^(wss?|https?):\/\//i, '');
   const secure = /^(wss|https):\/\//i.test(trimmed);
   if (!stripped) return null;
-  const hostPort = stripped.includes(':') ? stripped : `${stripped}:8700`;
+  const hostPort = stripped.includes(':') ? stripped : `${stripped}:18700`;
   if (!/^[A-Za-z0-9._-]+(:\d{1,5})?$/.test(hostPort)) return null;
   return {
     ws: `${secure ? 'wss' : 'ws'}://${hostPort}`,

@@ -1,7 +1,13 @@
 import { loadSettings, parseAddress } from './settings';
 
-const defaultWs = 'ws://127.0.0.1:8700';
-const defaultHttp = 'http://127.0.0.1:8700';
+/* Hearth's own port block. 18700 by design, NOT 8700: the development machine
+   runs the internal Valinor stack on 8700, and a Hearth build that defaults to
+   it will discover that running house and adopt its data as the new user's.
+   Distinct defaults are what let a test install and the daily driver share a
+   machine without ever sharing a backend. The Hearth backend provisioner
+   binds this same block. */
+const defaultWs = 'ws://127.0.0.1:18700';
+const defaultHttp = 'http://127.0.0.1:18700';
 
 /* The build-time env is the DEFAULT, not the answer. Settings > Connection
    overrides it at runtime and persists the choice, which is what makes the

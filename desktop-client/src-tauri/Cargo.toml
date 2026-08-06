@@ -26,6 +26,9 @@ tauri-plugin-log = "2"
 # Settings > On disk hands a path to the OS file browser. Any plugin needs
 # BOTH this dep and an entry in capabilities/default.json.
 tauri-plugin-opener = "2"
+# The destination picker on the found screen. Same rule: dep here, entry in
+# capabilities/default.json, package in package.json.
+tauri-plugin-dialog = "2"
 # The hardware scan, the model dictionary and the download. Same crate the CLI
 # and the installation skill use, so all three give identical answers.
 hearth-probe = { path = "../../crates/hearth-probe" }

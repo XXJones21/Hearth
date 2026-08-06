@@ -33,6 +33,7 @@ export type PlanDownload = {
   file: string | null;
   bytes: number;
   url: string | null;
+  sha256: string | null;
 };
 
 export type Plan = {
@@ -63,7 +64,7 @@ export type Progress = {
   what: string;
   doneBytes: number;
   totalBytes: number;
-  state: 'downloading' | 'done' | 'skipped' | 'failed';
+  state: 'downloading' | 'verifying' | 'done' | 'skipped' | 'failed';
   message?: string;
 };
 
@@ -74,12 +75,17 @@ export const hasProbe = () =>
 export const scan = (simulate?: string) =>
   invoke<Machine>('probe_scan', { simulate: simulate ?? null });
 
-export const makePlan = (simulate?: string) =>
-  invoke<Plan>('probe_plan', { simulate: simulate ?? null });
+/** `dest` re-anchors the free-disk figure to the chosen destination volume.
+ *  Ignored for fixtures, whose recorded disk numbers are the point. */
+export const makePlan = (simulate?: string, dest?: string) =>
+  invoke<Plan>('probe_plan', { simulate: simulate ?? null, dest: dest ?? null });
 
 export const fixtures = () => invoke<string[]>('probe_fixtures');
 
 export const modelDir = () => invoke<string>('probe_model_dir');
+
+/** Free bytes on the volume containing `path`. */
+export const freeDisk = (path: string) => invoke<number>('probe_free_disk', { path });
 
 export function download(
   onProgress: (p: Progress) => void,

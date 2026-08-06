@@ -38,11 +38,29 @@ pub fn probe_scan(simulate: Option<String>) -> Result<machine::Machine, String> 
 }
 
 /// Decide what to run. Pure, given a machine.
+///
+/// `dest` is the user's chosen weights destination. On a real scan the free
+/// disk figure is recomputed against it, so the disk warning describes the
+/// volume the download will actually land on rather than the default's.
+/// Fixtures keep their recorded number: they exist to exercise the screens,
+/// and this machine's disks would overwrite the story they tell.
 #[tauri::command]
-pub fn probe_plan(simulate: Option<String>) -> Result<plan::Plan, String> {
-    let m = machine_for(simulate)?;
+pub fn probe_plan(simulate: Option<String>, dest: Option<String>) -> Result<plan::Plan, String> {
+    let mut m = machine_for(simulate.clone())?;
+    if simulate.is_none() {
+        if let Some(d) = dest.filter(|d| !d.trim().is_empty()) {
+            m.free_disk_bytes = machine::free_disk_for(&PathBuf::from(d));
+        }
+    }
     let d = Dictionary::embedded().map_err(|e| e.to_string())?;
     plan(&m, &d).map_err(|e| e.to_string())
+}
+
+/// Free space on the volume containing `path`, for the found screen to show
+/// while the user is choosing a destination.
+#[tauri::command]
+pub fn probe_free_disk(path: String) -> u64 {
+    machine::free_disk_for(&PathBuf::from(path))
 }
 
 /// The machines that can be simulated, for the developer picker.
@@ -57,7 +75,9 @@ pub fn probe_model_dir() -> String {
     machine::default_model_dir().to_string_lossy().to_string()
 }
 
-/// Fetch everything the plan asks for, reporting progress.
+/// Fetch everything the plan asks for, reporting progress, verifying each
+/// file's sha256 where the dictionary carries one, and writing the install
+/// record beside the weights when everything has landed.
 ///
 /// Runs on a blocking thread: the transfer is synchronous and multi-gigabyte,
 /// and it must not sit on the UI runtime.
@@ -67,12 +87,19 @@ pub async fn probe_download(
     dest: Option<String>,
     on_progress: Channel<Progress>,
 ) -> Result<Vec<String>, String> {
-    let m = machine_for(simulate)?;
-    let d = Dictionary::embedded().map_err(|e| e.to_string())?;
-    let p = plan(&m, &d).map_err(|e| e.to_string())?;
+    let mut m = machine_for(simulate.clone())?;
     let dir = dest
+        .clone()
+        .filter(|d| !d.trim().is_empty())
         .map(PathBuf::from)
         .unwrap_or_else(machine::default_model_dir);
+    // The plan the record keeps must be the plan the user saw, so the same
+    // dest-aware free-disk override probe_plan applies happens here too.
+    if simulate.is_none() {
+        m.free_disk_bytes = machine::free_disk_for(&dir);
+    }
+    let d = Dictionary::embedded().map_err(|e| e.to_string())?;
+    let p = plan(&m, &d).map_err(|e| e.to_string())?;
 
     tauri::async_runtime::spawn_blocking(move || {
         let mut landed = Vec::new();
@@ -103,7 +130,27 @@ pub async fn probe_download(
                 });
             };
 
-            match hearth_probe::download::fetch_with(&url, &out, Some(item.bytes), &mut report) {
+            let fetched =
+                hearth_probe::download::fetch_with(&url, &out, Some(item.bytes), &mut report)
+                    .and_then(|path| {
+                        if let Some(want) = item.sha256.as_deref() {
+                            let ch = on_progress.clone();
+                            let label = what.clone();
+                            let mut hashing = move |done: u64, total: u64| {
+                                let _ = ch.send(Progress {
+                                    what: label.clone(),
+                                    done_bytes: done,
+                                    total_bytes: total,
+                                    state: "verifying".into(),
+                                    message: None,
+                                });
+                            };
+                            hearth_probe::download::verify_sha256(&path, want, &mut hashing)?;
+                        }
+                        Ok(path)
+                    });
+
+            match fetched {
                 Ok(path) => {
                     let _ = on_progress.send(Progress {
                         what: what.clone(),
@@ -126,6 +173,38 @@ pub async fn probe_download(
                 }
             }
         }
+
+        /* The install record. The only durable evidence of what this install
+           chose and where it put things. localStorage is a browser flag that
+           dies with the webview profile; this file is what a support
+           conversation, an upgrade, or the backend provisioner reads. */
+        let record = serde_json::json!({
+            "version": 1,
+            "completed_unix": std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|t| t.as_secs())
+                .unwrap_or(0),
+            "machine": &m,
+            "plan": &p,
+            "weights_dir": dir.to_string_lossy(),
+            "landed": &landed,
+        });
+        let record_path = dir.join("hearth-install.json");
+        if let Err(e) = std::fs::write(
+            &record_path,
+            serde_json::to_string_pretty(&record).unwrap_or_default(),
+        ) {
+            // The weights are down; a missing record is worth a warning, not
+            // a failed install.
+            let _ = on_progress.send(Progress {
+                what: "install record".into(),
+                done_bytes: 0,
+                total_bytes: 0,
+                state: "failed".into(),
+                message: Some(format!("could not write {}: {}", record_path.display(), e)),
+            });
+        }
+
         Ok(landed)
     })
     .await
