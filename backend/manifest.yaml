@@ -1,0 +1,257 @@
+# The backend manifest.
+#
+# Section A of tasks/m14-migration-plan.md in machine-readable form: every
+# component that crosses from the Valinor repository into this one, where it
+# lands, and what happened to it on the way. Written before anything was
+# copied, so the copy was a script rather than forty judgment calls.
+#
+# Three readers depend on this file:
+#   - the copy pass, which ran it once (commit "the verbatim copy")
+#   - tools/sync-report.py, which asks Valinor what has changed in the source
+#     paths since the copy tag
+#   - the two platform builders, later, which read `destination` to lay out
+#     the product tree
+#
+# `disposition` is one of:
+#   verbatim   copied byte for byte, no edit of any kind
+#   edits      copied, then changed by the rename pass or a de-literal group
+#   generated  does not exist in Valinor; authored here
+#   excluded   deliberately did not cross; see the `excluded` section
+
+version: 1
+copied_on: 2026-08-06
+source:
+  repo: Valinor
+  # The rollback point. Every source path below was read at this commit.
+  tag: rc-pre-hearth-move
+  commit: 8a47cc1ffefede8c9ba336d822151391caaa847f
+destination:
+  # HEARTH_ROOT points here in a checkout, and at /opt/hearth in the image.
+  root: backend/
+
+components:
+  - name: harness
+    source: Valar/valar/
+    destination: backend/harness/valar/
+    kind: directory
+    disposition: edits
+    note: >-
+      The gateway package. Five tool handlers and the two agent modules behind
+      them did not cross; see `excluded`. journal.py, forge.py, settings.py and
+      personas_api.py were changed by the de-literal groups.
+    exclude:
+      - tools/handlers/choam_wallet.py
+      - tools/handlers/uefn.py
+      - tools/handlers/wright.py
+      - tools/handlers/mentat.py
+      - tools/handlers/projects.py
+      - tools/mentat_runs.yaml
+      - agents/mentat_conductor.py
+      - agents/wright_plan.py
+
+  - name: harness-entrypoints
+    source: Valar/
+    destination: backend/harness/
+    kind: files
+    disposition: edits
+    files:
+      - app.py
+      - tts_app.py
+      - requirements.txt
+    note: >-
+      app.py and tts_app.py are verbatim. requirements.txt gains pyyaml and
+      torchaudio, both of which the running stack needs and neither of which
+      was declared (portability ledger section 9).
+
+  - name: harness-assets
+    source: Valar/assets/
+    destination: backend/harness/assets/
+    kind: directory
+    disposition: generated
+    note: >-
+      The generated-image output directory. Its contents in Valinor are
+      untracked run output, so only the directory itself crosses, held open by
+      a .gitkeep.
+
+  - name: shelf-data
+    source: hearth-pitch/mockups/selene-pages.json
+    destination: backend/harness/valar/data/selene-pages.json
+    kind: file
+    disposition: verbatim
+    note: >-
+      Curated Journal shelf summaries, read at runtime. It lived in a pitch
+      deck's mockup folder, which is the reason it was the item most likely to
+      be lost. journal.py now reads it from here.
+
+  - name: memory
+    source: Server/tools/
+    destination: backend/memory/
+    kind: files
+    disposition: edits
+    files:
+      - __init__.py
+      - brain_sync.py
+      - engram_writer.py
+    note: >-
+      The only two modules Valar imports from Server/ under the OmniVoice
+      configuration. Both had D:/Tools/personalAI/Engram in a candidate list
+      with no override; the candidate is deleted and HEARTH_ENGRAM is the only
+      path. brain_sync.py's 25-entry table of one person's projects went with
+      it; project inference now reads the directory.
+
+  - name: supervisor
+    source: rust/valinor-server/
+    destination: backend/supervisor/
+    kind: directory
+    disposition: edits
+    note: >-
+      The model control plane. Crate renamed valinor-server to
+      hearth-supervisor, every VALINOR_ environment name became HEARTH_, and
+      the repo-root literal became a derivation from the executable's own
+      location. The OpenCode preflight the plan calls for removing was already
+      gone at the source tag; only two comments referred to it.
+
+  - name: personas
+    source: Persona/
+    destination: backend/personas/
+    kind: directory
+    disposition: edits
+    subdirs:
+      - Sulivan
+      - Selene
+    note: >-
+      Two of twelve. deep_model stopped carrying an absolute path under one
+      Linux user's home and now names a model id the dictionary resolves.
+      escalation_model, declared but never wired, was dropped rather than
+      carried across with a path nothing can resolve.
+
+  - name: scripts
+    source: scripts/
+    destination: backend/scripts/
+    kind: files
+    disposition: edits
+    files:
+      - source: scripts/valar_run.sh
+        destination: backend/scripts/harness_run.sh
+      - source: scripts/valar_tts_run.sh
+        destination: backend/scripts/voice_run.sh
+      - source: start_valinor_rust_server_mentat_hermes.sh
+        destination: backend/scripts/supervisor_run.sh
+      - source: scripts/valar_install_service.sh
+        destination: backend/scripts/install_units.sh
+      - source: scripts/valar_wsl_env_build.sh
+        destination: backend/scripts/build_env.sh
+    note: >-
+      All five derive HEARTH_ROOT from their own location. install_units.sh is
+      a rewrite rather than a port: the Valinor original installs the retired
+      NeuTTS unit and never installs the OmniVoice unit that the gateway
+      declares in After=, so running it produces a broken stack.
+
+  - name: systemd
+    source: scripts/systemd/
+    destination: backend/systemd/
+    kind: files
+    disposition: edits
+    files:
+      - source: scripts/systemd/valar.service
+        destination: backend/systemd/hearth-harness.service
+      - source: scripts/systemd/valar-tts-omni.service
+        destination: backend/systemd/hearth-voice.service
+      - source: scripts/systemd/valinor-rust.service
+        destination: backend/systemd/hearth-supervisor.service
+    note: >-
+      Three units. The /home/jones PATH literals became the %h specifier, the
+      ExecStart literals became $HEARTH_ROOT, and each unit reads
+      EnvironmentFile=-%h/.hearth/config/hearth.env. The supervisor unit lost
+      Environment=VALINOR_LLAMA_CTX=16384, which overrode every persona's
+      declared context unconditionally.
+
+  - name: config-schema
+    source: scripts/systemd/dropins/
+    destination: backend/config/hearth.env.example
+    kind: file
+    disposition: generated
+    note: >-
+      The three shipping drop-ins became three lines of one generated file.
+      wright-env.conf left with Wright. The mechanism did not cross; only the
+      content did.
+
+  - name: config-renderer
+    source: null
+    destination: backend/scripts/render_config.py
+    kind: file
+    disposition: generated
+    note: >-
+      Reads a hearth-install.json written by hearth-probe and writes
+      hearth.env. Not yet wired to any service; the units read the file it
+      writes, and the installer that calls it is M13 movement 2.
+
+  - name: model-resolver
+    source: null
+    destination:
+      - backend/harness/valar/models.py
+      - backend/supervisor/src/models.rs
+    kind: files
+    disposition: generated
+    note: >-
+      Joins HEARTH_MODELS with the filename crates/hearth-probe/dictionary.yaml
+      records for a model id. Two implementations because the gateway and the
+      supervisor are separate processes in different languages and both turn a
+      persona into a model path.
+
+  - name: drift-report
+    source: null
+    destination: tools/sync-report.py
+    kind: file
+    disposition: generated
+    note: >-
+      Reads this manifest, runs git log against Valinor for every source path
+      in it, and prints what has changed since the copy tag. It reports; it
+      never copies. An automatic re-sync would clobber the de-literal edits,
+      which are the entire value of this migration.
+
+# Deliberately did not cross. One line of why for each, so the boundary is
+# decided once rather than re-argued per file.
+excluded:
+  - source: Valar/valar/tools/handlers/choam_wallet.py
+    why: personal trading integration against a wallet backend in no repository
+  - source: Valar/valar/tools/handlers/uefn.py
+    why: game-development editor bridge, and it hard-codes a Windows username
+  - source: Valar/valar/tools/handlers/wright.py
+    why: the game-development harness, which needs a UEFN install
+  - source: Valar/valar/tools/handlers/mentat.py
+    why: the coding-agent conductor, a developer surface rather than a product one
+  - source: Valar/valar/tools/handlers/projects.py
+    why: reads one person's project notes out of their own Engram tree
+  - source: Valar/valar/tools/mentat_runs.yaml
+    why: twenty-two absolute paths, every run a personal project
+  - source: Valar/valar/agents/mentat_conductor.py
+    why: only the excluded Mentat handler imported it
+  - source: Valar/valar/agents/wright_plan.py
+    why: only the excluded Wright handler imported it
+  - source: Valar/tests/
+    why: the smoke suite exercises the Mentat conductor, which did not cross
+  - source: Valar/README.md
+    why: documents the Valinor layout, and its context budget disagrees with the code
+  - source: Valar/.env.example
+    why: superseded by backend/config/hearth.env.example
+  - source: Server/skills/
+    why: the five-stage pipeline is reachable only from a launcher nothing starts
+  - source: Server/agents/
+    why: same, and it binds the ports the supervisor already holds
+  - source: Server/tools/tts_generator.py
+    why: NeuTTS only, and Hearth ships one voice engine
+  - source: Server/tools/model_manager.py
+    why: NeuTTS only, imported by nothing on the OmniVoice path
+  - source: scripts/systemd/valar-tts.service
+    why: the retired NeuTTS engine, present on the machine but not enabled
+  - source: scripts/systemd/dropins/valar.service.d--wright-env.conf
+    why: Wright grounding paths pointing at a specific game on a specific drive
+  - source: scripts/valar_portproxy.ps1
+    why: Windows-side, and it hard-codes the distro name; Hearth needs a parameterised equivalent
+  - source: scripts/valar_llama_cuda_rebuild.sh
+    why: builds a Windows binary; the image fetches a pinned upstream llama-server
+  - source: scripts/comfy_bridge.ps1
+    why: image generation is an open decision in the component catalog
+  - source: Engram/
+    why: one person's memory. A Hearth install seeds an empty tree and never clones anyone else's.
