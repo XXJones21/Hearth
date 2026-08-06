@@ -716,7 +716,7 @@ fn comfy_error_response(err: ComfyError) -> axum::response::Response {
 }
 
 fn direct_max_tokens_cap() -> u64 {
-    std::env::var("VALINOR_RUST_DIRECT_MAX_TOKENS")
+    std::env::var("HEARTH_RUST_DIRECT_MAX_TOKENS")
         .ok()
         .and_then(|value| value.trim().parse::<u64>().ok())
         .filter(|value| *value > 0)

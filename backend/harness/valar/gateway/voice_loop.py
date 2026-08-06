@@ -218,7 +218,7 @@ class VoiceLoop:
         )
 
         # --- FLAG-GATED TOOL ROUND-TRIP (Keystone 2) --------------------------
-        # Additive + opt-in. With VALAR_TOOLS_ENABLED off (default) this whole
+        # Additive + opt-in. With HEARTH_TOOLS_ENABLED off (default) this whole
         # block is skipped: `messages` and the streaming call below are byte-for-
         # byte today's behavior. When enabled with a non-empty registry, run ONE
         # tool-aware (non-streaming) round-trip; if the brain called tools, the

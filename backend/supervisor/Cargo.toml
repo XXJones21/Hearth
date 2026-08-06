@@ -1,5 +1,11 @@
+# Standalone rather than a member of the repository root workspace. The root
+# workspace covers the client and the probe, which build for the host; this
+# crate builds for the Linux side of the product tree and keeps its own
+# lockfile, exactly as it did in Valinor.
+[workspace]
+
 [package]
-name = "valinor-server"
+name = "hearth-supervisor"
 version = "0.1.0"
 edition = "2021"
 

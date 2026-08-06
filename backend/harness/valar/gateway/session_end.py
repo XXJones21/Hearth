@@ -1,6 +1,6 @@
 """Auto session-end -- the harness-owned idle watchdog's action.
 
-After ``VALAR_SESSION_IDLE_S`` with no turns, Valar ends the session itself:
+After ``HEARTH_SESSION_IDLE_S`` with no turns, Valar ends the session itself:
 summarize the conversation through its own brain seam, persist (Engram diary +
 SCX continuity note) via the standalone ``persist_session`` handler, notify the
 client (``session_ended``), and clear the history for a fresh start. Owned by

@@ -219,14 +219,14 @@ fn print_dry_run(config: &ServerConfig) -> Result<()> {
             "reasoning": config.llama_reasoning,
             "cuda_unified_memory": {
                 "enabled": config.llama_cuda_unified_memory,
-                "child_env": "GGML_CUDA_ENABLE_UNIFIED_MEMORY=1 when enabled (see VALINOR_LLAMA_CUDA_UNIFIED_MEMORY)"
+                "child_env": "GGML_CUDA_ENABLE_UNIFIED_MEMORY=1 when enabled (see HEARTH_LLAMA_CUDA_UNIFIED_MEMORY)"
             },
             "health_timeout_s": config.llama_health_timeout_s,
             "direct_chat_timeout_s": config.direct_chat_timeout_s,
             "direct_smoke_timeout_s": config.direct_smoke_timeout_s,
             "generic_llm_max_input_chars": config.generic_llm_max_input_chars,
             "generic_llm_max_output_tokens": config.generic_llm_max_output_tokens,
-            "runtime_probe_command": "cargo run --manifest-path rust/valinor-server/Cargo.toml -- --probe-runtime"
+            "runtime_probe_command": "cargo run --manifest-path rust/hearth-supervisor/Cargo.toml -- --probe-runtime"
         },
         "mentat_worker": {
             "enabled": config.mentat_worker_enabled,

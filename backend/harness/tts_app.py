@@ -1,6 +1,6 @@
 """Valar TTS service entry point — the persistent NeuTTS-Air process.
 
-Run:  python tts_app.py   (binds 127.0.0.1:VALAR_TTS_PORT, default 8701)
+Run:  python tts_app.py   (binds 127.0.0.1:HEARTH_TTS_PORT, default 8701)
 
 Holds NeuTTS resident so the Valar gateway (app.py) can restart without reloading
 the GPU TTS model. Internal only; the gateway connects over ws://127.0.0.1:8701/tts.

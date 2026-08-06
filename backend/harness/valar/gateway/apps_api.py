@@ -54,7 +54,7 @@ _APPS: list[dict] = [
         "name": "Local ComfyUI",
         "kind": "local",
         "tagline": "Image generation on the GPU in this house",
-        "transport_env": ("VALAR_COMFY_URL", "http://127.0.0.1:8188"),
+        "transport_env": ("HEARTH_COMFY_URL", "http://127.0.0.1:8188"),
         "claims": ["generate_image", "check_image"],
     },
     {
@@ -96,7 +96,7 @@ _APPS: list[dict] = [
         "tagline": "Lights, locks, climate",
         "transport": "Not configured",
         "claims": ["hass_call"],
-        "needs": ["VALAR_HASS_URL", "VALAR_HASS_TOKEN"],
+        "needs": ["HEARTH_HASS_URL", "HEARTH_HASS_TOKEN"],
     },
     {
         "key": "calendar",
@@ -105,7 +105,7 @@ _APPS: list[dict] = [
         "tagline": "Schedule and reminders",
         "transport": "Not signed in",
         "claims": ["calendar_today", "calendar_next"],
-        "needs": ["VALAR_GOOGLE_CLIENT_SECRET", "VALAR_GOOGLE_TOKEN"],
+        "needs": ["HEARTH_GOOGLE_CLIENT_SECRET", "HEARTH_GOOGLE_TOKEN"],
     },
 ]
 
@@ -307,7 +307,7 @@ def register(app: FastAPI, config: ValarConfig) -> None:
 # writes that persona's `tool_grants.domains`. Both are read ONCE at process
 # start, so a change means a restart. Rather than hide that, the client
 # batches edits and the operator presses Save, which applies them and bounces
-# the service (Restart=always in scripts/systemd/valar.service brings it back
+# the service (Restart=always in scripts/systemd/hearth-harness.service brings it back
 # in about five seconds). Honest and legible beats a toggle that silently
 # does nothing until the next reboot.
 #

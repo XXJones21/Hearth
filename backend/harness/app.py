@@ -1,6 +1,6 @@
 """Valar single entry point (Odysseus-style FastAPI app).
 
-Run:  python app.py            (uses VALAR_HOST/VALAR_PORT, defaults 0.0.0.0:8700)
+Run:  python app.py            (uses HEARTH_HOST/HEARTH_PORT, defaults 0.0.0.0:8700)
   or: uvicorn app:app --host 0.0.0.0 --port 8700
 
 This is the ONLY surface exposed to clients. It calls the Rust brain (via the

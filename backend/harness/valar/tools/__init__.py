@@ -7,7 +7,7 @@ following the ``Server/skills/execute/execute.md`` precedent
 signature from ``spec.py``.
 
 IMPORTANT -- additive and opt-in. Nothing here is wired into ``voice_loop.run_turn``.
-The registry is built only when ``VALAR_TOOLS_ENABLED`` is truthy (default OFF),
+The registry is built only when ``HEARTH_TOOLS_ENABLED`` is truthy (default OFF),
 and even then the tool-calling round-trip is a *separate* module
 (``valar.tools.loop.ToolCallingLoop``) the gateway can choose to invoke. The
 working voice turn is unaffected until that wiring is added deliberately behind
@@ -35,7 +35,7 @@ DEFAULT_TOOLS_YAML = Path(__file__).resolve().parent / "tools.yaml"
 def tools_enabled() -> bool:
     """Whether the tool layer is opt-in enabled. Default OFF so the live voice
     turn is never changed implicitly."""
-    raw = os.environ.get("VALAR_TOOLS_ENABLED")
+    raw = os.environ.get("HEARTH_TOOLS_ENABLED")
     if raw is None:
         return False
     return raw.strip().lower() in ("1", "true", "yes", "on")
@@ -243,7 +243,7 @@ def build_registry(
     restricts the result to those tool names (a raw name subset); None
     means the full registry."""
     if not tools_enabled():
-        logger.info("VALAR_TOOLS_ENABLED is off; tool registry disabled (empty)")
+        logger.info("HEARTH_TOOLS_ENABLED is off; tool registry disabled (empty)")
         return ToolRegistry({})
     return ToolRegistry.from_yaml(path).subset(allow)
 
@@ -257,7 +257,7 @@ def resolve_registry(
     through the persona's ``tool_grants`` and the session's client capabilities.
     Empty when the tool layer is disabled."""
     if not tools_enabled():
-        logger.info("VALAR_TOOLS_ENABLED is off; tool registry disabled (empty)")
+        logger.info("HEARTH_TOOLS_ENABLED is off; tool registry disabled (empty)")
         return ToolRegistry({})
     return ToolRegistry.from_yaml(path).resolve(tool_grants, client_capabilities)
 

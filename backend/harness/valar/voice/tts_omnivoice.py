@@ -9,7 +9,7 @@ better quality (the NeuTTS artifacts are gone), naturally paced, warm RTF
 
 Implements the same streamer interface as ``NeuTTSStreamer``
 (``sync_persona_voice`` + ``stream_sentence``) for ``create_tts_app``'s backend
-fork (``VALAR_TTS_SERVICE=omnivoice``). Runs in the ISOLATED ``omnivoice-venv``
+fork (``HEARTH_TTS_SERVICE=omnivoice``). Runs in the ISOLATED ``omnivoice-venv``
 (its torch is newer than valar-venv's cu118 pin -- never install omnivoice into
 valar-venv).
 
@@ -43,7 +43,7 @@ NATIVE_SAMPLE_RATE = 24000
 # Diffusion steps: THE latency lever. 32 (model default) = RTF ~1.05 on the
 # shared 4080; 16 = RTF ~0.5 (parity with the NeuTTS pace it replaces) with
 # quality confirmed by ear. Override per deployment via env.
-DEFAULT_NUM_STEPS = int(os.environ.get("VALAR_OMNIVOICE_STEPS", "16"))
+DEFAULT_NUM_STEPS = int(os.environ.get("HEARTH_OMNIVOICE_STEPS", "16"))
 
 
 class OmniVoiceStreamer:

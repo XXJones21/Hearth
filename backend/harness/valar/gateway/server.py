@@ -387,7 +387,7 @@ def create_app(config: ValarConfig) -> FastAPI:
             else:
                 await websocket.send_text(json.dumps(payload))
 
-        # Harness-owned auto session-end: after VALAR_SESSION_IDLE_S with no
+        # Harness-owned auto session-end: after HEARTH_SESSION_IDLE_S with no
         # turns, persist (Engram diary + SCX continuity), emit session_ended,
         # and clear the history. Per-connection task; cancelled on disconnect.
         watchdog = asyncio.create_task(
@@ -489,7 +489,7 @@ def create_app(config: ValarConfig) -> FastAPI:
         # the shared GPU — WDDM pages Whisper out after idle minutes and the
         # next utterance pays 13-31s inline. A periodic tick keeps it resident;
         # the tick itself skips when a real inference ran within the interval.
-        keepwarm_s = float(os.environ.get("VALAR_STT_KEEPWARM_S", "90") or 0)
+        keepwarm_s = float(os.environ.get("HEARTH_STT_KEEPWARM_S", "90") or 0)
         if keepwarm_s > 0:
 
             async def _stt_keepwarm() -> None:

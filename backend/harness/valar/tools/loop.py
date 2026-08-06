@@ -27,7 +27,7 @@ Integration note (why this is not wired yet): the current ``BrainProvider.chat``
 streams plain text deltas and has no ``tools=`` parameter or ``tool_calls`` parse
 path. Wiring this requires (a) a non-streaming (or tool-aware) brain call that
 surfaces ``tool_calls`` and (b) a ``ChatOptions.tools`` field. Both are additive
-to the brain seam and must land behind ``VALAR_TOOLS_ENABLED`` with the voice path
+to the brain seam and must land behind ``HEARTH_TOOLS_ENABLED`` with the voice path
 defaulting to today's tool-free behavior. Until then this module documents the
 contract and offers ``maybe_run_tools`` as the seam a future gateway change calls.
 """

@@ -8,11 +8,11 @@ safety and the in-process single-writer lock. Routing Valar through it is the
 cross-client unification: one memory layer, one access contract.
 
 Transports (env):
-  VALAR_ENGRAM_TRANSPORT  "local" (default; in-process FS via the engram-mcp
+  HEARTH_ENGRAM_TRANSPORT  "local" (default; in-process FS via the engram-mcp
                           seams -- the co-located WSL path) or "http" (a remote
                           engram-mcp service; the off-box future).
-  VALAR_ENGRAM_URL        base URL for the http transport.
-  VALAR_ENGRAM_MCP_PATH   where the engram-mcp package lives (default:
+  HEARTH_ENGRAM_URL        base URL for the http transport.
+  HEARTH_ENGRAM_MCP_PATH   where the engram-mcp package lives (default:
                           <repo-parent>/claude-marketplace/engram-mcp).
 
 PORT NOTE: the engram-mcp http service DEFAULTS to 0.0.0.0:8765 -- which on
@@ -58,7 +58,7 @@ class EngramService:
         if self._failed:
             return None
         pkg = Path(
-            os.environ.get("VALAR_ENGRAM_MCP_PATH")
+            os.environ.get("HEARTH_ENGRAM_MCP_PATH")
             or (_REPO_ROOT.parent / "claude-marketplace" / "engram-mcp")
         )
         try:
@@ -66,8 +66,8 @@ class EngramService:
                 sys.path.insert(0, str(pkg))
             from engram_mcp.client import EngramClient  # type: ignore
 
-            transport = os.environ.get("VALAR_ENGRAM_TRANSPORT", "local")
-            base_url = os.environ.get("VALAR_ENGRAM_URL") or None
+            transport = os.environ.get("HEARTH_ENGRAM_TRANSPORT", "local")
+            base_url = os.environ.get("HEARTH_ENGRAM_URL") or None
             self._client = EngramClient(transport=transport, base_url=base_url)
             logger.info("EngramService up (transport=%s, pkg=%s)", transport, pkg)
         except Exception as exc:  # noqa: BLE001 - memory never breaks a turn

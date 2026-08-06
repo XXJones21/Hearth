@@ -493,7 +493,7 @@ impl LlamaSupervisor {
         let n_ctx = match (self.config.llama_ctx_override, persona_n_ctx) {
             (Some(override_ctx), Some(persona_ctx)) if override_ctx < persona_ctx => {
                 warn!(
-                    "VALINOR_LLAMA_CTX={} is below persona deep_model.n_ctx={}; \
+                    "HEARTH_LLAMA_CTX={} is below persona deep_model.n_ctx={}; \
                      using override but truncating context capacity",
                     override_ctx, persona_ctx
                 );
@@ -504,7 +504,7 @@ impl LlamaSupervisor {
             (None, None) => 16384,
         };
 
-        let env_cpu_moe = std::env::var("VALINOR_LLAMA_CPU_MOE")
+        let env_cpu_moe = std::env::var("HEARTH_LLAMA_CPU_MOE")
             .ok()
             .and_then(|v| v.trim().parse::<u64>().ok())
             .filter(|n| *n > 0);
@@ -513,7 +513,7 @@ impl LlamaSupervisor {
             .get("kv_cache_type")
             .and_then(Value::as_str)
             .map(|s| s.to_string());
-        let env_override_tensor = std::env::var("VALINOR_LLAMA_OVERRIDE_TENSOR")
+        let env_override_tensor = std::env::var("HEARTH_LLAMA_OVERRIDE_TENSOR")
             .ok()
             .filter(|v| !v.trim().is_empty());
         let override_tensor = env_override_tensor.or_else(|| {
@@ -522,7 +522,7 @@ impl LlamaSupervisor {
                 .map(|s| s.to_string())
         });
 
-        if let Some(override_path) = std::env::var("VALINOR_DEEP_MODEL_OVERRIDE")
+        if let Some(override_path) = std::env::var("HEARTH_DEEP_MODEL_OVERRIDE")
             .ok()
             .filter(|v| !v.trim().is_empty())
         {
@@ -542,7 +542,7 @@ impl LlamaSupervisor {
             // means you believe you are running model X while the resident
             // model is Y, which has cost this project a bench before.
             anyhow::bail!(
-                "VALINOR_DEEP_MODEL_OVERRIDE points to missing file {}",
+                "HEARTH_DEEP_MODEL_OVERRIDE points to missing file {}",
                 path.display()
             );
         }
@@ -601,7 +601,7 @@ impl LlamaSupervisor {
             "the listener does not answer the expected llama-server probes"
         };
         anyhow!(
-            "llama port {}:{} is already accepting connections; {}. Stop the stale process or choose another VALINOR_LLAMA_PORT before starting Rust supervision.",
+            "llama port {}:{} is already accepting connections; {}. Stop the stale process or choose another HEARTH_LLAMA_PORT before starting Rust supervision.",
             self.config.llama_host,
             self.config.llama_port,
             detail
@@ -700,7 +700,7 @@ async fn post_chat_payload(
 async fn probe_chat(client: &reqwest::Client, base_url: &str, budget: Duration) -> Value {
     let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
     let payload = json!({
-        "messages": [{"role": "user", "content": "Reply with exactly: VALINOR_RUNTIME_PROBE"}],
+        "messages": [{"role": "user", "content": "Reply with exactly: HEARTH_RUNTIME_PROBE"}],
         "max_tokens": 16,
         "temperature": 0.0,
         "chat_template_kwargs": {
@@ -717,7 +717,7 @@ async fn probe_chat(client: &reqwest::Client, base_url: &str, budget: Duration) 
                 "ok": valid_completion,
                 "status": 200,
                 "url": url,
-                "matched_probe": body.to_string().contains("VALINOR_RUNTIME_PROBE"),
+                "matched_probe": body.to_string().contains("HEARTH_RUNTIME_PROBE"),
                 "valid_completion": valid_completion,
             })
         }

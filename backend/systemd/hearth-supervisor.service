@@ -7,18 +7,18 @@ Type=simple
 # Single-pipeline brain: NO global model pin. The boot persona's deep_model.path
 # (valinor-orchestrate -> gemma-4-E4B on ext4) drives the resident model; heavy
 # personas swap in on demand via Valar's router (switch_persona) and the idle
-# watchdog swaps back. The old Environment=VALINOR_DEEP_MODEL_OVERRIDE 35B pin
+# watchdog swaps back. The old Environment=HEARTH_DEEP_MODEL_OVERRIDE 35B pin
 # crash-looped boots on VRAM (shared 4080) and kept resurfacing via reinstall +
 # runtime drop-ins; it is removed for good. For a one-off experiment, export
-# VALINOR_DEEP_MODEL_OVERRIDE manually before a foreground launch instead.
+# HEARTH_DEEP_MODEL_OVERRIDE manually before a foreground launch instead.
 # ctx 16384 is the proven 16 GB-fit value; the Rust default (65536) may not fit.
-Environment=VALINOR_LLAMA_CTX=16384
+Environment=HEARTH_LLAMA_CTX=16384
 # Explicit PATH: systemd does not inject WSL's interop PATH, so we must include
 # /usr/lib/wsl/lib (nvidia-smi) and the cargo dir. Excluding /mnt/c keeps Windows
 # shims off the path entirely.
 Environment=PATH=/home/jones/.cargo/bin:/home/jones/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/lib/wsl/lib
-ExecStart=/usr/bin/env bash /mnt/d/Tools/Valinor/start_valinor_rust_server_mentat_hermes.sh
-ExecStop=/usr/bin/env bash /mnt/d/Tools/Valinor/start_valinor_rust_server_mentat_hermes.sh --stop
+ExecStart=/usr/bin/env bash /mnt/d/Tools/Valinor/supervisor_run.sh
+ExecStop=/usr/bin/env bash /mnt/d/Tools/Valinor/supervisor_run.sh --stop
 Restart=always
 RestartSec=5
 # First cold model load can take minutes; never time the start out.

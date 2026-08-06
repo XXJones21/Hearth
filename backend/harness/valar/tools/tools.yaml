@@ -4,7 +4,7 @@
 # name + a "module:function" handler reference + an OpenAI function-calling schema.
 # Adding a tool = one entry here + one handler function (see valar/tools/spec.py).
 #
-# ADDITIVE / OPT-IN: this registry is built only when VALAR_TOOLS_ENABLED is set
+# ADDITIVE / OPT-IN: this registry is built only when HEARTH_TOOLS_ENABLED is set
 # (default OFF). It is NOT wired into voice_loop.run_turn; the tool-calling
 # round-trip is the separate, opt-in valar.tools.loop.ToolCallingLoop. The working
 # voice turn is unchanged until that wiring is added deliberately behind the flag.
@@ -422,7 +422,7 @@ tools:
   # of every registry). Designs: wiki/architecture/harness/tool-catalog.md and
   # proactive-tools-roadmap.md "Design-only handlers".
 
-  # Prerequisite: a running Home Assistant hub + VALAR_HASS_URL / VALAR_HASS_TOKEN.
+  # Prerequisite: a running Home Assistant hub + HEARTH_HASS_URL / HEARTH_HASS_TOKEN.
   - name: hass_call
     description: >-
       Control or check a smart-home device via Home Assistant -- "turn on the
@@ -443,7 +443,7 @@ tools:
           description: What to do, e.g. "turn_on", "turn_off", "status".
       required: [entity, action]
 
-  # Prerequisite: Google OAuth refresh token (VALAR_GOOGLE_CLIENT_SECRET/TOKEN).
+  # Prerequisite: Google OAuth refresh token (HEARTH_GOOGLE_CLIENT_SECRET/TOKEN).
   - name: calendar_today
     description: List today's calendar events with their times.
     handler: valar.tools.handlers.calendar:calendar_today
@@ -514,12 +514,12 @@ tools:
           type: string
           description: >-
             Comma-separated shipped games for the Reference Investigator to study
-            for the target mechanic (else VALAR_WRIGHT_REFERENCE_GAMES).
+            for the target mechanic (else HEARTH_WRIGHT_REFERENCE_GAMES).
         design_docs:
           type: string
           description: >-
             Comma-separated paths to design docs (e.g. the GSD) to hand the
-            Reference Investigator (else VALAR_WRIGHT_DESIGN_DOCS).
+            Reference Investigator (else HEARTH_WRIGHT_DESIGN_DOCS).
       required: [task]
 
   # --- uefn (Wright editor access) -- bridge to the uefn-mcp listener -----------

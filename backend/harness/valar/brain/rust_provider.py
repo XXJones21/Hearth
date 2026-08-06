@@ -1,14 +1,14 @@
 """Default BrainProvider backend: the existing Rust llama.cpp chat endpoint.
 
 WIRED: calls the OpenAI-compatible POST {base_url}/chat/completions exposed by
-the Rust server (rust/valinor-server, :8765/v1) which fronts llama.cpp. We
+the Rust server (rust/hearth-supervisor, :8765/v1) which fronts llama.cpp. We
 request stream=true and parse SSE deltas.
 
 NOTE on the seam: the Rust WS gateway's `prepare_generic_llm_payload` currently
 forces stream=false and injects enable_thinking=false (a band-aid). Valar does
 NOT go through that band-aid path — it calls the chat-completions HTTP endpoint
 directly and requests streaming. If the deployed Rust build does not honor
-stream=true on this route, set VALAR_BRAIN_BASE_URL to the llama-server itself
+stream=true on this route, set HEARTH_BRAIN_BASE_URL to the llama-server itself
 (http://127.0.0.1:8080/v1), which streams natively. Both are the same brain;
 this is purely which front door we knock on. Flagged for live-runtime validation.
 """

@@ -35,7 +35,7 @@ _CONNECTIONS: list[dict] = [
         "role": "Image generation",
         "tools": ["generate_image", "check_image"],
         "requires": [],
-        "detail_env": ("VALAR_COMFY_URL", "http://127.0.0.1:8188"),
+        "detail_env": ("HEARTH_COMFY_URL", "http://127.0.0.1:8188"),
     },
     {
         "key": "choam",
@@ -50,7 +50,7 @@ _CONNECTIONS: list[dict] = [
         "name": "Telegram",
         "role": "Build notifications",
         "tools": [],
-        "requires": ["VALAR_NOTIFY_TG_TOKEN", "VALAR_NOTIFY_TG_CHAT"],
+        "requires": ["HEARTH_NOTIFY_TG_TOKEN", "HEARTH_NOTIFY_TG_CHAT"],
         "detail_env": None,
     },
     {
@@ -58,7 +58,7 @@ _CONNECTIONS: list[dict] = [
         "name": "Home Assistant",
         "role": "Lights, locks, climate",
         "tools": ["hass_call"],
-        "requires": ["VALAR_HASS_URL", "VALAR_HASS_TOKEN"],
+        "requires": ["HEARTH_HASS_URL", "HEARTH_HASS_TOKEN"],
         "detail_env": None,
     },
     {
@@ -66,7 +66,7 @@ _CONNECTIONS: list[dict] = [
         "name": "Google Calendar",
         "role": "Schedule and reminders",
         "tools": ["calendar_today", "calendar_next"],
-        "requires": ["VALAR_GOOGLE_CLIENT_SECRET", "VALAR_GOOGLE_TOKEN"],
+        "requires": ["HEARTH_GOOGLE_CLIENT_SECRET", "HEARTH_GOOGLE_TOKEN"],
         "detail_env": None,
     },
 ]

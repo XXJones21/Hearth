@@ -39,7 +39,7 @@ def create_tts_app(
     default_voice: Optional[Tuple[Optional[Path], Optional[str]]] = None,
 ) -> FastAPI:
     app = FastAPI(title="Valar TTS Service", version="1.0.0")
-    # Engine fork on VALAR_TTS_SERVICE: "omnivoice" (k2-fsa, the 2026-06-04
+    # Engine fork on HEARTH_TTS_SERVICE: "omnivoice" (k2-fsa, the 2026-06-04
     # quality winner; requires the isolated omnivoice-venv) or the NeuTTS-Air
     # default. Both implement the same streamer interface, so everything below
     # — and the gateway, and the clients — is engine-agnostic (the TTS seam).

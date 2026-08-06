@@ -56,52 +56,52 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn from_env() -> Result<Self> {
-        let repo_root = normalize_path(&env_or("VALINOR_RUST_REPO_ROOT", "/mnt/d/Tools/Valinor"));
+        let repo_root = normalize_path(&env_or("HEARTH_ROOT", "/mnt/d/Tools/Valinor"));
         let workspace_root = normalize_path(&env_or(
-            "VALINOR_MENTAT_WORKSPACE_ROOT",
+            "HEARTH_MENTAT_WORKSPACE_ROOT",
             "/mnt/d/Tools/mentat-workspace",
         ));
-        let project_slug = env_or("VALINOR_MENTAT_PROJECT_SLUG", "valinor-webapp");
-        let active_persona = env_or("VALINOR_DEEPAGENT_PERSONA", "Mentat");
-        let websocket_host = env_or("VALINOR_RUST_WS_HOST", "0.0.0.0");
-        let websocket_port = env_u16("VALINOR_RUST_WS_PORT", 8765)?;
-        let asset_host = env_or("VALINOR_RUST_ASSET_HOST", "0.0.0.0");
-        let asset_port = env_u16("VALINOR_RUST_ASSET_PORT", 8766)?;
-        let pty_port = env_u16("VALINOR_PTY_PORT", 8767)?;
-        let llama_host = env_or("VALINOR_LLAMA_HOST", "127.0.0.1");
-        let llama_port = env_u16("VALINOR_LLAMA_PORT", 8080)?;
-        let llama_base_url = env::var("VALINOR_LLAMA_BASE_URL")
+        let project_slug = env_or("HEARTH_MENTAT_PROJECT_SLUG", "valinor-webapp");
+        let active_persona = env_or("HEARTH_DEEPAGENT_PERSONA", "Mentat");
+        let websocket_host = env_or("HEARTH_RUST_WS_HOST", "0.0.0.0");
+        let websocket_port = env_u16("HEARTH_RUST_WS_PORT", 8765)?;
+        let asset_host = env_or("HEARTH_RUST_ASSET_HOST", "0.0.0.0");
+        let asset_port = env_u16("HEARTH_RUST_ASSET_PORT", 8766)?;
+        let pty_port = env_u16("HEARTH_PTY_PORT", 8767)?;
+        let llama_host = env_or("HEARTH_LLAMA_HOST", "127.0.0.1");
+        let llama_port = env_u16("HEARTH_LLAMA_PORT", 8080)?;
+        let llama_base_url = env::var("HEARTH_LLAMA_BASE_URL")
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| format!("http://{}:{}/v1", llama_host, llama_port));
         let llama_server_bin = normalize_path(&env_or(
-            "VALINOR_LLAMA_SERVER_BIN",
+            "HEARTH_LLAMA_SERVER_BIN",
             "/usr/local/bin/llama-server",
         ));
-        let kv_cache_type = env_or("VALINOR_KV_CACHE_TYPE", "q4_0");
-        let llama_parallel = env_u16("VALINOR_LLAMA_PARALLEL", 1)?;
-        let llama_ctx_override = env_optional_u64("VALINOR_LLAMA_CTX")?;
-        let llama_no_warmup = env_flag("VALINOR_LLAMA_NO_WARMUP", true);
-        // Default off when not using the WSL launch script; `start_valinor_rust_server_mentat_hermes.sh` sets 1.
-        let llama_cuda_unified_memory = env_flag("VALINOR_LLAMA_CUDA_UNIFIED_MEMORY", false);
-        let llama_reasoning = env_enum("VALINOR_LLAMA_REASONING", "off", &["on", "off", "auto"])?;
-        let llama_health_timeout_s = env_u64("VALINOR_LLAMA_HEALTH_TIMEOUT_S", 300)?;
+        let kv_cache_type = env_or("HEARTH_KV_CACHE_TYPE", "q4_0");
+        let llama_parallel = env_u16("HEARTH_LLAMA_PARALLEL", 1)?;
+        let llama_ctx_override = env_optional_u64("HEARTH_LLAMA_CTX")?;
+        let llama_no_warmup = env_flag("HEARTH_LLAMA_NO_WARMUP", true);
+        // Default off when not using the WSL launch script; `supervisor_run.sh` sets 1.
+        let llama_cuda_unified_memory = env_flag("HEARTH_LLAMA_CUDA_UNIFIED_MEMORY", false);
+        let llama_reasoning = env_enum("HEARTH_LLAMA_REASONING", "off", &["on", "off", "auto"])?;
+        let llama_health_timeout_s = env_u64("HEARTH_LLAMA_HEALTH_TIMEOUT_S", 300)?;
         // Innermost timeout: wraps the generation POST to llama-server. Must be
         // large enough for a heavy/`/deep` 35B turn to finish, and stay under the
         // gateway's CHAT_TIMEOUT_S (360s) and the bot's read timeout (390s). The
         // stuck-slot watchdog backstop is 2x this value (see main.rs).
-        let direct_chat_timeout_s = env_u64("VALINOR_RUST_DIRECT_TIMEOUT_S", 240)?;
-        let direct_smoke_timeout_s = env_u64("VALINOR_RUST_DIRECT_SMOKE_TIMEOUT_S", 20)?;
-        let generic_llm_max_input_chars = env_u64("VALINOR_RUST_GENERIC_MAX_INPUT_CHARS", 24_000)?;
-        let generic_llm_max_output_tokens = env_u64("VALINOR_RUST_GENERIC_MAX_TOKENS", 512)?;
-        let spec_draft_model = env::var("VALINOR_SPEC_DRAFT_MODEL")
+        let direct_chat_timeout_s = env_u64("HEARTH_RUST_DIRECT_TIMEOUT_S", 240)?;
+        let direct_smoke_timeout_s = env_u64("HEARTH_RUST_DIRECT_SMOKE_TIMEOUT_S", 20)?;
+        let generic_llm_max_input_chars = env_u64("HEARTH_RUST_GENERIC_MAX_INPUT_CHARS", 24_000)?;
+        let generic_llm_max_output_tokens = env_u64("HEARTH_RUST_GENERIC_MAX_TOKENS", 512)?;
+        let spec_draft_model = env::var("HEARTH_SPEC_DRAFT_MODEL")
             .ok()
             .filter(|v| !v.trim().is_empty())
             .map(|v| normalize_path(v.trim()))
             .filter(|p| p.exists());
-        let dry_run = env_flag("VALINOR_RUST_DRY_RUN", false);
-        let python_bin = env_or("VALINOR_RUST_PYTHON_BIN", "python3");
-        let mentat_worker_enabled = env_flag("VALINOR_RUST_MENTAT_WORKER", true);
+        let dry_run = env_flag("HEARTH_RUST_DRY_RUN", false);
+        let python_bin = env_or("HEARTH_RUST_PYTHON_BIN", "python3");
+        let mentat_worker_enabled = env_flag("HEARTH_RUST_MENTAT_WORKER", true);
 
         let comfy_host = env_or("COMFYUI_HOST", "127.0.0.1");
         let comfy_port = env_u16("COMFYUI_PORT", 8188)?;
@@ -195,7 +195,7 @@ impl ServerConfig {
     }
 
     pub fn log_dir(&self) -> PathBuf {
-        self.repo_root.join(".valinor-rust").join("logs")
+        self.repo_root.join(".hearth").join("logs")
     }
 
     pub fn worker_path(&self) -> PathBuf {

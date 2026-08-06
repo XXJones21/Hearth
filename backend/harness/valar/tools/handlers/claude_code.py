@@ -90,7 +90,7 @@ _RUNS_DIR = _REPO_ROOT / "sessions" / ".claude-runs"
 # minutes is usually stuck on something it is not allowed to do, and the
 # useful move is to SURFACE that (steps so far, commands it wanted, an
 # Approve button) rather than hold the operator in a silent wait.
-_TIMEOUT_S = int(os.environ.get("VALAR_CLAUDE_TIMEOUT_S", "300"))
+_TIMEOUT_S = int(os.environ.get("HEARTH_CLAUDE_TIMEOUT_S", "300"))
 _MAX_BODY = 6000
 
 # Single-flight: one delegated agent at a time. Two frontier runs against the
@@ -101,7 +101,7 @@ _active: dict = {"id": None, "thread": None, "started": 0.0}
 def _binary() -> str | None:
     """The CLI. Env override first, then the Windows install as seen from WSL,
     then whatever is on PATH (a native Linux install, if one ever lands)."""
-    override = os.environ.get("VALAR_CLAUDE_BIN", "").strip()
+    override = os.environ.get("HEARTH_CLAUDE_BIN", "").strip()
     if override:
         return override if Path(override).exists() else None
     for candidate in Path("/mnt/c/Users").glob("*/.local/bin/claude.exe"):
@@ -111,8 +111,8 @@ def _binary() -> str | None:
 
 def _notify_operator(text: str) -> None:
     """Terminal states only. Same seam as the Mentat conductor."""
-    token = os.environ.get("VALAR_NOTIFY_TG_TOKEN", "").strip()
-    chat = os.environ.get("VALAR_NOTIFY_TG_CHAT", "").strip()
+    token = os.environ.get("HEARTH_NOTIFY_TG_TOKEN", "").strip()
+    chat = os.environ.get("HEARTH_NOTIFY_TG_CHAT", "").strip()
     if not token or not chat:
         logger.info("operator notify (no telegram env): %s", text)
         return
@@ -262,7 +262,7 @@ def _run_claude(
         cmd += ["--allowedTools", grant]
     if resume_sid:
         cmd += ["--resume", resume_sid]
-    model = os.environ.get("VALAR_CLAUDE_MODEL", "").strip()
+    model = os.environ.get("HEARTH_CLAUDE_MODEL", "").strip()
     if model:
         cmd += ["--model", model]
 

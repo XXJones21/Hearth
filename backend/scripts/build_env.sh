@@ -4,7 +4,7 @@
 # onto WSL Ubuntu-24.04 / Python 3.12.
 #
 # Run via PowerShell (NOT the MSYS2 Bash tool):
-#   wsl -d Ubuntu-24.04 bash /mnt/d/Tools/Valinor/scripts/valar_wsl_env_build.sh
+#   wsl -d Ubuntu-24.04 bash /mnt/d/Tools/Valinor/scripts/build_env.sh
 #
 # Idempotent: re-running upgrades/repairs the venv in place.
 set -euo pipefail
