@@ -49,16 +49,16 @@ import threading
 import time
 from pathlib import Path
 
+from ...config.settings import hearth_home
 from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.claude_code")
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
-
-# Workspaces the model may name. Values are resolved server-side.
+# Workspaces the model may name. Values are resolved server-side, under the
+# user's own directory rather than inside the product tree, so an update that
+# replaces HEARTH_ROOT cannot take a delegated agent's working files with it.
 _WORKSPACES: dict[str, Path] = {
-    "scratch": _REPO_ROOT / "sessions" / "claude-scratch",
-    "valinor": _REPO_ROOT,
+    "scratch": hearth_home() / "sessions" / "claude-scratch",
 }
 _DEFAULT_WORKSPACE = "scratch"
 
@@ -82,10 +82,9 @@ _ALLOWED_TOOLS: dict[str, str] = {
     "scratch": " ".join(
         f"{tool}({verb} *)" for tool in ("Bash", "PowerShell") for verb in _VERIFY_VERBS
     ),
-    "valinor": "",
 }
 
-_RUNS_DIR = _REPO_ROOT / "sessions" / ".claude-runs"
+_RUNS_DIR = hearth_home() / "sessions" / ".claude-runs"
 # Deliberately short. A delegated agent that has not finished in five
 # minutes is usually stuck on something it is not allowed to do, and the
 # useful move is to SURFACE that (steps so far, commands it wanted, an

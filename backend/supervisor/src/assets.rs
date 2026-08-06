@@ -19,7 +19,7 @@ pub fn router(state: AppState) -> Router {
 }
 
 async fn root() -> &'static str {
-    "Valinor Rust asset server"
+    "Hearth asset server"
 }
 
 async fn asset(

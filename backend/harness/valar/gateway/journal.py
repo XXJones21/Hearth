@@ -16,9 +16,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 
+from ..config.settings import HearthConfigError, hearth_engram
+
 logger = logging.getLogger("valar.gateway.journal")
 
-_ENGRAM_ROOT: Path | None = None
 _META_RE = re.compile(r"^\s*-\s+\*\*(?P<key>[^:*]+):\*\*\s*(?P<value>.*)$")
 _DATED_DIR_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 _H1_RE = re.compile(r"^#\s+(.+)$")
@@ -26,18 +27,19 @@ _LIFE_DIRS = ("Career", "Areas", "Resources", "Research", "Ideas", "Archive")
 
 
 def _engram_root(repo_root: Path) -> Path | None:
-    global _ENGRAM_ROOT
-    if _ENGRAM_ROOT is not None:
-        return _ENGRAM_ROOT
-    for candidate in (repo_root / "Engram", Path("D:/Tools/personalAI/Engram"),
-                      Path("/mnt/d/Tools/personalAI/Engram")):
-        try:
-            if (candidate / "Thoughts").is_dir():
-                _ENGRAM_ROOT = candidate.resolve()
-                return _ENGRAM_ROOT
-        except OSError:
-            continue
-    return None
+    """The memory tree, or None when it is not configured.
+
+    There is no candidate list. Searching for a memory tree is how a fresh
+    install silently adopts whichever brain happens to be on the machine and
+    presents it as the new user's, so an unset HEARTH_ENGRAM is reported as
+    a named failure rather than resolved by looking around. A configured but
+    empty tree is a normal new install and returns empty pages, not an error.
+    """
+    try:
+        return hearth_engram()
+    except HearthConfigError as exc:
+        logger.warning("journal unavailable: %s", exc)
+        return None
 
 
 def _parse_diary(text: str) -> dict:
@@ -141,10 +143,10 @@ def _dir_book(d: Path, curated: dict[str, str]) -> dict:
 
 
 def _curated_pages(repo_root: Path) -> dict[str, str]:
-    """Selene's authored book pages. Interim store: the curation-pass JSON in
-    hearth-pitch (the real home becomes an Engram-side artifact once the
-    server-side curation job lands)."""
-    path = repo_root / "hearth-pitch" / "mockups" / "selene-pages.json"
+    """Selene's authored book pages. Product data, shipped with the harness.
+    It spent a while inside a pitch deck's mockup folder, which is the reason
+    it was the item most likely to be lost in the move."""
+    path = Path(__file__).resolve().parent.parent / "data" / "selene-pages.json"
     try:
         import json
 

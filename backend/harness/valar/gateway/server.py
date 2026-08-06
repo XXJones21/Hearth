@@ -28,7 +28,7 @@ from ..brain import BrainStreamResult, ChatMessage, ChatOptions, build_brain
 from ..config import ValarConfig
 from ..memory import EngramMemory
 from ..persona import PersonaEngine, PersonaNotFound
-from ..voice import EnergyVAD, NeuTTSStreamer, SttUnavailable, WhisperSTT
+from ..voice import EnergyVAD, SttUnavailable, WhisperSTT
 from .session import Session, State
 from .easel_watch import easel_watchdog
 from .session_end import idle_watchdog
@@ -100,21 +100,20 @@ def create_app(config: ValarConfig) -> FastAPI:
         enabled=config.memory_enabled,
         memory_token_budget=config.context.memory_token_budget,
     )
-    # TTS backend: "remote" talks to the persistent valar-tts service so the
-    # gateway never loads NeuTTS (no GPU reload on restart); "local" loads it
-    # in-process (simple, but reloads the model every restart). Same interface
-    # either way, so the voice loop is unchanged.
-    if config.voice.tts_backend == "remote":
-        from ..voice.tts_remote import RemoteNeuTTSStreamer
-
-        tts = RemoteNeuTTSStreamer(config.voice.tts_service_url, config.voice.output_sample_rate)
-        logger.info("TTS backend=remote -> %s", config.voice.tts_service_url)
-    else:
-        tts = NeuTTSStreamer(
-            config.persona_dir.parent,
-            service=config.voice.tts_service,
-            sample_rate=config.voice.output_sample_rate,
+    # The gateway never loads a speech model itself. It talks to the voice
+    # service, which holds one resident in its own process, so a gateway
+    # restart costs no reload. The in-process alternative is gone rather
+    # than defaulted off: the engine it loaded does not ship, so keeping the
+    # branch would have meant an import guard with nothing behind it.
+    if config.voice.tts_backend != "remote":
+        raise ValueError(
+            f"unknown TTS backend {config.voice.tts_backend!r}; Hearth talks to "
+            "the voice service. Set HEARTH_TTS_BACKEND=remote."
         )
+    from ..voice.tts_remote import RemoteVoiceStreamer
+
+    tts = RemoteVoiceStreamer(config.voice.tts_service_url, config.voice.output_sample_rate)
+    logger.info("voice service at %s", config.voice.tts_service_url)
     stt = WhisperSTT(config.voice.whisper_model, config.voice.input_sample_rate)
     voice_loop = VoiceLoop(config, brain, memory, tts)
 

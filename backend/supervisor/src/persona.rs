@@ -34,7 +34,7 @@ impl PersonaStore {
     }
 
     pub fn list(&self) -> Result<Vec<PersonaMetadata>> {
-        let persona_dir = self.repo_root.join("Persona");
+        let persona_dir = self.repo_root.join("personas");
         let mut personas = Vec::new();
         for entry in fs::read_dir(&persona_dir)
             .with_context(|| format!("read persona dir {}", persona_dir.display()))?
@@ -77,7 +77,7 @@ impl PersonaStore {
                     description,
                     version,
                     visualization_type,
-                    config_url: format!("{}/Persona/{}/{}", self.asset_base_url, name, config_file),
+                    config_url: format!("{}/personas/{}/{}", self.asset_base_url, name, config_file),
                 });
             }
         }
@@ -86,7 +86,7 @@ impl PersonaStore {
     }
 
     pub fn get(&self, persona_name: &str) -> Result<Value> {
-        let dir = self.repo_root.join("Persona").join(persona_name);
+        let dir = self.repo_root.join("personas").join(persona_name);
         self.load_from_dir(&dir)
     }
 

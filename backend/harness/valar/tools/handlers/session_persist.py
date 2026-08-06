@@ -27,8 +27,6 @@ from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.session_persist")
 
-# Valar lives at <repo>/Valar/valar/tools/handlers/...; repo root is 5 up.
-_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 
 async def persist_session(args: dict) -> ToolResult:
@@ -47,11 +45,8 @@ async def persist_session(args: dict) -> ToolResult:
 
     # 1) Engram Thoughts diary via the shared brain_sync writer.
     saved: dict = {"saved": False, "reason": "brain_sync_unavailable"}
-    repo_str = str(_REPO_ROOT)
-    if repo_str not in sys.path:
-        sys.path.insert(0, repo_str)
     try:
-        from Server.tools.brain_sync import save_session_to_engram  # type: ignore
+        from memory.brain_sync import save_session_to_engram  # type: ignore
 
         saved = await save_session_to_engram(
             session_id, history, persona, summary=summary or None

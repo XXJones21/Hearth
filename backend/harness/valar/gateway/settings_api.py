@@ -21,7 +21,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from ..config.settings import ValarConfig
+from ..config.settings import ValarConfig, hearth_home, hearth_models, hearth_root
 
 logger = logging.getLogger("valar.gateway.settings")
 
@@ -125,13 +125,13 @@ def _folder(key: str, name: str, path: Path, blurb: str) -> dict:
 def _folders(config: ValarConfig) -> list[dict]:
     from . import journal as journal_api
 
-    repo_root = config.persona_dir.parent
-    engram = journal_api._engram_root(repo_root)
+    root = hearth_root()
+    engram = journal_api._engram_root(root)
     rows = [
         _folder(
             "models",
             "Models",
-            repo_root / "models",
+            hearth_models(),
             "Drop a GGUF in and it shows up in the picker",
         ),
         _folder(
@@ -145,7 +145,7 @@ def _folders(config: ValarConfig) -> list[dict]:
     # this is the raw material behind it -- one .scx per session plus the
     # dated ledger dirs. Surfaced because "where did that conversation go"
     # has no other answer until a resume or an SCX reader exists.
-    sessions = repo_root / "sessions"
+    sessions = hearth_home() / "sessions"
     if sessions.is_dir():
         scx = len(list(sessions.glob("*.scx")))
         rows.append(
@@ -166,7 +166,7 @@ def _folders(config: ValarConfig) -> list[dict]:
                 "Selene writes here: session pages, project notes, the nightly ledger",
             )
         )
-    logs = repo_root / "Valar" / "logs"
+    logs = hearth_home() / "logs"
     if logs.is_dir():
         rows.append(_folder("logs", "Logs", logs, "First stop when a turn misbehaves"))
     return rows

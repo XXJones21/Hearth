@@ -1,73 +1,58 @@
 """
-Brain Sync -- automatic Engram context loading and session persistence.
+Brain Sync -- Engram context loading and session persistence.
 
-Provides lifecycle hooks for the deep agent server:
-  - Session start: load global Engram context into SCX
-  - Post-analyze: infer project from conversation, load project-specific context
-  - Session end: save conversation summary to Engram Thoughts (3+ turn threshold)
+The memory layer's read and write side, shared by the harness gateway and its
+memory tools:
+  - load a project's or the global context for a turn
+  - infer which project a question is about, from the project listing
+  - write a session diary to Thoughts, past a three-turn threshold
+  - keep the shared operator-facts file
 """
 
-import asyncio
-import json
 import logging
 import os
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from Server.tools.engram_writer import append_under_heading
+from .engram_writer import append_under_heading
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
+# The memory tree, and nothing but HEARTH_ENGRAM.
+#
+# What used to be here was a candidate list ending in one person's own
+# Engram directory, with no environment variable able to point it anywhere
+# else. That is the single most dangerous line in this migration: on a
+# machine where the original install exists, a fresh Hearth would have found
+# it, loaded someone else's memory, journal and personas, and looked like it
+# was working. The candidate is deleted rather than demoted, because a
+# fallback that silently finds the wrong brain is worse than a hard failure.
+def engram_root() -> Path:
+    """The memory root. Raises when unconfigured; never searches."""
+    configured = (os.environ.get("HEARTH_ENGRAM") or "").strip()
+    if not configured:
+        raise FileNotFoundError(
+            "HEARTH_ENGRAM is not set. Memory has no root and Hearth will not "
+            "guess one. Point it at an empty directory for a fresh brain."
+        )
+    return Path(configured).expanduser()
 
-_ENGRAM_CANDIDATES = [
-    PROJECT_ROOT / "Engram",
-    Path("D:/Tools/personalAI/Engram"),
-]
-
-ENGRAM_ROOT: Path | None = None
-for _candidate in _ENGRAM_CANDIDATES:
-    if _candidate.exists():
-        ENGRAM_ROOT = _candidate.resolve()
-        break
 
 ENGRAM_CONTEXT_MAX_CHARS = 4000
 MIN_TURNS_FOR_SAVE = 3
 
-PROJECT_ALIASES: dict[str, str] = {
-    "valinor": "valinor",
-    "server": "valinor/deep-agent-server",
-    "deep agent": "valinor/deep-agent-server",
-    "pipeline": "valinor/deep-agent-server",
-    "ios": "valinor/apple-client",
-    "apple": "valinor/apple-client",
-    "visionos": "valinor/apple-client",
-    "iphone": "valinor/apple-client",
-    "desktop": "valinor/desktop-client",
-    "desktop client": "valinor/desktop-client",
-    "quest": "valinor/metaquest-client",
-    "meta quest": "valinor/metaquest-client",
-    "quest 3": "valinor/metaquest-client",
-    "dreams": "dreams-ai",
-    "dreams.ai": "dreams-ai",
-    "dream": "dreams-ai",
-    "tts": "neutts-air",
-    "neutts": "neutts-air",
-    "voice": "neutts-air",
-    "dreamlands": "dreamlands",
-    "dreamwave": "dreamwave-synthesia",
-    "synthesia": "dreamwave-synthesia",
-    "frostmorne": "frostmorne",
-    "melange": "melange",
-    "moonlight": "moonlight-spatial",
-    "spatial sdk": "moonlight-spatial",
-    "website": "website",
-}
-
 
 def _get_engram_root() -> Path | None:
-    return ENGRAM_ROOT
+    """The root when it is configured and present, else None. Callers here
+    all degrade to "no memory" rather than raising, which is right for a
+    voice turn; the loud version is engram_root()."""
+    try:
+        root = engram_root()
+    except FileNotFoundError as exc:
+        logger.warning("[BRAIN_SYNC] %s", exc)
+        return None
+    return root if root.is_dir() else None
 
 
 def _list_projects() -> list[str]:
@@ -301,41 +286,34 @@ def recent_project_activity(hours: int = 24) -> list[dict]:
 
 
 def infer_project_from_query(query: str, analyze_output: dict | None = None) -> str | None:
+    """Map a query to a project directory under $HEARTH_ENGRAM/Projects.
+
+    Derived, not tabulated. What was here was a hand-maintained table of one
+    person's twenty-five project names and their nicknames, which is data rather
+    than configuration and which a fresh install has none of. The directory
+    listing is the registry now: a project is a project because it exists.
     """
-    Map a user query and analyze output to an Engram project name.
-
-    Uses keyword matching against PROJECT_ALIASES and available project directories.
-    """
-    query_lower = query.lower()
-    available = _list_projects()
-
-    for alias, project in PROJECT_ALIASES.items():
-        if alias in query_lower:
-            base_project = project.split("/")[0]
-            if base_project in available:
-                logger.info(f"[BRAIN_SYNC] Inferred project '{project}' from alias '{alias}'")
-                return project
-
+    haystack = (query or "").lower()
     if analyze_output:
-        intent = analyze_output.get("intent", "")
         plan = analyze_output.get("plan") or {}
-        objective = plan.get("objective", "").lower()
+        haystack = (
+            f"{haystack} {analyze_output.get('intent', '')} "
+            f"{plan.get('objective', '')}"
+        ).lower()
 
-        combined = f"{query_lower} {objective}"
-        for alias, project in PROJECT_ALIASES.items():
-            if alias in combined:
-                base_project = project.split("/")[0]
-                if base_project in available:
-                    logger.info(f"[BRAIN_SYNC] Inferred project '{project}' from analyze context")
-                    return project
-
-    for proj in available:
-        if proj.replace("-", " ") in query_lower or proj in query_lower:
-            logger.info(f"[BRAIN_SYNC] Inferred project '{proj}' from direct name match")
-            return proj
-
-    logger.debug("[BRAIN_SYNC] No project inferred from query")
-    return None
+    best: str | None = None
+    best_len = 0
+    for project in _list_projects():
+        for spelling in {project.lower(), project.lower().replace("-", " ")}:
+            # Longest match wins, so a two-word project name beats a one-word
+            # one that happens to be a prefix of it.
+            if len(spelling) >= 3 and spelling in haystack and len(spelling) > best_len:
+                best, best_len = project, len(spelling)
+    if best:
+        logger.info(f"[BRAIN_SYNC] Inferred project '{best}' from the project listing")
+    else:
+        logger.debug("[BRAIN_SYNC] No project inferred from query")
+    return best
 
 
 async def save_session_to_engram(
@@ -469,51 +447,13 @@ def _update_thoughts_index(
 async def _extract_session_summary(
     conversation_history: list[dict], persona_name: str | None,
 ) -> dict | None:
+    """A structured summary of the session.
+
+    The harness passes one in: its brain seam already holds the conversation and
+    a live model. This path exists for callers that do not, and it produces the
+    deterministic summary rather than reaching for the retired pipeline's model
+    manager, which is not part of the product.
     """
-    Use the brain_sync skill to extract a structured summary via LLM.
-
-    Falls back to a basic extraction if the LLM call fails.
-    """
-    transcript = ""
-    for msg in conversation_history[-20:]:
-        role = msg.get("role", "unknown")
-        content = msg.get("content", "")[:300]
-        transcript += f"{role}: {content}\n"
-
-    if len(transcript) > 3000:
-        transcript = transcript[:3000] + "\n[truncated]"
-
-    try:
-        from Server.deep_agent_pipeline import load_skill, build_system_prompt
-        from Server.model_manager import ModelManager
-
-        skill = load_skill("brain_sync")
-        skill_body = skill["body"]
-
-        available_projects = _list_projects()
-        skill_body += f"\n\nAvailable Engram projects: {available_projects}"
-        skill_body += f"\nActive persona: {persona_name or 'unknown'}"
-        skill_body += f"\n\n=== CONVERSATION TRANSCRIPT ===\n{transcript}"
-
-        model_manager = ModelManager.get_instance()
-        response_text = await asyncio.to_thread(
-            lambda: model_manager.chat_completion(
-                messages=[
-                    {"role": "system", "content": skill_body},
-                    {"role": "user", "content": "Extract the session summary as JSON."},
-                ],
-                max_tokens=500,
-                temperature=0.3,
-            )
-        )
-
-        json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group())
-
-    except Exception as e:
-        logger.warning(f"[BRAIN_SYNC] LLM summary extraction failed: {e}")
-
     return _fallback_summary(conversation_history, persona_name)
 
 
@@ -546,8 +486,6 @@ def update_project_context(project_name: str, updates: str) -> dict:
     root = _get_engram_root()
     if not root:
         return {"ok": False, "error": "engram_not_found"}
-
-    from Server.tools.engram_writer import append_under_heading
 
     target = f"Projects/{project_name}/claude.md"
     try:

@@ -34,11 +34,8 @@ class EngramMemory:
             return True
         if self._import_failed or not self.enabled:
             return False
-        repo_str = str(self.repo_root)
-        if repo_str not in sys.path:
-            sys.path.insert(0, repo_str)
         try:
-            from Server.tools import brain_sync  # type: ignore
+            from memory import brain_sync  # type: ignore
         except Exception as exc:  # noqa: BLE001
             logger.warning("Engram brain_sync unavailable, memory disabled: %s", exc)
             self._import_failed = True

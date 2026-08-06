@@ -18,11 +18,14 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from ..config.settings import REPO_ROOT
+from ..config.settings import HearthConfigError, hearth_engram
 
 logger = logging.getLogger("valar.memory.continuity")
 
-CONTINUITY_PATH = REPO_ROOT / "Engram" / "state" / "valar-continuity.json"
+def continuity_path() -> Path:
+    """The note the next session opens with. Under the memory tree, so it
+    belongs to the user rather than to the product."""
+    return hearth_engram() / "state" / "hearth-continuity.json"
 
 # A continuity note older than this is stale enough to stop surfacing — the
 # operator's context has moved on. (The file is overwritten on each session end.)
@@ -33,8 +36,9 @@ def write_continuity(persona: str, summary: str, title: str = "") -> bool:
     """Persist the latest session's continuity note. Returns False (logged, not
     raised) when Engram is unavailable."""
     try:
-        CONTINUITY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        CONTINUITY_PATH.write_text(
+        path = continuity_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
             json.dumps(
                 {
                     "ended_at": datetime.now().isoformat(timespec="seconds"),
@@ -55,9 +59,10 @@ def write_continuity(persona: str, summary: str, title: str = "") -> bool:
 def read_continuity() -> dict | None:
     """The latest continuity note, or None when absent/stale/unreadable."""
     try:
-        if not CONTINUITY_PATH.is_file():
+        path = continuity_path()
+        if not path.is_file():
             return None
-        data = json.loads(CONTINUITY_PATH.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(data, dict) or not str(data.get("summary") or "").strip():
             return None
         ended_at = datetime.fromisoformat(str(data.get("ended_at", "")))

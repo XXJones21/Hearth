@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -46,9 +47,74 @@ def _env_bool(key: str, default: bool) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
-# The Valinor repo root (Valar lives at <repo>/Valar). Used to locate Persona/,
-# the existing Server/ package, and Engram.
-REPO_ROOT = Path(__file__).resolve().parents[3]
+class HearthConfigError(RuntimeError):
+    """A required location was neither configured nor derivable."""
+
+
+# The file that marks the top of the product tree. It sits at HEARTH_ROOT in
+# both layouts: /opt/hearth/manifest.yaml in the image, backend/manifest.yaml
+# in a checkout.
+_ROOT_MARKER = "manifest.yaml"
+
+
+@lru_cache(maxsize=1)
+def hearth_root() -> Path:
+    """The product tree.
+
+    HEARTH_ROOT if set, otherwise the nearest ancestor of this file holding the
+    marker. What this deliberately is not is a count of directory levels. The
+    code it replaces computed parents[3] here and parents[4] in the tool
+    handlers, so moving a file one level silently repointed the whole tree at a
+    different real directory and nothing raised. Both wrong answers resolve to
+    something that exists, which is why an integer would have been the
+    dangerous choice in exactly this spot.
+    """
+    configured = os.environ.get("HEARTH_ROOT", "").strip()
+    if configured:
+        return Path(configured).expanduser().resolve()
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / _ROOT_MARKER).is_file():
+            return parent
+    raise HearthConfigError(
+        f"cannot locate the Hearth product tree: HEARTH_ROOT is unset and no "
+        f"{_ROOT_MARKER} was found above {here}"
+    )
+
+
+@lru_cache(maxsize=1)
+def hearth_home() -> Path:
+    """Everything the user owns: configuration, memory, model weights.
+    Replacing the product tree on an update must never touch this."""
+    configured = os.environ.get("HEARTH_HOME", "").strip()
+    return Path(configured).expanduser() if configured else Path.home() / ".hearth"
+
+
+@lru_cache(maxsize=1)
+def hearth_models() -> Path:
+    """Where model weights live. Outside the product tree, and not the
+    repository: weights on a mounted Windows filesystem take minutes to load
+    where the native filesystem takes seconds, and that can exceed the model
+    swap timeout."""
+    configured = os.environ.get("HEARTH_MODELS", "").strip()
+    return Path(configured).expanduser() if configured else hearth_home() / "models"
+
+
+def hearth_engram() -> Path:
+    """The memory tree.
+
+    HEARTH_ENGRAM and nothing else. There is no candidate list and no fallback,
+    because a fallback that finds someone else's brain is worse than a hard
+    failure: it produces an install that looks like it works while presenting
+    one person's memory, journal and personas as the new user's.
+    """
+    configured = os.environ.get("HEARTH_ENGRAM", "").strip()
+    if not configured:
+        raise HearthConfigError(
+            "HEARTH_ENGRAM is not set. Memory has no root and Hearth will not "
+            "guess one. Point it at an empty directory for a fresh brain."
+        )
+    return Path(configured).expanduser()
 
 
 @dataclass
@@ -179,9 +245,9 @@ class ValarConfig:
     host: str = field(default_factory=lambda: _env_str("HEARTH_HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: _env_int("HEARTH_PORT", 8700))
 
-    persona_dir: Path = field(default_factory=lambda: REPO_ROOT / "Persona")
+    persona_dir: Path = field(default_factory=lambda: hearth_root() / "personas")
     default_persona: str = field(default_factory=lambda: _env_str("HEARTH_DEFAULT_PERSONA", "Sulivan"))
-    assets_dir: Path = field(default_factory=lambda: REPO_ROOT / "Valar" / "assets")
+    assets_dir: Path = field(default_factory=lambda: hearth_root() / "harness" / "assets")
 
     brain: BrainConfig = field(default_factory=BrainConfig)
     context: ContextBudget = field(default_factory=ContextBudget)

@@ -27,14 +27,12 @@ from typing import Optional, Tuple
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 
-from .tts import NeuTTSStreamer
-
 logger = logging.getLogger("valar.tts_service")
 
 
 def create_tts_app(
     repo_root: Path,
-    service: str = "neutts_air",
+    service: str = "omnivoice",
     sample_rate: int = 48000,
     default_voice: Optional[Tuple[Optional[Path], Optional[str]]] = None,
 ) -> FastAPI:
@@ -43,12 +41,14 @@ def create_tts_app(
     # quality winner; requires the isolated omnivoice-venv) or the NeuTTS-Air
     # default. Both implement the same streamer interface, so everything below
     # — and the gateway, and the clients — is engine-agnostic (the TTS seam).
-    if service == "omnivoice":
-        from .tts_omnivoice import OmniVoiceStreamer
+    if service != "omnivoice":
+        raise ValueError(
+            f"unknown voice engine {service!r}; Hearth ships one, omnivoice. "
+            "Set HEARTH_TTS_SERVICE=omnivoice."
+        )
+    from .tts_omnivoice import OmniVoiceStreamer
 
-        tts = OmniVoiceStreamer(repo_root, service=service, sample_rate=sample_rate)
-    else:
-        tts = NeuTTSStreamer(repo_root, service=service, sample_rate=sample_rate)
+    tts = OmniVoiceStreamer(repo_root, service=service, sample_rate=sample_rate)
     app.state.tts = tts
 
     @app.get("/health")

@@ -1,12 +1,8 @@
 """
 Engram Writer -- safe file operations for the Engram knowledge base.
 
-Registered in Server/skills/execute/execute.md as:
-  task_handlers:
-    engram_write: "Server.tools.engram_writer:write_engram_task"
-
 Provides path-validated writes to Engram markdown files. All paths
-must resolve under ENGRAM_ROOT with no traversal allowed.
+must resolve under HEARTH_ENGRAM with no traversal allowed.
 """
 
 import logging
@@ -16,27 +12,33 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
-
-_ENGRAM_CANDIDATES = [
-    PROJECT_ROOT / "Engram",
-    Path("D:/Tools/personalAI/Engram"),
-]
-
-ENGRAM_ROOT: Path | None = None
-for _candidate in _ENGRAM_CANDIDATES:
-    if _candidate.exists():
-        ENGRAM_ROOT = _candidate.resolve()
-        break
+# The memory tree, and nothing but HEARTH_ENGRAM.
+#
+# What used to be here was a candidate list ending in one person's own
+# Engram directory, with no environment variable able to point it anywhere
+# else. That is the single most dangerous line in this migration: on a
+# machine where the original install exists, a fresh Hearth would have found
+# it, loaded someone else's memory, journal and personas, and looked like it
+# was working. The candidate is deleted rather than demoted, because a
+# fallback that silently finds the wrong brain is worse than a hard failure.
+def engram_root() -> Path:
+    """The memory root. Raises when unconfigured; never searches."""
+    configured = (os.environ.get("HEARTH_ENGRAM") or "").strip()
+    if not configured:
+        raise FileNotFoundError(
+            "HEARTH_ENGRAM is not set. Memory has no root and Hearth will not "
+            "guess one. Point it at an empty directory for a fresh brain."
+        )
+    return Path(configured).expanduser()
 
 
 def _get_engram_root() -> Path:
-    """Return resolved Engram root, raising if not found."""
-    if ENGRAM_ROOT is not None:
-        return ENGRAM_ROOT
-    raise FileNotFoundError(
-        f"Engram directory not found. Checked: {[str(c) for c in _ENGRAM_CANDIDATES]}"
-    )
+    """Return the Engram root, raising if it is unconfigured or absent.
+    A writer that cannot find its tree must say so; it must not choose one."""
+    root = engram_root()
+    if not root.is_dir():
+        raise FileNotFoundError(f"HEARTH_ENGRAM points at no directory: {root}")
+    return root
 
 
 def _validate_engram_path(target: str) -> Path:

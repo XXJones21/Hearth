@@ -4,7 +4,6 @@ mod config;
 mod llama;
 mod persona;
 mod protocol;
-mod worker;
 mod ws;
 
 use std::net::SocketAddr;
@@ -195,12 +194,9 @@ fn print_dry_run(config: &ServerConfig) -> Result<()> {
     let persona_result = personas.get(&config.active_persona);
     let persona_ok = persona_result.is_ok();
     let llama_bin_ok = config.llama_server_bin.exists();
-    let worker_ok = config.worker_path().exists();
 
     let diagnostics = serde_json::json!({
         "repo_root": config.repo_root,
-        "workspace_root": config.workspace_root,
-        "project_slug": config.project_slug,
         "active_persona": config.active_persona,
         "websocket": {"host": config.websocket_host, "port": config.websocket_port},
         "assets": {"host": config.asset_host, "port": config.asset_port},
@@ -226,13 +222,7 @@ fn print_dry_run(config: &ServerConfig) -> Result<()> {
             "direct_smoke_timeout_s": config.direct_smoke_timeout_s,
             "generic_llm_max_input_chars": config.generic_llm_max_input_chars,
             "generic_llm_max_output_tokens": config.generic_llm_max_output_tokens,
-            "runtime_probe_command": "cargo run --manifest-path rust/hearth-supervisor/Cargo.toml -- --probe-runtime"
-        },
-        "mentat_worker": {
-            "enabled": config.mentat_worker_enabled,
-            "python_bin": config.python_bin,
-            "path": config.worker_path(),
-            "path_exists": worker_ok
+            "runtime_probe_command": "scripts/supervisor_run.sh --probe-runtime"
         },
         "comfyui": {
             "host": config.comfy_host,
@@ -247,7 +237,7 @@ fn print_dry_run(config: &ServerConfig) -> Result<()> {
             "active": config.comfy_path.is_some() || config.comfy_external
         },
         "persona_loaded": persona_ok,
-        "runtime_ready": llama_bin_ok && persona_ok && worker_ok
+        "runtime_ready": llama_bin_ok && persona_ok
     });
     println!("{}", serde_json::to_string_pretty(&diagnostics)?);
     if !llama_bin_ok {

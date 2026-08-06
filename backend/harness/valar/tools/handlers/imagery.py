@@ -47,7 +47,7 @@ from ..spec import ToolResult
 logger = logging.getLogger("valar.tools.imagery")
 
 _COMFY_URL = os.environ.get("HEARTH_COMFY_URL", "http://127.0.0.1:8188").rstrip("/")
-_ASSETS_DIR = Path(__file__).resolve().parents[3] / "assets" / "generated"
+_ASSETS_DIR = hearth_root() / "harness" / "assets" / "generated"
 _TIMEOUT_S = 15
 
 # How long the watcher waits for a picture, and how often it looks. Flux at

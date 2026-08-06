@@ -26,7 +26,7 @@ import websockets
 logger = logging.getLogger("valar.voice.tts_remote")
 
 
-class RemoteNeuTTSStreamer:
+class RemoteVoiceStreamer:
     """Drop-in remote replacement for NeuTTSStreamer (WS client to valar-tts)."""
 
     def __init__(self, service_url: str, sample_rate: int = 48000):

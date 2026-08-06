@@ -8,8 +8,6 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 pub struct ServerConfig {
     pub repo_root: PathBuf,
-    pub workspace_root: PathBuf,
-    pub project_slug: String,
     pub active_persona: String,
     pub websocket_host: String,
     pub websocket_port: u16,
@@ -36,8 +34,6 @@ pub struct ServerConfig {
     /// When set, llama-server is started with --spec-draft-model and related flags.
     pub spec_draft_model: Option<PathBuf>,
     pub dry_run: bool,
-    pub python_bin: String,
-    pub mentat_worker_enabled: bool,
     // --- ComfyUI harness (engram_comfy) ---
     pub comfy_host: String,
     pub comfy_port: u16,
@@ -56,13 +52,8 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn from_env() -> Result<Self> {
-        let repo_root = normalize_path(&env_or("HEARTH_ROOT", "/mnt/d/Tools/Valinor"));
-        let workspace_root = normalize_path(&env_or(
-            "HEARTH_MENTAT_WORKSPACE_ROOT",
-            "/mnt/d/Tools/mentat-workspace",
-        ));
-        let project_slug = env_or("HEARTH_MENTAT_PROJECT_SLUG", "valinor-webapp");
-        let active_persona = env_or("HEARTH_DEEPAGENT_PERSONA", "Mentat");
+        let repo_root = hearth_root();
+        let active_persona = env_or("HEARTH_DEEPAGENT_PERSONA", "Sulivan");
         let websocket_host = env_or("HEARTH_RUST_WS_HOST", "0.0.0.0");
         let websocket_port = env_u16("HEARTH_RUST_WS_PORT", 8765)?;
         let asset_host = env_or("HEARTH_RUST_ASSET_HOST", "0.0.0.0");
@@ -100,8 +91,6 @@ impl ServerConfig {
             .map(|v| normalize_path(v.trim()))
             .filter(|p| p.exists());
         let dry_run = env_flag("HEARTH_RUST_DRY_RUN", false);
-        let python_bin = env_or("HEARTH_RUST_PYTHON_BIN", "python3");
-        let mentat_worker_enabled = env_flag("HEARTH_RUST_MENTAT_WORKER", true);
 
         let comfy_host = env_or("COMFYUI_HOST", "127.0.0.1");
         let comfy_port = env_u16("COMFYUI_PORT", 8188)?;
@@ -120,8 +109,6 @@ impl ServerConfig {
 
         Ok(Self {
             repo_root,
-            workspace_root,
-            project_slug,
             active_persona,
             websocket_host,
             websocket_port,
@@ -145,8 +132,6 @@ impl ServerConfig {
             generic_llm_max_output_tokens,
             spec_draft_model,
             dry_run,
-            python_bin,
-            mentat_worker_enabled,
             comfy_host,
             comfy_port,
             comfy_path,
@@ -198,13 +183,6 @@ impl ServerConfig {
         self.repo_root.join(".hearth").join("logs")
     }
 
-    pub fn worker_path(&self) -> PathBuf {
-        self.repo_root
-            .join("Server")
-            .join("agents")
-            .join("mentat_worker_stdio.py")
-    }
-
     pub fn health_timeout(&self) -> Duration {
         Duration::from_secs(self.llama_health_timeout_s)
     }
@@ -217,6 +195,35 @@ impl ServerConfig {
         Duration::from_secs(self.direct_smoke_timeout_s)
     }
 
+}
+
+/// The product tree.
+///
+/// HEARTH_ROOT if it is set, otherwise derived from where this binary actually
+/// is: the release binary lives at $HEARTH_ROOT/bin/hearth-supervisor, and a
+/// cargo build puts it at $HEARTH_ROOT/supervisor/target/<profile>/. Both are
+/// found by walking up for the manifest that marks the top of the tree.
+///
+/// The literal that used to be here named one machine's checkout.
+pub fn hearth_root() -> PathBuf {
+    if let Ok(configured) = env::var("HEARTH_ROOT") {
+        if !configured.trim().is_empty() {
+            return normalize_path(configured.trim());
+        }
+    }
+    if let Ok(exe) = env::current_exe() {
+        let mut dir = exe.parent();
+        while let Some(candidate) = dir {
+            if candidate.join("manifest.yaml").is_file() {
+                return candidate.to_path_buf();
+            }
+            dir = candidate.parent();
+        }
+    }
+    // Last resort: the working directory. A supervisor that cannot find its
+    // own tree will fail loudly on the first persona read rather than quietly
+    // serving files from somewhere else.
+    env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
 pub fn normalize_path(value: &str) -> PathBuf {

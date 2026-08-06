@@ -39,9 +39,6 @@ from typing import Any
 
 logger = logging.getLogger("valar.memory.service")
 
-# Valar lives at <repo>/Valar/valar/memory/service.py; repo root is 3 up.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-
 _DEFAULT_SCOPES = ["facts", "thoughts", "projects", "knowledge"]
 
 
@@ -57,10 +54,15 @@ class EngramService:
             return self._client
         if self._failed:
             return None
-        pkg = Path(
-            os.environ.get("HEARTH_ENGRAM_MCP_PATH")
-            or (_REPO_ROOT.parent / "claude-marketplace" / "engram-mcp")
-        )
+        # A developer tool that lives outside the product tree. There is no
+        # derived default: an unset variable means the richer memory client
+        # is simply not installed, and the legacy seams carry the load.
+        configured = (os.environ.get("HEARTH_ENGRAM_MCP_PATH") or "").strip()
+        if not configured:
+            logger.info("HEARTH_ENGRAM_MCP_PATH unset; using the legacy memory seams")
+            self._failed = True
+            return None
+        pkg = Path(configured).expanduser()
         try:
             if (pkg / "engram_mcp").is_dir() and str(pkg) not in sys.path:
                 sys.path.insert(0, str(pkg))

@@ -25,14 +25,12 @@ from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.memory")
 
-# Valar lives at <repo>/Valar/valar/tools/handlers/memory.py; repo root is 5 up.
-_REPO_ROOT = Path(__file__).resolve().parents[4]
 
 # Knowledge tier (2026-06-06): operator-facts alone is NOT the operator's
 # memory -- the rich background (career history, project context) lives in
 # Engram's context files. recall searches these as a second tier so "what
 # about my time at Meta" finds the Career notes, not just /remember'd facts.
-_ENGRAM_ROOT = _REPO_ROOT / "Engram"
+_ENGRAM_ROOT = hearth_engram()
 _KNOWLEDGE_GLOBS = ("Career/claude.md", "Areas/*/claude.md", "Projects/*/claude.md")
 _MAX_SNIPPETS = 3
 _SNIPPET_CHARS = 400
@@ -88,11 +86,8 @@ def _ensure_brain_sync():
         return _brain_sync
     if _import_failed:
         return None
-    repo_str = str(_REPO_ROOT)
-    if repo_str not in sys.path:
-        sys.path.insert(0, repo_str)
     try:
-        from Server.tools import brain_sync  # type: ignore
+        from memory import brain_sync  # type: ignore
     except Exception as exc:  # noqa: BLE001
         logger.warning("Engram brain_sync unavailable; memory tools degraded: %s", exc)
         _import_failed = True

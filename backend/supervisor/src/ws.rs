@@ -28,7 +28,6 @@ use crate::protocol::{
     now_timestamp, AiResponse, ClientCommand, ClientInfoAck, ErrorMessage, PersonaConfig,
     PersonaList, PersonaSwitched, PingResponse, PipelineStage, ServerCapabilities,
 };
-use crate::worker;
 use crate::AppState;
 
 pub fn router(state: AppState) -> Router {
@@ -292,23 +291,12 @@ async fn handle_command(
             let persona_config = Some(state.personas.get(&persona_name)?);
             send_json(socket, &PipelineStage {
                 action: "pipeline_stage",
-                stage: if persona_name.eq_ignore_ascii_case("mentat") {
-                    "mentat_agent".to_string()
-                } else {
-                    "direct_model".to_string()
-                },
+                stage: "direct_model".to_string(),
                 event: "start".to_string(),
                 timestamp: now_timestamp(),
-                data: json!({
-                    "persona_name": persona_name,
-                    "workspace": state.config.workspace_root.join(&state.config.project_slug).display().to_string(),
-                    "slug": state.config.project_slug,
-                }),
+                data: json!({ "persona_name": persona_name }),
             }).await?;
-            if state.config.mentat_worker_enabled && persona_name.eq_ignore_ascii_case("mentat") {
-                worker::run_mentat_turn(socket, &state.config, &text, session_id, &persona_name)
-                    .await?;
-            } else {
+            {
                 send_json(
                     socket,
                     &PipelineStage {
