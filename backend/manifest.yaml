@@ -101,9 +101,9 @@ components:
       - engram_writer.py
     note: >-
       The only two modules Valar imports from Server/ under the OmniVoice
-      configuration. Both had D:/Tools/personalAI/Engram in a candidate list
-      with no override; the candidate is deleted and HEARTH_ENGRAM is the only
-      path. brain_sync.py's 25-entry table of one person's projects went with
+      configuration. Both probed a candidate list ending at one person's own
+      memory directory, with no override; that candidate is deleted and
+      HEARTH_ENGRAM is the only path. brain_sync.py's 25-entry table of one person's projects went with
       it; project inference now reads the directory.
 
   - name: supervisor
@@ -167,7 +167,8 @@ components:
       - source: scripts/systemd/valinor-rust.service
         destination: backend/systemd/hearth-supervisor.service
     note: >-
-      Three units. The /home/jones PATH literals became the %h specifier, the
+      Three units. The PATH literals naming one Linux user's home became the
+      %h specifier, the
       ExecStart literals became $HEARTH_ROOT, and each unit reads
       EnvironmentFile=-%h/.hearth/config/hearth.env. The supervisor unit lost
       Environment=VALINOR_LLAMA_CTX=16384, which overrode every persona's
