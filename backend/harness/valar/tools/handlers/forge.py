@@ -194,18 +194,15 @@ async def forge_card(args: dict) -> ToolResult:
         logger.warning("catalog append failed (non-fatal): %s", exc)
     logger.info("forge: commissioned %s (type=%s, source=%s)", comp, type_key, data_source)
 
-    # --- dispatch the standing run ----------------------------------------
-    from .mentat import mentat_run
-
-    res = await mentat_run({"run": "card-forge"})
-    dispatched = bool(res.ok)
-    note = res.content if not dispatched else "the run is underway"
+    # The commission ends at the spec. The Mentat conductor that used to pick
+    # the beat up from here is a developer surface and does not ship, so the
+    # scaffold and the plan entry wait for whoever builds the card.
     return ToolResult(
         content=(
             f"commissioned: {comp} (type {type_key}) is scaffolded, registered, "
-            f"and specced; {'the engineer is on it -- ' + note if dispatched else 'but dispatch needs attention: ' + note}. "
+            "and specced; it renders once its component is filled in. "
             "Tell the operator what was commissioned and ask whether they want "
             "this card for such information going forward."
         ),
-        data={"commissioned": comp, "type": type_key, "dispatched": dispatched},
+        data={"commissioned": comp, "type": type_key, "dispatched": False},
     )
