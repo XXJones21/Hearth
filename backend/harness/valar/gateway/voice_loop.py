@@ -29,6 +29,7 @@ from ..telemetry import Timer, TurnTelemetry
 from ..voice import NeuTTSStreamer, SentenceSegmenter
 from .context import ContextAssembler, estimate_tokens
 from .session import Session, State
+from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.voice_loop")
 
@@ -209,7 +210,7 @@ class VoiceLoop:
             top_k=int(dm.get("top_k", bc.top_k)),
             model=bc.model,
             persona_name=persona.name,
-            model_path=dm.get("path", ""),
+            model_path=resolve_model(dm),
             # The STREAMED spoken answer is always reflex: with the server on
             # --reasoning auto (2026-07-31), an unmarked request could think
             # into dead air before the first sentence. Decision calls override

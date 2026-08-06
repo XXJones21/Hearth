@@ -2,6 +2,7 @@ mod assets;
 mod comfyui;
 mod config;
 mod llama;
+mod models;
 mod persona;
 mod protocol;
 mod ws;

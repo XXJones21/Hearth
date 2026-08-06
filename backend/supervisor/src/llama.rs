@@ -553,28 +553,44 @@ impl LlamaSupervisor {
             .and_then(Value::as_str)
             .map(|path| resolve_repo_path(&self.config.repo_root, path))
             .filter(|path| path.exists());
+        // A persona names a model id; the dictionary says which file that is
+        // and HEARTH_MODELS says where files live. "path" is still honoured so
+        // a developer can point a persona at a file by hand, but nothing
+        // shipped carries one, because an absolute path in a manifest is an
+        // absolute path on exactly one machine.
+        let mut raw_paths: Vec<String> = Vec::new();
+        if let Some(model_id) = deep.get("id").and_then(Value::as_str) {
+            match crate::models::resolve(&self.config.repo_root, model_id) {
+                Some(path) => raw_paths.push(path.display().to_string()),
+                None => anyhow::bail!(
+                    "persona names model id {} but no dictionary entry describes it",
+                    model_id
+                ),
+            }
+        }
         for key in ["path", "fallback_path"] {
-            if let Some(raw_path) = deep.get(key).and_then(Value::as_str) {
-                let spec = ModelSpec {
-                    path: resolve_repo_path(&self.config.repo_root, raw_path),
-                    mmproj_path: if key == "path" {
-                        mmproj_path.clone()
-                    } else {
-                        None
-                    },
-                    n_gpu_layers,
-                    n_ctx,
-                    n_cpu_moe,
-                    kv_cache_type: kv_cache_type.clone(),
-                    override_tensor: override_tensor.clone(),
-                };
-                if !candidates.iter().any(|existing| existing == &spec) {
-                    candidates.push(spec);
-                }
+            if let Some(value) = deep.get(key).and_then(Value::as_str) {
+                raw_paths.push(value.to_string());
+            }
+        }
+        // The first candidate is the persona's own model and carries the
+        // projector; anything after it is a fallback and does not.
+        for (index, raw_path) in raw_paths.iter().enumerate() {
+            let spec = ModelSpec {
+                path: resolve_repo_path(&self.config.repo_root, raw_path),
+                mmproj_path: if index == 0 { mmproj_path.clone() } else { None },
+                n_gpu_layers,
+                n_ctx,
+                n_cpu_moe,
+                kv_cache_type: kv_cache_type.clone(),
+                override_tensor: override_tensor.clone(),
+            };
+            if !candidates.iter().any(|existing| existing == &spec) {
+                candidates.push(spec);
             }
         }
         if candidates.is_empty() {
-            anyhow::bail!("deep_model.path missing");
+            anyhow::bail!("deep_model names neither an id nor a path");
         }
         Ok(candidates)
     }

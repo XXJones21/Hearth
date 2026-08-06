@@ -34,6 +34,7 @@ import logging
 from typing import Any
 
 from ..brain import BrainStreamResult, ChatMessage, ChatOptions
+from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.agents.subagent")
 
@@ -115,7 +116,7 @@ async def run_persona_subagent(
         top_k=int(dm.get("top_k", bc.top_k)),
         model=bc.model,
         persona_name=persona.name,
-        model_path=dm.get("path", ""),
+        model_path=resolve_model(dm),
     )
 
     # FRESH context window: her system prompt + the task. No caller history.

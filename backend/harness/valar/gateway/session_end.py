@@ -21,6 +21,7 @@ from ..brain import BrainProvider, BrainStreamResult, ChatMessage, ChatOptions
 from ..config import ValarConfig
 from ..persona import Persona
 from .session import Session, State
+from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.session_end")
 
@@ -88,7 +89,7 @@ async def summarize_session(
         top_k=int(dm.get("top_k", config.brain.top_k)),
         model=config.brain.model,
         persona_name=persona.name,
-        model_path=dm.get("path", ""),
+        model_path=resolve_model(dm),
     )
     messages = [
         ChatMessage("system", _SUMMARY_SYSTEM),

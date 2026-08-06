@@ -10,14 +10,12 @@ Two translations are worth knowing about.
 **Colours** are stored as float rgb 0..1 and shown as hex, because nobody
 picks a colour in floats.
 
-**Models are named, never pathed.** The files hold absolute
-machine-specific paths (`/home/jones/models/valinor/...`), which is exactly
-what stops a stranger installing this. Rather than block the page on that
-schema change, the registry is applied at the EDIT boundary: the surface
-reports the model's name, the client picks a name, and this module resolves
-it back to a path from what is actually on disk. The file format is
-unchanged; the UI never sees a path. Moving the registry into the file
-proper is still the right end state (Q2 in tasks/persona-page-notes.md).
+**Models are named, never pathed**, in the file as well as on the page.
+A manifest carries a model id the dictionary describes, and the resolver joins
+it to HEARTH_MODELS. This module used to do that translation alone, at the edit
+boundary, over files that stored absolute paths under one Linux user's home;
+now it reads and writes the id and the picker offers what the dictionary
+knows.
 
 There is also one thing here that is neither a read nor a write. **Hear it**
 (`POST /personas/speak`) sends a line through the same persistent TTS service
@@ -48,6 +46,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 
 from ..config.settings import ValarConfig
+from ..models import dictionary, filename_for
 
 logger = logging.getLogger("valar.gateway.personas")
 
@@ -89,27 +88,24 @@ def _model_name(path: str) -> str:
     return stem
 
 
-def _model_registry(config: ValarConfig) -> dict[str, str]:
-    """name -> absolute path. Built from what is ACTUALLY on disk, plus every
-    path the personas already reference, so a model living outside the models
-    folder does not vanish from its own persona's picker."""
-    registry: dict[str, str] = {}
-    models_dir = config.persona_dir.parent / "models"
-    try:
-        for f in sorted(models_dir.rglob("*.gguf")):
-            registry.setdefault(_model_name(f.name), str(f))
-    except OSError:
-        pass
-    for cfg in _persona_files(config):
+def _deep_file(deep: dict) -> str:
+    """The filename to show for a model block, whether it names an id or,
+    for a hand-edited manifest, still carries a path."""
+    model_id = str(deep.get("id") or "").strip()
+    if model_id:
         try:
-            doc = json.loads(cfg.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001
-            continue
-        for tier in ("fast_model", "deep_model", "escalation_model"):
-            path = (doc.get(tier) or {}).get("path")
-            if path:
-                registry.setdefault(_model_name(path), str(path))
-    return registry
+            return filename_for(model_id)
+        except Exception:  # noqa: BLE001 - an unknown id shows as unknown
+            return model_id
+    return str(deep.get("path") or "")
+
+
+def _model_registry(config: ValarConfig) -> dict[str, str]:
+    """name -> model id. The dictionary is the registry: it is what the probe
+    plans against and what a persona is allowed to name. Anything already
+    downloaded is in it, and anything that is not cannot be planned for."""
+    return {_model_name(entry["file"]): model_id
+            for model_id, entry in dictionary().items()}
 
 
 def _persona_files(config: ValarConfig) -> list[Path]:
@@ -202,13 +198,9 @@ def _read_one(config: ValarConfig, cfg: Path) -> dict:
         "deny": list(grants.get("deny") or []),
         "reasoning": bool(loop.get("reasoning")),
         "rounds": int(loop.get("max_rounds") or 2),
-        "model": _model_name(deep.get("path", "")),
+        "model": _model_name(_deep_file(deep)),
         "temperature": float(deep.get("temperature") or 0.7),
         "n_ctx": int(deep.get("n_ctx") or 0),
-        "tiers": {
-            "fast": _model_name((doc.get("fast_model") or {}).get("path", "")),
-            "escalation": _model_name((doc.get("escalation_model") or {}).get("path", "")),
-        },
     }
 
 
@@ -324,9 +316,11 @@ def _apply_one(config: ValarConfig, key: str, edit: dict, registry: dict[str, st
 
     deep = doc.setdefault("deep_model", {})
     if edit.get("model"):
-        path = registry.get(edit["model"])
-        if path and path != deep.get("path"):
-            deep["path"] = path
+        model_id = registry.get(edit["model"])
+        if model_id and model_id != deep.get("id"):
+            deep["id"] = model_id
+            deep.pop("path", None)
+            deep.pop("fallback_path", None)
             touched.append("model")
     if "temperature" in edit:
         temp = round(float(edit["temperature"]), 2)

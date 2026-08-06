@@ -33,6 +33,7 @@ from .session import Session, State
 from .easel_watch import easel_watchdog
 from .session_end import idle_watchdog
 from .voice_loop import VoiceLoop
+from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.gateway")
 
@@ -225,7 +226,7 @@ def create_app(config: ValarConfig) -> FastAPI:
             top_k=int(dm.get("top_k", config.brain.top_k)),
             model=config.brain.model,
             persona_name=persona.name,
-            model_path=dm.get("path", ""),
+            model_path=resolve_model(dm),
         )
 
         result = BrainStreamResult()
@@ -474,7 +475,7 @@ def create_app(config: ValarConfig) -> FastAPI:
                     opts = ChatOptions(
                         model=config.brain.model,
                         persona_name=persona.name,
-                        model_path=dm.get("path", ""),
+                        model_path=resolve_model(dm),
                     )
                     try:
                         await warm(opts)
