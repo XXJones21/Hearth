@@ -1,0 +1,84 @@
+# The workshop card catalog -- the server-side source of truth for what UI
+# cards exist across clients. list_cards reads it (Sulivan's discovery seam);
+# forge_card appends to it at commission time. A commissioned card counts as
+# BUILT when its component file no longer carries the scaffold sentinel (the
+# beat replaces the stub body).
+#
+# data_source names the tool whose data feeds the card; consult handlers use
+# it to emit a typed card instead of a generic brief once the card is built.
+
+cards:
+  - type: clock
+    purpose: Current time and date, ambient display.
+    data_fields: "time:string, date:string"
+    builtin: true
+  - type: weather_card
+    purpose: Weather conditions and temperatures for a location.
+    data_fields: "location:string, temp:number, condition:string, high/low"
+    data_source: get_weather
+    builtin: true
+  - type: timer_card
+    purpose: Active countdown timers with remaining time.
+    data_fields: "timers:list of label+fire_at"
+    data_source: list_timers
+    builtin: true
+  - type: brief_text
+    purpose: A short titled text note.
+    data_fields: "title:string, body:string"
+    builtin: true
+  - type: captions
+    purpose: Muted caption/transcript text.
+    data_fields: "text:string"
+    builtin: true
+  - type: slideshow
+    purpose: Auto-advancing image slideshow from asset URLs.
+    data_fields: "images:list of url, interval_ms:number"
+    builtin: true
+  - type: terminal_card
+    purpose: >-
+      Output from a delegated agent or a third-party command-line tool. The
+      generic shape for anything that reports back as text: Claude Code, a
+      build, an external CLI. Renders as a console pane with a status, the
+      body in monospace, code blocks set apart, and any commands still
+      awaiting the operator's approval called out.
+    data_fields: "title:string, subtitle:string, status:running|done|error|timeout, body:string(markdown), meta:list of string, pending:list of string"
+    data_source: consult_claude
+    builtin: true
+  - type: image_card
+    purpose: >-
+      A picture from the local art studio, shown from the moment it is
+      commissioned. Carries its own drawing state, so the card lands with the
+      request and fills in when the render finishes rather than waiting to be
+      asked for.
+    data_fields: "title:string, prompt:string, status:running|done|error, src:string(asset path), note:string, job_id:string"
+    data_source: generate_image
+    builtin: true
+  - type: generated_view
+    purpose: >-
+      General composed view -- text, stats, stat rows, images, dividers in
+      four templates. The fallback carrier for anything without a dedicated
+      card; NOT suited to charts, meters, or dense financial/tabular data.
+    data_fields: "template:string, title:string, sections:list"
+    builtin: true
+  - type: choam_portfolio_dashboard
+    purpose: To provide a structured, visual overview of the CHOAM portfolio status
+      including NAV, deployment, and risk metrics.
+    data_fields: nav:number, deployed_pct:number, drawdown:number, headroom:number,
+      positions:list of ticker+pct
+    data_source: consult_liara
+    component: ChoamPortfolioDashboardCard
+    commissioned: '2026-07-31'
+  - type: ticker_insight_card
+    purpose: To display real-time metrics, price action, and position-specific risk
+      data for individual stocks.
+    data_fields: ticker:string, price:number, change_pct:number, market_cap:number,
+      risk_score:number
+    data_source: consult_liara
+    component: TickerInsightCardCard
+    commissioned: '2026-07-31'
+  - type: august_2026_calendar
+    purpose: Displays a calendar view for August 2026 with every Sunday highlighted.
+    data_fields: month_name:text, calendar_grid:grid
+    data_source: static_data
+    component: August2026CalendarCard
+    commissioned: '2026-08-06'

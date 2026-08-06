@@ -1,0 +1,29 @@
+{
+  "persona": "selene",
+  "clips": [
+    {
+      "state": "idle",
+      "clip": "idle",
+      "file": "selene-idle.usdz",
+      "duration": 54.8
+    },
+    {
+      "state": "listening",
+      "clip": "Listening",
+      "file": "selene-listening.usdz",
+      "duration": 10.133
+    },
+    {
+      "state": "speaking",
+      "clip": "Talking",
+      "file": "selene-speaking.usdz",
+      "duration": 9.167
+    },
+    {
+      "state": "thinking",
+      "clip": "Thinking",
+      "file": "selene-thinking.usdz",
+      "duration": 43.5
+    }
+  ]
+}

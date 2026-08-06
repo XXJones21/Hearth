@@ -1,0 +1,22 @@
+[Unit]
+Description=Valar TTS service - OmniVoice (127.0.0.1:8702)
+# The OmniVoice engine instance (k2-fsa, 16-step config) on its own port for
+# A/B against / migration from the NeuTTS valar-tts.service. Same tts_app.py,
+# different engine + venv (the isolated omnivoice-venv; its torch is newer
+# than valar-venv's cu118 pin). Internal only, like the NeuTTS instance.
+After=network.target
+
+[Service]
+Type=simple
+Environment=VALAR_TTS_SERVICE=omnivoice
+Environment=VALAR_TTS_PORT=8702
+# WSL CUDA libs (systemd does not inject WSL's PATH).
+Environment=PATH=/home/jones/omnivoice-venv/bin:/home/jones/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/lib/wsl/lib
+ExecStart=/usr/bin/env bash /mnt/d/Tools/Valinor/scripts/valar_tts_run.sh
+Restart=always
+RestartSec=5
+# Model load (~3s warm cache) + clone prompt + CUDA prime; never time out.
+TimeoutStartSec=0
+
+[Install]
+WantedBy=default.target

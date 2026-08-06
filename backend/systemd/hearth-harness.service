@@ -1,0 +1,28 @@
+[Unit]
+Description=Valar harness - the single Valinor client entry point (:8700)
+# Valar is a CLIENT of the brain (data plane :8080, control plane :8765) that the
+# Rust supervisor manages. Order after it so the brain is coming up first; Valar is
+# resilient if the brain is briefly unavailable (its startup warm-up is best-effort
+# and a turn re-tries the model swap). Only Valar :8700 is exposed to the LAN.
+# TTS dependency = the OmniVoice service (valar-tts-omni, :8702) since
+# 2026-06-05; the NeuTTS valar-tts.service (:8701) is retired from residency
+# (kept installed for rollback - re-point VALAR_TTS_SERVICE_URL to use it).
+After=valinor-rust.service valar-tts-omni.service
+Wants=valinor-rust.service valar-tts-omni.service
+
+[Service]
+Type=simple
+# valar_run.sh sources the Linux-native venv, exports the single-pipeline env
+# (router backend, brain :8080, default persona Sulivan), and execs python app.py.
+# Mirror the brain unit's PATH so nvidia-smi + the WSL CUDA libs resolve under
+# systemd, which does NOT inject WSL's interop PATH; NeuTTS needs the GPU backbone.
+Environment=PATH=/home/jones/valar-venv/bin:/home/jones/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/lib/wsl/lib
+ExecStart=/usr/bin/env bash /mnt/d/Tools/Valinor/scripts/valar_run.sh
+Restart=always
+RestartSec=5
+# The startup warm-up (Whisper + NeuTTS encode + making the model resident) can
+# take a while against a cold brain; never time the start out.
+TimeoutStartSec=0
+
+[Install]
+WantedBy=default.target
