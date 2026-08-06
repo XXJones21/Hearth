@@ -22,9 +22,16 @@ version: 1
 copied_on: 2026-08-06
 source:
   repo: Valinor
-  # The rollback point. Every source path below was read at this commit.
+  # The rollback point, which is where "before the move" is defined.
   tag: rc-pre-hearth-move
-  commit: 8a47cc1ffefede8c9ba336d822151391caaa847f
+  tag_commit: 8a47cc1ffefede8c9ba336d822151391caaa847f
+  # What was actually copied. Three commits landed on the shipping set after
+  # the tag and before the copy: the OpenCode boot dependency was removed, the
+  # wiki was corrected against the machine, and compose_view was added. Taking
+  # the tag would have re-imported the OpenCode preflight this migration exists
+  # partly to be rid of, so the copy is from HEAD at the time and this records
+  # which HEAD. tools/sync-report.py compares from here, not from the tag.
+  commit: 856f1c4
 destination:
   # HEARTH_ROOT points here in a checkout, and at /opt/hearth in the image.
   root: backend/

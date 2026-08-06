@@ -76,9 +76,3 @@ cards:
     data_source: consult_liara
     component: TickerInsightCardCard
     commissioned: '2026-07-31'
-  - type: august_2026_calendar
-    purpose: Displays a calendar view for August 2026 with every Sunday highlighted.
-    data_fields: month_name:text, calendar_grid:grid
-    data_source: static_data
-    component: August2026CalendarCard
-    commissioned: '2026-08-06'
