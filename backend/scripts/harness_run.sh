@@ -1,86 +1,59 @@
 #!/usr/bin/env bash
-# Launch the Valar harness in WSL against the local Rust brain.
+# Launch the Hearth harness, the single client entry point (:8700).
 #
-# - Uses the Linux-native venv at /home/jones/valar-venv (built by
-#   build_env.sh) — NOT a /mnt/d venv.
-# - PYTHONPATH includes the Valinor repo root (so `import Server.*` resolves) and
-#   neutts-air/ (NeuTTS local package; Server/model_manager.py also auto-adds it).
-# - Points the BrainProvider at llama-server's streaming OpenAI endpoint on
-#   127.0.0.1:8080 (the Rust WS gateway :8765 does not serve HTTP chat). The brain
-#   stays internal to WSL; only Valar :8700 is exposed to the LAN (via portproxy).
+# Where things are is derived, never declared. HEARTH_ROOT is this script's
+# parent directory, which is /opt/hearth in the shipped image and the checkout's
+# backend/ in a working tree. Set HEARTH_ROOT to override for a third location.
+#
+# What varies per machine (the model, the context, the accelerator, the voice
+# endpoint) is NOT here. It arrives through $HEARTH_HOME/config/hearth.env,
+# written at install time from the probe's plan and read by the systemd unit.
+# See config/hearth.env.example.
 #
 # Usage: harness_run.sh        (foreground; Ctrl-C to stop)
 set -euo pipefail
 
-VENV=/home/jones/valar-venv
-REPO=/mnt/d/Tools/Valinor
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HEARTH_ROOT="${HEARTH_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+HEARTH_HOME="${HEARTH_HOME:-$HOME/.hearth}"
+HEARTH_VENV="${HEARTH_VENV:-$HEARTH_ROOT/venv}"
+export HEARTH_ROOT HEARTH_HOME
 
-if [ ! -x "$VENV/bin/python" ]; then
-  echo "[valar-run] venv missing at $VENV — run scripts/build_env.sh first" >&2
+if [ ! -x "$HEARTH_VENV/bin/python" ]; then
+  echo "[hearth] no python environment at $HEARTH_VENV; run scripts/build_env.sh" >&2
   exit 1
 fi
 
-export PYTHONPATH="$REPO:$REPO/neutts-air:${PYTHONPATH:-}"
+# The harness package lives at $HEARTH_ROOT/harness, the memory modules at
+# $HEARTH_ROOT/memory, so both roots go on the path.
+export PYTHONPATH="$HEARTH_ROOT:$HEARTH_ROOT/harness:${PYTHONPATH:-}"
+
 export HEARTH_BRAIN_BASE_URL="${HEARTH_BRAIN_BASE_URL:-http://127.0.0.1:8080/v1}"
 export HEARTH_HOST="${HEARTH_HOST:-0.0.0.0}"
 export HEARTH_PORT="${HEARTH_PORT:-8700}"
 
-# Single pipeline: Valar owns persona->model routing. The "router" backend streams
-# from the data plane (HEARTH_BRAIN_BASE_URL = llama-server :8080/v1 native SSE) and
-# makes the right model resident via switch_persona on the Rust supervisor WS
-# (control plane). Default persona = the always-resident fast daily model
-# (valinor-daily -> gemma-4-E4B). Heavy personas swap in on demand.
+# Single pipeline: the harness owns persona-to-model routing. The "router"
+# backend streams from the data plane (HEARTH_BRAIN_BASE_URL = llama-server
+# :8080/v1 native SSE) and makes the right model resident via switch_persona on
+# the supervisor's WebSocket (control plane). The code default is "rust", which
+# is the wrong plane, so it is set here rather than left to fall through.
 export HEARTH_BRAIN_BACKEND="${HEARTH_BRAIN_BACKEND:-router}"
-
-# CHOAM wallet bridge (2026-07-30): the wallet backend runs on WINDOWS
-# loopback :8091; from WSL that address is a different loopback. Reach it
-# via the Windows host = the WSL default gateway (resolved live so NAT
-# subnet drift on reboot never breaks the URL). Requires the host-side
-# scripts/choam_wallet_bridge.ps1 portproxy+firewall (WSL-subnet-scoped).
-if [ -z "${CHOAM_WALLET_URL:-}" ] || [ -z "${HEARTH_COMFY_URL:-}" ]; then
-  _WIN_HOST="$(ip route show default 2>/dev/null | awk '{print $3; exit}')"
-  if [ -n "$_WIN_HOST" ]; then
-    export CHOAM_WALLET_URL="${CHOAM_WALLET_URL:-http://${_WIN_HOST}:8091/wallet/query}"
-    # ComfyUI bridge (2026-07-31): scripts/comfy_bridge.ps1 host-side.
-    export HEARTH_COMFY_URL="${HEARTH_COMFY_URL:-http://${_WIN_HOST}:8188}"
-  fi
-fi
 export HEARTH_BRAIN_SWITCH_WS_URL="${HEARTH_BRAIN_SWITCH_WS_URL:-ws://127.0.0.1:8765}"
 export HEARTH_DEFAULT_PERSONA="${HEARTH_DEFAULT_PERSONA:-Sulivan}"
 
-# Sampling tuned for the Gemma 4 brain (its recommended defaults). Override by
-# exporting these before launch for a different model family.
-export HEARTH_BRAIN_TEMPERATURE="${HEARTH_BRAIN_TEMPERATURE:-1.0}"
-export HEARTH_BRAIN_TOP_P="${HEARTH_BRAIN_TOP_P:-0.95}"
-export HEARTH_BRAIN_TOP_K="${HEARTH_BRAIN_TOP_K:-64}"
-
-# Keep Valar's prompt budget within the brain's loaded ctx (16384) so we never
-# send a prompt longer than llama-server can hold. Leaves room for generation.
-export HEARTH_CTX_MAX_TOKENS="${HEARTH_CTX_MAX_TOKENS:-16384}"
-export HEARTH_CTX_HISTORY_TOKENS="${HEARTH_CTX_HISTORY_TOKENS:-9000}"
-
-# Auto session-end: persist + clear an idle session after this many seconds (the
-# home-pod QoL window, 2026-06-05: ~5 minutes; the code default stays 120). The
-# Echo pairs this with its local idle host (+45s) and clears its chat there.
+# Auto session-end: persist and clear an idle session after this many seconds.
+# Five minutes is the home-pod window; the code default of 120 is too eager for
+# a device someone talks to across a room.
 export HEARTH_SESSION_IDLE_S="${HEARTH_SESSION_IDLE_S:-300}"
 
-# Single-GPU coexistence with the resident brain: pin the NeuTTS codec (~2GB fp32)
-# to CPU so only the ~1GB GGUF backbone occupies VRAM. Measured cost: ~none
-# (RTF 0.46x vs 0.40x with codec on GPU). The backbone itself stays on the GPU
-# (CUDA llama-cpp-python) — that is the part that must be fast.
-export HEARTH_NEUTTS_CODEC_DEVICE="${HEARTH_NEUTTS_CODEC_DEVICE:-cpu}"
-
-# TTS backend. "remote" (default) talks to the persistent valar-tts service
-# (127.0.0.1:8701) so a gateway restart costs NO GPU TTS reload — the decoupled
-# end state. "local" loads NeuTTS in the gateway process (fallback; reloads the
-# model on every gateway restart). The service "hang" was a concurrent-load race
-# (warm-up vs first request both constructing NeuTTSAir -> meta-tensor failure),
-# fixed by the sync lock in valar/voice/tts.py (2026-06-03).
+# Talk to the persistent voice service rather than loading a speech model in
+# this process, so a harness restart costs no GPU reload. The code default is
+# "local", which is the fallback, not the shipped arrangement.
 export HEARTH_TTS_BACKEND="${HEARTH_TTS_BACKEND:-remote}"
 
 # shellcheck disable=SC1091
-source "$VENV/bin/activate"
-cd "$REPO/Valar"
+source "$HEARTH_VENV/bin/activate"
+cd "$HEARTH_ROOT/harness"
 
-echo "[valar-run] starting Valar on ${HEARTH_HOST}:${HEARTH_PORT} -> brain ${HEARTH_BRAIN_BASE_URL}"
+echo "[hearth] harness on ${HEARTH_HOST}:${HEARTH_PORT} -> brain ${HEARTH_BRAIN_BASE_URL} (root ${HEARTH_ROOT})"
 exec python app.py

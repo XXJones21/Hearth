@@ -1,40 +1,61 @@
 #!/usr/bin/env bash
-# Install + enable Valar as an always-on systemd --user service.
+# Install the three Hearth systemd user units.
 #
-# Why this exists: Valar was being launched FOREGROUND via harness_run.sh, so it died
-# with the terminal/session and :8700 went dark (the portproxy then resets on connect
-# because nothing is listening behind it). This registers Valar as a user service so
-# it is up whenever the WSL user manager is. Linger=yes is already set for `jones`
-# (see memory valar_wsl_session_churn_brain_bounce), so the user manager - and thus
-# Valar - survives logoff and starts at boot.
+# A rewrite rather than a port. The Valinor script this replaces installed the
+# retired speech engine's unit and never installed the one the harness declares
+# in After=, so running it produced a stack ordered after a unit that did not
+# exist. The enable list here is the set that actually runs:
 #
-# Idempotent: safe to re-run. Run inside WSL as the `jones` user (NOT via sudo):
-#   bash /mnt/d/Tools/Valinor/scripts/install_units.sh
+#   hearth-supervisor.service   the model control plane, and llama-server
+#   hearth-voice.service        the voice service on :8702
+#   hearth-harness.service      the client entry point on :8700
+#
+# The units read $HEARTH_HOME/config/hearth.env, which the installer writes
+# from the probe's plan. This script does not write it; render_config.py does.
+# A missing file is not fatal here (EnvironmentFile=- in the units), but the
+# stack will start with code defaults, which is worth knowing about, so it is
+# reported rather than passed over.
+#
+# Idempotent. Run inside the distro as the product user, never with sudo:
+#   bash "$HEARTH_ROOT/scripts/install_units.sh"
 set -euo pipefail
 
-SRC_DIR=/mnt/d/Tools/Valinor/scripts/systemd
-UNIT_DIR="$HOME/.config/systemd/user"
-mkdir -p "$UNIT_DIR"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HEARTH_ROOT="${HEARTH_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+HEARTH_HOME="${HEARTH_HOME:-$HOME/.hearth}"
 
-# Both units: valar-tts (persistent NeuTTS, 127.0.0.1:8701) and the gateway
-# (HEARTH_TTS_BACKEND=remote default). The TTS service starts first (hearth-harness.service
-# has After=/Wants=hearth-voice.service) so the gateway never reloads NeuTTS on its
-# own restarts — the decoupling. The old service-load hang was the concurrent-load
-# race fixed in valar/voice/tts.py (2026-06-03).
-for unit in hearth-voice.service hearth-harness.service; do
+SRC_DIR="$HEARTH_ROOT/systemd"
+UNIT_DIR="$HOME/.config/systemd/user"
+UNITS=(hearth-supervisor.service hearth-voice.service hearth-harness.service)
+
+mkdir -p "$UNIT_DIR" "$HEARTH_HOME/config"
+
+for unit in "${UNITS[@]}"; do
   if [ ! -f "$SRC_DIR/$unit" ]; then
-    echo "[valar-install] unit source missing: $SRC_DIR/$unit" >&2
+    echo "[hearth-install] missing unit template: $SRC_DIR/$unit" >&2
     exit 1
   fi
-  # CRLF-stripped (systemd rejects CRLF on DrvFs).
-  sed 's/\r$//' "$SRC_DIR/$unit" > "$UNIT_DIR/$unit"
+  # The templates carry $HEARTH_ROOT as a literal so one file serves the image
+  # and a checkout; substitute it on the way in. CRLF is stripped because a
+  # Windows checkout on a mounted filesystem produces it and systemd rejects it.
+  sed -e "s|@HEARTH_ROOT@|$HEARTH_ROOT|g" -e 's/\r$//' \
+    "$SRC_DIR/$unit" > "$UNIT_DIR/$unit"
 done
 
 systemctl --user daemon-reload
-systemctl --user enable hearth-voice.service hearth-harness.service
+systemctl --user enable "${UNITS[@]}"
+
+if [ ! -f "$HEARTH_HOME/config/hearth.env" ]; then
+  echo "[hearth-install] no $HEARTH_HOME/config/hearth.env yet." >&2
+  echo "[hearth-install] the stack will start on code defaults, which is not a" >&2
+  echo "[hearth-install] configured install. Write one with scripts/render_config.py." >&2
+fi
+
+# Ordering matters on a cold start: the supervisor makes a model resident, the
+# voice service loads its own, and the harness dials both.
+systemctl --user restart hearth-supervisor.service
 systemctl --user restart hearth-voice.service
 systemctl --user restart hearth-harness.service
 
-echo "[valar-install] enabled + (re)started hearth-voice.service + hearth-harness.service"
-sleep 2
-systemctl --user --no-pager status hearth-voice.service hearth-harness.service | head -n 40 || true
+echo "[hearth-install] installed and enabled: ${UNITS[*]}"
+systemctl --user --no-pager status "${UNITS[@]}" | head -n 60 || true

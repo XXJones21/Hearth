@@ -1,50 +1,44 @@
 #!/usr/bin/env bash
-# Launch the persistent Valar TTS service (NeuTTS-Air) in WSL.
+# Launch the persistent Hearth voice service (OmniVoice) on 127.0.0.1:8702.
 #
-# Holds NeuTTS resident on its own process so the Valar gateway (harness_run.sh) can
-# restart without reloading the GPU TTS model. Internal only: binds 127.0.0.1:8701;
-# the gateway connects over ws://127.0.0.1:8701/tts. Independent of the brain.
+# It holds the speech model resident in its own process so the harness can
+# restart without reloading it. Internal only; the harness dials
+# ws://127.0.0.1:8702/tts. Independent of the brain.
+#
+# Its virtualenv is separate from the harness's because its torch is newer than
+# the one the rest of the stack is pinned to. That is a real constraint rather
+# than tidiness, and it is why HEARTH_VOICE_VENV exists at all.
 #
 # Usage: voice_run.sh   (foreground; Ctrl-C to stop)
 set -euo pipefail
 
-# Venv is engine-dependent: NeuTTS runs in valar-venv; OmniVoice runs in the
-# ISOLATED omnivoice-venv (its torch is newer than valar-venv's cu118 pin —
-# never install omnivoice into valar-venv). Override with HEARTH_TTS_VENV.
-if [ -z "${HEARTH_TTS_VENV:-}" ] && [ "${HEARTH_TTS_SERVICE:-}" = "omnivoice" ]; then
-  HEARTH_TTS_VENV=/home/jones/omnivoice-venv
-fi
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HEARTH_ROOT="${HEARTH_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+HEARTH_HOME="${HEARTH_HOME:-$HOME/.hearth}"
+HEARTH_VOICE_VENV="${HEARTH_VOICE_VENV:-$HEARTH_ROOT/venv-voice}"
+export HEARTH_ROOT HEARTH_HOME
 
-# OmniVoice's PyTorch caching allocator over-reserves VRAM on the shared 4080:
-# the warm-up diffusion high-water mark stays reserved-but-idle (~5.5GB process
-# footprint for a ~2.2GB model). expandable_segments lets freed segments return
-# to the driver, holding the process near its real footprint — the difference
-# between fit and sysmem spillover on the single-GPU coexistence. Must be set
-# before torch initializes CUDA, hence here rather than in Python.
-if [ "${HEARTH_TTS_SERVICE:-}" = "omnivoice" ]; then
-  export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
-fi
-VENV="${HEARTH_TTS_VENV:-/home/jones/valar-venv}"
-REPO=/mnt/d/Tools/Valinor
-
-if [ ! -x "$VENV/bin/python" ]; then
-  echo "[valar-tts] venv missing at $VENV — run scripts/build_env.sh first" >&2
+if [ ! -x "$HEARTH_VOICE_VENV/bin/python" ]; then
+  echo "[hearth-voice] no python environment at $HEARTH_VOICE_VENV; run scripts/build_env.sh" >&2
   exit 1
 fi
 
-export PYTHONPATH="$REPO:$REPO/neutts-air:${PYTHONPATH:-}"
-export HEARTH_TTS_SERVICE="${HEARTH_TTS_SERVICE:-neutts_air}"
-export HEARTH_TTS_PORT="${HEARTH_TTS_PORT:-8701}"
+# OmniVoice's caching allocator over-reserves: the warm-up diffusion high-water
+# mark stays reserved but idle, roughly 5.5 GB of process footprint for a 2.2 GB
+# model. expandable_segments returns freed segments to the driver, which is the
+# difference between fitting alongside the brain and spilling to system memory.
+# It must be set before torch initialises CUDA, hence here rather than in Python.
+export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
+
+export PYTHONPATH="$HEARTH_ROOT:$HEARTH_ROOT/harness:${PYTHONPATH:-}"
+export HEARTH_TTS_SERVICE="${HEARTH_TTS_SERVICE:-omnivoice}"
+export HEARTH_TTS_PORT="${HEARTH_TTS_PORT:-8702}"
 export HEARTH_TTS_SAMPLE_RATE="${HEARTH_TTS_SAMPLE_RATE:-48000}"
 export HEARTH_DEFAULT_PERSONA="${HEARTH_DEFAULT_PERSONA:-Sulivan}"
 
-# Single-GPU coexistence: pin the NeuTTS codec (~2GB fp32) to CPU so only the
-# ~1GB GGUF backbone occupies VRAM (same as the gateway's local path used).
-export HEARTH_NEUTTS_CODEC_DEVICE="${HEARTH_NEUTTS_CODEC_DEVICE:-cpu}"
-
 # shellcheck disable=SC1091
-source "$VENV/bin/activate"
-cd "$REPO/Valar"
+source "$HEARTH_VOICE_VENV/bin/activate"
+cd "$HEARTH_ROOT/harness"
 
-echo "[valar-tts] starting TTS service on 127.0.0.1:${HEARTH_TTS_PORT}"
+echo "[hearth-voice] voice service on 127.0.0.1:${HEARTH_TTS_PORT} (root ${HEARTH_ROOT})"
 exec python tts_app.py
