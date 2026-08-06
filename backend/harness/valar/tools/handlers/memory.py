@@ -21,6 +21,7 @@ import re
 import sys
 from pathlib import Path
 
+from ...config.settings import hearth_engram
 from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.memory")

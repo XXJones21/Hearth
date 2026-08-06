@@ -42,6 +42,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from ...config.settings import hearth_root
 from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.imagery")

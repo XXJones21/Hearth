@@ -26,7 +26,7 @@ from ..config import ValarConfig
 from ..memory import EngramMemory
 from ..persona import Persona
 from ..telemetry import Timer, TurnTelemetry
-from ..voice import NeuTTSStreamer, SentenceSegmenter
+from ..voice import SentenceSegmenter
 from .context import ContextAssembler, estimate_tokens
 from .session import Session, State
 from ..models import resolve as resolve_model
@@ -62,7 +62,9 @@ class VoiceLoop:
         config: ValarConfig,
         brain: BrainProvider,
         memory: EngramMemory,
-        tts: NeuTTSStreamer,
+        # Any streamer with the say/stream surface. NeuTTS left with the
+        # migration; remote OmniVoice is the shipped arrangement.
+        tts: object,
     ):
         self.config = config
         self.brain = brain

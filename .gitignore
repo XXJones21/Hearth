@@ -16,6 +16,13 @@ desktop-client/node_modules/
 models/
 *.gguf
 
+# Python
+__pycache__/
+*.pyc
+
+# The by-hand startup proof: machine-specific script and its logs.
+backend/.proof/
+
 # Editors and OS
 .DS_Store
 Thumbs.db
