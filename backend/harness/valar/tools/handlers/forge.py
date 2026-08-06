@@ -4,18 +4,20 @@ When no existing card can carry a content shape, the calling persona
 commissions a NEW card. The handler does the deterministic half itself
 (scaffold: a null-returning stub component + marker-based registration in
 registry.tsx, so the beat stays the validated one-file fill-in shape) and
-appends a spec beat to the card-forge plan, then dispatches the standing
-"card-forge" Mentat run. The model supplies the SPEC, never paths.
+appends a spec beat to the card-forge plan. The model supplies the SPEC,
+never paths, and the client checkout it writes into comes from
+HEARTH_CLIENT_DIR rather than from anything this module knows.
 
 Approval gate: a commissioned card renders only after the operator has seen
-it (the run finishing is not silent adoption -- the registry line ships with
-the scaffold, but the card only appears when the server actually emits its
-type, which happens after the operator approves wiring it to a data source).
+it. The registry line ships with the scaffold, but the card appears only when
+the server actually emits its type, which happens after the operator approves
+wiring it to a data source.
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -24,9 +26,28 @@ from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.forge")
 
-_CLIENT = Path("/mnt/d/Tools/Valinor/hearth-client")
-_PLAN_DIR = Path("/mnt/d/Tools/Valinor/tasks/card-forge")
-_REGISTRY = _CLIENT / "src" / "components" / "cards" / "registry.tsx"
+# The client is a SIBLING repository, not a directory inside this one, so
+# there is no path to derive and no sensible default to invent. HEARTH_CLIENT_DIR
+# is required, and its absence disables the commission rather than guessing at
+# somebody's checkout: a forge that writes into the wrong repository is
+# discovered days later, by which point the plan file has moved on.
+def _client_dir() -> Path | None:
+    configured = (os.environ.get("HEARTH_CLIENT_DIR") or "").strip()
+    return Path(configured).expanduser() if configured else None
+
+
+def _plan_dir() -> Path | None:
+    """Where commissioned card specs accumulate. Under the client checkout, so
+    a spec sits beside the component it describes."""
+    client = _client_dir()
+    return (client / "tasks" / "card-forge") if client else None
+
+
+def _registry_path() -> Path | None:
+    client = _client_dir()
+    return (client / "src" / "components" / "cards" / "registry.tsx") if client else None
+
+
 _CATALOG = Path(__file__).resolve().parents[1] / "card_catalog.yaml"
 _STUB_SENTINEL = "the card-forge beat fills this stub"
 
@@ -48,7 +69,10 @@ def card_status(entry: dict) -> str:
     if entry.get("builtin"):
         return "built"
     comp = str(entry.get("component") or "")
-    path = _CLIENT / "src" / "components" / "cards" / f"{comp}.tsx"
+    client = _client_dir()
+    if client is None:
+        return "building"
+    path = client / "src" / "components" / "cards" / f"{comp}.tsx"
     try:
         return "building" if _STUB_SENTINEL in path.read_text(encoding="utf-8") else "built"
     except OSError:
@@ -85,8 +109,8 @@ async def list_cards(args: dict) -> ToolResult:
 
 _PLAN_HEADER = """# Card Forge -- commissioned card beats
 
-Standing plan for the card-forge Mentat run. Each item fills ONE scaffolded
-stub component against its spec. The scaffold (stub + registry line) is
+Standing plan for the card forge. Each item fills ONE scaffolded stub
+component against its spec. The scaffold (stub + registry line) is
 written deterministically by the forge_card handler at commission time; the
 beat's job is ONLY the component body. Import CardProps from ../types and
 narrow props; match the existing card shell idiom (rounded-2xl border-linen
@@ -119,11 +143,18 @@ async def forge_card(args: dict) -> ToolResult:
         )
     type_key = re.sub(r"[^a-z0-9]+", "_", card_name.lower()).strip("_")
     comp = _pascal(card_name) + "Card"
-    comp_path = _CLIENT / "src" / "components" / "cards" / f"{comp}.tsx"
+    client = _client_dir()
+    if client is None:
+        return ToolResult.error(
+            "the workshop has no bench: HEARTH_CLIENT_DIR is not set, so there "
+            "is nowhere to scaffold a card."
+        )
+    registry = _registry_path()
+    comp_path = client / "src" / "components" / "cards" / f"{comp}.tsx"
 
-    if not _REGISTRY.is_file():
+    if registry is None or not registry.is_file():
         return ToolResult.error("the workshop is missing its registry; cannot scaffold.")
-    registry_src = _REGISTRY.read_text(encoding="utf-8")
+    registry_src = registry.read_text(encoding="utf-8")
     if f"'{type_key}'" in registry_src or f"{type_key}:" in registry_src:
         return ToolResult.error(
             f"a card of type {type_key} already hangs in the workshop -- reuse it."
@@ -135,7 +166,7 @@ async def forge_card(args: dict) -> ToolResult:
         "import type { CardProps } from './types';\n\n"
         f"/* {comp} -- commissioned via the Card Forge.\n"
         f" * Purpose: {purpose}\n"
-        f" * Data fields (props.data): {data_fields or 'see spec in tasks/card-forge/plan.md'}\n"
+        f" * Data fields (props.data): {data_fields or 'see the card-forge plan'}\n"
         f" * Visual: {visual or 'see spec'}\n"
         " * The card-forge beat fills this stub; until then it renders nothing.\n"
         " */\n"
@@ -150,14 +181,15 @@ async def forge_card(args: dict) -> ToolResult:
             "  // FORGE:REGISTER",
             f"  {type_key}: {comp},\n  // FORGE:REGISTER",
         )
-        _REGISTRY.write_text(registry_src, encoding="utf-8", newline="\n")
+        registry.write_text(registry_src, encoding="utf-8", newline="\n")
     except OSError as exc:
         logger.warning("forge scaffold failed: %s", exc)
         return ToolResult.error("could not scaffold the card in the workshop.")
 
     # --- the spec beat -----------------------------------------------------
-    _PLAN_DIR.mkdir(parents=True, exist_ok=True)
-    plan = _PLAN_DIR / "plan.md"
+    plan_dir = _plan_dir()
+    plan_dir.mkdir(parents=True, exist_ok=True)
+    plan = plan_dir / "plan.md"
     if not plan.is_file():
         plan.write_text(_PLAN_HEADER, encoding="utf-8", newline="\n")
     beat = (

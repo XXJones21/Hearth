@@ -1,16 +1,29 @@
-# Valar gateway — clean v1. All open-source.
-# Core gateway (the single client entry point).
+# The Hearth harness. All open source.
+# The single client entry point: WebSocket voice protocol, persona engine,
+# tool loop, memory, card surfaces, journal API.
 fastapi>=0.110
 uvicorn[standard]>=0.27
 httpx>=0.27          # streaming brain-provider HTTP client (SSE)
 websockets>=12.0     # uvicorn websocket support
 
-# Server-side STT fork (stt:"server"). Only needed when serving voice clients
-# that stream PCM; clients using stt:"local" (client_transcription) don't need it.
+# The tool registry is YAML. Without this the registry resolves to EMPTY, which
+# is indistinguishable from tools being switched off on purpose, and that is
+# how a stranger completes an install, holds a conversation and never learns
+# that half the product is not running. It was missing from this file for the
+# whole life of the Valinor copy.
+pyyaml>=6.0
+
+# Server-side speech recognition. Clients that transcribe locally do not need
+# it, but the shipped voice path does.
 openai-whisper>=20231117
 numpy>=1.24
 
-# TTS (NeuTTS-Air) is REUSED from the existing Server/ package
-# (Server.tools.tts_generator). Its heavy deps — neutts-air, soundfile,
-# librosa, torch, llama-cpp-python — are installed with the existing Server,
-# not re-pinned here. Valar imports that package via an adapter (valar/voice/tts.py).
+# Audio decode and resample for the voice path. Also previously undeclared;
+# without it the voice service does not start and the harness degrades to
+# silence rather than erroring.
+torchaudio>=2.1
+
+# The voice engine itself is NOT here. OmniVoice needs a newer torch than this
+# environment is resolved against, so it lives in its own virtualenv built by
+# scripts/build_env.sh. Whether that split survives is a dependency resolve the
+# image build has to run, not an opinion to hold.
