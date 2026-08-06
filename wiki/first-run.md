@@ -1,7 +1,7 @@
 ---
 title: First Run
 status: draft
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-06
 related:
   - backend/build-pipeline.md
   - backend/portability-ledger.md
@@ -77,11 +77,26 @@ Two rules follow, and the second is the general one:
   backend. It must not discover something already listening and adopt it. This
   is tracked by a flag that is false until setup completes, and the absence of
   that flag is what routes a new install into setup rather than into the house.
+  As of 2026-08-06 only a completed install may set the flag: closing out of a
+  blocked or unfinished setup leaves it false, so the next launch returns to
+  setup instead of dropping the person into an empty house.
 - **Test the install as an install.** Feature work belongs on a development
   machine wired to a working stack. First-run work belongs on a build that has
   never seen one. Answering both questions with the same build answers neither,
   and every time the two are mixed the result describes the developer's machine
   rather than the product.
+
+Two mechanisms back the first rule beyond the flag, both added 2026-08-06:
+
+- **Hearth has its own port block.** The client defaults to `18700`, never the
+  internal Valinor stack's `8700`. Even if the flag is bypassed on a
+  development machine, the default dial finds nothing rather than the live
+  house. The Hearth backend provisioner will bind the same block.
+- **The install record.** When a download completes, `hearth-install.json` is
+  written beside the weights: the machine as scanned, the plan as chosen, the
+  destination, and what landed. It is the durable evidence of what this
+  install is, where localStorage is only a browser flag that dies with the
+  webview profile. The provisioner and any support conversation read it.
 
 A corollary for anyone packaging: the application identifier decides where the
 webview stores its data. Two builds sharing an identifier share settings,
@@ -103,6 +118,23 @@ Two rules learned expensively and worth encoding:
 - Check free disk against Windows, not against the distro. Inside WSL the root
   filesystem reports far more space than the host actually has, because the
   distro disk is a growing virtual disk on the system drive.
+
+Three more encoded 2026-08-06:
+
+- **The default destination avoids the system drive.** On Windows the weights
+  default to `Hearth\models` on the roomiest fixed drive that is not the
+  system one, with the home directory only as a single-drive fallback. Tens of
+  gigabytes belong on the volume whose exhaustion does not take the machine
+  down.
+- **The free-disk figure follows the chosen destination.** The found screen
+  has a destination box with a browse control, and both the number and the
+  disk warning are recomputed against whatever it points at. A figure about a
+  volume the download will not touch is a lie with units.
+- **Downloads verify against a published sha256.** The dictionary carries the
+  Hugging Face LFS hash per file; after the bytes land the file is
+  stream-hashed and a mismatch deletes it and fails loudly, because a corrupt
+  file left in place would be taken for "already here" on retry. The fetch is
+  resumable, and the failure screen offers retry.
 
 ### Say what you found, and be honest about it
 
