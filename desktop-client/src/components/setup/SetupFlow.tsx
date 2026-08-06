@@ -1,4 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { OrbGlow } from '../stage/OrbGlow';
+/* The persona ships with the client, as the same JSON the server would send.
+   Sulivan has to be present during first run, before any backend exists, and
+   the installer writes this same file into the backend when it provisions.
+   One file, two uses, no transcription to drift. Model selection is absent on
+   purpose: the hardware scan decides it at install time. */
+import sulivan from '../../personas/sulivan.json';
+import type { PersonaConfig } from '../../types/persona';
+
+const SULIVAN = sulivan as unknown as PersonaConfig;
+
+const PersonaCanvas = lazy(() => import('../PersonaCanvas'));
 import {
   download,
   fixtures as loadFixtures,
@@ -76,7 +88,17 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
   };
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto px-14 py-11 text-center max-lg:px-6">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex h-1/4 min-h-[150px] shrink-0 items-center justify-center pt-6">
+        <div className="h-full w-[220px]">
+          <OrbGlow>
+            <Suspense fallback={null}>
+              <PersonaCanvas config={SULIVAN} />
+            </Suspense>
+          </OrbGlow>
+        </div>
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto px-14 pb-10 pt-2 text-center max-lg:px-6">
       <DevBar
         sims={sims}
         active={sim}
@@ -108,6 +130,7 @@ export function SetupFlow({ onExit }: { onExit: () => void }) {
       {(step === 'installing' || step === 'done') && plan && (
         <Installing plan={plan} progress={progress} done={step === 'done'} error={error} />
       )}
+      </div>
     </div>
   );
 }
