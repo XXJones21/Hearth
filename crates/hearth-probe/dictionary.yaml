@@ -41,6 +41,7 @@ tiers:
     file: gemma-4-E2B-it-Q4_K_M.gguf
     quant: Q4_K_M
     bytes: 3106738272 # 2.89 GiB, server content-length
+    sha256: 740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8
     max_ctx: 32768
     kv_bytes_per_token: 12288
     note: >-
@@ -50,6 +51,7 @@ tiers:
       file: gemma-4-E2B-it-Q3_K_M.gguf
       quant: Q3_K_M
       bytes: 2536786016 # 2.36 GiB, server content-length
+      sha256: 086e2f5ba85057f8f19712e3160a644728f74f323c9feeac4cd73fab11b43085
 
   - id: 1
     label: Small
@@ -58,6 +60,7 @@ tiers:
     file: gemma-4-E4B-it-Q4_K_M.gguf
     quant: Q4_K_M
     bytes: 4977171584 # 4.64 GiB, server content-length
+    sha256: 85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87
     max_ctx: 32768
     kv_bytes_per_token: 20480
     note: >-
@@ -67,6 +70,7 @@ tiers:
       file: gemma-4-E4B-it-Q3_K_M.gguf
       quant: Q3_K_M
       bytes: 4058137728 # 3.78 GiB, server content-length
+      sha256: 0980898d0e7d9c75cea05141bf4010393312101ef6cf5b31f8197e0de18655f4
 
   - id: 2
     label: Recommended
@@ -75,6 +79,7 @@ tiers:
     file: gemma-4-12B-it-qat-UD-Q4_K_XL.gguf
     quant: UD-Q4_K_XL
     bytes: 6716356800 # 6.26 GiB, server content-length (on-disk copy is 1472 bytes smaller)
+    sha256: 90fd44e29e0d7cffeb0fd00dc73cfdab9ed0b0e95306ecf7821ea634c940c370
     max_ctx: 65536
     kv_bytes_per_token: 57344
     note: >-
@@ -89,12 +94,17 @@ tiers:
     file: gemma-4-26B-A4B-it-UD-Q3_K_M.gguf
     quant: UD-Q3_K_M
     bytes: 12728497888 # 11.85 GiB, server content-length
+    sha256: 811882f6df81c8ea204a5d382f196d6bd601245091786912d4c70df41cdfa052
     max_ctx: 65536
     kv_bytes_per_token: 49152
     note: >-
       A mixture-of-experts model: far more total knowledge, with only a slice of
       it active per token. Wants a large card.
+    # NOTE: this "fallback" is LARGER than the preferred build, which inverts
+    # the smaller-fallback contract best_fit assumes. Kept as recorded; worth
+    # a deliberate decision rather than a drive-by edit.
     fallback:
       file: gemma-4-26B-A4B-it-UD-Q4_K_S.gguf
       quant: UD-Q4_K_S
       bytes: 16487610080 # 15.36 GiB, server content-length
+      sha256: 675de4b188a3072c9da8260fe2eddfdb7d03b16f615b6619021989d929a51b2b

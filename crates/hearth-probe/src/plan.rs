@@ -20,6 +20,9 @@ pub struct Download {
     pub file: Option<String>,
     pub bytes: u64,
     pub url: Option<String>,
+    /// Hex sha256 from the dictionary. Verified after the bytes land; a
+    /// mismatch is fatal, absence is only noted.
+    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,6 +180,11 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
         ));
     }
 
+    let sha256 = if file == tier.file {
+        tier.sha256.clone()
+    } else {
+        tier.fallback.as_ref().and_then(|fb| fb.sha256.clone())
+    };
     let downloads = vec![
         Download {
             what: format!("{} ({})", tier.model, quant),
@@ -184,6 +192,7 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
             file: Some(file.clone()),
             bytes,
             url: Some(hf_url(&tier.repo, &file)),
+            sha256,
         },
         Download {
             what: d.voice.name.clone(),
@@ -191,6 +200,7 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
             file: None,
             bytes: d.voice.download_bytes,
             url: None,
+            sha256: None,
         },
     ];
     let total: u64 = downloads.iter().map(|x| x.bytes).sum();

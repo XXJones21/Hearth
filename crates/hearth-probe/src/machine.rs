@@ -179,8 +179,9 @@ fn detect_wsl() -> bool {
 /// written to avoid it.
 ///
 /// The right answer is the volume containing the install path: the disk whose
-/// mount point is the longest prefix of it.
-fn free_disk_for(target: &Path) -> u64 {
+/// mount point is the longest prefix of it. Public because the destination is
+/// the user's to change, and the number on screen has to follow their choice.
+pub fn free_disk_for(target: &Path) -> u64 {
     let disks = sysinfo::Disks::new_with_refreshed_list();
     let mut best: Option<(usize, u64)> = None;
     for d in disks.list() {
@@ -197,6 +198,14 @@ fn free_disk_for(target: &Path) -> u64 {
 
 /// Where models land by default, and therefore the volume that matters.
 ///
+/// On Windows the default deliberately avoids the system drive: weights are
+/// tens of gigabytes, the system drive is the one volume whose exhaustion
+/// takes the machine down with it, and a home directory default lands there
+/// every time. So the default is `Hearth\models` on the roomiest fixed drive
+/// that is not the system one, and the home directory is only the fallback for
+/// a single-drive machine. The user can still choose anywhere; this is only
+/// where the box starts.
+///
 /// Note the tension this sits in: weights must live on the Linux-native
 /// filesystem for load speed, because the same file on the Windows mount takes
 /// minutes to load and can exceed the model swap timeout. But that filesystem
@@ -204,10 +213,36 @@ fn free_disk_for(target: &Path) -> u64 {
 /// system-drive space. The install check has to look at the volume backing the
 /// distro, not at the roomiest disk in the machine.
 pub fn default_model_dir() -> PathBuf {
+    if std::env::consts::OS == "windows" {
+        if let Some(root) = roomiest_non_system_drive() {
+            return root.join("Hearth").join("models");
+        }
+    }
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
         return PathBuf::from(home).join(".hearth").join("models");
     }
     PathBuf::from(".hearth/models")
+}
+
+/// The fixed drive with the most free space, excluding the system drive.
+/// None on a single-drive machine, which is what routes the default back to
+/// the home directory.
+fn roomiest_non_system_drive() -> Option<PathBuf> {
+    let system_root = std::env::var_os("SystemDrive")
+        .map(|d| PathBuf::from(format!("{}\\", d.to_string_lossy())));
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    disks
+        .list()
+        .iter()
+        .filter(|d| !d.is_removable())
+        .filter(|d| {
+            system_root
+                .as_ref()
+                .map(|s| d.mount_point() != s.as_path())
+                .unwrap_or(true)
+        })
+        .max_by_key(|d| d.available_space())
+        .map(|d| d.mount_point().to_path_buf())
 }
 
 /// Fixtures, so a low-end machine can be tested from a machine that is not one.

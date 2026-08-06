@@ -31,6 +31,11 @@ pub struct Fallback {
     pub file: String,
     pub quant: String,
     pub bytes: u64,
+    /// Hex sha256 of the file, from the Hugging Face LFS record. Optional so a
+    /// hand-edited dictionary still parses; a download with no hash is noted,
+    /// a download with a wrong hash is refused.
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +52,9 @@ pub struct Tier {
     /// because erring low costs a failed model load.
     pub kv_bytes_per_token: u64,
     pub note: String,
+    /// Hex sha256 of the preferred file. See `Fallback::sha256`.
+    #[serde(default)]
+    pub sha256: Option<String>,
     #[serde(default)]
     pub fallback: Option<Fallback>,
 }

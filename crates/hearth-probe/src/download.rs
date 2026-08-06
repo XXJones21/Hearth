@@ -144,6 +144,67 @@ pub fn fetch_with(
     Ok(dest.to_path_buf())
 }
 
+/// As `fetch_with`, then a sha256 check when the dictionary carries one.
+///
+/// The hash pass streams the finished file, reporting `(hashed, total)` through
+/// the same progress callback so a screen can show it; a multi-gigabyte hash
+/// takes long enough that silence reads as a hang. On mismatch the file is
+/// DELETED and the fetch fails: a corrupt model that stays on disk would be
+/// picked up as "already here" on the retry and never fetched clean.
+pub fn fetch_verified(
+    url: &str,
+    dest: &Path,
+    expected: Option<u64>,
+    sha256: Option<&str>,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf> {
+    let path = fetch_with(url, dest, expected, progress)?;
+    if let Some(want) = sha256 {
+        verify_sha256(&path, want, progress)?;
+    }
+    Ok(path)
+}
+
+/// Stream-hash `path` and compare against the expected hex sha256, reporting
+/// `(hashed, total)` as it goes. On mismatch the file is DELETED and this
+/// fails: a corrupt file left in place would be taken for "already here" on
+/// the retry and never fetched clean.
+pub fn verify_sha256(
+    path: &Path,
+    want: &str,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<()> {
+    use sha2::Digest;
+    let total = path.metadata()?.len();
+    let mut file = File::open(path).with_context(|| format!("open {}", path.display()))?;
+    let mut hasher = sha2::Sha256::default();
+    let mut buf = vec![0u8; 1024 * 1024];
+    let mut hashed = 0u64;
+    loop {
+        let n = file.read(&mut buf).context("read for hash")?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+        hashed += n as u64;
+        progress(hashed, total);
+    }
+    let got = format!("{:x}", hasher.finalize());
+    let want = want.trim();
+    if !got.eq_ignore_ascii_case(want) {
+        fs::remove_file(path)
+            .with_context(|| format!("remove corrupt {}", path.display()))?;
+        bail!(
+            "{} failed its integrity check (sha256 {} on disk, {} expected). The file was \
+             removed; retry the download.",
+            path.display(),
+            &got[..12],
+            &want[..12.min(want.len())]
+        );
+    }
+    Ok(())
+}
+
 /// A HEAD, to prove a URL resolves without pulling gigabytes. This is what
 /// verifies the dictionary's filenames are real.
 pub fn probe(url: &str) -> Result<(u16, Option<u64>)> {

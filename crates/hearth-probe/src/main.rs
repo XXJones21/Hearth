@@ -182,7 +182,10 @@ fn main() -> Result<()> {
                 }
                 let file = item.file.clone().unwrap_or_else(|| "download.bin".into());
                 let out = dest.join(&file);
-                download::fetch(url, &out, Some(item.bytes))?;
+                download::fetch_verified(url, &out, Some(item.bytes), item.sha256.as_deref(), &mut |_, _| {})?;
+                if item.sha256.is_some() {
+                    println!("  sha256 verified");
+                }
                 println!("  -> {}\n", out.display());
             }
         }
