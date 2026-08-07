@@ -62,7 +62,13 @@ fn filename_for_tier(body: &str, tier: u8) -> Option<String> {
     for line in body.lines() {
         let trimmed = line.trim_start();
         if !line.starts_with(' ') && !line.starts_with('-') {
-            in_tiers = line.starts_with("tiers:");
+            // Only a real top-level key ends the tiers section. Blank lines
+            // and comments are neutral; the real dictionary separates its
+            // tier entries with blank lines, and treating one as a section
+            // end made every tier after the first invisible.
+            if !trimmed.is_empty() && !trimmed.starts_with('#') {
+                in_tiers = line.starts_with("tiers:");
+            }
             continue;
         }
         if !in_tiers {
@@ -122,7 +128,13 @@ pub fn models_dir() -> PathBuf {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(|v| crate::config::normalize_path(v.trim()))
-        .or_else(|| env::var("HOME").ok().map(|h| PathBuf::from(h).join(".hearth")))
+        // HOME on unix, USERPROFILE on Windows; HOME is simply unset there.
+        .or_else(|| {
+            env::var("HOME")
+                .or_else(|_| env::var("USERPROFILE"))
+                .ok()
+                .map(|h| PathBuf::from(h).join(".hearth"))
+        })
         .unwrap_or_else(|| PathBuf::from(".hearth"));
     home.join("models")
 }
@@ -159,5 +171,27 @@ tiers:
     fn ids_map_to_tiers() {
         assert_eq!(tier_for("gemma-4-12b-qat"), Some(2));
         assert_eq!(tier_for("nothing"), None);
+    }
+
+    // The real dictionary separates tiers with blank lines and carries
+    // comments. Treating either as a section end made every tier after the
+    // first invisible, which is exactly how the first native startup died.
+    #[test]
+    fn blank_lines_and_comments_do_not_end_the_tiers_section() {
+        const SPACED: &str = "\
+# a header comment
+reserves:
+  headroom_bytes: 1
+
+tiers:
+  - id: 0
+    file: tier0.gguf
+
+  - id: 2
+    file: tier2.gguf
+    sha256: abc123
+";
+        assert_eq!(filename_for_tier(SPACED, 2).as_deref(), Some("tier2.gguf"));
+        assert_eq!(filename_for_tier(SPACED, 0).as_deref(), Some("tier0.gguf"));
     }
 }

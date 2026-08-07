@@ -56,9 +56,14 @@ def _validate_engram_path(target: str) -> Path:
     if not target.endswith(".md"):
         raise ValueError(f"Only .md files can be written: {target}")
 
+    # Resolve BOTH sides. resolve() follows junctions and symlinks, and on
+    # Windows an Engram root reached through a junction resolves to a
+    # different spelling than the configured one; comparing a resolved child
+    # against an unresolved root rejected every write.
+    resolved_root = root.resolve()
     resolved = (root / target).resolve()
 
-    if root not in resolved.parents and resolved != root:
+    if resolved_root not in resolved.parents and resolved != resolved_root:
         raise ValueError(f"Path must resolve under Engram root: {target}")
 
     if not resolved.parent.exists():

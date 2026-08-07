@@ -65,10 +65,20 @@ impl ServerConfig {
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| format!("http://{}:{}/v1", llama_host, llama_port));
-        let llama_server_bin = normalize_path(&env_or(
-            "HEARTH_LLAMA_SERVER_BIN",
-            "/usr/local/bin/llama-server",
-        ));
+        // Per platform: the Linux default is where the image bakes it; the
+        // Windows default is the install root's runtime tree, where the
+        // installer places the upstream win-cuda release.
+        #[cfg(unix)]
+        let llama_server_default = PathBuf::from("/usr/local/bin/llama-server");
+        #[cfg(not(unix))]
+        let llama_server_default = repo_root
+            .join("runtime")
+            .join("llama-server")
+            .join("llama-server.exe");
+        let llama_server_bin = match env::var("HEARTH_LLAMA_SERVER_BIN") {
+            Ok(v) if !v.trim().is_empty() => normalize_path(v.trim()),
+            _ => llama_server_default,
+        };
         let kv_cache_type = env_or("HEARTH_KV_CACHE_TYPE", "q4_0");
         let llama_parallel = env_u16("HEARTH_LLAMA_PARALLEL", 1)?;
         let llama_ctx_override = env_optional_u64("HEARTH_LLAMA_CTX")?;
@@ -98,7 +108,13 @@ impl ServerConfig {
             .ok()
             .filter(|v| !v.trim().is_empty())
             .map(|v| normalize_path(v.trim()));
-        let comfy_python = normalize_path(&env_or("COMFYUI_PYTHON", "python3"));
+        // "python3" on Windows is usually the Microsoft Store alias stub,
+        // which opens the Store instead of running anything.
+        #[cfg(unix)]
+        let comfy_python_default = "python3";
+        #[cfg(not(unix))]
+        let comfy_python_default = "python";
+        let comfy_python = normalize_path(&env_or("COMFYUI_PYTHON", comfy_python_default));
         let comfy_external = env_flag("COMFYUI_EXTERNAL", false);
         let comfy_health_timeout_s = env_u64("COMFYUI_HEALTH_TIMEOUT_S", 300)?;
         let comfy_submit_timeout_s = env_u64("COMFYUI_SUBMIT_TIMEOUT_S", 30)?;
@@ -180,6 +196,13 @@ impl ServerConfig {
     }
 
     pub fn log_dir(&self) -> PathBuf {
+        // Overridable because the product tree may not be writable (Program
+        // Files on Windows); the installer points this at <root>\logs.
+        if let Ok(configured) = env::var("HEARTH_LOG_DIR") {
+            if !configured.trim().is_empty() {
+                return normalize_path(configured.trim());
+            }
+        }
         self.repo_root.join(".hearth").join("logs")
     }
 
@@ -226,6 +249,12 @@ pub fn hearth_root() -> PathBuf {
     env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
+/// On Linux (the WSL testbed) a drive-lettered value like `D:\x` is a Windows
+/// path leaking across the boundary, and the honest reading is `/mnt/d/x`.
+/// On native Windows the same value is simply the path, and rewriting it was
+/// the audit's number one blocker: every config path resolved to a directory
+/// that does not exist.
+#[cfg(unix)]
 pub fn normalize_path(value: &str) -> PathBuf {
     let trimmed = value.trim().replace('\\', "/");
     let bytes = trimmed.as_bytes();
@@ -235,6 +264,11 @@ pub fn normalize_path(value: &str) -> PathBuf {
         return PathBuf::from(format!("/mnt/{}/{}", drive, rest));
     }
     PathBuf::from(trimmed)
+}
+
+#[cfg(not(unix))]
+pub fn normalize_path(value: &str) -> PathBuf {
+    PathBuf::from(value.trim())
 }
 
 pub fn resolve_repo_path(repo_root: &Path, value: &str) -> PathBuf {

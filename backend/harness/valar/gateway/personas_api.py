@@ -358,10 +358,20 @@ def apply_changes(config: ValarConfig, payload: dict) -> dict:
         # Rename rather than delete. A persona is hours of writing, and the
         # journal entries that mention them stay either way.
         retired = folder.with_name(f"{key}.removed-{int(time.time())}")
-        try:
-            folder.rename(retired)
-        except OSError as exc:
-            return {"ok": False, "error": f"{key} could not be removed: {exc}"}
+        # NTFS refuses to rename a directory while anything inside is open
+        # (a voice reference, an editor). Brief retries cover the common
+        # case; a real lock still reports honestly.
+        rename_error: OSError | None = None
+        for _ in range(3):
+            try:
+                folder.rename(retired)
+                rename_error = None
+                break
+            except OSError as exc:
+                rename_error = exc
+                time.sleep(0.5)
+        if rename_error is not None:
+            return {"ok": False, "error": f"{key} could not be removed: {rename_error}"}
         changed.append(f"{key} removed (kept at {retired.name})")
 
     if not changed:

@@ -98,13 +98,12 @@ _active: dict = {"id": None, "thread": None, "started": 0.0}
 
 
 def _binary() -> str | None:
-    """The CLI. Env override first, then the Windows install as seen from WSL,
-    then whatever is on PATH (a native Linux install, if one ever lands)."""
+    """The CLI. Env override first, then PATH. The old /mnt/c glob existed
+    only to reach the Windows install from inside WSL; running natively,
+    PATH finds the same executable."""
     override = os.environ.get("HEARTH_CLAUDE_BIN", "").strip()
     if override:
         return override if Path(override).exists() else None
-    for candidate in Path("/mnt/c/Users").glob("*/.local/bin/claude.exe"):
-        return str(candidate)
     return shutil.which("claude")
 
 

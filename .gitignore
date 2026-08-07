@@ -20,6 +20,11 @@ models/
 __pycache__/
 *.pyc
 
+# Native dev environments and fetched runtime binaries. The installer
+# produces these on a user machine; a checkout produces them here.
+backend/.venv-win/
+backend/.native/
+
 # The by-hand startup proof: machine-specific script and its logs.
 backend/.proof/
 
