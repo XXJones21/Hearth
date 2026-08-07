@@ -1,0 +1,13 @@
+{
+  "name": "hearth-icon-candidates",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Builds the Hearth mark candidates: SVG sources plus PNG renders.",
+  "scripts": {
+    "build": "node build-icons.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}
