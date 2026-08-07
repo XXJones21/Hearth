@@ -35,6 +35,7 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
         .map(PathBuf::from)
         .unwrap_or_else(|| root.join(d::REL_MODELS));
     let n_ctx = plan.get("n_ctx").and_then(|v| v.as_u64()).unwrap_or(0);
+    let model_file = plan.get("file").and_then(|v| v.as_str());
     let accel = plan.get("backend").and_then(|v| v.as_str()).unwrap_or("cpu");
     let cuda_arch = plan.get("cuda_arch").and_then(|v| v.as_str());
     let coexist = plan.get("coexist").and_then(|v| v.as_bool()).unwrap_or(false);
@@ -68,11 +69,27 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     // install that works on any machine.
     line("HF_HUB_DISABLE_SYMLINKS=1".into());
     line(format!("HEARTH_MODELS={}", slash(&weights_dir)));
+    // WHICH file, not just which directory. Without this the persona's own
+    // deep_model.id decides, and a persona ships one id while the plan picks a
+    // tier per machine: every install that was not the persona's tier asked
+    // llama-server for a model the installer never downloaded, and died at
+    // boot with the house already on screen. The plan chose; the plan says so.
+    if let Some(file) = model_file {
+        line(format!(
+            "HEARTH_DEEP_MODEL_FILE={}",
+            slash(&weights_dir.join(file))
+        ));
+    }
     line(format!("HEARTH_LOG_DIR={}", slash(&root.join(d::REL_LOGS))));
     line(String::new());
     line("# The plan's decisions".into());
     if n_ctx > 0 {
         line(format!("HEARTH_LLAMA_CTX={}", n_ctx));
+        // The same number to the harness, which otherwise packs prompts
+        // against its own 32768 default while llama-server is running the
+        // plan's window. Two budgets for one context is a truncation waiting
+        // for a long enough conversation.
+        line(format!("HEARTH_CTX_MAX_TOKENS={}", n_ctx));
     }
     line(format!("HEARTH_ACCEL={}", accel));
     if let Some(arch) = cuda_arch {

@@ -547,6 +547,37 @@ impl LlamaSupervisor {
             );
         }
 
+        // The installed machine's answer, written by the renderer from the
+        // install record. Ranks below HEARTH_DEEP_MODEL_OVERRIDE, which is a
+        // developer pointing somewhere on purpose, and above the persona's
+        // declared id, which is only a default for a checkout with no install
+        // record to consult.
+        if let Some(installed) = std::env::var("HEARTH_DEEP_MODEL_FILE")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+        {
+            let path = resolve_repo_path(&self.config.repo_root, &installed);
+            if path.exists() {
+                return Ok(vec![ModelSpec {
+                    path,
+                    mmproj_path: None,
+                    n_gpu_layers,
+                    n_ctx,
+                    n_cpu_moe,
+                    kv_cache_type: kv_cache_type.clone(),
+                    override_tensor: override_tensor.clone(),
+                }]);
+            }
+            // Same reasoning as the override: falling through to the persona's
+            // id here would start a model the installer never downloaded, or
+            // silently serve a different one than the plan promised.
+            anyhow::bail!(
+                "HEARTH_DEEP_MODEL_FILE points to missing file {}; the install record and the \
+                 models directory disagree",
+                path.display()
+            );
+        }
+
         let mut candidates = Vec::new();
         let mmproj_path = deep
             .get("mmproj_path")

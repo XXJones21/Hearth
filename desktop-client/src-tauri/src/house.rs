@@ -131,6 +131,30 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
     if !supervisor_bin.is_file() {
         return Err(format!("no supervisor at {}", supervisor_bin.display()));
     }
+    // The weights the plan chose, checked here rather than discovered by
+    // llama-server four screens later. This failure used to surface as a
+    // refused WebSocket during the first conversation, with setup already
+    // reporting success and the person waiting on a reply that could never
+    // come. An install that cannot serve a model is not an install.
+    if let Some(model) = file.get("HEARTH_DEEP_MODEL_FILE") {
+        let model = PathBuf::from(model);
+        if !model.is_file() {
+            return Err(format!(
+                "the planned model is not on disk: {}. The download did not finish, or the \
+                 models directory was moved after install; re-run setup to fetch it.",
+                model.display()
+            ));
+        }
+    }
+    if let Some(llama) = file.get("HEARTH_LLAMA_SERVER_BIN") {
+        let llama = PathBuf::from(llama);
+        if !llama.is_file() {
+            return Err(format!(
+                "no llama-server at {}; provisioning did not unpack it",
+                llama.display()
+            ));
+        }
+    }
     let gateway_port = require("HEARTH_PORT")?;
     let ws_port = require("HEARTH_RUST_WS_PORT")?;
 
@@ -149,9 +173,15 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
     let mut env: HashMap<String, String> = file.clone();
     env.insert("HEARTH_ROOT".into(), slash(&backend));
     let mut harness_env = env.clone();
+    // PYTHONPATH is a path LIST, and its separator is the platform's, not the
+    // path separator. Semicolon was hardcoded when Windows was the only
+    // target; on macOS it makes both entries one nonexistent directory, which
+    // Python discards in silence. The harness only kept importing because its
+    // working directory covered for it.
+    let listsep = if cfg!(windows) { ";" } else { ":" };
     harness_env.insert(
         "PYTHONPATH".into(),
-        format!("{};{}", slash(&backend), slash(&backend.join("harness"))),
+        format!("{}{}{}", slash(&backend), listsep, slash(&backend.join("harness"))),
     );
     // Line-buffered logs; a crash with an empty log file is a mystery.
     harness_env.insert("PYTHONUNBUFFERED".into(), "1".into());

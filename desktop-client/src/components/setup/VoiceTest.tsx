@@ -13,7 +13,12 @@ import { useAppStore } from '../../store/appStore';
    is still in charge, and the socket dials the house that setup itself just
    started. */
 
-type Phase = 'waking' | 'warming' | 'asking' | 'speaking' | 'spoke' | 'gone';
+type Phase = 'waking' | 'warming' | 'retrying' | 'asking' | 'speaking' | 'spoke' | 'gone';
+
+/* How long the greeting keeps trying before it gives up and lets the person
+   past. The same patience the resident path spends waiting on the voice,
+   spent here on the mind. */
+const PATIENCE_MS = 150_000;
 
 const GREETING_QUERY =
   'I have just finished installing you, and this is the voice test. ' +
@@ -38,6 +43,10 @@ export function VoiceTest({
   const wsRef = useRef<WebSocket | null>(null);
   const framesRef = useRef(0);
   const closedRef = useRef(false);
+  /* When the first greeting went out, so the retry loop knows how long it has
+     been trying rather than how many times. */
+  const askStartedRef = useRef(0);
+  const retryRef = useRef<number | undefined>(undefined);
 
   /* The orb above this screen is the same particle animation every client
      uses, driven by the shared visual state: he thinks while warming and
@@ -55,6 +64,7 @@ export function VoiceTest({
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     framesRef.current = 0;
+    if (!askStartedRef.current) askStartedRef.current = Date.now();
     setReply('');
     setHint('');
     setPhase('asking');
@@ -135,6 +145,28 @@ export function VoiceTest({
             ttsPlayer.begin(Number(msg.sample_rate) || 48000);
           } else if (msg.action === 'ai_response' && typeof msg.text === 'string') {
             setReply(msg.text);
+          } else if (msg.action === 'error') {
+            /* The greeting can lose a race it was never told it was running:
+               llama-server takes tens of seconds to load its weights on a cold
+               install, and the non-resident path asks 800ms after the socket
+               opens. This screen used to sit on "Listening for him now"
+               forever, because an error carried no handler and the only button
+               is disabled while a question is outstanding. Keep asking while
+               the mind finishes waking, then let the person past regardless:
+               the install itself is sound, and trapping someone on the last
+               screen of setup is worse than a greeting they never got. */
+            const waited = Date.now() - (askStartedRef.current || Date.now());
+            if (waited < PATIENCE_MS) {
+              setPhase('retrying');
+              retryRef.current = window.setTimeout(speak, 3000);
+            } else {
+              setPhase('spoke');
+              setHint(
+                `He could not answer: ${String(msg.message ?? 'unknown error')} ` +
+                  'The house is installed and you can carry on; the logs folder of ' +
+                  'your install has the detail.',
+              );
+            }
           } else if (msg.action === 'speaking_complete') {
             setPhase('spoke');
             if (voiceResident && framesRef.current === 0) {
@@ -161,6 +193,7 @@ export function VoiceTest({
     return () => {
       closedRef.current = true;
       if (retry) window.clearTimeout(retry);
+      if (retryRef.current) window.clearTimeout(retryRef.current);
       wsRef.current?.close();
       ttsPlayer.reset();
     };
@@ -185,7 +218,9 @@ export function VoiceTest({
               ? 'The house is starting: the mind, the voice, and the ears all loading for the first time.'
               : phase === 'warming'
                 ? 'He is clearing his throat. The voice loads once, on its first day, and he speaks the moment it is ready.'
-                : 'Listening for him now.')}
+                : phase === 'retrying'
+                  ? 'His mind is still loading. The weights are read from disk once, on this first start, and he answers the moment they are in.'
+                  : 'Listening for him now.')}
         </p>
       </div>
 

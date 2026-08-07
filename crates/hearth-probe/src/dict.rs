@@ -38,6 +38,20 @@ pub struct Fallback {
     pub sha256: Option<String>,
 }
 
+/// One quantisation of a tier's model. A tier is a model; a build is a way of
+/// storing it, and the difference between two builds is bits per weight traded
+/// for the context window those bytes would otherwise have held.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Build {
+    pub file: String,
+    pub quant: String,
+    pub bytes: u64,
+    /// See `Fallback::sha256`. Every build listed here carries one, because a
+    /// build the planner can choose is a build the installer will download.
+    #[serde(default)]
+    pub sha256: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tier {
     pub id: u8,
@@ -57,6 +71,39 @@ pub struct Tier {
     pub sha256: Option<String>,
     #[serde(default)]
     pub fallback: Option<Fallback>,
+    /// The quantisation ladder, best quality first. When a tier lists one the
+    /// planner chooses from it; when it does not, the preferred build and its
+    /// single fallback are the whole ladder, which is what every tier was
+    /// before the catalogue grew.
+    #[serde(default)]
+    pub builds: Vec<Build>,
+}
+
+impl Tier {
+    /// Every build of this tier, best quality first. The ladder the planner
+    /// walks: the first rung that clears the context target wins, so ordering
+    /// here IS the quality judgement and belongs in the dictionary rather than
+    /// in a sort the code invents.
+    pub fn ladder(&self) -> Vec<Build> {
+        if !self.builds.is_empty() {
+            return self.builds.clone();
+        }
+        let mut out = vec![Build {
+            file: self.file.clone(),
+            quant: self.quant.clone(),
+            bytes: self.bytes,
+            sha256: self.sha256.clone(),
+        }];
+        if let Some(fb) = &self.fallback {
+            out.push(Build {
+                file: fb.file.clone(),
+                quant: fb.quant.clone(),
+                bytes: fb.bytes,
+                sha256: fb.sha256.clone(),
+            });
+        }
+        out
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

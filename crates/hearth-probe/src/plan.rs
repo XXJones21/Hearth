@@ -4,7 +4,7 @@
 //! `Dictionary` always yields the same `Plan`. That is what makes the budget
 //! arithmetic testable against fixtures instead of needing four computers.
 
-use crate::dict::{hf_url, Dictionary, Tier};
+use crate::dict::{hf_url, Build, Dictionary, Tier};
 use crate::machine::Machine;
 use crate::human;
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,17 @@ use serde::{Deserialize, Serialize};
 /// A floor. Below this a context window is not worth having, so a tier that
 /// cannot reach it does not fit, whatever the weights say.
 const MIN_CTX: u32 = 4096;
+
+/// What a context window has to reach before the planner stops spending bytes
+/// on weights. Context used to be pure residue: take the best quantisation
+/// that fits and let the window be whatever survived. On an 8 GB machine that
+/// produced 9216 tokens against a persona prompt of 1263, which is a model
+/// that cannot hold a conversation it is otherwise good enough to have. So the
+/// window is a constraint now, and the quantisation is what gives way.
+///
+/// Only within a tier. Choosing a smaller MODEL to buy context would mean more
+/// memory could yield a worse brain, and that ordering is load-bearing.
+const TARGET_CTX: u32 = 16384;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {
@@ -109,17 +120,17 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
 
     // Take the best that fits with the voice resident. Only if nothing does do
     // we consider making them take turns.
-    let (tier, file, quant, bytes, coexist, budget) =
+    let (tier, build, coexist, budget) =
         match best_fit(d, coexist_budget) {
-            Some((t, f, q, b)) => {
+            Some((t, b)) => {
                 reasons.push(format!(
                     "{} of {} is usable after holding back the voice, speech recognition and headroom.",
                     human(coexist_budget), human(pool)
                 ));
-                (t, f, q, b, true, coexist_budget)
+                (t, b, true, coexist_budget)
             }
             None => match best_fit(d, sequential_budget) {
-                Some((t, f, q, b)) => {
+                Some((t, b)) => {
                     reasons.push(format!(
                         "Nothing fits with the voice held in memory, so the mind and the voice \
                          will take turns. That frees {} instead of {}.",
@@ -130,7 +141,7 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
                          pause before a reply is spoken."
                             .into(),
                     );
-                    (t, f, q, b, false, sequential_budget)
+                    (t, b, false, sequential_budget)
                 }
                 None => {
                     return Err(PlanError::TooSmall {
@@ -142,17 +153,32 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
             },
         };
 
-    if file != tier.file {
-        reasons.push(format!(
-            "The preferred {} build did not fit, so this is the smaller {} build of the same model.",
-            tier.quant, quant
-        ));
+    let ladder = tier.ladder();
+    let preferred = &ladder[0];
+    let n_ctx = ctx_for(tier, budget, build.bytes);
+    if build.file != preferred.file {
+        let floor = tier.kv_bytes_per_token * MIN_CTX as u64;
+        if preferred.bytes + floor > budget {
+            reasons.push(format!(
+                "The preferred {} build did not fit, so this is the smaller {} build of the same model.",
+                preferred.quant, build.quant
+            ));
+        } else {
+            // It fit. It was passed over anyway, and saying so is the whole
+            // point of a plan that explains itself: someone comparing two
+            // machines needs to know this was a choice, not a limit.
+            reasons.push(format!(
+                "The {} build fits but would leave only {} tokens of context, so this is the {} \
+                 build, which holds {} instead.",
+                preferred.quant,
+                ctx_for(tier, budget, preferred.bytes),
+                build.quant,
+                n_ctx
+            ));
+        }
     }
 
-    // Context gets whatever the weights left behind.
-    let left = budget.saturating_sub(bytes);
-    let raw = (left / tier.kv_bytes_per_token) as u32;
-    let n_ctx = (raw.min(tier.max_ctx).max(MIN_CTX) / 1024) * 1024;
+    let left = budget.saturating_sub(build.bytes);
     reasons.push(format!(
         "{} is left after the weights, which is about {} tokens of context at this model's rate.",
         human(left), n_ctx
@@ -180,19 +206,14 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
         ));
     }
 
-    let sha256 = if file == tier.file {
-        tier.sha256.clone()
-    } else {
-        tier.fallback.as_ref().and_then(|fb| fb.sha256.clone())
-    };
     let downloads = vec![
         Download {
-            what: format!("{} ({})", tier.model, quant),
+            what: format!("{} ({})", tier.model, build.quant),
             repo: tier.repo.clone(),
-            file: Some(file.clone()),
-            bytes,
-            url: Some(hf_url(&tier.repo, &file)),
-            sha256,
+            file: Some(build.file.clone()),
+            bytes: build.bytes,
+            url: Some(hf_url(&tier.repo, &build.file)),
+            sha256: build.sha256.clone(),
         },
         Download {
             what: d.voice.name.clone(),
@@ -227,8 +248,8 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
         label: tier.label.clone(),
         model: tier.model.clone(),
         repo: tier.repo.clone(),
-        file,
-        quant,
+        file: build.file.clone(),
+        quant: build.quant.clone(),
         note: tier.note.trim().to_string(),
         coexist,
         backend,
@@ -245,19 +266,40 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
     })
 }
 
-/// Largest tier whose weights plus a floor of context fit the budget. Tries the
-/// preferred build first, then that tier's smaller fallback.
-fn best_fit<'a>(d: &'a Dictionary, budget: u64) -> Option<(&'a Tier, String, String, u64)> {
+/// The context window a build leaves behind, rounded the way the plan reports
+/// it. One definition, used both to choose a build and to report the choice,
+/// so the number in the reason is the number the house is configured with.
+pub(crate) fn ctx_for(t: &Tier, budget: u64, bytes: u64) -> u32 {
+    let left = budget.saturating_sub(bytes);
+    let raw = (left / t.kv_bytes_per_token) as u32;
+    (raw.min(t.max_ctx).max(MIN_CTX) / 1024) * 1024
+}
+
+/// Largest tier whose weights plus a floor of context fit the budget, and
+/// within that tier the best build that still clears `TARGET_CTX`.
+///
+/// Two separate questions, deliberately. Which model is a question about the
+/// machine's size and is answered first and alone; which build of that model
+/// is a question about how to spend what is left, and cannot reach back and
+/// change the answer to the first.
+fn best_fit<'a>(d: &'a Dictionary, budget: u64) -> Option<(&'a Tier, Build)> {
     for t in d.descending() {
         let floor = t.kv_bytes_per_token * MIN_CTX as u64;
-        if t.bytes + floor <= budget {
-            return Some((t, t.file.clone(), t.quant.clone(), t.bytes));
+        let ladder = t.ladder();
+        let mut fits = ladder.iter().filter(|b| b.bytes + floor <= budget).peekable();
+        if fits.peek().is_none() {
+            continue;
         }
-        if let Some(fb) = &t.fallback {
-            if fb.bytes + floor <= budget {
-                return Some((t, fb.file.clone(), fb.quant.clone(), fb.bytes));
-            }
-        }
+        let fitting: Vec<&Build> = fits.collect();
+        // Best quality that reaches the target; failing that, best quality
+        // that fits at all, which is the old behaviour and still beats
+        // refusing the machine.
+        let chosen = fitting
+            .iter()
+            .find(|b| ctx_for(t, budget, b.bytes) >= TARGET_CTX)
+            .copied()
+            .unwrap_or(fitting[0]);
+        return Some((t, chosen.clone()));
     }
     None
 }

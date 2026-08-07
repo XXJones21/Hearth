@@ -47,6 +47,54 @@ fn m1_air_8gb_takes_e2b_and_takes_turns() {
 }
 
 #[test]
+fn m1_air_8gb_trades_quantisation_for_a_usable_window() {
+    // The regression this exists for: the Air used to take Q4_K_M and land on
+    // 9216 tokens, against a persona prompt that measured 1263. The window is
+    // a constraint now, so the ladder gives way instead.
+    let p = plan(&m("m1-air-8gb"), &d()).unwrap();
+    assert_eq!(p.tier, 0, "trading quant must never move the tier");
+    assert!(
+        p.n_ctx >= 16384,
+        "the 8 GB Air should clear the context target, got {}",
+        p.n_ctx
+    );
+    assert_ne!(
+        p.quant, "Q4_K_M",
+        "Q4_K_M fits but cannot reach the target; it must be passed over"
+    );
+    assert!(
+        p.reasons.iter().any(|r| r.contains("fits but would leave")),
+        "passing over a build that FIT is a choice, and the plan must say so: {:?}",
+        p.reasons
+    );
+}
+
+#[test]
+fn a_machine_with_room_keeps_its_preferred_build() {
+    // The target must not cost quality where quality was affordable.
+    let p = plan(&m("rtx4080"), &d()).unwrap();
+    assert_eq!(p.quant, "UD-Q4_K_XL", "a 4080 has room for the best build");
+    assert!(p.n_ctx >= 16384);
+}
+
+#[test]
+fn every_selectable_build_can_be_verified() {
+    // A build the planner may choose is a build the installer will download,
+    // and a download with no hash is one nothing checks.
+    for t in &d().tiers {
+        for b in &t.builds {
+            assert!(
+                b.sha256.as_ref().is_some_and(|s| s.len() == 64),
+                "tier {} build {} has no usable sha256",
+                t.id,
+                b.quant
+            );
+            assert!(b.bytes > 0, "tier {} build {} has no size", t.id, b.quant);
+        }
+    }
+}
+
+#[test]
 fn m1_air_16gb_does_better_than_the_8gb() {
     let small = plan(&m("m1-air-8gb"), &d()).unwrap();
     let big = plan(&m("m1-air-16gb"), &d()).unwrap();
