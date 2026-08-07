@@ -231,6 +231,51 @@ function emit(name, svg, pngSizes) {
   }
 }
 
+// The chosen mark's macOS status-bar template: one silhouette whose detail
+// is negative space, because the system tints template images solid black
+// or white per menu bar. Horizontal mortar courses only; head joints are
+// noise at 18 points. Fill-rule evenodd turns every inner subpath into a
+// hole.
+function brickArchTemplate(fillColor) {
+  const rect = (x, y, w, h) =>
+    `M${x} ${y} h${w} v${h} h${-w} Z`;
+  const holes = [
+    // mortar courses, stopping either side of the arch where they cross it
+    rect(192, 360, 640, 20),
+    rect(192, 488, 640, 20),
+    rect(192, 616, 130, 20),
+    rect(702, 616, 130, 20),
+    rect(192, 744, 130, 20),
+    rect(702, 744, 130, 20),
+    // the firebox
+    `${arch(352, 672, 872, 550)} Z`,
+  ].join(" ");
+  const block = `M236 232 h552 a44 44 0 0 1 44 44 v596 h-640 v-596 a44 44 0 0 1 44 -44 Z`;
+  return `
+  <path d="${block} ${holes}" fill="${fillColor}" fill-rule="evenodd"/>
+  <path d="${fire(512, 580, 850, 122)} ${fire(506, 706, 842, 58)}"
+        fill="${fillColor}" fill-rule="evenodd"/>
+  <path d="${rect(152, 872, 720, 48)}" fill="${fillColor}"/>`;
+}
+
+{
+  // Template source: black on transparency, the artifact macOS wants.
+  const tpl = svgDoc(brickArchTemplate("#000000"));
+  emit("candidate-7-template", tpl, [32, 36, 128]);
+
+  // Previews: what the system's tinting produces on each menu bar.
+  const bar = (bg, ink) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 88" width="320" height="88">
+  <rect width="320" height="88" fill="${bg}"/>
+  <g transform="translate(24 20) scale(0.047)">${brickArchTemplate(ink)}</g>
+  <circle cx="140" cy="44" r="7" fill="${ink}" opacity="0.75"/>
+  <rect x="170" y="37" width="46" height="14" rx="7" fill="${ink}" opacity="0.55"/>
+  <rect x="236" y="37" width="60" height="14" rx="7" fill="${ink}" opacity="0.55"/>
+</svg>
+`;
+  emit("candidate-7-template-menubar-light", bar("#ECECEC", "#000000"), [640]);
+  emit("candidate-7-template-menubar-dark", bar("#1D1D1F", "#FFFFFF"), [640]);
+}
+
 candidates.forEach((cand, i) => {
   const base = `candidate-${i + 1}-${cand.slug}`;
 
