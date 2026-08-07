@@ -140,7 +140,16 @@ class OmniVoiceCppStreamer:
             headers={"Content-Type": "application/json"},
         )
         loop = asyncio.get_running_loop()
-        queue: asyncio.Queue = asyncio.Queue(maxsize=8)
+        # Unbounded, deliberately. A bounded queue fed through
+        # call_soon_threadsafe drops audio: the callbacks batch onto the event
+        # loop and fire before the consuming coroutine is scheduled, so the
+        # queue fills, put_nowait raises QueueFull inside the loop's callback,
+        # and the exception is swallowed by the default handler. The stream
+        # then simply stops mid-word with nothing in the log but a traceback
+        # nobody is looking at -- which is how a voice says "I'm Sulivan" and
+        # then goes quiet. The bound is the utterance instead: float32 at
+        # 24 kHz is ~96 KB a second, and sentences are seconds long.
+        queue: asyncio.Queue = asyncio.Queue()
 
         def _pump() -> None:
             try:
