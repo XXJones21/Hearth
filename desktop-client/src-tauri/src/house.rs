@@ -156,29 +156,45 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
     // Line-buffered logs; a crash with an empty log file is a mystery.
     harness_env.insert("PYTHONUNBUFFERED".into(), "1".into());
 
-    Ok((
-        vec![
-            Spec {
-                name: "supervisor",
-                program: supervisor_bin,
-                args: vec![],
-                cwd: backend.clone(),
-                env,
-                health_port: ws_port.parse().ok(),
-            },
-            Spec {
-                name: "harness",
-                program: python,
-                args: vec!["app.py".into()],
+    let mut specs = vec![
+        Spec {
+            name: "supervisor",
+            program: supervisor_bin,
+            args: vec![],
+            cwd: backend.clone(),
+            env,
+            health_port: ws_port.parse().ok(),
+        },
+        Spec {
+            name: "harness",
+            program: python,
+            args: vec!["app.py".into()],
+            cwd: backend.join("harness"),
+            env: harness_env.clone(),
+            health_port: gateway_port.parse().ok(),
+        },
+    ];
+
+    // The voice service is optional by design: the house runs text-only
+    // without it, and an install that skipped or failed the voice row still
+    // gets a working Hearth. Present and provisioned means supervised.
+    if let Some(voice_py) = file.get("HEARTH_VOICE_PYTHON") {
+        let voice_py = PathBuf::from(voice_py);
+        if voice_py.is_file() {
+            specs.push(Spec {
+                name: "voice",
+                program: voice_py,
+                args: vec!["tts_app.py".into()],
                 cwd: backend.join("harness"),
                 env: harness_env,
-                health_port: gateway_port.parse().ok(),
-            },
-            // The voice worker joins this list when its environment exists;
-            // build_specs simply grows by one entry.
-        ],
-        logs_dir,
-    ))
+                health_port: file
+                    .get("HEARTH_TTS_PORT")
+                    .and_then(|p| p.parse().ok()),
+            });
+        }
+    }
+
+    Ok((specs, logs_dir))
 }
 
 fn spawn(spec: &Spec, logs_dir: &Path) -> std::io::Result<Child> {

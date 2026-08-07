@@ -57,10 +57,12 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line("# Where things are".into());
     line(format!("HEARTH_BACKEND_DIR={}", slash(&root.join(d::REL_BACKEND))));
     line(format!("HEARTH_PYTHON={}", slash(&root.join(d::REL_PYTHON))));
+    line(format!("HEARTH_VOICE_PYTHON={}", slash(&root.join(d::REL_VOICE_PYTHON))));
     line(format!("HEARTH_SUPERVISOR_BIN={}", slash(&root.join(d::REL_SUPERVISOR))));
     line(format!("HEARTH_LLAMA_SERVER_BIN={}", slash(&root.join(d::REL_LLAMA_SERVER))));
     line(format!("HEARTH_HOME={}", slash(&root.join(d::REL_HOME))));
     line(format!("HEARTH_ENGRAM={}", slash(&root.join(d::REL_ENGRAM))));
+    line(format!("HF_HOME={}", slash(&root.join(d::REL_HF_CACHE))));
     line(format!("HEARTH_MODELS={}", slash(&weights_dir)));
     line(format!("HEARTH_LOG_DIR={}", slash(&root.join(d::REL_LOGS))));
     line(String::new());
@@ -93,6 +95,11 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line(format!("HEARTH_TTS_SERVICE_URL=ws://127.0.0.1:{}/tts", d::PORT_TTS));
     line("HEARTH_TTS_BACKEND=remote".into());
     line("HEARTH_TTS_SERVICE=omnivoice".into());
+    line("HEARTH_TTS_SAMPLE_RATE=48000".into());
+    // expandable_segments, the WSL-era allocator fix, is unsupported by
+    // torch's CUDA allocator on Windows (verified in the native smoke:
+    // warning, no effect, and 2.1 GiB reserved without it). Linux builds
+    // reintroduce it; writing it here would only warn on every boot.
     line("HEARTH_WHISPER_MODEL=base".into());
     line("HEARTH_TOOLS_ENABLED=1".into());
     line("HEARTH_LLAMA_REASONING=auto".into());

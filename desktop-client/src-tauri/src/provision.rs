@@ -221,6 +221,92 @@ pub async fn provision(
         }
         send(&on_progress, ROW_PYTHON, 1, 1, "done", None);
 
+        // Row 4: the voice engine, in its own environment. The heaviest row
+        // and the one that lets Sulivan speak at the end of the install.
+        const ROW_VOICE: &str = "Voice engine";
+        let run_logged = |mut cmd: std::process::Command, log_name: &str| -> Result<(), String> {
+            let log = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(logs.join(log_name))
+                .map_err(|e| e.to_string())?;
+            cmd.stdout(std::process::Stdio::from(
+                log.try_clone().map_err(|e| e.to_string())?,
+            ))
+            .stderr(std::process::Stdio::from(log));
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                cmd.creation_flags(0x0800_0000);
+            }
+            let status = cmd.status().map_err(|e| e.to_string())?;
+            if status.success() {
+                Ok(())
+            } else {
+                Err(format!("{} (see logs/{})", status, log_name))
+            }
+        };
+
+        let voice_py = root
+            .join("envs")
+            .join("voice")
+            .join("Scripts")
+            .join("python.exe");
+        send(&on_progress, ROW_VOICE, 0, 0, "downloading", Some("creating environment".into()));
+        let mut mkenv = std::process::Command::new(target.join("python.exe"));
+        mkenv.args(["-m", "venv"]).arg(root.join("envs").join("voice"));
+        run_logged(mkenv, "provision-voice-pip.log").map_err(|e| {
+            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
+            e
+        })?;
+
+        send(&on_progress, ROW_VOICE, 0, 0, "downloading", Some("installing torch".into()));
+        let mut torch = std::process::Command::new(&voice_py);
+        torch.args(["-m", "pip", "install", "--no-warn-script-location", "torch", "torchaudio"]);
+        if accel == "cuda" {
+            if let Some(index) = &dict.runtime.voice_env.torch_index_cuda {
+                torch.args(["--index-url", index]);
+            }
+        }
+        run_logged(torch, "provision-voice-pip.log").map_err(|e| {
+            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
+            e
+        })?;
+
+        send(&on_progress, ROW_VOICE, 0, 0, "downloading", Some("installing the engine".into()));
+        let mut engine = std::process::Command::new(&voice_py);
+        engine.args(["-m", "pip", "install", "--no-warn-script-location"]);
+        engine.arg(&dict.runtime.voice_env.package);
+        for extra in &dict.runtime.voice_env.extras {
+            engine.arg(extra);
+        }
+        run_logged(engine, "provision-voice-pip.log").map_err(|e| {
+            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
+            e
+        })?;
+
+        send(
+            &on_progress,
+            ROW_VOICE,
+            0,
+            0,
+            "downloading",
+            Some(format!("fetching the voice ({})", hearth_probe::human(dict.voice.download_bytes))),
+        );
+        let mut prefetch = std::process::Command::new(&voice_py);
+        prefetch
+            .args(["-c"])
+            .arg(format!(
+                "from huggingface_hub import snapshot_download; snapshot_download('{}')",
+                dict.voice.repo
+            ))
+            .env("HF_HOME", root.join("home").join("hf-cache"));
+        run_logged(prefetch, "provision-voice-fetch.log").map_err(|e| {
+            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
+            e
+        })?;
+        send(&on_progress, ROW_VOICE, 1, 1, "done", None);
+
         let _ = std::fs::remove_dir_all(&cache);
         Ok(())
     })

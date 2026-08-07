@@ -35,5 +35,7 @@ pub const REL_SUPERVISOR: &str = "runtime/hearth-supervisor.exe";
 pub const REL_LLAMA_SERVER: &str = "runtime/llama-server/llama-server.exe";
 pub const REL_HOME: &str = "home";
 pub const REL_ENGRAM: &str = "home/engram";
+pub const REL_HF_CACHE: &str = "home/hf-cache";
+pub const REL_VOICE_PYTHON: &str = "envs/voice/Scripts/python.exe";
 pub const REL_LOGS: &str = "logs";
 pub const REL_CONFIG: &str = "config/hearth.env";

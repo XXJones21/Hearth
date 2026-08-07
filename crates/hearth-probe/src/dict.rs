@@ -87,6 +87,17 @@ pub struct RuntimeLlama {
     pub macos_metal: Vec<RuntimeArtifact>,
 }
 
+/// The voice engine's pip environment.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RuntimeVoiceEnv {
+    #[serde(default)]
+    pub package: String,
+    #[serde(default)]
+    pub extras: Vec<String>,
+    #[serde(default)]
+    pub torch_index_cuda: Option<String>,
+}
+
 /// What the installer places under <root>/runtime, beyond the models.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Runtime {
@@ -94,6 +105,8 @@ pub struct Runtime {
     pub python: RuntimePython,
     #[serde(default)]
     pub llama_server: RuntimeLlama,
+    #[serde(default)]
+    pub voice_env: RuntimeVoiceEnv,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -40,6 +40,15 @@ runtime:
     windows_vulkan:
       - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/llama-b10298-bin-win-vulkan-x64.zip
         bytes: 34108466
+  # The voice engine's environment: what pip installs into <root>/envs/voice.
+  # torch comes from the accelerator-matched index; everything else from PyPI.
+  # The engine weights themselves are the `voice:` entry below, prefetched
+  # into the HF cache under the install root.
+  voice_env:
+    package: omnivoice==0.1.5
+    extras:
+      - soundfile
+    torch_index_cuda: https://download.pytorch.org/whl/cu130
 
 reserves:
   # Held out of the budget before a model is chosen.

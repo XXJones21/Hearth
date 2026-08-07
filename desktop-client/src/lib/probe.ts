@@ -114,8 +114,13 @@ export function download(
   });
 }
 
-/** The three rows for the placed runtime, run while the model downloads. */
-export const PROVISION_ROWS = ['The backend', 'Inference engine', 'Python runtime'] as const;
+/** The rows for the placed runtime, run while the model downloads. */
+export const PROVISION_ROWS = [
+  'The backend',
+  'Inference engine',
+  'Python runtime',
+  'Voice engine',
+] as const;
 
 export function provision(
   onProgress: (p: Progress) => void,

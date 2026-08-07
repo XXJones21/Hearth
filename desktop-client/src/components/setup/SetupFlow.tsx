@@ -27,9 +27,11 @@ import {
   type Plan,
   type Progress,
 } from '../../lib/probe';
+import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
+import { VoiceTest } from './VoiceTest';
 
-type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'done' | 'blocked';
+type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'blocked';
 
 /* The blocked panel serves three different misfortunes, and they deserve
    different sentences. A dev server is not a broken machine, and a machine
@@ -152,7 +154,11 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
       /* The chosen root is what boot revalidates against, so it persists the
          moment the record exists, not when the user leaves the screen. */
       saveSettings({ installRoot: dest });
-      setStep('done');
+      /* No Go-to-the-house button: the install proves itself instead. The
+         house starts, and the exit from setup is Sulivan speaking and a
+         person saying they heard him. */
+      await houseStart(dest);
+      setStep('voice-test');
     } catch (e) {
       setError(String(e));
     }
@@ -177,7 +183,9 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
           setSim(s);
           run(s);
         }}
-        onExit={() => onExit(step === 'done')}
+        /* Close from the voice test counts as installed: everything landed
+           and the house is up; only the human confirmation was skipped. */
+        onExit={() => onExit(step === 'voice-test')}
       />
 
       {step === 'welcome' && (
@@ -238,16 +246,17 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         />
       )}
 
-      {(step === 'installing' || step === 'done') && plan && (
+      {step === 'installing' && plan && (
         <Installing
           plan={plan}
           progress={progress}
-          done={step === 'done'}
+          done={false}
           error={error}
           onRetry={startDownload}
-          onFinish={() => onExit(true)}
         />
       )}
+
+      {step === 'voice-test' && <VoiceTest onHeard={() => onExit(true)} />}
       </div>
     </div>
   );
@@ -447,14 +456,12 @@ function Installing({
   done,
   error,
   onRetry,
-  onFinish,
 }: {
   plan: Plan;
   progress: Progress[];
   done: boolean;
   error: string | null;
   onRetry: () => void;
-  onFinish: () => void;
 }) {
   /* The bar measures the model downloads alone: skipped items (fetched by
      the runtime later) cannot count toward its total or it never reaches
@@ -558,16 +565,6 @@ function Installing({
           </div>
         )}
 
-        {done && (
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={onFinish}
-              className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream"
-            >
-              Go to the house
-            </button>
-          </div>
-        )}
       </div>
     </>
   );
