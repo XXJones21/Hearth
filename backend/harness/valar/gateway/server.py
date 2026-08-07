@@ -144,6 +144,28 @@ def create_app(config: ValarConfig) -> FastAPI:
             }
         )
 
+    @app.get("/voice/ready")
+    async def voice_ready() -> JSONResponse:
+        """Whether the voice can actually speak RIGHT NOW: the service's own
+        /health, whose ready flag means backbone loaded and a voice encoded.
+        The install's voice test waits on this instead of asking a cold
+        engine to speak and apologising for the silence."""
+        url = config.voice.tts_service_url
+        health_url = url.replace("ws://", "http://").replace("wss://", "https://")
+        if health_url.endswith("/tts"):
+            health_url = health_url[: -len("/tts")] + "/health"
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get(health_url)
+                body = resp.json()
+                return JSONResponse(
+                    {"ready": bool(body.get("ready")), "service": body.get("service", "")}
+                )
+        except Exception:  # noqa: BLE001 - not reachable IS the answer
+            return JSONResponse({"ready": False, "service": ""})
+
     config.assets_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/assets", StaticFiles(directory=str(config.assets_dir)), name="assets")
 

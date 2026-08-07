@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ttsPlayer } from '../../lib/audioPlayer';
-import { getWsUrl } from '../../lib/config';
+import { getHttpOrigin, getWsUrl } from '../../lib/config';
 
 /* The voice test, the mockup's closing beat for the install: the one check no
    automated probe can perform. Sulivan speaks through the real pipeline, the
@@ -12,7 +12,7 @@ import { getWsUrl } from '../../lib/config';
    is still in charge, and the socket dials the house that setup itself just
    started. */
 
-type Phase = 'waking' | 'asking' | 'speaking' | 'spoke' | 'gone';
+type Phase = 'waking' | 'warming' | 'asking' | 'speaking' | 'spoke' | 'gone';
 
 const GREETING_QUERY =
   'I have just finished installing you, and this is the voice test. ' +
@@ -62,9 +62,32 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
             audio_format: { sample_rate: 48000, bit_depth: 16, channels: 1 },
           }),
         );
-        /* A beat for the handshake to land, then ask. The house may still be
-           warming its models; the turn simply takes longer. */
-        window.setTimeout(() => speak(), 800);
+        /* Do not ask a cold engine to speak. Sulivan sits in the thinking
+           state while the voice finishes its first warm (about a minute on
+           first install), and only a ready voice gets the greeting. The cap
+           is a backstop: past it we try anyway rather than sit forever,
+           since the engine also lazy-loads on first request. */
+        setPhase('warming');
+        const startedAt = Date.now();
+        const waitForVoice = async () => {
+          if (closedRef.current || wsRef.current !== ws) return;
+          try {
+            const resp = await fetch(`${getHttpOrigin()}/voice/ready`);
+            const body = (await resp.json()) as { ready?: boolean };
+            if (body.ready) {
+              speak();
+              return;
+            }
+          } catch {
+            /* harness still settling; keep waiting */
+          }
+          if (Date.now() - startedAt > 150_000) {
+            speak();
+            return;
+          }
+          window.setTimeout(waitForVoice, 3000);
+        };
+        void waitForVoice();
       });
 
       ws.addEventListener('message', (ev) => {
@@ -119,7 +142,7 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
       <div className="mt-1 text-[12px] uppercase tracking-wide text-fawn">
         {phase === 'waking'
           ? 'waking the house'
-          : phase === 'asking'
+          : phase === 'warming' || phase === 'asking'
             ? 'thinking'
             : phase === 'speaking'
               ? 'speaking'
@@ -136,7 +159,9 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
           {reply ||
             (phase === 'waking'
               ? 'The house is starting: the mind, the voice, and the ears all loading for the first time.'
-              : 'Listening for him now.')}
+              : phase === 'warming'
+                ? 'He is clearing his throat. The voice loads once, on its first day, and he speaks the moment it is ready.'
+                : 'Listening for him now.')}
         </p>
       </div>
 
@@ -160,14 +185,14 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
         </button>
         <button
           onClick={speak}
-          disabled={phase === 'waking' || phase === 'asking'}
+          disabled={phase === 'waking' || phase === 'warming' || phase === 'asking'}
           className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn disabled:opacity-50"
         >
           Say it again
         </button>
         <button
           onClick={onHeard}
-          disabled={phase === 'waking'}
+          disabled={phase === 'waking' || phase === 'warming'}
           className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream disabled:opacity-50"
         >
           I heard him
