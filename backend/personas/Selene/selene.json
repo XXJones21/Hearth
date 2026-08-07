@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "The Guardian Muse - a poised, commanding presence who acts as confidant, strategist, and creative muse",
   "classification": "realistic",
+  "shipped": true,
   "visualization": {
     "type": "glb_animated",
     "position": {

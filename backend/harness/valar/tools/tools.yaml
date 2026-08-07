@@ -413,6 +413,80 @@ tools:
             type: object
       required: [sections]
 
+  - name: choice_card
+    description: >-
+      Offer the operator a small set of options YOU wrote, rendered as
+      choices beside their free-text composer. Use when a question is hard
+      to answer cold and examples would help them think. Compose the options
+      from what this conversation has already taught you; never a generic
+      list. Their typed answer always outranks the choices. After calling
+      this, wait for their reply; do not answer for them.
+    handler: valar.tools.handlers.choice:choice_card
+    domain: projects
+    risk: read
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        question:
+          type: string
+          description: The question the options answer, exactly as you asked it.
+        options:
+          type: array
+          description: >-
+            Two to five options, each {"label":"a few words",
+            "detail":"one short line of what choosing it means"}.
+          items:
+            type: object
+        allow_free_text:
+          type: boolean
+          description: Almost always true; false only for a strict either-or.
+      required: [question, options]
+
+  - name: create_persona
+    description: >-
+      Create a new persona from what the conversation taught you. Call this
+      ONCE, only when you could describe this person to someone else: their
+      purpose, their temperament, how they should sound, their colour. You
+      write the system prompt IN THEIR VOICE, not yours. After it returns,
+      stop: the new persona speaks next, not you.
+    handler: valar.tools.handlers.creation:create_persona
+    domain: projects
+    risk: write
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        name:
+          type: string
+          description: What they will be called. A letter first, under 24 characters.
+        description:
+          type: string
+          description: One line of who they are, for the persona page.
+        system_prompt:
+          type: string
+          description: >-
+            Their full system prompt, written in THEIR voice from everything
+            the conversation established. Their purpose, their temperament,
+            how they speak.
+        temperament:
+          type: string
+          description: A short phrase, e.g. "dry, patient".
+        voice_design:
+          type: array
+          description: >-
+            Voice attributes chosen from exactly this vocabulary, two to four
+            of them: female, male; child, teenager, young adult, middle-aged,
+            elderly; very low pitch, low pitch, moderate pitch, high pitch,
+            very high pitch; whisper; american/australian/british/canadian/
+            chinese/indian/japanese/korean/portuguese/russian accent.
+          items:
+            type: string
+        colour:
+          type: string
+          description: A hex colour like #5B7C99. It becomes their whole look.
+      required: [name, description, system_prompt, temperament, colour]
+
   - name: forge_card
     description: >-
       Commission a NEW UI card from Mentat when NO existing card can carry the

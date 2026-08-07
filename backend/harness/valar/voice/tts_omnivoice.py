@@ -175,3 +175,48 @@ class OmniVoiceStreamer:
             wav = AF.resample(t, NATIVE_SAMPLE_RATE, self.sample_rate).squeeze(0).numpy()
         wav = np.clip(wav, -1.0, 1.0)
         return wav.astype("<f4").tobytes()
+
+    def design_sample(self, text: str, attributes: list[str]) -> bytes:
+        """Voice DESIGN: synthesize `text` in a voice described by validated
+        instruct attributes rather than cloned from a reference. Returns WAV
+        bytes at NATIVE_SAMPLE_RATE, mono float32.
+
+        The design-once-clone-always architecture: this runs exactly once per
+        persona, at creation. The output becomes the persona's reference clip
+        and every later sentence is ordinary cloning from it, so runtime
+        never depends on design support. Never touches the cloning prompt or
+        the resident voice.
+        """
+        import io
+        import time
+
+        import numpy as np
+        import soundfile as sf
+
+        # A LIST here is a batch dimension (one instruct per text); a single
+        # text takes its attributes as one comma-joined string.
+        attrs = [str(a).strip().lower() for a in attributes if str(a).strip()]
+        instruct = ", ".join(attrs) if attrs else None
+        with self._lock:
+            self._ensure_loaded()
+            # Design is a one-time cost per persona, so it buys quality that
+            # streaming cannot afford: more MaskGIT steps than the resident
+            # config runs (a 16-step design came back garbled once).
+            from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
+            design_config = OmniVoiceGenerationConfig(num_step=max(32, DEFAULT_NUM_STEPS))
+            t0 = time.monotonic()
+            audio = self._model.generate(  # type: ignore[union-attr]
+                text=text,
+                instruct=instruct,
+                generation_config=design_config,
+            )
+            gen_s = time.monotonic() - t0
+        wav = np.asarray(audio[0], dtype=np.float32).reshape(-1)
+        dur = len(wav) / NATIVE_SAMPLE_RATE
+        logger.info(
+            "design %.2fs for %.2fs audio (rtf %.3f, instruct=%s)",
+            gen_s, dur, gen_s / max(dur, 0.01), attrs,
+        )
+        buf = io.BytesIO()
+        sf.write(buf, np.clip(wav, -1.0, 1.0), NATIVE_SAMPLE_RATE, format="WAV")
+        return buf.getvalue()

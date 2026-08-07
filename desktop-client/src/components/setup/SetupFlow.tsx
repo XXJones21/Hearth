@@ -30,9 +30,10 @@ import {
 } from '../../lib/probe';
 import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
+import { Interview } from './Interview';
 import { VoiceTest } from './VoiceTest';
 
-type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'blocked';
+type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'interview' | 'blocked';
 
 /* The blocked panel serves three different misfortunes, and they deserve
    different sentences. A dev server is not a broken machine, and a machine
@@ -186,7 +187,7 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         }}
         /* Close from the voice test counts as installed: everything landed
            and the house is up; only the human confirmation was skipped. */
-        onExit={() => onExit(step === 'voice-test')}
+        onExit={() => onExit(step === 'voice-test' || step === 'interview')}
       />
 
       {step === 'welcome' && (
@@ -258,8 +259,12 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
       )}
 
       {step === 'voice-test' && (
-        <VoiceTest onHeard={() => onExit(true)} voiceResident={plan?.coexist ?? true} />
+        /* Hearing him is not the end anymore; it is the introduction to the
+           interview, where they make someone together. */
+        <VoiceTest onHeard={() => setStep('interview')} voiceResident={plan?.coexist ?? true} />
       )}
+
+      {step === 'interview' && <Interview onDone={() => onExit(true)} />}
       </div>
     </div>
   );

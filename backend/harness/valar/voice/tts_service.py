@@ -24,8 +24,8 @@ import logging
 from pathlib import Path
 from typing import Optional, Tuple
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, Response
 
 logger = logging.getLogger("valar.tts_service")
 
@@ -72,6 +72,32 @@ def create_tts_app(
         return JSONResponse(
             {"status": "ok", "ready": ready, "imported": bool(tts._loaded), "service": service}
         )
+
+    @app.post("/design")
+    async def design(request: Request) -> Response:
+        """Voice design: synthesize a sample in a voice described by instruct
+        attributes. Runs once per persona, at creation; the WAV returned
+        becomes the persona's reference clip and runtime stays pure cloning.
+        Body: {"text": "...", "attributes": ["male", "low pitch", ...]}."""
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "body must be JSON"}, status_code=400)
+        text = str(body.get("text") or "").strip()
+        attributes = body.get("attributes") or []
+        if not text:
+            return JSONResponse({"error": "text is required"}, status_code=400)
+        if not isinstance(attributes, list):
+            return JSONResponse({"error": "attributes must be a list"}, status_code=400)
+        loop = asyncio.get_running_loop()
+        try:
+            wav = await loop.run_in_executor(
+                None, tts.design_sample, text, [str(a) for a in attributes]
+            )
+        except Exception as exc:  # noqa: BLE001 - the caller needs the reason
+            logger.warning("voice design failed: %s", exc)
+            return JSONResponse({"error": str(exc)}, status_code=500)
+        return Response(content=wav, media_type="audio/wav")
 
     @app.on_event("startup")
     async def _warm() -> None:

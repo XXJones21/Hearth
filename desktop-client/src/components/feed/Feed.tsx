@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Composer } from './Composer';
 import { StatusBar } from './StatusBar';
 import { Timeline } from './Timeline';
@@ -12,6 +12,17 @@ type Props = {
 
 export function Feed({ onSend }: Props) {
   const [filter, setFilter] = useState('');
+
+  /* A tapped choice_card chip is an answer: it goes out as the user's turn,
+     exactly as if they had typed the label. */
+  useEffect(() => {
+    const onChoice = (e: Event) => {
+      const label = (e as CustomEvent<{ label?: string }>).detail?.label;
+      if (label) onSend(label);
+    };
+    window.addEventListener('hearth-choice', onChoice);
+    return () => window.removeEventListener('hearth-choice', onChoice);
+  }, [onSend]);
   const messages = useAppStore((s) => s.messages);
   const draft = useAppStore((s) => s.activeAssistantDraft);
   const currentPersona = useAppStore((s) => s.currentPersonaName);

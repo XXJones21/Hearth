@@ -363,7 +363,12 @@ pub async fn provision(
                 let requirements = c_runtime.join("backend").join("harness").join("requirements.txt");
                 let mut pip = std::process::Command::new(python_in(&c_py));
                 pip.args(["-m", "pip", "install", "--no-warn-script-location", "-r"])
-                    .arg(&requirements);
+                    .arg(&requirements)
+                    // The vendored python honors user site-packages by
+                    // default, and the developer machine's Roaming packages
+                    // shadowed the install's own huggingface_hub. The
+                    // product environment is the product's alone.
+                    .env("PYTHONNOUSERSITE", "1");
                 run_logged(pip, &c_logs, "provision-pip.log").map_err(|e| {
                     send(&ch, ROW_PYTHON, 85, 100, "failed", Some(e.clone()));
                     e
@@ -420,6 +425,7 @@ pub async fn provision(
                             c_repo
                         ))
                         .env("HF_HOME", &c_hf)
+                        .env("PYTHONNOUSERSITE", "1")
                         // Symlinks need Developer Mode on Windows (WinError 1314
                         // on a stranger's machine, found the honest way).
                         .env("HF_HUB_DISABLE_SYMLINKS", "1");

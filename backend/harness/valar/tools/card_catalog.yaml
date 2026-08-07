@@ -60,6 +60,14 @@ cards:
       card; NOT suited to charts, meters, or dense financial/tabular data.
     data_fields: "template:string, title:string, sections:list"
     builtin: true
+  - type: choice_card
+    purpose: >-
+      A question with a handful of persona-authored options the operator can
+      tap, beside their free composer. The interview mechanism: offering
+      examples when a question is hard to answer cold. Emitted by the
+      choice_card tool, never composed by hand.
+    data_fields: "question:string, options:list, allow_free_text:bool"
+    builtin: true
   - type: choam_portfolio_dashboard
     purpose: To provide a structured, visual overview of the CHOAM portfolio status
       including NAV, deployment, and risk metrics.

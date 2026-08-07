@@ -185,6 +185,9 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
     );
     // Line-buffered logs; a crash with an empty log file is a mystery.
     harness_env.insert("PYTHONUNBUFFERED".into(), "1".into());
+    // The vendored python must never import the machine owner's Roaming
+    // site-packages; a stale huggingface_hub from there broke an install.
+    harness_env.insert("PYTHONNOUSERSITE".into(), "1".into());
 
     let mut specs = vec![
         Spec {

@@ -28,6 +28,7 @@ from ..persona import Persona
 from ..telemetry import Timer, TurnTelemetry
 from ..voice import SentenceSegmenter
 from .context import ContextAssembler, estimate_tokens
+from . import first_run
 from .session import Session, State
 from ..models import resolve as resolve_model
 
@@ -51,7 +52,10 @@ _ANNOUNCE_RE = re.compile(
     r"|search|fetch|review|retrieve|dig|bring in|see what|find out"
     # Delegation shapes (live 2026-07-31: "I shall have Mentat forge a more
     # sophisticated..." with zero tool calls). The commission verbs.
-    r"|have|ask|task|commission|forge|dispatch|start)\b",
+    r"|have|ask|task|commission|forge|dispatch|start"
+    # Presentation shapes (live 2026-08-07: "I shall present a selection of
+    # archetypes" with zero tool calls, while choice_card sat unused).
+    r"|present|offer|show|display|put)\b",
     re.IGNORECASE,
 )
 
@@ -186,8 +190,16 @@ class VoiceLoop:
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
 
+        # First run: the default persona carries the interview direction and
+        # nothing else changes. Expires by itself when a persona is created.
+        system_prompt = persona.system_prompt
+        if first_run.active(self.config.persona_dir):
+            direction = first_run.direction_text()
+            if direction:
+                system_prompt = system_prompt + "\n\n" + direction
+
         messages = self.assembler.build(
-            system_prompt=persona.system_prompt,
+            system_prompt=system_prompt,
             memory_block=memory_block,
             history=session.history,
             user_text=user_text,
@@ -490,14 +502,17 @@ class VoiceLoop:
             telemetry.prompt_tokens_est = result.usage.prompt_tokens
         telemetry.emit()
 
-    @staticmethod
-    def _persona_tool_grants(persona: Persona) -> dict | None:
+    def _persona_tool_grants(self, persona: Persona) -> dict | None:
         """The persona's catalog grants (`tool_grants` in persona.json:
         {"domains": [...], "allow": [...], "deny": [...]}). Absent key -> None ->
         the full registry (backward compatible). The per-persona tool-subset
         seam: selection reliability degrades with tool-set size (measured
         2026-06-05; wiki tool-catalog.md), so each persona is granted only the
         domains it actually serves."""
+        if first_run.active(self.config.persona_dir):
+            # The interview and nothing else; seventeen tools and no
+            # direction measured out to zero interview-tool calls.
+            return dict(first_run.INTERVIEW_GRANTS)
         cfg = persona.config if isinstance(persona.config, dict) else {}
         grants = cfg.get("tool_grants")
         return grants if isinstance(grants, dict) else None
