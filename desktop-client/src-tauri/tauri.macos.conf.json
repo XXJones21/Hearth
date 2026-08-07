@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "resources": [
+      "resources/backend.tar.gz",
+      "resources/hearth-supervisor*",
+      "resources/tts-server*"
+    ]
+  }
+}

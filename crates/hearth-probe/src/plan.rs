@@ -319,3 +319,63 @@ fn fit_at<'a>(d: &'a Dictionary, budget: u64, want_ctx: u32) -> Option<(&'a Tier
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::machine;
+
+    fn plan_for(fixture: &str) -> Result<Plan, PlanError> {
+        let m = machine::simulated(fixture).expect("fixture exists");
+        let d = Dictionary::embedded().expect("embedded dictionary parses");
+        plan(&m, &d)
+    }
+
+    // The 8 GB Air, after the measured reserves and the cpp voice: it keeps
+    // its preferred quant, holds the voice resident, and clears TARGET_CTX.
+    // These numbers are the merge's own claim (0a730f5) pinned as a contract.
+    #[test]
+    fn air_8gb_keeps_its_quant_and_its_voice() {
+        let p = plan_for("m1-air-8gb").unwrap();
+        assert_eq!(p.tier, 0);
+        assert_eq!(p.quant, "Q4_K_M");
+        assert!(p.coexist, "the cpp voice fits alongside on 8 GB");
+        assert!(p.n_ctx >= TARGET_CTX, "a usable window is a constraint now");
+    }
+
+    #[test]
+    fn rtx4080_takes_the_12b_at_full_context() {
+        let p = plan_for("rtx4080").unwrap();
+        assert_eq!(p.tier, 2);
+        assert!(p.coexist);
+        assert_eq!(p.n_ctx, 65536);
+    }
+
+    #[test]
+    fn rtx4080_does_not_reach_the_26b() {
+        let p = plan_for("rtx4080").unwrap();
+        assert!(p.tier < 3);
+    }
+
+    #[test]
+    fn a_machine_below_the_floor_is_refused_clearly() {
+        let err = plan_for("tiny").unwrap_err();
+        let text = err.to_string();
+        assert!(text.contains("cannot run Hearth"));
+    }
+
+    #[test]
+    fn no_gpu_falls_to_cpu_with_a_warning() {
+        let p = plan_for("no-gpu").unwrap();
+        assert_eq!(p.backend, "cpu");
+        assert!(p.warnings.iter().any(|w| w.contains("processor")));
+    }
+
+    #[test]
+    fn every_plan_explains_itself() {
+        for fixture in ["rtx4080", "m1-air-8gb", "m1-air-16gb", "no-gpu"] {
+            let p = plan_for(fixture).unwrap();
+            assert!(!p.reasons.is_empty(), "{fixture} must carry reasons");
+        }
+    }
+}
