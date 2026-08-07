@@ -63,6 +63,24 @@ async function fetchPersonaConfig(personaName: string) {
   }
 }
 
+/* The sentence the next audio frame belongs to. tts_chunk_start announces a
+   segment and its text before any of it is audible, and ai_response does not
+   arrive until the whole reply is generated -- so without this the screen sits
+   empty while he speaks, and the words all land at once at the end. Held at
+   module scope because the frames arrive outside routeMessage. */
+let pendingSpokenText: string | null = null;
+
+/** Show the sentence now being heard. Called from the binary frame handler. */
+export function flushSpokenText() {
+  if (!pendingSpokenText) return;
+  const said = pendingSpokenText;
+  pendingSpokenText = null;
+  const s = useAppStore.getState();
+  // appendAssistantDraft concatenates verbatim, and these are whole sentences
+  // arriving one at a time, so the space between them belongs here.
+  s.appendAssistantDraft(s.activeAssistantDraft ? ` ${said}` : said);
+}
+
 function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
   let data: Record<string, unknown>;
   try {
@@ -145,6 +163,9 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
     case 'ai_response': {
       const text = String((data as { text?: string }).text || '');
       const personaName = String((data as { persona_name?: string }).persona_name || '');
+      // The authoritative text replaces whatever the segments accumulated,
+      // which also repairs a sentence whose audio never arrived.
+      pendingSpokenText = null;
       s.clearAssistantDraft();
       s.pushMessage({ role: 'assistant', text, personaName });
       s.setWaitingForResponse(false);
@@ -189,6 +210,8 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
     }
     case 'tts_chunk_start': {
       ttsPlayer.begin(Number((data as { sample_rate?: number }).sample_rate));
+      const seg = String((data as { text?: string }).text || '').trim();
+      if (seg) pendingSpokenText = seg;
       s.setVisualState('speaking');
       break;
     }
@@ -309,6 +332,7 @@ export function useHearthWebSocket(enabled = true) {
         routeMessage(ev.data, send);
       } else if (ev.data instanceof ArrayBuffer) {
         ttsPlayer.push(ev.data);
+        flushSpokenText();
       }
     });
 

@@ -113,6 +113,13 @@ fn supervisor_name() -> &'static str {
     if cfg!(windows) { "hearth-supervisor.exe" } else { "hearth-supervisor" }
 }
 
+/// The voice engine, built by scripts/build_omnivoice.sh and packed into the
+/// bundle beside the supervisor. Shipped rather than installed: nothing is
+/// cloned or compiled on a user's machine.
+fn tts_server_name() -> &'static str {
+    if cfg!(windows) { "tts-server.exe" } else { "tts-server" }
+}
+
 /// Fetch one artifact, reporting CUMULATIVE bytes for its row: `base` is what
 /// earlier artifacts in the same row already downloaded, `row_total` the
 /// row's whole size, so a two-archive row never makes the bar step backward.
@@ -199,7 +206,18 @@ pub async fn provision(
         .path()
         .resolve(format!("resources/{}", supervisor_name()), tauri::path::BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
+    // Optional: a bundle built without the voice engine installs text-only,
+    // the same shape house.rs already allows when the voice row is skipped.
+    let tts_server_src = app
+        .path()
+        .resolve(format!("resources/{}", tts_server_name()), tauri::path::BaseDirectory::Resource)
+        .ok()
+        .filter(|p| p.is_file());
     let dict = Dictionary::embedded().map_err(|e| e.to_string())?;
+    // Which voice engine this platform runs, and therefore whether the voice
+    // is a pair of named GGUF files or a Hugging Face snapshot plus a torch
+    // environment. The dictionary decides; see `cpp_platforms`.
+    let voice_is_cpp = dict.voice.uses_cpp(std::env::consts::OS);
 
     tauri::async_runtime::spawn_blocking(move || {
         let runtime = root.join("runtime");
@@ -215,6 +233,7 @@ pub async fn provision(
             let a_runtime = runtime.clone();
             let a_tgz = backend_tgz.clone();
             let a_sup = supervisor_src.clone();
+            let a_tts = tts_server_src.clone();
             let t_backend = s.spawn(move || -> Result<(), String> {
                 send(&ch, ROW_BACKEND, 0, 1, "downloading", Some("unpacking".into()));
                 untar_gz(&a_tgz, &a_runtime.join("backend")).map_err(|e| {
@@ -223,6 +242,16 @@ pub async fn provision(
                 })?;
                 std::fs::copy(&a_sup, a_runtime.join(supervisor_name()))
                     .map_err(|e| e.to_string())?;
+                if let Some(src) = &a_tts {
+                    let dst = a_runtime.join(tts_server_name());
+                    std::fs::copy(src, &dst).map_err(|e| e.to_string())?;
+                    // Tauri's resource copy does not carry the execute bit.
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
+                        let _ = std::fs::set_permissions(&dst, std::fs::Permissions::from_mode(0o755));
+                    }
+                }
                 send(&ch, ROW_BACKEND, 1, 1, "done", None);
                 Ok(())
             });
@@ -323,8 +352,11 @@ pub async fn provision(
             let c_logs = logs.clone();
             let c_runtime = runtime.clone();
             let c_hf = hf_home.clone();
-            let c_repo = dict.voice.repo.clone();
-            let c_voice_bytes = dict.voice.download_bytes;
+            let c_repo = dict.voice.repo_for(std::env::consts::OS).to_string();
+            let c_voice_bytes = dict.voice.download_bytes_for(std::env::consts::OS);
+            let c_voice_is_cpp = voice_is_cpp;
+            let c_voice_files = dict.voice.files.clone();
+            let c_root = root.clone();
             let c_py = py_dir.clone();
             let t_pip_fetch = s.spawn(move || -> Result<(), String> {
                 send(&ch, ROW_PYTHON, 85, 100, "downloading", Some("installing packages".into()));
@@ -346,21 +378,56 @@ pub async fn provision(
                     "downloading",
                     Some(format!("downloading ({})", hearth_probe::human(c_voice_bytes))),
                 );
-                let mut prefetch = std::process::Command::new(python_in(&c_py));
-                prefetch
-                    .args(["-c"])
-                    .arg(format!(
-                        "from huggingface_hub import snapshot_download; snapshot_download('{}')",
-                        c_repo
-                    ))
-                    .env("HF_HOME", &c_hf)
-                    // Symlinks need Developer Mode on Windows (WinError 1314
-                    // on a stranger's machine, found the honest way).
-                    .env("HF_HUB_DISABLE_SYMLINKS", "1");
-                run_logged(prefetch, &c_logs, "provision-voice-fetch.log").map_err(|e| {
-                    send(&ch, ROW_VOICE_MODEL, 10, 100, "failed", Some(e.clone()));
-                    e
-                })?;
+                if c_voice_is_cpp {
+                    // Named files the installer can verify, into the weights
+                    // directory with the brain's. The snapshot path below put
+                    // them in the Hugging Face cache, which is a cache: right
+                    // for something re-fetchable, wrong for something the
+                    // install depends on.
+                    let dir = c_root.join(hearth_probe::defaults::REL_VOICE_MODELS);
+                    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+                    let total: u64 = c_voice_files.iter().map(|f| f.bytes).sum();
+                    let mut done: u64 = 0;
+                    for f in &c_voice_files {
+                        let dest = dir.join(&f.file);
+                        let url = hearth_probe::dict::hf_url(&c_repo, &f.file);
+                        let ch2 = ch.clone();
+                        let base = done;
+                        let mut progress = |got: u64, _t: u64| {
+                            let pct = ((base + got) as f64 / total.max(1) as f64 * 100.0) as u64;
+                            send(&ch2, ROW_VOICE_MODEL, pct.min(99), 100, "downloading", None);
+                        };
+                        hearth_probe::download::fetch_verified(
+                            &url,
+                            &dest,
+                            Some(f.bytes),
+                            f.sha256.as_deref(),
+                            &mut progress,
+                        )
+                        .map_err(|e| {
+                            let e = e.to_string();
+                            send(&ch2, ROW_VOICE_MODEL, 10, 100, "failed", Some(e.clone()));
+                            e
+                        })?;
+                        done += f.bytes;
+                    }
+                } else {
+                    let mut prefetch = std::process::Command::new(python_in(&c_py));
+                    prefetch
+                        .args(["-c"])
+                        .arg(format!(
+                            "from huggingface_hub import snapshot_download; snapshot_download('{}')",
+                            c_repo
+                        ))
+                        .env("HF_HOME", &c_hf)
+                        // Symlinks need Developer Mode on Windows (WinError 1314
+                        // on a stranger's machine, found the honest way).
+                        .env("HF_HUB_DISABLE_SYMLINKS", "1");
+                    run_logged(prefetch, &c_logs, "provision-voice-fetch.log").map_err(|e| {
+                        send(&ch, ROW_VOICE_MODEL, 10, 100, "failed", Some(e.clone()));
+                        e
+                    })?;
+                }
                 send(&ch, ROW_VOICE_MODEL, 100, 100, "done", None);
                 Ok(())
             });
@@ -371,7 +438,17 @@ pub async fn provision(
             let d_py = py_dir.clone();
             let d_env = dict.runtime.voice_env.clone();
             let d_accel = accel.clone();
+            let d_voice_is_cpp = voice_is_cpp;
             let t_voice = s.spawn(move || -> Result<(), String> {
+                // The C++ engine ships as a binary and needs no Python at all.
+                // This whole chain -- a venv, torch, and the engine package --
+                // was the slowest and most failure-prone part of an install,
+                // and on a platform running omnivoice.cpp it simply does not
+                // happen. Roughly 1.3 GiB of environment that stops existing.
+                if d_voice_is_cpp {
+                    send(&ch, ROW_VOICE, 100, 100, "done", Some("engine ships with Hearth".into()));
+                    return Ok(());
+                }
                 let voice_py = venv_python(&d_root.join("envs").join("voice"));
                 send(&ch, ROW_VOICE, 10, 100, "downloading", Some("creating environment".into()));
                 let mut mkenv = std::process::Command::new(python_in(&d_py));

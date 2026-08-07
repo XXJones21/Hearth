@@ -33,17 +33,70 @@ fn rtx4080_does_not_reach_the_26b() {
 }
 
 #[test]
-fn m1_air_8gb_takes_e2b_and_takes_turns() {
+fn m1_air_8gb_holds_the_mind_and_the_voice_together() {
+    // This used to assert the opposite. The 8 GB Air could not hold both while
+    // the voice was the torch build at 2.2 GiB, and the honest interim was a
+    // written first meeting. omnivoice.cpp holds ~900 MB, which is the whole
+    // difference: the machine coexists, and the take-turns orchestration that
+    // `coexist: false` promised may never need building for this class.
     let p = plan(&m("m1-air-8gb"), &d()).expect("an 8 GB Air can run Hearth");
     assert_eq!(p.tier, 0, "8 GB unified is a tier 0 machine");
     assert_eq!(p.repo, "unsloth/gemma-4-E2B-it-GGUF");
-    assert!(!p.coexist, "8 GB cannot hold the mind and the voice at once");
+    assert!(p.coexist, "8 GB holds both once the voice is the C++ engine");
     assert_eq!(p.backend, "metal");
     assert!(p.cuda_arch.is_none(), "no CUDA on Apple Silicon");
     assert!(
-        p.warnings.iter().any(|w| w.contains("one at a time")),
-        "the user must be told about the pause, in plain words"
+        !p.warnings.iter().any(|w| w.contains("one at a time")),
+        "nothing takes turns any more, so nobody should be warned that it does"
     );
+}
+
+#[test]
+fn no_machine_is_given_weights_it_cannot_talk_to() {
+    // The rule the RTX 4080 taught us: it reached the 26B and sat at the 4096
+    // floor, which is a worse machine than the same card running the 12B at
+    // 65536. A tier only fits if some build of it can hold the target window,
+    // so "largest model that technically loads" is not the plan.
+    //
+    // NOTE: no fixture currently exercises the within-tier trade-down, because
+    // with the measured reserves every one of them affords its preferred
+    // build. The ladder still matters for machines between these sizes; if a
+    // fixture is ever added that trades down, assert the "fits but would
+    // leave" reason here too.
+    for name in ["rtx4080", "m1-air-8gb", "m1-air-16gb", "no-gpu"] {
+        let p = plan(&m(name), &d()).unwrap();
+        assert!(
+            p.n_ctx >= 16384,
+            "{name} planned {} tokens, below the target; a bigger model was taken \
+             in place of a usable window",
+            p.n_ctx
+        );
+    }
+}
+
+#[test]
+fn a_machine_with_room_keeps_its_preferred_build() {
+    // The target must not cost quality where quality was affordable.
+    let p = plan(&m("rtx4080"), &d()).unwrap();
+    assert_eq!(p.quant, "UD-Q4_K_XL", "a 4080 has room for the best build");
+    assert!(p.n_ctx >= 16384);
+}
+
+#[test]
+fn every_selectable_build_can_be_verified() {
+    // A build the planner may choose is a build the installer will download,
+    // and a download with no hash is one nothing checks.
+    for t in &d().tiers {
+        for b in &t.builds {
+            assert!(
+                b.sha256.as_ref().is_some_and(|s| s.len() == 64),
+                "tier {} build {} has no usable sha256",
+                t.id,
+                b.quant
+            );
+            assert!(b.bytes > 0, "tier {} build {} has no size", t.id, b.quant);
+        }
+    }
 }
 
 #[test]

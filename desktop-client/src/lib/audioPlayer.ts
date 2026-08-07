@@ -20,7 +20,17 @@ class PcmStreamPlayer {
       output. */
   private volume = 1;
   private muted = false;
+  /** Frames that arrived before the context was running. See push(). */
+  private pending: ArrayBuffer[] = [];
   framesPlayed = 0;
+
+  /** Play anything held while the context was suspended, in arrival order. */
+  private drainPending(): void {
+    if (!this.pending.length) return;
+    const held = this.pending;
+    this.pending = [];
+    for (const b of held) this.push(b);
+  }
 
   setOutput(enabled: boolean, volume: number): void {
     this.muted = !enabled;
@@ -57,6 +67,19 @@ class PcmStreamPlayer {
     if (!ctx) return;
     const aligned = buf.byteLength - (buf.byteLength % 4);
     if (aligned <= 0) return;
+    // A suspended context does not advance currentTime, so anything scheduled
+    // against it starts in the past and is discarded the moment it resumes:
+    // frames arrive, no error is raised, and nothing is ever heard. Hold them
+    // until the context is actually running and play them then.
+    if (ctx.state !== 'running') {
+      this.pending.push(buf.slice(0));
+      void ctx.resume().then(
+        () => this.drainPending(),
+        () => undefined,
+      );
+      return;
+    }
+    this.drainPending();
     const f32 = new Float32Array(buf, 0, aligned / 4);
     let sum = 0;
     for (let i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
@@ -122,12 +145,26 @@ class PcmStreamPlayer {
 
   /** Drop anything scheduled ahead (turn cancelled / connection lost). */
   reset(): void {
-    if (this.ctx) {
-      void this.ctx.close().catch(() => undefined);
-      this.ctx = null;
-      this.gain = null;
-    }
+    // Deliberately does NOT close the context. Closing it means the next
+    // frame builds a new one, and a context created outside a user gesture
+    // starts suspended -- so a socket that merely reconnected could leave the
+    // house permanently silent with nothing in any log to say so. One context
+    // for the life of the page; resetting only drops the schedule.
     this.nextTime = 0;
+    this.pending = [];
+  }
+
+  /** Unlock playback from a real user gesture. Resuming inside a WebSocket
+      handler is at the mercy of the autoplay policy; a click or a keypress is
+      not. Called once from App on the first interaction. */
+  unlock(): void {
+    const ctx = this.ensureContext();
+    if (ctx && ctx.state !== 'running') {
+      void ctx.resume().then(
+        () => this.drainPending(),
+        () => undefined,
+      );
+    }
   }
 }
 

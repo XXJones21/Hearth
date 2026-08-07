@@ -29,9 +29,19 @@ backend/.native/
 # FOLLOW-UP: state belongs under HEARTH_HOME, not the product tree.
 backend/sessions/
 
-# Packed by scripts/pack_backend.sh before every bundle build.
+# Packed by scripts/pack_backend.sh before every bundle build. Windows packs
+# the .exe, macOS and Linux the bare binary; a checkout ignores whichever the
+# machine it sits on produces.
 desktop-client/src-tauri/resources/backend.tar.gz
 desktop-client/src-tauri/resources/hearth-supervisor.exe
+desktop-client/src-tauri/resources/hearth-supervisor
+desktop-client/src-tauri/resources/tts-server
+desktop-client/src-tauri/resources/tts-server.exe
+
+# The voice engine's pinned upstream checkout, cloned and patched by
+# scripts/build_omnivoice.sh. Reproducible from the pin plus vendor/omnivoice,
+# so the tree itself is build output.
+.build/
 
 # The by-hand startup proof: machine-specific script and its logs.
 backend/.proof/

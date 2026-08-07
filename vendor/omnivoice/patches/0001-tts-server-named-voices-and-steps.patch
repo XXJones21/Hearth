@@ -1,0 +1,236 @@
+diff --git a/src/tts-server.h b/src/tts-server.h
+index 40ae467..1c55827 100644
+--- a/src/tts-server.h
++++ b/src/tts-server.h
+@@ -21,6 +21,7 @@
+ #include "audio-io.h"
+ #include "yyjson.h"
+ 
++#include <algorithm>
+ #include <cmath>
+ #include <csignal>
+ #include <cstdint>
+@@ -183,6 +184,20 @@ static void tts_handle_speech(const tts_backend & be, const httplib::Request & h
+         return;
+     }
+ 
++    // Resolve the voice BEFORE a response is committed. The streaming path
++    // below hands httplib a chunked provider, which sends 200 the moment it
++    // is installed, so a backend that discovers a bad voice during synthesis
++    // has no way left to report it and the caller hears the default voice
++    // instead of the one it asked for. A backend with no voice table keeps
++    // the old behaviour of ignoring the field.
++    if (!be.voices.empty() && !req.voice.empty()) {
++        if (std::find(be.voices.begin(), be.voices.end(), req.voice) == be.voices.end()) {
++            std::string msg = "unknown voice '" + req.voice + "'";
++            tts_json_error(res, 400, "invalid_request_error", msg.c_str());
++            return;
++        }
++    }
++
+     if (req.format == "wav") {
+         // One-shot : collect the whole utterance, then emit a RIFF file.
+         std::vector<float> buf;
+diff --git a/tools/tts-server.cpp b/tools/tts-server.cpp
+index 789520a..e9cf8dd 100644
+--- a/tools/tts-server.cpp
++++ b/tools/tts-server.cpp
+@@ -9,12 +9,67 @@
+ #include "tts-server.h"
+ 
+ #include "omnivoice.h"
++#include "rvq-file.h"
+ #include "version.h"
+ 
+ #include <cstdio>
+ #include <cstring>
++#include <map>
+ #include <random>
+ #include <string>
++#include <vector>
++
++// Bits per RVQ code on disk. Fixed by the codec and declared the same way in
++// omnivoice-tts.cpp and omnivoice-codec.cpp; kept local to match them.
++static const int RVQ_CODE_BITS = 11;
++
++// A named voice: pre-encoded reference codes plus the transcript that goes
++// with them. Loaded once at startup and held for the process lifetime, so a
++// request costs a map lookup rather than a codec encode.
++struct named_voice {
++    std::vector<int32_t> tokens;   // .rvq path: pre-encoded codes
++    int                  T = 0;
++    std::vector<float>   audio;    // .wav path: raw 24 kHz mono
++    std::string          text;
++};
++
++static bool read_text_file_local(const char * path, std::string & out) {
++    FILE * f = fopen(path, "rb");
++    if (!f) {
++        fprintf(stderr, "[Voice] FATAL: cannot open %s\n", path);
++        return false;
++    }
++    char   buf[4096];
++    size_t n;
++    out.clear();
++    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
++        out.append(buf, n);
++    }
++    fclose(f);
++    while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) {
++        out.pop_back();
++    }
++    return true;
++}
++
++// --voice name:ref.rvq:ref.txt  ->  three colon-separated fields. Windows
++// drive letters would collide with ':' so the split walks from the right,
++// leaving any colons in the name itself alone.
++static bool parse_voice_arg(const char * arg, std::string & name, std::string & rvq, std::string & txt) {
++    std::string s   = arg;
++    size_t      p2  = s.find_last_of(':');
++    if (p2 == std::string::npos) {
++        return false;
++    }
++    size_t p1 = s.find_last_of(':', p2 - 1);
++    if (p1 == std::string::npos) {
++        return false;
++    }
++    name = s.substr(0, p1);
++    rvq  = s.substr(p1 + 1, p2 - p1 - 1);
++    txt  = s.substr(p2 + 1);
++    return !name.empty() && !rvq.empty() && !txt.empty();
++}
+ 
+ static void print_usage(const char * prog) {
+     fprintf(stderr, "omnivoice.cpp %s\n\n", OMNIVOICE_VERSION);
+@@ -27,6 +82,11 @@ static void print_usage(const char * prog) {
+             "  --host <ip>             Listen address (default: 127.0.0.1)\n"
+             "  --port <n>              Listen port (default: 8080)\n"
+             "  --lang <str>            Language label (default 'None')\n"
++            "  --steps <n>             MaskGIT decode steps (default 32, fewer is faster)\n"
++            "  --voice <n:ref:txt>     Named cloned voice: name, reference (.wav clip or\n"
++            "                          .rvq from omnivoice-codec) and its transcript.\n"
++            "                          Repeatable. Selected per request with the OAI\n"
++            "                          'voice' field; listed by GET /v1/voices.\n"
+             "  --no-fa                 Disable flash attention\n"
+             "  --clamp-fp16            Clamp hidden states to FP16 range\n",
+             prog);
+@@ -46,6 +106,8 @@ int main(int argc, char ** argv) {
+     server_config cfg;
+     bool          use_fa     = true;
+     bool          clamp_fp16 = false;
++    int           mg_steps   = 0;  // 0 = leave the ABI default alone
++    std::vector<std::string> voice_args;
+ 
+     for (int i = 1; i < argc; i++) {
+         const char * arg = argv[i];
+@@ -59,6 +121,10 @@ int main(int argc, char ** argv) {
+             cfg.port = std::atoi(argv[++i]);
+         } else if (!std::strcmp(arg, "--lang") && i + 1 < argc) {
+             lang = argv[++i];
++        } else if (!std::strcmp(arg, "--steps") && i + 1 < argc) {
++            mg_steps = std::atoi(argv[++i]);
++        } else if (!std::strcmp(arg, "--voice") && i + 1 < argc) {
++            voice_args.push_back(argv[++i]);
+         } else if (!std::strcmp(arg, "--no-fa")) {
+             use_fa = false;
+         } else if (!std::strcmp(arg, "--clamp-fp16")) {
+@@ -93,13 +159,65 @@ int main(int argc, char ** argv) {
+ 
+     tts_backend be;
+     be.model_id = basename_of(model_path);
+-    // OmniVoice carries no named speaker table : voices stays empty.
++
++    // OmniVoice carries no built-in speaker table, but the ABI takes a voice
++    // reference, so a named table can be built at startup from pre-encoded
++    // clips. Encoding is the expensive half of cloning and it happens once
++    // here rather than per request.
++    std::map<std::string, named_voice> voices;
++    const int                          K = ov_num_codebooks(ov);
++    for (const std::string & va : voice_args) {
++        std::string name, rvq_path, txt_path;
++        if (!parse_voice_arg(va.c_str(), name, rvq_path, txt_path)) {
++            fprintf(stderr, "[Voice] FATAL: --voice wants name:ref.rvq:ref.txt, got '%s'\n", va.c_str());
++            ov_free(ov);
++            return 1;
++        }
++        named_voice nv;
++        // A reference is either pre-encoded codes or the clip itself. Taking
++        // the WAV directly is what lets a caller ship the same reference
++        // recording it already has for a persona, with no codec pass and no
++        // extra artifact to keep in step with it. Encoding happens once here,
++        // not per request either way.
++        const bool is_rvq = rvq_path.size() > 4 && rvq_path.compare(rvq_path.size() - 4, 4, ".rvq") == 0;
++        if (is_rvq) {
++            if (!rvq_read_file(rvq_path.c_str(), K, RVQ_CODE_BITS, nv.tokens, &nv.T)) {
++                ov_free(ov);
++                return 1;
++            }
++        } else {
++            int     n_samples = 0;
++            float * raw       = audio_read_mono(rvq_path.c_str(), 24000, &n_samples);
++            if (!raw || n_samples <= 0) {
++                fprintf(stderr, "[Voice] FATAL: cannot read reference audio %s\n", rvq_path.c_str());
++                free(raw);
++                ov_free(ov);
++                return 1;
++            }
++            nv.audio.assign(raw, raw + n_samples);
++            free(raw);
++        }
++        if (!read_text_file_local(txt_path.c_str(), nv.text)) {
++            ov_free(ov);
++            return 1;
++        }
++        if (is_rvq) {
++            fprintf(stderr, "[Voice] '%s' loaded: K=%d T=%d, transcript %zu chars\n", name.c_str(), K, nv.T,
++                    nv.text.size());
++        } else {
++            fprintf(stderr, "[Voice] '%s' loaded: %zu samples of 24 kHz reference, transcript %zu chars\n",
++                    name.c_str(), nv.audio.size(), nv.text.size());
++        }
++        voices[name] = std::move(nv);
++        be.voices.push_back(name);
++    }
+ 
+     // The adapter always drives the streaming pipeline : on_chunk routes to
+     // the shared sink, which either streams to the socket (pcm) or fills a
+     // one-shot buffer (wav). OmniVoice streams at chunk_duration_sec
+     // granularity, the same path either way.
+-    be.synthesize = [ov, &lang](const tts_request & req, const tts_sink & sink, std::string & err) -> int {
++    be.synthesize = [ov, &lang, &voices, mg_steps](const tts_request & req, const tts_sink & sink,
++                                                   std::string & err) -> int {
+         struct ov_tts_params p;
+         ov_tts_default_params(&p);
+         p.text = req.input.c_str();
+@@ -107,6 +225,30 @@ int main(int argc, char ** argv) {
+         if (!req.instructions.empty()) {
+             p.instruct = req.instructions.c_str();
+         }
++        if (mg_steps > 0) {
++            p.mg_num_step = mg_steps;
++        }
++
++        // A named voice resolves to its pre-encoded reference. An unknown
++        // name is refused rather than quietly answered in the default voice:
++        // a persona speaking with someone else's voice is worse than an
++        // error, because nothing downstream can tell it happened.
++        if (!req.voice.empty()) {
++            auto it = voices.find(req.voice);
++            if (it == voices.end()) {
++                err = "unknown voice '" + req.voice + "'";
++                return (int) OV_STATUS_INVALID_PARAMS;
++            }
++            // The two reference forms are mutually exclusive in the ABI.
++            if (!it->second.tokens.empty()) {
++                p.ref_audio_tokens = it->second.tokens.data();
++                p.ref_T            = it->second.T;
++            } else {
++                p.ref_audio_24k  = it->second.audio.data();
++                p.ref_n_samples  = (int) it->second.audio.size();
++            }
++            p.ref_text = it->second.text.c_str();
++        }
+ 
+         // Seed resolution mirrors the CLI: negative or absent draws a
+         // fresh hardware random seed, anything else lands verbatim on

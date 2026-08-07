@@ -104,6 +104,13 @@ def resolve(spec: dict | None) -> str:
     """
     if not spec:
         return ""
+    # What the installer actually placed, which outranks the persona's declared
+    # id for the same reason it does in the supervisor: the persona ships one
+    # id, the plan picks a tier per machine, and the router's model-class key
+    # has to name the file llama-server is really serving.
+    installed = (os.environ.get("HEARTH_DEEP_MODEL_FILE") or "").strip()
+    if installed:
+        return installed
     legacy = str(spec.get("path") or "").strip()
     if legacy:
         return legacy

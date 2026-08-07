@@ -18,12 +18,24 @@ OUT="$REPO/desktop-client/src-tauri/resources"
 # Per platform: the supervisor built on this machine is the one that ships
 # from it. Windows bundles the .exe, macOS the bare binary.
 case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*) SUP_NAME="hearth-supervisor.exe" ;;
-  *) SUP_NAME="hearth-supervisor" ;;
+  MINGW*|MSYS*|CYGWIN*) SUP_NAME="hearth-supervisor.exe"; TTS_NAME="tts-server.exe" ;;
+  *) SUP_NAME="hearth-supervisor"; TTS_NAME="tts-server" ;;
 esac
 SUP="$REPO/backend/supervisor/target/release/$SUP_NAME"
 
 [ -f "$SUP" ] || { echo "build the supervisor first: cargo build --release in backend/supervisor" >&2; exit 1; }
+
+# The voice engine, built by scripts/build_omnivoice.sh into this same
+# resources directory, so it is already in place and only needs checking.
+# Absent is a warning rather than an error: house.rs treats the voice as
+# optional and runs text-only without it, and that is the shape an install
+# that skipped the voice row should keep.
+if [ -f "$OUT/$TTS_NAME" ]; then
+  echo "voice engine present: $TTS_NAME"
+else
+  echo "WARNING: no $TTS_NAME in resources; this bundle installs without a voice." >&2
+  echo "         build it with: bash scripts/build_omnivoice.sh" >&2
+fi
 
 mkdir -p "$OUT"
 STAGE="$(mktemp -d)"

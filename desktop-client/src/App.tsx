@@ -72,6 +72,17 @@ export default function App() {
     const s = loadSettings();
     applyDocumentSettings(s);
     ttsPlayer.setOutput(s.voiceEnabled, s.voiceVolume);
+    /* Browsers only reliably start an AudioContext from a user gesture, and
+       the first frame of a reply arrives inside a WebSocket handler, which is
+       not one. Take the first click or keypress of the session as permission
+       so the first thing he ever says is not the thing that gets swallowed. */
+    const unlock = () => ttsPlayer.unlock();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
   }, []);
 
   /* Settings > Connection edits the address; the socket only reads it when it

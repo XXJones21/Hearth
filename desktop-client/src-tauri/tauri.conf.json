@@ -30,7 +30,8 @@
     "targets": "all",
     "resources": [
       "resources/backend.tar.gz",
-      "resources/hearth-supervisor*"
+      "resources/hearth-supervisor*",
+      "resources/tts-server*"
     ],
     "icon": [
       "icons/32x32.png",
