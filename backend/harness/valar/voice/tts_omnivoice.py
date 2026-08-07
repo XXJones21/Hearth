@@ -199,11 +199,16 @@ class OmniVoiceStreamer:
         instruct = ", ".join(attrs) if attrs else None
         with self._lock:
             self._ensure_loaded()
+            # Design is a one-time cost per persona, so it buys quality that
+            # streaming cannot afford: more MaskGIT steps than the resident
+            # config runs (a 16-step design came back garbled once).
+            from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
+            design_config = OmniVoiceGenerationConfig(num_step=max(32, DEFAULT_NUM_STEPS))
             t0 = time.monotonic()
             audio = self._model.generate(  # type: ignore[union-attr]
                 text=text,
                 instruct=instruct,
-                generation_config=self._gen_config,
+                generation_config=design_config,
             )
             gen_s = time.monotonic() - t0
         wav = np.asarray(audio[0], dtype=np.float32).reshape(-1)
