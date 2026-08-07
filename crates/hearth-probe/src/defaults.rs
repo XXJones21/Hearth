@@ -20,6 +20,10 @@ pub const PORT_LLAMA: u16 = 18080;
 pub const PORT_SUPERVISOR_WS: u16 = 18765;
 pub const PORT_SUPERVISOR_ASSETS: u16 = 18766;
 pub const PORT_TTS: u16 = 18702;
+/// The voice ENGINE, one hop behind the TTS service on PORT_TTS. The service
+/// keeps the websocket contract the gateway speaks; the engine holds the
+/// weights and answers OpenAI's /v1/audio/speech behind it.
+pub const PORT_TTS_ENGINE: u16 = 18703;
 
 /// The persona every install starts with. He ships in the client bundle so
 /// first run can draw him with nothing listening, and the backend copy is
@@ -58,3 +62,12 @@ pub fn rel_llama_server() -> &'static str {
 pub fn rel_voice_python() -> &'static str {
     if cfg!(windows) { "envs/voice/Scripts/python.exe" } else { "envs/voice/bin/python" }
 }
+
+/// The voice engine binary, unpacked from the bundle beside the supervisor.
+pub fn rel_tts_server() -> &'static str {
+    if cfg!(windows) { "runtime/tts-server.exe" } else { "runtime/tts-server" }
+}
+
+/// Voice weights live with the other weights, not in the Hugging Face cache:
+/// they are named files the installer verifies, not a repository snapshot.
+pub const REL_VOICE_MODELS: &str = "models/voice";

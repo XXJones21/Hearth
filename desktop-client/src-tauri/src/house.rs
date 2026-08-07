@@ -197,7 +197,7 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
         },
         Spec {
             name: "harness",
-            program: python,
+            program: python.clone(),
             args: vec!["app.py".into()],
             cwd: backend.join("harness"),
             env: harness_env.clone(),
@@ -207,16 +207,73 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
 
     // The voice service is optional by design: the house runs text-only
     // without it, and an install that skipped or failed the voice row still
-    // gets a working Hearth. Present and provisioned means supervised, with
-    // one honest exception: on a machine whose plan said the mind and the
-    // voice cannot both stay resident (HEARTH_COEXIST=0, the 8 GB Air), the
-    // voice does not boot resident. The take-turns orchestration the small-
-    // machine screen promises is designed and not yet built; text-first is
-    // the truthful interim, not a silent overcommit that swaps the machine
-    // to a crawl.
-    let coexist = file.get("HEARTH_COEXIST").map(|v| v != "0").unwrap_or(true);
-    if !coexist {
-        // fall through with no voice spec
+    // gets a working Hearth. Present and provisioned means supervised.
+    //
+    // HEARTH_COEXIST no longer gates this. It used to: a plan that said the
+    // mind and the voice could not both stay resident kept the voice out of
+    // memory entirely, which on an 8 GB Air meant silence. That was the torch
+    // engine's 2.2 GiB talking. The C++ engine holds about 900 MB and the same
+    // machine now plans coexist:true, so the flag has nothing left to decide
+    // here; the planner already refused any model that would not leave room.
+    //
+    // The C++ engine: a shipped binary holding the weights, with the Python
+    // service in front of it keeping the websocket contract the gateway
+    // speaks. Two processes where the torch build was one, and about a third
+    // of the memory, which is what lets an 8 GB machine keep both the mind and
+    // the voice resident. Each persona's reference clip is loaded by name at
+    // the engine's startup, because encoding is the expensive half of cloning
+    // and doing it once is the whole point of a resident engine.
+    let engine_bin = file.get("HEARTH_TTS_ENGINE_BIN").map(PathBuf::from);
+    if let Some(engine) = engine_bin.filter(|p| p.is_file()) {
+        let models = PathBuf::from(file.get("HEARTH_TTS_VOICE_MODELS").cloned().unwrap_or_default());
+        let base = models.join("omnivoice-base-Q8_0.gguf");
+        let codec = models.join("omnivoice-tokenizer-Q8_0.gguf");
+        if !base.is_file() || !codec.is_file() {
+            return Err(format!(
+                "the voice engine has no weights: expected {} and {}. Re-run setup to fetch them.",
+                base.display(),
+                codec.display()
+            ));
+        }
+        let mut args: Vec<String> = vec![
+            "--model".into(),
+            slash(&base),
+            "--codec".into(),
+            slash(&codec),
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            file.get("HEARTH_TTS_ENGINE_PORT").cloned().unwrap_or_else(|| "18703".into()),
+            "--lang".into(),
+            "English".into(),
+        ];
+        if let Some(steps) = file.get("HEARTH_TTS_STEPS") {
+            args.push("--steps".into());
+            args.push(steps.clone());
+        }
+        for (name, clip, text) in persona_voices(&backend) {
+            args.push("--voice".into());
+            args.push(format!("{}:{}:{}", name, slash(&clip), slash(&text)));
+        }
+        specs.push(Spec {
+            name: "voice-engine",
+            program: engine,
+            args,
+            cwd: backend.clone(),
+            env: harness_env.clone(),
+            health_port: file.get("HEARTH_TTS_ENGINE_PORT").and_then(|p| p.parse().ok()),
+        });
+        // The service in front of it runs on the main interpreter: with the
+        // engine holding the weights, this side needs only fastapi, uvicorn
+        // and websockets, which the harness already has. No voice venv.
+        specs.push(Spec {
+            name: "voice",
+            program: python.clone(),
+            args: vec!["tts_app.py".into()],
+            cwd: backend.join("harness"),
+            env: harness_env.clone(),
+            health_port: file.get("HEARTH_TTS_PORT").and_then(|p| p.parse().ok()),
+        });
     } else if let Some(voice_py) = file.get("HEARTH_VOICE_PYTHON") {
         let voice_py = PathBuf::from(voice_py);
         if voice_py.is_file() {
@@ -234,6 +291,42 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
     }
 
     Ok((specs, logs_dir))
+}
+
+/// Every persona that ships a reference clip and its transcript, as
+/// (name, clip, transcript). The persona's DIRECTORY names the voice, lower
+/// cased, which is the same rule valar/voice/tts_cpp.py applies when it turns
+/// a persona into a voice name -- so the two agree without a table between
+/// them that could fall out of step.
+///
+/// A persona with no clip is simply absent: the engine refuses a voice it was
+/// never given, which is what makes a missing reference a loud failure at the
+/// first request rather than a persona quietly speaking in a stranger's voice.
+fn persona_voices(backend: &Path) -> Vec<(String, PathBuf, PathBuf)> {
+    let mut out = Vec::new();
+    let dir = backend.join("personas");
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return out;
+    };
+    let mut names: Vec<_> = entries.flatten().map(|e| e.path()).collect();
+    // Deterministic order, so the engine's --voice list and the logs it prints
+    // do not shuffle between boots.
+    names.sort();
+    for p in names {
+        if !p.is_dir() {
+            continue;
+        }
+        let Some(persona) = p.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let voice_dir = p.join("voice");
+        let clip = voice_dir.join(format!("{}_voice_reference.wav", persona.to_lowercase()));
+        let text = voice_dir.join(format!("{}_voice_reference.txt", persona.to_lowercase()));
+        if clip.is_file() && text.is_file() {
+            out.push((persona.to_lowercase(), clip, text));
+        }
+    }
+    out
 }
 
 fn spawn(spec: &Spec, logs_dir: &Path) -> std::io::Result<Child> {

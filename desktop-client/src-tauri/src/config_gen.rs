@@ -115,8 +115,32 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line("HEARTH_BRAIN_BACKEND=router".into());
     line(format!("HEARTH_TTS_SERVICE_URL=ws://127.0.0.1:{}/tts", d::PORT_TTS));
     line("HEARTH_TTS_BACKEND=remote".into());
-    line("HEARTH_TTS_SERVICE=omnivoice".into());
-    line("HEARTH_TTS_SAMPLE_RATE=48000".into());
+    // Which voice engine, and everything that follows from it. omnivoice.cpp
+    // emits 24 kHz; the rate is configured to match rather than resampled in
+    // the middle, because the client is told the rate and plays what it is
+    // told. The torch engine resamples to 48 kHz itself.
+    let dict = hearth_probe::Dictionary::embedded().map_err(|e| e.to_string())?;
+    if dict.voice.uses_cpp(std::env::consts::OS) {
+        line("HEARTH_TTS_SERVICE=omnivoice-cpp".into());
+        line("HEARTH_TTS_SAMPLE_RATE=24000".into());
+        line(format!(
+            "HEARTH_TTS_ENGINE_URL=http://127.0.0.1:{}",
+            d::PORT_TTS_ENGINE
+        ));
+        line(format!("HEARTH_TTS_ENGINE_PORT={}", d::PORT_TTS_ENGINE));
+        line(format!(
+            "HEARTH_TTS_ENGINE_BIN={}",
+            slash(&root.join(d::rel_tts_server()))
+        ));
+        line(format!(
+            "HEARTH_TTS_VOICE_MODELS={}",
+            slash(&root.join(d::REL_VOICE_MODELS))
+        ));
+        line(format!("HEARTH_TTS_STEPS={}", dict.voice.steps));
+    } else {
+        line("HEARTH_TTS_SERVICE=omnivoice".into());
+        line("HEARTH_TTS_SAMPLE_RATE=48000".into());
+    }
     // expandable_segments, the WSL-era allocator fix, is unsupported by
     // torch's CUDA allocator on Windows (verified in the native smoke:
     // warning, no effect, and 2.1 GiB reserved without it). Linux builds
