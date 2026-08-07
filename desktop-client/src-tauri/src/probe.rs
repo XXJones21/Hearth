@@ -175,12 +175,15 @@ pub async fn probe_download(
         let mut landed = Vec::new();
         for item in &p.downloads {
             let Some(url) = item.url.clone() else {
+                // The voice has no direct URL; the Voice engine row fetches
+                // it into the install's own cache. This event only keeps the
+                // accounting straight; the screen no longer shows the row.
                 let _ = on_progress.send(Progress {
                     what: item.what.clone(),
                     done_bytes: 0,
                     total_bytes: item.bytes,
                     state: "skipped".into(),
-                    message: Some("fetched by the runtime on first use".into()),
+                    message: Some("installed by the Voice engine step".into()),
                 });
                 continue;
             };

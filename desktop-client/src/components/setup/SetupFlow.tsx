@@ -534,7 +534,12 @@ function Installing({
 
         <div className="mt-5">
           {[
-            ...plan.downloads.map((d) => ({ what: d.what, bytes: d.bytes })),
+            /* Only direct downloads earn a row of their own. The voice has
+               no URL here; the Voice engine row fetches it, and one piece
+               of work gets one row. */
+            ...plan.downloads
+              .filter((d) => d.url !== null)
+              .map((d) => ({ what: d.what, bytes: d.bytes })),
             /* The runtime rows, placed while the models download. Their
                sizes vary (bundled unpack, per-accelerator assets, a pip
                resolve), so the right-hand cell reads from progress alone. */
