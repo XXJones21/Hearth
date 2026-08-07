@@ -112,7 +112,12 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
         base += r.os_unified_bytes;
     }
 
-    let coexist_budget = pool.saturating_sub(base + r.voice_resident_bytes);
+    // The voice costs what its engine costs, and which engine runs depends on
+    // the platform while omnivoice.cpp is still crossing over. A machine on
+    // the C++ engine holds ~900 MB where the torch one holds 2.2 GiB, and on
+    // 8 GB that difference decides whether the voice can stay resident at all.
+    let voice_resident = d.voice.resident_for(&m.os, r.voice_resident_bytes);
+    let coexist_budget = pool.saturating_sub(base + voice_resident);
     let sequential_budget = pool.saturating_sub(base);
 
     let mut reasons = Vec::new();
@@ -217,9 +222,11 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
         },
         Download {
             what: d.voice.name.clone(),
-            repo: d.voice.repo.clone(),
+            repo: d.voice.repo_for(&m.os).to_string(),
+            // The C++ engine names its two weight files; the torch one takes a
+            // whole-repository snapshot and has nothing to name.
             file: None,
-            bytes: d.voice.download_bytes,
+            bytes: d.voice.download_bytes_for(&m.os),
             url: None,
             sha256: None,
         },
@@ -283,23 +290,32 @@ pub(crate) fn ctx_for(t: &Tier, budget: u64, bytes: u64) -> u32 {
 /// is a question about how to spend what is left, and cannot reach back and
 /// change the answer to the first.
 fn best_fit<'a>(d: &'a Dictionary, budget: u64) -> Option<(&'a Tier, Build)> {
+    // A tier only counts as fitting if some build of it can hold the target
+    // window. Weights that fit with nothing left for context are a model that
+    // cannot be talked to: an RTX 4080 reaches the 26B with 4096 tokens, which
+    // is a worse machine than the same card running the 12B at 65536. Size is
+    // not the only axis, and the largest thing that technically loads is not
+    // the best plan.
+    if let Some(found) = fit_at(d, budget, TARGET_CTX) {
+        return Some(found);
+    }
+    // Nothing anywhere reaches the target, so take the floor rather than
+    // refuse the machine. A small window is still a working Hearth.
+    fit_at(d, budget, MIN_CTX)
+}
+
+/// Largest tier with a build that holds `want_ctx`, and the best such build.
+fn fit_at<'a>(d: &'a Dictionary, budget: u64, want_ctx: u32) -> Option<(&'a Tier, Build)> {
     for t in d.descending() {
         let floor = t.kv_bytes_per_token * MIN_CTX as u64;
         let ladder = t.ladder();
-        let mut fits = ladder.iter().filter(|b| b.bytes + floor <= budget).peekable();
-        if fits.peek().is_none() {
-            continue;
-        }
-        let fitting: Vec<&Build> = fits.collect();
-        // Best quality that reaches the target; failing that, best quality
-        // that fits at all, which is the old behaviour and still beats
-        // refusing the machine.
-        let chosen = fitting
+        let fitting: Vec<&Build> = ladder
             .iter()
-            .find(|b| ctx_for(t, budget, b.bytes) >= TARGET_CTX)
-            .copied()
-            .unwrap_or(fitting[0]);
-        return Some((t, chosen.clone()));
+            .filter(|b| b.bytes + floor <= budget && ctx_for(t, budget, b.bytes) >= want_ctx)
+            .collect();
+        if let Some(chosen) = fitting.first() {
+            return Some((t, (*chosen).clone()));
+        }
     }
     None
 }

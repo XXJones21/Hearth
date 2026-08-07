@@ -33,40 +33,45 @@ fn rtx4080_does_not_reach_the_26b() {
 }
 
 #[test]
-fn m1_air_8gb_takes_e2b_and_takes_turns() {
+fn m1_air_8gb_holds_the_mind_and_the_voice_together() {
+    // This used to assert the opposite. The 8 GB Air could not hold both while
+    // the voice was the torch build at 2.2 GiB, and the honest interim was a
+    // written first meeting. omnivoice.cpp holds ~900 MB, which is the whole
+    // difference: the machine coexists, and the take-turns orchestration that
+    // `coexist: false` promised may never need building for this class.
     let p = plan(&m("m1-air-8gb"), &d()).expect("an 8 GB Air can run Hearth");
     assert_eq!(p.tier, 0, "8 GB unified is a tier 0 machine");
     assert_eq!(p.repo, "unsloth/gemma-4-E2B-it-GGUF");
-    assert!(!p.coexist, "8 GB cannot hold the mind and the voice at once");
+    assert!(p.coexist, "8 GB holds both once the voice is the C++ engine");
     assert_eq!(p.backend, "metal");
     assert!(p.cuda_arch.is_none(), "no CUDA on Apple Silicon");
     assert!(
-        p.warnings.iter().any(|w| w.contains("one at a time")),
-        "the user must be told about the pause, in plain words"
+        !p.warnings.iter().any(|w| w.contains("one at a time")),
+        "nothing takes turns any more, so nobody should be warned that it does"
     );
 }
 
 #[test]
-fn m1_air_8gb_trades_quantisation_for_a_usable_window() {
-    // The regression this exists for: the Air used to take Q4_K_M and land on
-    // 9216 tokens, against a persona prompt that measured 1263. The window is
-    // a constraint now, so the ladder gives way instead.
-    let p = plan(&m("m1-air-8gb"), &d()).unwrap();
-    assert_eq!(p.tier, 0, "trading quant must never move the tier");
-    assert!(
-        p.n_ctx >= 16384,
-        "the 8 GB Air should clear the context target, got {}",
-        p.n_ctx
-    );
-    assert_ne!(
-        p.quant, "Q4_K_M",
-        "Q4_K_M fits but cannot reach the target; it must be passed over"
-    );
-    assert!(
-        p.reasons.iter().any(|r| r.contains("fits but would leave")),
-        "passing over a build that FIT is a choice, and the plan must say so: {:?}",
-        p.reasons
-    );
+fn no_machine_is_given_weights_it_cannot_talk_to() {
+    // The rule the RTX 4080 taught us: it reached the 26B and sat at the 4096
+    // floor, which is a worse machine than the same card running the 12B at
+    // 65536. A tier only fits if some build of it can hold the target window,
+    // so "largest model that technically loads" is not the plan.
+    //
+    // NOTE: no fixture currently exercises the within-tier trade-down, because
+    // with the measured reserves every one of them affords its preferred
+    // build. The ladder still matters for machines between these sizes; if a
+    // fixture is ever added that trades down, assert the "fits but would
+    // leave" reason here too.
+    for name in ["rtx4080", "m1-air-8gb", "m1-air-16gb", "no-gpu"] {
+        let p = plan(&m(name), &d()).unwrap();
+        assert!(
+            p.n_ctx >= 16384,
+            "{name} planned {} tokens, below the target; a bigger model was taken \
+             in place of a usable window",
+            p.n_ctx
+        );
+    }
 }
 
 #[test]

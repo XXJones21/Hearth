@@ -64,17 +64,65 @@ runtime:
     torch_index_cuda: https://download.pytorch.org/whl/cu130
 
 reserves:
-  # Held out of the budget before a model is chosen.
-  voice_resident_bytes: 2362232012 # OmniVoice on the GPU, ~2.2 GiB measured
-  stt_bytes: 1073741824 # Whisper base, ~1.0 GiB
-  os_unified_bytes: 3221225472 # host OS on shared memory, ~3.0 GiB
+  # Held out of the budget before a model is chosen. Re-derived 2026-08-07 by
+  # measuring an 8 GB M2 Air rather than estimating, after the old figures
+  # declared coexistence impossible on a machine that turned out to manage it.
+  #
+  # The torch voice, which is still the engine everywhere omnivoice.cpp has not
+  # been validated. Platforms that HAVE switched carry their own figure under
+  # `voice:` below, because the reserve belongs to the engine rather than to
+  # the product, and shrinking it everywhere at once would silently re-tier
+  # machines nobody has run.
+  voice_resident_bytes: 2362232012 # torch OmniVoice on the GPU, ~2.2 GiB
+  # Whisper base, measured on the Air: 213 MiB for the torch import, 459 MiB
+  # for the model, 45 MiB more through one inference. The 139 MB download is
+  # the weights alone and is NOT the resident cost -- reading it as such would
+  # have cut this reserve to a quarter of what the process actually holds.
+  stt_bytes: 805306368 # Whisper base, 768 MiB (717 MiB measured, rounded up)
+  # macOS on 8 GB measured ~2.0 GiB wired with nothing of ours running. Kept a
+  # little above that: this is the reserve that protects the machine, and the
+  # cost of erring low is a wedged laptop rather than a smaller context.
+  os_unified_bytes: 2415919104 # host OS on shared memory, ~2.25 GiB
   headroom_bytes: 1073741824 # ~1.0 GiB, so a full card is not a wedged card
 
 voice:
   name: OmniVoice
-  repo: k2-fsa/OmniVoice
-  download_bytes: 3328599654 # ~3.1 GiB of Hugging Face cache
-  resident_bytes: 2362232012
+  # Two engines during the crossover, and the planner picks by platform.
+  #
+  # macOS runs omnivoice.cpp because the torch build has no MPS path at all:
+  # it selects cuda-or-cpu, lands on the processor, and synthesises at about
+  # 7.6x realtime, which is not a voice. Windows and Linux keep the torch
+  # engine and its 2.2 GiB reserve until the C++ one is measured on CUDA.
+  # Moving a platform is a one-line change here, made deliberately, after
+  # someone has run it.
+  cpp_platforms: [macos]
+
+  # Where the torch engine's weights come from. Whole-repository snapshot into
+  # the Hugging Face cache; no file list, because it fetches all of it.
+  torch_repo: k2-fsa/OmniVoice
+  torch_download_bytes: 3328599654 # ~3.1 GiB of Hugging Face cache
+
+  repo: Serveurperso/OmniVoice-GGUF
+  # The engine binary ships in the bundle; only weights are fetched. Two files
+  # that load together, the Qwen3 backbone and the HuBERT/DAC/RVQ tokenizer.
+  download_bytes: 945284608 # 656 MB base + 289 MB tokenizer
+  resident_bytes: 966367641 # omnivoice.cpp Q8_0, measured with the brain alongside
+  files:
+    - file: omnivoice-base-Q8_0.gguf
+      bytes: 656395008
+      sha256: null # LFS oid not recorded yet; see FOLLOW-UP below
+    - file: omnivoice-tokenizer-Q8_0.gguf
+      bytes: 288889600
+      sha256: null
+  # MaskGIT decode steps. The quality/speed lever, near linear: on an M2 Air
+  # with the cloned voice, 32 steps runs 4.37x realtime, 16 runs 2.18x, 8 runs
+  # 1.16x and 4 runs 0.63x. A voice that cannot keep up with speech is not a
+  # voice, so the default buys realtime and the quality that is left.
+  #
+  # FOLLOW-UP: sha256 for both files, so the installer can verify them the way
+  # it verifies weights. And the step default wants a listening test on real
+  # hardware rather than a number chosen from a table.
+  steps: 8
 
 tiers:
   - id: 0
