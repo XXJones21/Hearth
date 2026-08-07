@@ -63,6 +63,10 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line(format!("HEARTH_HOME={}", slash(&root.join(d::REL_HOME))));
     line(format!("HEARTH_ENGRAM={}", slash(&root.join(d::REL_ENGRAM))));
     line(format!("HF_HOME={}", slash(&root.join(d::REL_HF_CACHE))));
+    // Symlinks need Developer Mode on Windows; a per-install cache uses
+    // plain files instead. Costs duplicate bytes for one model, buys an
+    // install that works on any machine.
+    line("HF_HUB_DISABLE_SYMLINKS=1".into());
     line(format!("HEARTH_MODELS={}", slash(&weights_dir)));
     line(format!("HEARTH_LOG_DIR={}", slash(&root.join(d::REL_LOGS))));
     line(String::new());

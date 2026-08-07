@@ -335,7 +335,11 @@ pub async fn provision(
                 "from huggingface_hub import snapshot_download; snapshot_download('{}')",
                 dict.voice.repo
             ))
-            .env("HF_HOME", root.join("home").join("hf-cache"));
+            .env("HF_HOME", root.join("home").join("hf-cache"))
+            // Symlinks need Developer Mode on Windows (WinError 1314 on a
+            // stranger's machine, found the honest way). A per-install cache
+            // holds one model; duplicated plain files cost nothing.
+            .env("HF_HUB_DISABLE_SYMLINKS", "1");
         run_logged(prefetch, "provision-voice-fetch.log").map_err(|e| {
             send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
             e
