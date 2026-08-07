@@ -1,7 +1,7 @@
 ---
 title: Build Pipeline
 status: draft
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-06
 related:
   - component-catalog.md
   - portability-ledger.md
@@ -146,6 +146,24 @@ double-clicked in File Explorer.
 
 **Not baked in:** model weights. They are gigabytes, they are tier-dependent,
 and they are the one thing that genuinely must be chosen on the user's machine.
+
+### The install root
+
+Added 2026-08-06, after the first live install test; the full statement is in
+[`../first-run.md`](../first-run.md). The user chooses ONE folder during
+setup, `D:\Hearth` by default, and everything above that is install-time
+lands under it: the staged weights at `<root>\models`, the install record at
+`<root>\hearth-install.json`, the generated configuration, and the distro
+itself, imported with `wsl --import` so its virtual disk sits at
+`<root>\wsl` rather than in the default location on the system drive.
+
+Two consequences the installer must honor:
+
+- Uninstall is `wsl --unregister` plus deleting the folder. Any step that
+  writes product state elsewhere breaks that sentence and does not ship.
+- The client revalidates the install record at boot and routes a missing or
+  gutted install back into setup, so a half-deleted Hearth degrades into
+  "install again", never into a house that dials a backend which is gone.
 
 ## macOS: producing `Hearth.app`
 

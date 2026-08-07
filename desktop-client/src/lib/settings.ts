@@ -25,8 +25,13 @@ export type Settings = {
   developerMode: boolean;
   /* False until first-run setup finishes. A fresh install has no backend, so
      it must not quietly connect to anything already running on this machine
-     and adopt its data as though it were the user's own. */
+     and adopt its data as though it were the user's own. This flag is only a
+     CACHE: the truth is the install record on disk, and boot revalidates
+     against it, so deleting the install folder really is the uninstall. */
   setupComplete: boolean;
+  /** The one folder Hearth lives under, chosen during setup. Empty = the
+   *  machine default. Boot validates the record at this root. */
+  installRoot: string;
 };
 
 export const DEFAULTS: Settings = {
@@ -40,6 +45,7 @@ export const DEFAULTS: Settings = {
   voiceVolume: 0.8,
   developerMode: false,
   setupComplete: false,
+  installRoot: '',
 };
 
 let cache: Settings | null = null;

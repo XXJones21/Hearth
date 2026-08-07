@@ -10,6 +10,8 @@ pub fn run() {
       probe::probe_plan,
       probe::probe_fixtures,
       probe::probe_model_dir,
+      probe::probe_install_root,
+      probe::probe_install_state,
       probe::probe_free_disk,
       probe::probe_download,
     ])

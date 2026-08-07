@@ -84,6 +84,20 @@ export const fixtures = () => invoke<string[]>('probe_fixtures');
 
 export const modelDir = () => invoke<string>('probe_model_dir');
 
+/** The default install root: the one folder everything lives under. */
+export const installRoot = () => invoke<string>('probe_install_root');
+
+export type InstallState = {
+  ok: boolean;
+  recordExists: boolean;
+  missing: string[];
+};
+
+/** Validate an install against its record on disk. The record is the truth;
+ *  the settings flag is only a cache of it. */
+export const installState = (root?: string) =>
+  invoke<InstallState>('probe_install_state', { root: root ?? null });
+
 /** Free bytes on the volume containing `path`. */
 export const freeDisk = (path: string) => invoke<number>('probe_free_disk', { path });
 

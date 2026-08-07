@@ -103,6 +103,46 @@ webview stores its data. Two builds sharing an identifier share settings,
 theme, and history, so a release build under a development identifier opens
 into the developer's state. They must differ.
 
+### One folder, and deleting it is the uninstall
+
+Decided 2026-08-06, after the first live install test. The destination the
+user chooses is not a weights directory; it is the **install root**, the one
+folder the whole product lives under, in the tradition of an installer that
+asks once where things go and then owns everything beneath that answer.
+
+```
+<root>\                     the chosen folder, D:\Hearth by default
+  hearth-install.json       the record: machine, plan, what landed, where
+  models\                   weights, staged here by the client's download
+  wsl\                      the Hearth distro's own virtual disk (planned)
+  config\                   generated configuration (planned)
+  logs\                     service logs a person can find (planned)
+```
+
+Three rules follow:
+
+- **Nothing of the product lands outside the root.** In particular the WSL
+  distro is imported with its virtual disk under `<root>\wsl` (`wsl --import`
+  takes a location), never in the default place, which is the system drive.
+  A gigabyte-eating distro on C is exactly what this product must not do.
+  The client itself and its webview profile are the one exception, and they
+  are megabytes.
+- **The record on disk is the truth about being installed.** The client's
+  `setupComplete` flag is a cache of it, nothing more. Boot revalidates the
+  record at the stored root and checks everything it names is present at
+  size; a missing folder, a missing record, or a gutted models directory
+  routes back into setup. Learned the direct way: a tester deleted the
+  models folder, relaunched, and the flag put them in an empty house.
+- **Uninstall is a sentence, not a program.** Unregister the distro, delete
+  the folder. Anything that would make that sentence false does not ship.
+
+The tension recorded below still holds: weights load fast from the distro's
+own filesystem and slowly from the Windows mount. The resolution is that the
+distro's disk lives inside the root, so "weights inside the distro" and
+"everything under one folder" are the same statement. Until the distro
+exists, the client stages weights at `<root>\models` and the backend reads
+them across the mount, which is correct and slow, in that order.
+
 ### The scan is not only about picking a model
 
 Every hardware constant the portability ledger flags is a value this scan

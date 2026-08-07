@@ -75,9 +75,78 @@ pub fn probe_model_dir() -> String {
     machine::default_model_dir().to_string_lossy().to_string()
 }
 
+/// The default install root: the one folder everything lives under.
+#[tauri::command]
+pub fn probe_install_root() -> String {
+    machine::default_install_root().to_string_lossy().to_string()
+}
+
+/// What the boot check reports about an install.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallState {
+    /// The record exists and everything it names is present at full size.
+    pub ok: bool,
+    pub record_exists: bool,
+    /// Anything the record names that is missing or the wrong size.
+    pub missing: Vec<String>,
+}
+
+/// Validate an install against its own record.
+///
+/// The record on disk is the truth about whether Hearth is installed; the
+/// browser flag is only a cache of it. A missing folder, a missing record, or
+/// a gutted models directory all mean "not installed", however the flag
+/// reads. This is what makes deleting the install folder a real uninstall.
+#[tauri::command]
+pub fn probe_install_state(root: Option<String>) -> InstallState {
+    let root = root
+        .filter(|r| !r.trim().is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(machine::default_install_root);
+    let record_path = root.join("hearth-install.json");
+    let Ok(text) = std::fs::read_to_string(&record_path) else {
+        return InstallState {
+            ok: false,
+            record_exists: false,
+            missing: vec![record_path.to_string_lossy().to_string()],
+        };
+    };
+    let Ok(record) = serde_json::from_str::<serde_json::Value>(&text) else {
+        return InstallState {
+            ok: false,
+            record_exists: true,
+            missing: vec![format!("{} (unreadable)", record_path.display())],
+        };
+    };
+    let mut missing = Vec::new();
+    for landed in record
+        .get("landed")
+        .and_then(|l| l.as_array())
+        .into_iter()
+        .flatten()
+    {
+        let Some(path) = landed.as_str() else { continue };
+        if std::fs::metadata(path).map(|m| m.len() > 0).unwrap_or(false) {
+            continue;
+        }
+        missing.push(path.to_string());
+    }
+    InstallState {
+        ok: missing.is_empty(),
+        record_exists: true,
+        missing,
+    }
+}
+
 /// Fetch everything the plan asks for, reporting progress, verifying each
 /// file's sha256 where the dictionary carries one, and writing the install
-/// record beside the weights when everything has landed.
+/// record when everything has landed.
+///
+/// `dest` is the INSTALL ROOT, the one folder Hearth lives under. Weights go
+/// to `<root>/models`, the record to `<root>/hearth-install.json`, and the
+/// provisioner will put everything else under the same root. Deleting the
+/// root is the uninstall.
 ///
 /// Runs on a blocking thread: the transfer is synchronous and multi-gigabyte,
 /// and it must not sit on the UI runtime.
@@ -88,15 +157,16 @@ pub async fn probe_download(
     on_progress: Channel<Progress>,
 ) -> Result<Vec<String>, String> {
     let mut m = machine_for(simulate.clone())?;
-    let dir = dest
+    let root = dest
         .clone()
         .filter(|d| !d.trim().is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(machine::default_model_dir);
+        .unwrap_or_else(machine::default_install_root);
+    let dir = root.join("models");
     // The plan the record keeps must be the plan the user saw, so the same
     // dest-aware free-disk override probe_plan applies happens here too.
     if simulate.is_none() {
-        m.free_disk_bytes = machine::free_disk_for(&dir);
+        m.free_disk_bytes = machine::free_disk_for(&root);
     }
     let d = Dictionary::embedded().map_err(|e| e.to_string())?;
     let p = plan(&m, &d).map_err(|e| e.to_string())?;
@@ -179,17 +249,18 @@ pub async fn probe_download(
            dies with the webview profile; this file is what a support
            conversation, an upgrade, or the backend provisioner reads. */
         let record = serde_json::json!({
-            "version": 1,
+            "version": 2,
             "completed_unix": std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|t| t.as_secs())
                 .unwrap_or(0),
             "machine": &m,
             "plan": &p,
+            "install_root": root.to_string_lossy(),
             "weights_dir": dir.to_string_lossy(),
             "landed": &landed,
         });
-        let record_path = dir.join("hearth-install.json");
+        let record_path = root.join("hearth-install.json");
         if let Err(e) = std::fs::write(
             &record_path,
             serde_json::to_string_pretty(&record).unwrap_or_default(),

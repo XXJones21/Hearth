@@ -18,14 +18,14 @@ import {
   freeDisk,
   hasProbe,
   human,
+  installRoot,
   makePlan,
-  modelDir,
   scan,
   type Machine,
   type Plan,
   type Progress,
 } from '../../lib/probe';
-import { loadSettings } from '../../lib/settings';
+import { loadSettings, saveSettings } from '../../lib/settings';
 
 type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'done' | 'blocked';
 
@@ -93,7 +93,7 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
       return;
     }
     loadFixtures().then(setSims).catch(() => {});
-    modelDir().then(setDest).catch(() => {});
+    installRoot().then(setDest).catch(() => {});
   }, []);
 
   /* The chosen destination decides which volume the free-disk figure and the
@@ -124,7 +124,7 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
       const picked = await openDialog({
         directory: true,
         defaultPath: dest || undefined,
-        title: 'Where the model weights go',
+        title: 'Where Hearth installs',
       });
       if (typeof picked === 'string' && picked) setDest(picked);
     } catch {
@@ -144,6 +144,9 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
           }),
         { simulate: sim, dest: dest || undefined },
       );
+      /* The chosen root is what boot revalidates against, so it persists the
+         moment the record exists, not when the user leaves the screen. */
+      saveSettings({ installRoot: dest });
       setStep('done');
     } catch (e) {
       setError(String(e));
@@ -399,7 +402,7 @@ function Found({
 
       <label className="mt-6 block w-full max-w-[740px] text-left">
         <span className="text-[11.5px] font-semibold uppercase tracking-wide text-fawn">
-          Where the weights go
+          Where Hearth installs
         </span>
         <div className="mt-2 flex gap-2">
           <input
@@ -414,11 +417,11 @@ function Found({
             Browse
           </button>
         </div>
-        {destFree !== null && (
-          <span className="mt-1.5 block text-[12.5px] text-fawn">
-            {human(destFree)} free where this points.
-          </span>
-        )}
+        <span className="mt-1.5 block text-[12.5px] text-fawn">
+          Everything lives in this one folder: the models, the runtime, the
+          configuration. Removing Hearth means deleting it.
+          {destFree !== null && <> {human(destFree)} free where this points.</>}
+        </span>
       </label>
 
       <div className="mt-7 flex justify-center gap-3 pb-4">

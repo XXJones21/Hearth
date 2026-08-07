@@ -213,15 +213,23 @@ pub fn free_disk_for(target: &Path) -> u64 {
 /// system-drive space. The install check has to look at the volume backing the
 /// distro, not at the roomiest disk in the machine.
 pub fn default_model_dir() -> PathBuf {
+    default_install_root().join("models")
+}
+
+/// The one folder Hearth lives under: models, configuration, the install
+/// record, and eventually the WSL distro's own disk. Deleting it (plus the
+/// distro unregister) IS the uninstall, so nothing of the product may land
+/// outside it.
+pub fn default_install_root() -> PathBuf {
     if std::env::consts::OS == "windows" {
         if let Some(root) = roomiest_non_system_drive() {
-            return root.join("Hearth").join("models");
+            return root.join("Hearth");
         }
     }
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
-        return PathBuf::from(home).join(".hearth").join("models");
+        return PathBuf::from(home).join(".hearth");
     }
-    PathBuf::from(".hearth/models")
+    PathBuf::from(".hearth")
 }
 
 /// The fixed drive with the most free space, excluding the system drive.

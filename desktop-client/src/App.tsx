@@ -11,6 +11,7 @@ import { SettingsView } from './components/settings/SettingsView';
 import { useHearthWebSocket } from './hooks/useHearthWebSocket';
 import { ttsPlayer } from './lib/audioPlayer';
 import { applyPersonaTheme } from './lib/personaTheme';
+import { hasProbe, installState } from './lib/probe';
 import { applyDocumentSettings, loadSettings, saveSettings } from './lib/settings';
 import { useAppStore } from './store/appStore';
 
@@ -29,6 +30,24 @@ export default function App() {
   );
   const { sendTextQuery, switchPersona, reconnect, disconnect } =
     useHearthWebSocket(!showSetup);
+
+  /* The settings flag is only a cache. The truth is the install record on
+     disk, so boot revalidates: a deleted or gutted install folder routes back
+     into setup, which is what makes deleting the folder a real uninstall. */
+  useEffect(() => {
+    const s = loadSettings();
+    if (!s.setupComplete || !hasProbe()) return;
+    installState(s.installRoot || undefined)
+      .then((state) => {
+        if (!state.ok) {
+          saveSettings({ setupComplete: false });
+          setShowSetup(true);
+        }
+      })
+      .catch(() => {
+        /* the probe failing is not evidence the install is gone */
+      });
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
