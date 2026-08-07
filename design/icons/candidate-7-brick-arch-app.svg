@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" rx="216" fill="#FAF4EA"/>
+  <g transform="translate(512 512) scale(0.78) translate(-512 -512)">
+  <rect x="192" y="232" width="640" height="640" rx="44" fill="#C97F45"/>
+  <rect x="192" y="360" width="640" height="16" fill="#FAF4EA"/>
+  <rect x="192" y="488" width="640" height="16" fill="#FAF4EA"/>
+  <rect x="192" y="616" width="640" height="16" fill="#FAF4EA"/>
+  <rect x="192" y="744" width="640" height="16" fill="#FAF4EA"/>
+  <rect x="504" y="232" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="336" y="360" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="672" y="360" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="504" y="488" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="288" y="616" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="720" y="616" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="264" y="744" width="16" height="128" fill="#FAF4EA"/>
+  <rect x="744" y="744" width="16" height="128" fill="#FAF4EA"/>
+  <path d="M362 872 L362 560 A150 150 0 0 1 662 560 L662 872 Z" fill="#3B2B20"/>
+  <path d="M527.36 604 C556.16 663.52 608 713.12 608 767.6800000000001 C608 827.2 567.68 852 512 852 C456.32 852 416 827.2 416 767.6800000000001 C416 703.2 475.52 653.6 527.36 604 Z" fill="#FFB84D"/>
+  <path d="M520.32 716 C535.9200000000001 745.28 564 769.68 564 796.52 C564 825.8 542.16 838 512 838 C481.84000000000003 838 460 825.8 460 796.52 C460 764.8 492.24000000000007 740.4 520.32 716 Z" fill="#FAF4EA"/>
+  <rect x="152" y="872" width="720" height="48" rx="16" fill="#3B2B20"/>
+  </g>
+</svg>

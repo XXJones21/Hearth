@@ -107,6 +107,67 @@ ${dots}`;
   <circle cx="512" cy="586" r="168" fill="${C.honey}"/>`,
     needsDark: false,
   },
+  {
+    slug: "brick-hearth",
+    note: "Mantel, brick columns, fire in the box. The living-room fireplace.",
+    mark: (ink) => {
+      const ho = ink === "dark" ? C.cream : C.roast;
+      // Mortar: horizontal courses plus staggered head joints, only on the
+      // masonry. At 32 px they read as texture, not as lines to count.
+      const mortar = [
+        // columns, three courses each
+        ...[440, 584, 728].map(
+          (y) => `  <rect x="192" y="${y}" width="160" height="16" fill="${C.cream}"/>
+  <rect x="672" y="${y}" width="160" height="16" fill="${C.cream}"/>`,
+        ),
+        // staggered head joints on the columns
+        `  <rect x="264" y="296" width="16" height="144" fill="${C.cream}"/>`,
+        `  <rect x="744" y="440" width="16" height="144" fill="${C.cream}"/>`,
+        `  <rect x="264" y="584" width="16" height="144" fill="${C.cream}"/>`,
+        `  <rect x="744" y="728" width="16" height="144" fill="${C.cream}"/>`,
+        // two head joints on the lintel
+        `  <rect x="440" y="296" width="16" height="124" fill="${C.cream}"/>`,
+        `  <rect x="568" y="296" width="16" height="124" fill="${C.cream}"/>`,
+      ].join("\n");
+      return `
+  <rect x="152" y="232" width="720" height="64" rx="20" fill="${ho}"/>
+  <rect x="192" y="296" width="640" height="576" fill="${C.ember}"/>
+${mortar}
+  <rect x="352" y="420" width="320" height="452" fill="${ho}"/>
+  <path d="${flame(512, 500, 852, 112)}" fill="${C.honey}"/>
+  <path d="${flame(512, 656, 838, 60)}" fill="${C.cream}"/>
+  <rect x="152" y="872" width="720" height="48" rx="16" fill="${ho}"/>`;
+    },
+    needsDark: true,
+  },
+  {
+    slug: "brick-arch",
+    note: "Full brick block, arched firebox, fire inside. The chimney breast.",
+    mark: (ink) => {
+      const ho = ink === "dark" ? C.cream : C.roast;
+      const mortar = [
+        ...[360, 488, 616, 744].map(
+          (y) => `  <rect x="192" y="${y}" width="640" height="16" fill="${C.cream}"/>`,
+        ),
+        `  <rect x="504" y="232" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="336" y="360" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="672" y="360" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="504" y="488" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="288" y="616" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="720" y="616" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="264" y="744" width="16" height="128" fill="${C.cream}"/>`,
+        `  <rect x="744" y="744" width="16" height="128" fill="${C.cream}"/>`,
+      ].join("\n");
+      return `
+  <rect x="192" y="232" width="640" height="640" rx="44" fill="${C.ember}"/>
+${mortar}
+  <path d="${arch(362, 662, 872, 560)} Z" fill="${ho}"/>
+  <path d="${flame(512, 604, 852, 96)}" fill="${C.honey}"/>
+  <path d="${flame(512, 716, 838, 52)}" fill="${C.cream}"/>
+  <rect x="152" y="872" width="720" height="48" rx="16" fill="${ho}"/>`;
+    },
+    needsDark: true,
+  },
 ];
 
 function svgDoc(body, { plate } = {}) {

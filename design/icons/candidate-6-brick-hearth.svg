@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect x="152" y="232" width="720" height="64" rx="20" fill="#3B2B20"/>
+  <rect x="192" y="296" width="640" height="576" fill="#C97F45"/>
+  <rect x="192" y="440" width="160" height="16" fill="#FAF4EA"/>
+  <rect x="672" y="440" width="160" height="16" fill="#FAF4EA"/>
+  <rect x="192" y="584" width="160" height="16" fill="#FAF4EA"/>
+  <rect x="672" y="584" width="160" height="16" fill="#FAF4EA"/>
+  <rect x="192" y="728" width="160" height="16" fill="#FAF4EA"/>
+  <rect x="672" y="728" width="160" height="16" fill="#FAF4EA"/>
+  <rect x="264" y="296" width="16" height="144" fill="#FAF4EA"/>
+  <rect x="744" y="440" width="16" height="144" fill="#FAF4EA"/>
+  <rect x="264" y="584" width="16" height="144" fill="#FAF4EA"/>
+  <rect x="744" y="728" width="16" height="144" fill="#FAF4EA"/>
+  <rect x="440" y="296" width="16" height="124" fill="#FAF4EA"/>
+  <rect x="568" y="296" width="16" height="124" fill="#FAF4EA"/>
+  <rect x="352" y="420" width="320" height="452" fill="#3B2B20"/>
+  <path d="M529.92 500 C563.52 584.48 624 654.88 624 732.32 C624 816.8 576.96 852 512 852 C447.04 852 400 816.8 400 732.32 C400 640.8 469.43999999999994 570.4 529.92 500 Z" fill="#FFB84D"/>
+  <path d="M521.6 656 C539.6 699.68 572 736.08 572 776.12 C572 819.8 546.8 838 512 838 C477.2 838 452 819.8 452 776.12 C452 728.8 489.20000000000005 692.4 521.6 656 Z" fill="#FAF4EA"/>
+  <rect x="152" y="872" width="720" height="48" rx="16" fill="#3B2B20"/>
+</svg>
