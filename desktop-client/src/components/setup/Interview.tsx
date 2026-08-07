@@ -3,6 +3,8 @@ import { ttsPlayer } from '../../lib/audioPlayer';
 import { getHttpOrigin, getWsUrl } from '../../lib/config';
 import { useAppStore } from '../../store/appStore';
 import { ChoiceCard } from '../cards/ChoiceCard';
+import { MessageCard } from '../feed/MessageCard';
+import { TimelineEntry } from '../feed/TimelineEntry';
 
 /* The interview: Sulivan and the user make someone new, then the house hands
    over and the new persona speaks first. The mockup's screens 8 through 13 as
@@ -12,12 +14,13 @@ import { ChoiceCard } from '../cards/ChoiceCard';
    Owns its WebSocket like the voice test does: setup is still in charge, and
    the house it talks to is the one setup started. */
 
-type Bubble = { who: 'sulivan' | 'you' | 'other'; text: string; name?: string };
+type Bubble = { who: 'sulivan' | 'you' | 'other'; text: string; name?: string; ts: number };
 type Phase = 'waking' | 'thinking' | 'speaking' | 'waiting' | 'handoff' | 'met';
 
 const KICKOFF =
-  '(This is my first run. Begin as your direction describes: greet me in one ' +
-  'short sentence and ask your first question.)';
+  '(This is my first run. Open the interview now, in one message: a one-' +
+  'sentence hello, one sentence of what a persona is, then your first ' +
+  'question with choice_card already called. Do not ask whether to begin.)';
 
 const MEET_KICKOFF =
   '(Say hello to me for the very first time, as yourself. Two or three short ' +
@@ -51,7 +54,7 @@ export function Interview({ onDone }: { onDone: () => void }) {
       const ws = wsRef.current;
       const line = text.trim();
       if (!ws || ws.readyState !== WebSocket.OPEN || !line) return;
-      if (!opts.silent) push({ who: 'you', text: line });
+      if (!opts.silent) push({ who: 'you', text: line, ts: Date.now() });
       setCard(null);
       setPhase('thinking');
       ws.send(JSON.stringify({ action: 'text_query', text: line }));
@@ -136,9 +139,9 @@ export function Interview({ onDone }: { onDone: () => void }) {
             ttsPlayer.begin(Number(msg.sample_rate) || 48000);
           } else if (msg.action === 'ai_response' && typeof msg.text === 'string') {
             if (handedOffRef.current && newName) {
-              push({ who: 'other', text: msg.text, name: newName });
+              push({ who: 'other', text: msg.text, name: newName, ts: Date.now() });
             } else {
-              push({ who: 'sulivan', text: msg.text });
+              push({ who: 'sulivan', text: msg.text, ts: Date.now() });
             }
           } else if (msg.action === 'ui_component') {
             const comp = msg.component ?? msg;
@@ -187,7 +190,7 @@ export function Interview({ onDone }: { onDone: () => void }) {
   const met = phase === 'met' && newName;
 
   return (
-    <div className="mt-2 flex min-h-0 w-full max-w-[640px] flex-1 flex-col items-center">
+    <div className="mt-2 flex min-h-0 w-full max-w-[680px] flex-1 flex-col items-center">
       <h1 className="text-[24px] font-bold tracking-tight">
         {met ? `Meet ${newName}.` : "Let's make someone."}
       </h1>
@@ -197,30 +200,39 @@ export function Interview({ onDone }: { onDone: () => void }) {
           : 'Sulivan will ask a few things. There are no wrong answers, and your own words always beat his suggestions.'}
       </p>
 
-      <div className="mt-4 min-h-0 w-full flex-1 space-y-3 overflow-y-auto px-1 py-2">
+      {/* The same chat the house renders: the rail, the initial nodes, the
+          message cards. Meeting your persona should look like living with
+          them, one screen early. */}
+      <div className="relative mt-4 min-h-0 w-full flex-1 overflow-y-auto pl-14 pr-1 pt-2 text-left">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-2 left-[21px] top-2 w-[2px] rounded bg-linen"
+        />
         {bubbles.map((b, i) => (
-          <div key={i} className={b.who === 'you' ? 'flex justify-end' : 'flex'}>
-            <div
-              className={`max-w-[46ch] rounded-2xl px-4 py-2.5 text-[14.5px] leading-relaxed ${
-                b.who === 'you'
-                  ? 'bg-peach'
-                  : 'border border-linen bg-fluff shadow-soft'
-              }`}
-            >
-              {b.who !== 'you' && (
-                <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-wide text-fawn">
-                  {b.who === 'other' ? b.name : 'Sulivan'}
-                </div>
-              )}
-              {b.text}
-            </div>
-          </div>
+          <TimelineEntry
+            key={i}
+            author={b.who === 'you' ? 'You' : b.who === 'other' ? (b.name ?? 'Them') : 'Sulivan'}
+          >
+            <MessageCard
+              role={b.who === 'you' ? 'user' : 'assistant'}
+              author={b.who === 'you' ? 'You' : b.who === 'other' ? (b.name ?? 'Them') : 'Sulivan'}
+              text={b.text}
+              ts={b.ts}
+            />
+          </TimelineEntry>
         ))}
         {card && (
-          <ChoiceCard props={card} />
+          <TimelineEntry author="Sulivan">
+            <ChoiceCard props={card} />
+          </TimelineEntry>
         )}
         {phase === 'waking' && (
-          <div className="text-center text-[13px] text-fawn">Waking the house.</div>
+          <div className="py-2 text-[13px] text-fawn">Waking the house.</div>
+        )}
+        {phase === 'thinking' && (
+          <div className="py-2 text-[13px] text-fawn">
+            {handedOffRef.current && newName ? `${newName} is thinking.` : 'Sulivan is thinking.'}
+          </div>
         )}
       </div>
 
@@ -228,31 +240,39 @@ export function Interview({ onDone }: { onDone: () => void }) {
         <div className="mt-4 pb-4">
           <button
             onClick={onDone}
-            className="rounded-full bg-roast px-7 py-2.5 text-[14px] font-bold text-cream"
+            className="rounded-full bg-roast px-7 py-3 text-sm font-bold text-cream"
           >
             Go to the house together
           </button>
         </div>
       ) : (
         <form
-          className="mt-3 flex w-full gap-2 pb-4"
+          className="mt-3 flex w-full gap-2.5 pb-4"
           onSubmit={(e) => {
             e.preventDefault();
             sendUser(draft);
             setDraft('');
           }}
         >
-          <input
+          <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendUser(draft);
+                setDraft('');
+              }
+            }}
+            rows={1}
             placeholder="Answer in your own words"
             disabled={phase === 'waking' || phase === 'thinking'}
-            className="w-full flex-1 rounded-full border border-linen bg-parchment px-4 py-2.5 text-[14px] outline-none disabled:opacity-60"
+            className="max-h-[140px] min-h-[46px] flex-1 resize-none rounded-3xl border border-linen bg-parchment px-4 py-3 text-sm text-roast outline-none placeholder:text-fawn focus:border-fennec/50 disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={phase === 'waking' || phase === 'thinking' || !draft.trim()}
-            className="rounded-full bg-roast px-5 py-2.5 text-[14px] font-bold text-cream disabled:opacity-50"
+            className="shrink-0 self-end rounded-full bg-roast px-5 py-3 text-sm font-bold text-cream disabled:opacity-30"
           >
             Send
           </button>
