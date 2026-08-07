@@ -98,6 +98,15 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line("HEARTH_LLAMA_REASONING=auto".into());
     line(format!("HEARTH_DEFAULT_PERSONA={}", d::FIRST_PERSONA));
     line("HEARTH_SESSION_IDLE_S=300".into());
+    // from: the machine's locale at install time. A bare place name in a
+    // weather query resolves toward the machine's own country; an explicit
+    // region in the query always outranks this.
+    if let Some(region) = sys_locale::get_locale()
+        .and_then(|l| l.split(['-', '_']).nth(1).map(|r| r.to_uppercase()))
+        .filter(|r| r.len() == 2)
+    {
+        line(format!("HEARTH_REGION_BIAS={}", region));
+    }
 
     let config_path = root.join(d::REL_CONFIG);
     if let Some(parent) = config_path.parent() {

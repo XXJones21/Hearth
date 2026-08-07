@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import urllib.parse
 import urllib.request
 
@@ -93,8 +94,13 @@ def _geocode(location: str) -> dict | None:
     region = parts[1] if len(parts) > 1 else ""
     if not city:
         return None
-    # Only need many candidates when we have a region to disambiguate against.
-    count = 10 if region else 1
+    # A bare city name is ambiguous ("Santa Clara" is Cuba's before it is
+    # California's, by population). The installer records the machine's
+    # region at install time, and a home machine's locale is honest signal
+    # about which same-named place its owner means. An explicit region in
+    # the query always outranks the bias.
+    bias = os.environ.get("HEARTH_REGION_BIAS", "").strip().lower()
+    count = 10 if (region or bias) else 1
     geo = _get_json(
         _GEOCODE_URL, {"name": city, "count": count, "language": "en", "format": "json"}
     )
@@ -113,6 +119,11 @@ def _geocode(location: str) -> dict | None:
             if want & fields:
                 return r
         # Region given but no candidate matched it -- fall back to the top city.
+        return results[0]
+    if bias:
+        for r in results:
+            if str(r.get("country_code") or "").lower() == bias:
+                return r
     return results[0]
 
 

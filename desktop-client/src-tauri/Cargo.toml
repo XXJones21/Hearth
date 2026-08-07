@@ -42,6 +42,9 @@ hearth-probe = { path = "../../crates/hearth-probe" }
 flate2 = "1"
 tar = "0.4"
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# The machine's locale, captured at install time into hearth.env as the
+# geocoding region bias. The installer decides; the file records.
+sys-locale = "0.3"
 
 # The house's Job Object: kill-on-close reaping for the supervised backend
 # tree, the closest Windows gets to systemd's cgroup guarantee.
