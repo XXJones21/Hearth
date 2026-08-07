@@ -274,6 +274,17 @@ pub async fn probe_download(
                 state: "failed".into(),
                 message: Some(format!("could not write {}: {}", record_path.display(), e)),
             });
+        } else if let Err(e) = crate::config_gen::render(&root) {
+            // The record is the input; the rendered hearth.env is the output
+            // every backend process reads. Failing to write it is worth the
+            // same honesty.
+            let _ = on_progress.send(Progress {
+                what: "configuration".into(),
+                done_bytes: 0,
+                total_bytes: 0,
+                state: "failed".into(),
+                message: Some(e),
+            });
         }
 
         Ok(landed)

@@ -11,6 +11,7 @@
 //! where every downstream value comes from, is testable against fixtures rather
 //! than needing four different computers.
 
+pub mod defaults;
 pub mod dict;
 pub mod download;
 pub mod machine;

@@ -25,6 +25,10 @@ __pycache__/
 backend/.venv-win/
 backend/.native/
 
+# Session ledgers the harness writes when HEARTH_ROOT is the checkout.
+# FOLLOW-UP: state belongs under HEARTH_HOME, not the product tree.
+backend/sessions/
+
 # The by-hand startup proof: machine-specific script and its logs.
 backend/.proof/
 
