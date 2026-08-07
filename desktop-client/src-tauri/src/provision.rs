@@ -50,10 +50,15 @@ fn unzip(archive: &Path, dest: &Path) -> Result<(), String> {
         .map_err(|e| format!("unpack {}: {}", archive.display(), e))
 }
 
+/// Fetch one artifact, reporting CUMULATIVE bytes for its row: `base` is what
+/// earlier artifacts in the same row already downloaded, `row_total` the
+/// row's whole size, so a two-archive row never makes the bar step backward.
 fn fetch_artifact(
     a: &RuntimeArtifact,
     cache: &Path,
     row: &str,
+    base: u64,
+    row_total: u64,
     ch: &Channel<Progress>,
 ) -> Result<PathBuf, String> {
     let name = a.url.rsplit('/').next().unwrap_or("artifact");
@@ -61,11 +66,11 @@ fn fetch_artifact(
     let out = cache.join(&name);
     let row = row.to_string();
     let ch2 = ch.clone();
-    let mut report = move |done: u64, total: u64| {
+    let mut report = move |done: u64, _total: u64| {
         let _ = ch2.send(Progress {
             what: row.clone(),
-            done_bytes: done,
-            total_bytes: total,
+            done_bytes: base + done.min(_total),
+            total_bytes: row_total,
             state: "downloading".into(),
             message: None,
         });
@@ -140,18 +145,22 @@ pub async fn provision(
         if llama_dir.exists() {
             std::fs::remove_dir_all(&llama_dir).map_err(|e| e.to_string())?;
         }
+        let engine_total: u64 = assets.iter().map(|a| a.bytes).sum();
+        let mut engine_done: u64 = 0;
         for a in assets {
-            let archive = fetch_artifact(a, &cache, ROW_ENGINE, &on_progress).map_err(|e| {
-                send(&on_progress, ROW_ENGINE, 0, a.bytes, "failed", Some(e.clone()));
-                e
-            })?;
-            send(&on_progress, ROW_ENGINE, a.bytes, a.bytes, "verifying", None);
+            let archive = fetch_artifact(a, &cache, ROW_ENGINE, engine_done, engine_total, &on_progress)
+                .map_err(|e| {
+                    send(&on_progress, ROW_ENGINE, engine_done, engine_total, "failed", Some(e.clone()));
+                    e
+                })?;
+            engine_done += a.bytes;
+            send(&on_progress, ROW_ENGINE, engine_done, engine_total, "verifying", None);
             unzip(&archive, &llama_dir).map_err(|e| {
-                send(&on_progress, ROW_ENGINE, 0, a.bytes, "failed", Some(e.clone()));
+                send(&on_progress, ROW_ENGINE, engine_done, engine_total, "failed", Some(e.clone()));
                 e
             })?;
         }
-        send(&on_progress, ROW_ENGINE, 1, 1, "done", None);
+        send(&on_progress, ROW_ENGINE, engine_total, engine_total, "done", None);
 
         // Row 3: the Python runtime, then the harness requirements into it.
         const ROW_PYTHON: &str = "Python runtime";
@@ -164,10 +173,36 @@ pub async fn provision(
             send(&on_progress, ROW_PYTHON, 0, 1, "failed", Some(e.clone()));
             return Err(e);
         };
-        let archive = fetch_artifact(&py, &cache, ROW_PYTHON, &on_progress).map_err(|e| {
-            send(&on_progress, ROW_PYTHON, 0, py.bytes, "failed", Some(e.clone()));
+        /* This row is download plus unpack plus a pip resolve, so it reports
+           on a percent scale that only moves forward: the download is the
+           first seventy points, the pip install the rest. The message names
+           the phase; the numbers feed the weighted bar. */
+        let name = py.url.rsplit('/').next().unwrap_or("python.tar.gz").replace("%2B", "+");
+        let py_out = cache.join(&name);
+        let ch2 = on_progress.clone();
+        let py_total = py.bytes.max(1);
+        let mut py_report = move |done: u64, _t: u64| {
+            let _ = ch2.send(Progress {
+                what: ROW_PYTHON.into(),
+                done_bytes: (done.min(py_total) * 70) / py_total,
+                total_bytes: 100,
+                state: "downloading".into(),
+                message: Some("downloading".into()),
+            });
+        };
+        let archive = hearth_probe::download::fetch_verified(
+            &py.url,
+            &py_out,
+            Some(py.bytes),
+            py.sha256.as_deref(),
+            &mut py_report,
+        )
+        .map_err(|e| {
+            let e = e.to_string();
+            send(&on_progress, ROW_PYTHON, 0, 100, "failed", Some(e.clone()));
             e
         })?;
+        send(&on_progress, ROW_PYTHON, 75, 100, "downloading", Some("unpacking".into()));
         // The tarball's top directory is python/; unpack beside it and adopt.
         let staging = runtime.join(".python-unpack");
         untar_gz(&archive, &staging)?;
@@ -182,8 +217,8 @@ pub async fn provision(
         send(
             &on_progress,
             ROW_PYTHON,
-            0,
-            0,
+            85,
+            100,
             "downloading",
             Some("installing packages".into()),
         );
@@ -219,7 +254,7 @@ pub async fn provision(
             send(&on_progress, ROW_PYTHON, 0, 1, "failed", Some(e.clone()));
             return Err(e);
         }
-        send(&on_progress, ROW_PYTHON, 1, 1, "done", None);
+        send(&on_progress, ROW_PYTHON, 100, 100, "done", None);
 
         // Row 4: the voice engine, in its own environment. The heaviest row
         // and the one that lets Sulivan speak at the end of the install.
@@ -252,7 +287,7 @@ pub async fn provision(
             .join("voice")
             .join("Scripts")
             .join("python.exe");
-        send(&on_progress, ROW_VOICE, 0, 0, "downloading", Some("creating environment".into()));
+        send(&on_progress, ROW_VOICE, 5, 100, "downloading", Some("creating environment".into()));
         let mut mkenv = std::process::Command::new(target.join("python.exe"));
         mkenv.args(["-m", "venv"]).arg(root.join("envs").join("voice"));
         run_logged(mkenv, "provision-voice-pip.log").map_err(|e| {
@@ -260,7 +295,7 @@ pub async fn provision(
             e
         })?;
 
-        send(&on_progress, ROW_VOICE, 0, 0, "downloading", Some("installing torch".into()));
+        send(&on_progress, ROW_VOICE, 15, 100, "downloading", Some("installing torch".into()));
         let mut torch = std::process::Command::new(&voice_py);
         torch.args(["-m", "pip", "install", "--no-warn-script-location", "torch", "torchaudio"]);
         if accel == "cuda" {
@@ -273,7 +308,7 @@ pub async fn provision(
             e
         })?;
 
-        send(&on_progress, ROW_VOICE, 0, 0, "downloading", Some("installing the engine".into()));
+        send(&on_progress, ROW_VOICE, 55, 100, "downloading", Some("installing the engine".into()));
         let mut engine = std::process::Command::new(&voice_py);
         engine.args(["-m", "pip", "install", "--no-warn-script-location"]);
         engine.arg(&dict.runtime.voice_env.package);
@@ -288,8 +323,8 @@ pub async fn provision(
         send(
             &on_progress,
             ROW_VOICE,
-            0,
-            0,
+            70,
+            100,
             "downloading",
             Some(format!("fetching the voice ({})", hearth_probe::human(dict.voice.download_bytes))),
         );
@@ -305,7 +340,7 @@ pub async fn provision(
             send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
             e
         })?;
-        send(&on_progress, ROW_VOICE, 1, 1, "done", None);
+        send(&on_progress, ROW_VOICE, 100, 100, "done", None);
 
         let _ = std::fs::remove_dir_all(&cache);
         Ok(())

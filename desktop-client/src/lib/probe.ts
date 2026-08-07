@@ -122,6 +122,18 @@ export const PROVISION_ROWS = [
   'Voice engine',
 ] as const;
 
+/** Bar weights per provisioning row, in rough megabytes of work: downloads
+ *  at face value, pip resolves at their observed cost. Model rows weigh
+ *  their real bytes; these calibrate everything else against them so the
+ *  one number over the rows reflects all of the work, not just the models.
+ *  Pacing heuristics for the bar only; no correctness rides on them. */
+export const PROVISION_WEIGHTS: Record<(typeof PROVISION_ROWS)[number], number> = {
+  'The backend': 60,
+  'Inference engine': 650,
+  'Python runtime': 600,
+  'Voice engine': 7000,
+};
+
 export function provision(
   onProgress: (p: Progress) => void,
   opts: { root: string; accel: string },

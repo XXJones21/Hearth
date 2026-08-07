@@ -22,6 +22,7 @@ import {
   makePlan,
   provision,
   PROVISION_ROWS,
+  PROVISION_WEIGHTS,
   scan,
   type Machine,
   type Plan,
@@ -463,18 +464,37 @@ function Installing({
   error: string | null;
   onRetry: () => void;
 }) {
-  /* The bar measures the model downloads alone: skipped items (fetched by
-     the runtime later) cannot count toward its total or it never reaches
-     100, and the provisioning rows have their own sizes that would inflate
-     it past its denominator. The rows tell the fuller story; the bar is the
-     one number, and it must be honest. */
+  /* One bar over ALL the work. Every row carries a weight in rough megabytes
+     (model rows their real bytes, provisioning rows the calibrated constants)
+     and contributes its fraction of that weight; skipped rows leave both
+     sides of the ratio. A bar that hit 100 while torch was still installing
+     had stopped meaning anything, which is the one failure a progress bar
+     is not allowed to have. */
+  const frac = (p: Progress | undefined): number => {
+    if (!p) return 0;
+    if (p.state === 'done') return 1;
+    if (p.state === 'skipped') return 0;
+    return p.totalBytes > 0 ? Math.min(1, p.doneBytes / p.totalBytes) : 0;
+  };
+  const MIB = 1048576;
+  let weightTotal = 0;
+  let weightDone = 0;
+  for (const d of plan.downloads) {
+    const p = progress.find((x) => x.what === d.what);
+    if (p?.state === 'skipped') continue;
+    const w = d.bytes / MIB;
+    weightTotal += w;
+    weightDone += w * frac(p);
+  }
+  for (const row of PROVISION_ROWS) {
+    const w = PROVISION_WEIGHTS[row];
+    weightTotal += w;
+    weightDone += w * frac(progress.find((x) => x.what === row));
+  }
+  const pct = weightTotal ? Math.min(100, (weightDone / weightTotal) * 100) : done ? 100 : 0;
+  /* The byte label keeps talking about the downloads people can size. */
   const modelRows = new Set(plan.downloads.map((d) => d.what));
   const modelProgress = progress.filter((p) => modelRows.has(p.what));
-  const skippedBytes = modelProgress.reduce(
-    (n, p) => n + (p.state === 'skipped' ? p.totalBytes : 0),
-    0,
-  );
-  const total = plan.total_download_bytes - skippedBytes;
   const got = modelProgress.reduce(
     (n, p) =>
       n +
@@ -485,7 +505,9 @@ function Installing({
           : p.doneBytes),
     0,
   );
-  const pct = total ? Math.min(100, (got / total) * 100) : done ? 100 : 0;
+  const total =
+    plan.total_download_bytes -
+    modelProgress.reduce((n, p) => n + (p.state === 'skipped' ? p.totalBytes : 0), 0);
   return (
     <>
       <Panel title={done ? 'Downloaded.' : 'Setting up.'}>
@@ -505,9 +527,9 @@ function Installing({
         </div>
         <div className="mt-2 flex justify-between text-[13px] text-fawn">
           <span>
-            {human(got)} of {human(total)}
+            {human(got)} of {human(total)} downloaded
           </span>
-          <span className="tabular-nums">{pct.toFixed(1)}%</span>
+          <span className="tabular-nums">{pct.toFixed(1)}% installed</span>
         </div>
 
         <div className="mt-5">
@@ -531,9 +553,12 @@ function Installing({
                 <span className={state === 'waiting' ? 'text-fawn opacity-60' : ''}>{d.what}</span>
                 <span className="ml-auto text-[13px] tabular-nums text-fawn">
                   {p && state === 'downloading'
-                    ? p.totalBytes > 0
-                      ? `${human(p.doneBytes)} / ${human(p.totalBytes)}`
-                      : (p.message ?? '')
+                    ? /* A phase message outranks numbers: "installing torch"
+                         says more than a synthetic percent pair would. */
+                      (p.message ??
+                        (p.totalBytes > 0
+                          ? `${human(p.doneBytes)} / ${human(p.totalBytes)}`
+                          : ''))
                     : p && state === 'verifying'
                       ? p.totalBytes > 0
                         ? `checking ${human(p.doneBytes)} / ${human(p.totalBytes)}`
