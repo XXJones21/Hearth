@@ -46,6 +46,30 @@ function arch(x0, x1, yBase, ySpring) {
   return `M${x0} ${yBase} L${x0} ${ySpring} A${r} ${r} 0 0 1 ${x1} ${ySpring} L${x1} ${yBase}`;
 }
 
+// A FIRE, not a candle: three tongues sharing one base mass. The centre
+// tongue is tallest and leans right, the flanks sit lower and lean into it,
+// and the valleys stay high enough that the mass never separates into
+// three teardrops at small sizes.
+function fire(cx, top, bottom, w) {
+  const h = bottom - top;
+  const y = (t) => top + h * t;
+  return [
+    `M${cx - w} ${bottom}`,
+    // up the left flank to the left tongue
+    `C${cx - w * 1.02} ${y(0.72)} ${cx - w * 0.92} ${y(0.5)} ${cx - w * 0.55} ${y(0.3)}`,
+    // down into the left valley
+    `C${cx - w * 0.42} ${y(0.42)} ${cx - w * 0.34} ${y(0.5)} ${cx - w * 0.26} ${y(0.44)}`,
+    // the centre tongue, apex leaning right
+    `C${cx - w * 0.12} ${y(0.24)} ${cx - w * 0.06} ${y(0.1)} ${cx + w * 0.1} ${top}`,
+    // down into the right valley
+    `C${cx + w * 0.2} ${y(0.18)} ${cx + w * 0.3} ${y(0.36)} ${cx + w * 0.42} ${y(0.4)}`,
+    // the right tongue
+    `C${cx + w * 0.56} ${y(0.32)} ${cx + w * 0.62} ${y(0.28)} ${cx + w * 0.68} ${y(0.26)}`,
+    `C${cx + w * 0.92} ${y(0.46)} ${cx + w * 1.0} ${y(0.7)} ${cx + w} ${bottom}`,
+    "Z",
+  ].join(" ");
+}
+
 const candidates = [
   {
     slug: "ember",
@@ -134,8 +158,14 @@ ${dots}`;
   <rect x="192" y="296" width="640" height="576" fill="${C.ember}"/>
 ${mortar}
   <rect x="352" y="420" width="320" height="452" fill="${ho}"/>
-  <path d="${flame(512, 500, 852, 112)}" fill="${C.honey}"/>
-  <path d="${flame(512, 656, 838, 60)}" fill="${C.cream}"/>
+  <path d="${fire(512, 508, 846, 122)}" fill="${C.honey}"/>
+  <path d="${fire(506, 660, 840, 64)}" fill="${C.cream}"/>
+  <g fill="${C.ember}">
+    <rect x="400" y="822" width="224" height="30" rx="15"
+          transform="rotate(-7 512 837)"/>
+    <rect x="400" y="822" width="224" height="30" rx="15"
+          transform="rotate(7 512 837)"/>
+  </g>
   <rect x="152" y="872" width="720" height="48" rx="16" fill="${ho}"/>`;
     },
     needsDark: true,
@@ -162,8 +192,14 @@ ${mortar}
   <rect x="192" y="232" width="640" height="640" rx="44" fill="${C.ember}"/>
 ${mortar}
   <path d="${arch(362, 662, 872, 560)} Z" fill="${ho}"/>
-  <path d="${flame(512, 604, 852, 96)}" fill="${C.honey}"/>
-  <path d="${flame(512, 716, 838, 52)}" fill="${C.cream}"/>
+  <path d="${fire(512, 596, 846, 118)}" fill="${C.honey}"/>
+  <path d="${fire(506, 712, 840, 62)}" fill="${C.cream}"/>
+  <g fill="${C.ember}">
+    <rect x="398" y="822" width="228" height="30" rx="15"
+          transform="rotate(-7 512 837)"/>
+    <rect x="398" y="822" width="228" height="30" rx="15"
+          transform="rotate(7 512 837)"/>
+  </g>
   <rect x="152" y="872" width="720" height="48" rx="16" fill="${ho}"/>`;
     },
     needsDark: true,
