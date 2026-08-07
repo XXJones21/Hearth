@@ -47,6 +47,10 @@ export function VoiceTest({
      been trying rather than how many times. */
   const askStartedRef = useRef(0);
   const retryRef = useRef<number | undefined>(undefined);
+  /* The sentence the next audio frame belongs to. tts_chunk_start announces a
+     segment and its text before any of it is audible, so the words are held
+     here and shown when the first frame of that segment arrives. */
+  const pendingTextRef = useRef<string | null>(null);
 
   /* The orb above this screen is the same particle animation every client
      uses, driven by the shared visual state: he thinks while warming and
@@ -64,6 +68,7 @@ export function VoiceTest({
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     framesRef.current = 0;
+    pendingTextRef.current = null;
     if (!askStartedRef.current) askStartedRef.current = Date.now();
     setReply('');
     setHint('');
@@ -135,6 +140,15 @@ export function VoiceTest({
           if (ev.data instanceof ArrayBuffer) {
             framesRef.current += 1;
             ttsPlayer.push(ev.data);
+            /* Show the sentence as it starts being heard, not when the whole
+               reply is done. ai_response only arrives after the last word is
+               generated, so waiting for it left him speaking two sentences
+               into a screen that still read "Listening for him now." */
+            if (pendingTextRef.current) {
+              const said = pendingTextRef.current;
+              pendingTextRef.current = null;
+              setReply((prev) => (prev ? `${prev} ${said}` : said));
+            }
             setPhase((p) => (p === 'asking' ? 'speaking' : p));
           }
           return;
@@ -143,7 +157,14 @@ export function VoiceTest({
           const msg = JSON.parse(ev.data);
           if (msg.action === 'tts_chunk_start') {
             ttsPlayer.begin(Number(msg.sample_rate) || 48000);
+            if (typeof msg.text === 'string' && msg.text.trim()) {
+              pendingTextRef.current = msg.text.trim();
+            }
           } else if (msg.action === 'ai_response' && typeof msg.text === 'string') {
+            /* The authoritative text, and the only text when nothing spoke.
+               Replacing what the segments accumulated also repairs any
+               sentence whose audio never arrived. */
+            pendingTextRef.current = null;
             setReply(msg.text);
           } else if (msg.action === 'error') {
             /* The greeting can lose a race it was never told it was running:
