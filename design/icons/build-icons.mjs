@@ -259,6 +259,17 @@ function brickArchTemplate(fillColor) {
 }
 
 {
+  // The ICON MASTER: the chosen mark alone, full bleed on transparency.
+  // The plated app version halved the mark's size inside the canvas, and a
+  // title bar renders the canvas at 16 px; the plate turned the fireplace
+  // into a speck. The mark's geometry spans 720x688 centred on (512, 576);
+  // 1.30 is the largest uniform scale that keeps the slab inside the box.
+  const chosen = candidates.find((c) => c.slug === "brick-arch");
+  const fullBleed = `
+  <g transform="translate(512 576) scale(1.30) translate(-512 -576)">${chosen.mark("light")}
+  </g>`;
+  emit("candidate-7-icon-master", svgDoc(fullBleed), [32, 128, 1024]);
+
   // Template source: black on transparency, the artifact macOS wants.
   const tpl = svgDoc(brickArchTemplate("#000000"));
   emit("candidate-7-template", tpl, [32, 36, 128]);
