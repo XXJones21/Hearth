@@ -32,10 +32,10 @@ index 40ae467..1c55827 100644
          // One-shot : collect the whole utterance, then emit a RIFF file.
          std::vector<float> buf;
 diff --git a/tools/tts-server.cpp b/tools/tts-server.cpp
-index 789520a..8c3c34a 100644
+index 789520a..e9cf8dd 100644
 --- a/tools/tts-server.cpp
 +++ b/tools/tts-server.cpp
-@@ -9,12 +9,66 @@
+@@ -9,12 +9,67 @@
  #include "tts-server.h"
  
  #include "omnivoice.h"
@@ -57,8 +57,9 @@ index 789520a..8c3c34a 100644
 +// with them. Loaded once at startup and held for the process lifetime, so a
 +// request costs a map lookup rather than a codec encode.
 +struct named_voice {
-+    std::vector<int32_t> tokens;
++    std::vector<int32_t> tokens;   // .rvq path: pre-encoded codes
 +    int                  T = 0;
++    std::vector<float>   audio;    // .wav path: raw 24 kHz mono
 +    std::string          text;
 +};
 +
@@ -102,18 +103,19 @@ index 789520a..8c3c34a 100644
  
  static void print_usage(const char * prog) {
      fprintf(stderr, "omnivoice.cpp %s\n\n", OMNIVOICE_VERSION);
-@@ -27,6 +81,10 @@ static void print_usage(const char * prog) {
+@@ -27,6 +82,11 @@ static void print_usage(const char * prog) {
              "  --host <ip>             Listen address (default: 127.0.0.1)\n"
              "  --port <n>              Listen port (default: 8080)\n"
              "  --lang <str>            Language label (default 'None')\n"
 +            "  --steps <n>             MaskGIT decode steps (default 32, fewer is faster)\n"
-+            "  --voice <n:rvq:txt>     Named cloned voice: name, .rvq from omnivoice-codec,\n"
-+            "                          and its transcript. Repeatable. Selected per request\n"
-+            "                          with the OAI 'voice' field; listed by GET /v1/voices.\n"
++            "  --voice <n:ref:txt>     Named cloned voice: name, reference (.wav clip or\n"
++            "                          .rvq from omnivoice-codec) and its transcript.\n"
++            "                          Repeatable. Selected per request with the OAI\n"
++            "                          'voice' field; listed by GET /v1/voices.\n"
              "  --no-fa                 Disable flash attention\n"
              "  --clamp-fp16            Clamp hidden states to FP16 range\n",
              prog);
-@@ -46,6 +104,8 @@ int main(int argc, char ** argv) {
+@@ -46,6 +106,8 @@ int main(int argc, char ** argv) {
      server_config cfg;
      bool          use_fa     = true;
      bool          clamp_fp16 = false;
@@ -122,7 +124,7 @@ index 789520a..8c3c34a 100644
  
      for (int i = 1; i < argc; i++) {
          const char * arg = argv[i];
-@@ -59,6 +119,10 @@ int main(int argc, char ** argv) {
+@@ -59,6 +121,10 @@ int main(int argc, char ** argv) {
              cfg.port = std::atoi(argv[++i]);
          } else if (!std::strcmp(arg, "--lang") && i + 1 < argc) {
              lang = argv[++i];
@@ -133,7 +135,7 @@ index 789520a..8c3c34a 100644
          } else if (!std::strcmp(arg, "--no-fa")) {
              use_fa = false;
          } else if (!std::strcmp(arg, "--clamp-fp16")) {
-@@ -93,13 +157,41 @@ int main(int argc, char ** argv) {
+@@ -93,13 +159,65 @@ int main(int argc, char ** argv) {
  
      tts_backend be;
      be.model_id = basename_of(model_path);
@@ -153,16 +155,40 @@ index 789520a..8c3c34a 100644
 +            return 1;
 +        }
 +        named_voice nv;
-+        if (!rvq_read_file(rvq_path.c_str(), K, RVQ_CODE_BITS, nv.tokens, &nv.T)) {
-+            ov_free(ov);
-+            return 1;
++        // A reference is either pre-encoded codes or the clip itself. Taking
++        // the WAV directly is what lets a caller ship the same reference
++        // recording it already has for a persona, with no codec pass and no
++        // extra artifact to keep in step with it. Encoding happens once here,
++        // not per request either way.
++        const bool is_rvq = rvq_path.size() > 4 && rvq_path.compare(rvq_path.size() - 4, 4, ".rvq") == 0;
++        if (is_rvq) {
++            if (!rvq_read_file(rvq_path.c_str(), K, RVQ_CODE_BITS, nv.tokens, &nv.T)) {
++                ov_free(ov);
++                return 1;
++            }
++        } else {
++            int     n_samples = 0;
++            float * raw       = audio_read_mono(rvq_path.c_str(), 24000, &n_samples);
++            if (!raw || n_samples <= 0) {
++                fprintf(stderr, "[Voice] FATAL: cannot read reference audio %s\n", rvq_path.c_str());
++                free(raw);
++                ov_free(ov);
++                return 1;
++            }
++            nv.audio.assign(raw, raw + n_samples);
++            free(raw);
 +        }
 +        if (!read_text_file_local(txt_path.c_str(), nv.text)) {
 +            ov_free(ov);
 +            return 1;
 +        }
-+        fprintf(stderr, "[Voice] '%s' loaded: K=%d T=%d, transcript %zu chars\n", name.c_str(), K, nv.T,
-+                nv.text.size());
++        if (is_rvq) {
++            fprintf(stderr, "[Voice] '%s' loaded: K=%d T=%d, transcript %zu chars\n", name.c_str(), K, nv.T,
++                    nv.text.size());
++        } else {
++            fprintf(stderr, "[Voice] '%s' loaded: %zu samples of 24 kHz reference, transcript %zu chars\n",
++                    name.c_str(), nv.audio.size(), nv.text.size());
++        }
 +        voices[name] = std::move(nv);
 +        be.voices.push_back(name);
 +    }
@@ -177,7 +203,7 @@ index 789520a..8c3c34a 100644
          struct ov_tts_params p;
          ov_tts_default_params(&p);
          p.text = req.input.c_str();
-@@ -107,6 +199,24 @@ int main(int argc, char ** argv) {
+@@ -107,6 +225,30 @@ int main(int argc, char ** argv) {
          if (!req.instructions.empty()) {
              p.instruct = req.instructions.c_str();
          }
@@ -195,9 +221,15 @@ index 789520a..8c3c34a 100644
 +                err = "unknown voice '" + req.voice + "'";
 +                return (int) OV_STATUS_INVALID_PARAMS;
 +            }
-+            p.ref_audio_tokens = it->second.tokens.data();
-+            p.ref_T            = it->second.T;
-+            p.ref_text         = it->second.text.c_str();
++            // The two reference forms are mutually exclusive in the ABI.
++            if (!it->second.tokens.empty()) {
++                p.ref_audio_tokens = it->second.tokens.data();
++                p.ref_T            = it->second.T;
++            } else {
++                p.ref_audio_24k  = it->second.audio.data();
++                p.ref_n_samples  = (int) it->second.audio.size();
++            }
++            p.ref_text = it->second.text.c_str();
 +        }
  
          // Seed resolution mirrors the CLI: negative or absent draws a

@@ -37,18 +37,29 @@ def create_tts_app(
     default_voice: Optional[Tuple[Optional[Path], Optional[str]]] = None,
 ) -> FastAPI:
     app = FastAPI(title="Valar TTS Service", version="1.0.0")
-    # Engine fork on HEARTH_TTS_SERVICE: "omnivoice" (k2-fsa, the 2026-06-04
-    # quality winner; requires the isolated omnivoice-venv) or the NeuTTS-Air
-    # default. Both implement the same streamer interface, so everything below
-    # — and the gateway, and the clients — is engine-agnostic (the TTS seam).
-    if service != "omnivoice":
-        raise ValueError(
-            f"unknown voice engine {service!r}; Hearth ships one, omnivoice. "
-            "Set HEARTH_TTS_SERVICE=omnivoice."
-        )
-    from .tts_omnivoice import OmniVoiceStreamer
+    # Engine fork on HEARTH_TTS_SERVICE. Both are the same k2-fsa model and
+    # both implement the same streamer interface, so everything below — and the
+    # gateway, and the clients — is engine-agnostic (the TTS seam).
+    #
+    #   "omnivoice-cpp"  omnivoice.cpp over HTTP. Metal on Apple Silicon, CUDA
+    #                    and Vulkan elsewhere; the weights live in a separate
+    #                    shipped binary, so this side costs a socket.
+    #   "omnivoice"      the torch build in its own venv. CUDA or CPU only:
+    #                    it has no MPS path, so on any Mac it runs on the
+    #                    processor at roughly 7.6x realtime.
+    if service == "omnivoice-cpp":
+        from .tts_cpp import OmniVoiceCppStreamer
 
-    tts = OmniVoiceStreamer(repo_root, service=service, sample_rate=sample_rate)
+        tts = OmniVoiceCppStreamer(repo_root, service=service, sample_rate=sample_rate)
+    elif service == "omnivoice":
+        from .tts_omnivoice import OmniVoiceStreamer
+
+        tts = OmniVoiceStreamer(repo_root, service=service, sample_rate=sample_rate)
+    else:
+        raise ValueError(
+            f"unknown voice engine {service!r}; Hearth ships omnivoice-cpp and omnivoice. "
+            "Set HEARTH_TTS_SERVICE=omnivoice-cpp."
+        )
     app.state.tts = tts
 
     @app.get("/health")
