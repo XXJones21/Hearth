@@ -33,6 +33,9 @@ answers "what does a stranger install."
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
 | How does the card library grow? | [`card-forge.md`](card-forge.md) |
+| What is in the Valinor Apple client, and what ships? | [`clients/apple-inventory.md`](clients/apple-inventory.md) |
+| What does the clean Apple project look like? | [`clients/apple-project-architecture.md`](clients/apple-project-architecture.md) |
+| How does the Apple migration actually run? | [`clients/apple-migration-plan.md`](clients/apple-migration-plan.md) |
 
 ## Status
 
