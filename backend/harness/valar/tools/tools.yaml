@@ -413,6 +413,36 @@ tools:
             type: object
       required: [sections]
 
+  - name: choice_card
+    description: >-
+      Offer the operator a small set of options YOU wrote, rendered as
+      choices beside their free-text composer. Use when a question is hard
+      to answer cold and examples would help them think. Compose the options
+      from what this conversation has already taught you; never a generic
+      list. Their typed answer always outranks the choices. After calling
+      this, wait for their reply; do not answer for them.
+    handler: valar.tools.handlers.choice:choice_card
+    domain: projects
+    risk: read
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        question:
+          type: string
+          description: The question the options answer, exactly as you asked it.
+        options:
+          type: array
+          description: >-
+            Two to five options, each {"label":"a few words",
+            "detail":"one short line of what choosing it means"}.
+          items:
+            type: object
+        allow_free_text:
+          type: boolean
+          description: Almost always true; false only for a strict either-or.
+      required: [question, options]
+
   - name: forge_card
     description: >-
       Commission a NEW UI card from Mentat when NO existing card can carry the

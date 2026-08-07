@@ -51,7 +51,10 @@ _ANNOUNCE_RE = re.compile(
     r"|search|fetch|review|retrieve|dig|bring in|see what|find out"
     # Delegation shapes (live 2026-07-31: "I shall have Mentat forge a more
     # sophisticated..." with zero tool calls). The commission verbs.
-    r"|have|ask|task|commission|forge|dispatch|start)\b",
+    r"|have|ask|task|commission|forge|dispatch|start"
+    # Presentation shapes (live 2026-08-07: "I shall present a selection of
+    # archetypes" with zero tool calls, while choice_card sat unused).
+    r"|present|offer|show|display|put)\b",
     re.IGNORECASE,
 )
 
