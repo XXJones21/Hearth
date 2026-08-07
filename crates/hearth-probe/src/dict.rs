@@ -60,7 +60,46 @@ pub struct Tier {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RuntimeArtifact {
+    pub url: String,
+    pub bytes: u64,
+    #[serde(default)]
+    pub sha256: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RuntimePython {
+    #[serde(default)]
+    pub windows: Option<RuntimeArtifact>,
+    #[serde(default)]
+    pub macos: Option<RuntimeArtifact>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RuntimeLlama {
+    #[serde(default)]
+    pub release: String,
+    #[serde(default)]
+    pub windows_cuda: Vec<RuntimeArtifact>,
+    #[serde(default)]
+    pub windows_vulkan: Vec<RuntimeArtifact>,
+    #[serde(default)]
+    pub macos_metal: Vec<RuntimeArtifact>,
+}
+
+/// What the installer places under <root>/runtime, beyond the models.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Runtime {
+    #[serde(default)]
+    pub python: RuntimePython,
+    #[serde(default)]
+    pub llama_server: RuntimeLlama,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dictionary {
+    #[serde(default)]
+    pub runtime: Runtime,
     pub reserves: Reserves,
     pub voice: Voice,
     pub tiers: Vec<Tier>,

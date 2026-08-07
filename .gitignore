@@ -29,6 +29,10 @@ backend/.native/
 # FOLLOW-UP: state belongs under HEARTH_HOME, not the product tree.
 backend/sessions/
 
+# Packed by scripts/pack_backend.sh before every bundle build.
+desktop-client/src-tauri/resources/backend.tar.gz
+desktop-client/src-tauri/resources/hearth-supervisor.exe
+
 # The by-hand startup proof: machine-specific script and its logs.
 backend/.proof/
 

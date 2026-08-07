@@ -1,6 +1,7 @@
 mod config_gen;
 mod house;
 mod probe;
+mod provision;
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -31,6 +32,7 @@ pub fn run() {
       probe::probe_install_state,
       probe::probe_free_disk,
       probe::probe_download,
+      provision::provision,
       config_gen::probe_render_config,
       house::house_start,
       house::house_stop,

@@ -20,6 +20,27 @@
 # tier 2, while valinor-rust.service pins 16384 with a comment calling that "the
 # proven 16 GB-fit value". One of the two is wrong and a single load settles it.
 
+# The runtime the installer places under <root>/runtime. Same rules as the
+# tiers: sizes are server content-length, hashes are the publisher's own.
+# The llama.cpp zips have no published sha256 (GitHub releases carry none);
+# size-only until our packaging pass computes and pins them.
+runtime:
+  python:
+    windows:
+      url: https://github.com/astral-sh/python-build-standalone/releases/download/20260805/cpython-3.13.14%2B20260805-x86_64-pc-windows-msvc-install_only.tar.gz
+      bytes: 47056137
+      sha256: ab746e98c31913a83da4af5b60ea0b024ea20f3c3327e4e21ef3106013c549a3
+  llama_server:
+    release: b10298
+    windows_cuda:
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/llama-b10298-bin-win-cuda-12.4-x64.zip
+        bytes: 250457449
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/cudart-llama-bin-win-cuda-12.4-x64.zip
+        bytes: 391443627
+    windows_vulkan:
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/llama-b10298-bin-win-vulkan-x64.zip
+        bytes: 34108466
+
 reserves:
   # Held out of the budget before a model is chosen.
   voice_resident_bytes: 2362232012 # OmniVoice on the GPU, ~2.2 GiB measured

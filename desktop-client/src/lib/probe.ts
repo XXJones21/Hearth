@@ -114,6 +114,22 @@ export function download(
   });
 }
 
+/** The three rows for the placed runtime, run while the model downloads. */
+export const PROVISION_ROWS = ['The backend', 'Inference engine', 'Python runtime'] as const;
+
+export function provision(
+  onProgress: (p: Progress) => void,
+  opts: { root: string; accel: string },
+) {
+  const channel = new Channel<Progress>();
+  channel.onmessage = onProgress;
+  return invoke<void>('provision', {
+    root: opts.root,
+    accel: opts.accel,
+    onProgress: channel,
+  });
+}
+
 /** GB as a person reads them, matching the Rust side. */
 export function human(bytes: number): string {
   const GIB = 1073741824;

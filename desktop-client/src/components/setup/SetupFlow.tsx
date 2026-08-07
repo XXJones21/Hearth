@@ -20,6 +20,8 @@ import {
   human,
   installRoot,
   makePlan,
+  provision,
+  PROVISION_ROWS,
   scan,
   type Machine,
   type Plan,
@@ -135,15 +137,18 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
   const startDownload = async () => {
     setStep('installing');
     setError(null);
+    const onProgress = (p: Progress) =>
+      setProgress((prev) => {
+        const next = prev.filter((x) => x.what !== p.what);
+        return [...next, p];
+      });
     try {
-      await download(
-        (p) =>
-          setProgress((prev) => {
-            const next = prev.filter((x) => x.what !== p.what);
-            return [...next, p];
-          }),
-        { simulate: sim, dest: dest || undefined },
-      );
+      /* The model download and the runtime placement run together, as the
+         mockup always showed. Both must land before the install is one. */
+      await Promise.all([
+        download(onProgress, { simulate: sim, dest: dest || undefined }),
+        provision(onProgress, { root: dest, accel: plan?.backend ?? 'cpu' }),
+      ]);
       /* The chosen root is what boot revalidates against, so it persists the
          moment the record exists, not when the user leaves the screen. */
       saveSettings({ installRoot: dest });
@@ -451,16 +456,19 @@ function Installing({
   onRetry: () => void;
   onFinish: () => void;
 }) {
-  /* Items the runtime fetches later are skipped here, so they cannot count
-     toward this screen's total: a bar whose denominator includes bytes it
-     will never fetch tops out at a fraction and reads as a freeze. Measure
-     against what this screen actually downloads. */
-  const skippedBytes = progress.reduce(
+  /* The bar measures the model downloads alone: skipped items (fetched by
+     the runtime later) cannot count toward its total or it never reaches
+     100, and the provisioning rows have their own sizes that would inflate
+     it past its denominator. The rows tell the fuller story; the bar is the
+     one number, and it must be honest. */
+  const modelRows = new Set(plan.downloads.map((d) => d.what));
+  const modelProgress = progress.filter((p) => modelRows.has(p.what));
+  const skippedBytes = modelProgress.reduce(
     (n, p) => n + (p.state === 'skipped' ? p.totalBytes : 0),
     0,
   );
   const total = plan.total_download_bytes - skippedBytes;
-  const got = progress.reduce(
+  const got = modelProgress.reduce(
     (n, p) =>
       n +
       (p.state === 'done' || p.state === 'verifying'
@@ -496,7 +504,13 @@ function Installing({
         </div>
 
         <div className="mt-5">
-          {plan.downloads.map((d) => {
+          {[
+            ...plan.downloads.map((d) => ({ what: d.what, bytes: d.bytes })),
+            /* The runtime rows, placed while the models download. Their
+               sizes vary (bundled unpack, per-accelerator assets, a pip
+               resolve), so the right-hand cell reads from progress alone. */
+            ...PROVISION_ROWS.map((r) => ({ what: r as string, bytes: 0 })),
+          ].map((d) => {
             const p = progress.find((x) => x.what === d.what);
             const state = p?.state ?? 'waiting';
             return (
@@ -510,13 +524,19 @@ function Installing({
                 <span className={state === 'waiting' ? 'text-fawn opacity-60' : ''}>{d.what}</span>
                 <span className="ml-auto text-[13px] tabular-nums text-fawn">
                   {p && state === 'downloading'
-                    ? `${human(p.doneBytes)} / ${human(p.totalBytes)}`
+                    ? p.totalBytes > 0
+                      ? `${human(p.doneBytes)} / ${human(p.totalBytes)}`
+                      : (p.message ?? '')
                     : p && state === 'verifying'
-                      ? `checking ${human(p.doneBytes)} / ${human(p.totalBytes)}`
+                      ? p.totalBytes > 0
+                        ? `checking ${human(p.doneBytes)} / ${human(p.totalBytes)}`
+                        : 'checking'
                       : state === 'skipped'
                         ? p?.message
                         : state === 'done'
-                          ? human(d.bytes)
+                          ? d.bytes > 0
+                            ? human(d.bytes)
+                            : 'ready'
                           : ''}
                 </span>
               </div>
