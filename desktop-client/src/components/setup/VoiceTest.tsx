@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { getHttpOrigin, getWsUrl } from '../../lib/config';
+import { useAppStore } from '../../store/appStore';
 
 /* The voice test, the mockup's closing beat for the install: the one check no
    automated probe can perform. Sulivan speaks through the real pipeline, the
@@ -26,6 +27,18 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
   const wsRef = useRef<WebSocket | null>(null);
   const framesRef = useRef(0);
   const closedRef = useRef(false);
+
+  /* The orb above this screen is the same particle animation every client
+     uses, driven by the shared visual state: he thinks while warming and
+     speaks while speaking, exactly as he will in the house. No second
+     waveform; he IS the waveform. */
+  useEffect(() => {
+    const setVisualState = useAppStore.getState().setVisualState;
+    setVisualState(
+      phase === 'speaking' ? 'speaking' : phase === 'spoke' ? 'idle' : 'thinking',
+    );
+    return () => setVisualState('idle');
+  }, [phase]);
 
   const speak = useCallback(() => {
     const ws = wsRef.current;
@@ -138,20 +151,13 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
 
   return (
     <div className="mt-4 flex flex-col items-center">
-      <h1 className="text-[26px] font-bold tracking-tight">Sulivan</h1>
-      <div className="mt-1 text-[12px] uppercase tracking-wide text-fawn">
-        {phase === 'waking'
-          ? 'waking the house'
-          : phase === 'warming' || phase === 'asking'
-            ? 'thinking'
-            : phase === 'speaking'
-              ? 'speaking'
-              : 'spoke'}
-      </div>
+      <h1 className="text-[26px] font-bold tracking-tight">Meet Sulivan.</h1>
+      <p className="mt-2 max-w-[52ch] text-center text-[15px] leading-relaxed text-fawn">
+        Your guide to Hearth. He lives here now, and this is the first thing he
+        will ever say to you.
+      </p>
 
-      <Waveform active={phase === 'speaking'} />
-
-      <div className="mt-5 w-full max-w-[520px] rounded-2xl border border-linen bg-fluff p-5 text-left shadow-soft">
+      <div className="mt-6 w-full max-w-[520px] rounded-2xl border border-linen bg-fluff p-5 text-left shadow-soft">
         <div className="mb-2 text-[11.5px] font-semibold uppercase tracking-wide text-fawn">
           Sulivan
         </div>
@@ -202,37 +208,3 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
   );
 }
 
-/* Twenty-six bars riding the player's level meter, the mockup's waveform made
-   real: it moves because samples are moving, not on a timer. */
-function Waveform({ active }: { active: boolean }) {
-  const [levels, setLevels] = useState<number[]>(() => Array(26).fill(0.08));
-  useEffect(() => {
-    if (!active) {
-      setLevels(Array(26).fill(0.08));
-      return;
-    }
-    let raf = 0;
-    const tick = () => {
-      const level = ttsPlayer.level();
-      setLevels((prev) => {
-        const next = prev.slice(1);
-        next.push(Math.max(0.08, Math.min(1, level * 3)));
-        return next;
-      });
-      raf = window.requestAnimationFrame(tick);
-    };
-    raf = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(raf);
-  }, [active]);
-  return (
-    <div className="mt-4 flex h-[46px] items-center gap-[3px]">
-      {levels.map((l, i) => (
-        <span
-          key={i}
-          className="w-[4px] rounded-full bg-honey transition-[height] duration-75"
-          style={{ height: `${8 + l * 38}px` }}
-        />
-      ))}
-    </div>
-  );
-}
