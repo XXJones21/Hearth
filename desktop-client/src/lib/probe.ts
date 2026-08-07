@@ -114,11 +114,14 @@ export function download(
   });
 }
 
-/** The rows for the placed runtime, run while the model downloads. */
+/** The rows for the placed runtime, run in parallel chains alongside the
+ *  model download: backend and engine immediately, then once Python lands,
+ *  the voice model fetch and the voice engine's environment side by side. */
 export const PROVISION_ROWS = [
   'The backend',
   'Inference engine',
   'Python runtime',
+  'Voice model',
   'Voice engine',
 ] as const;
 
@@ -131,7 +134,8 @@ export const PROVISION_WEIGHTS: Record<(typeof PROVISION_ROWS)[number], number> 
   'The backend': 60,
   'Inference engine': 650,
   'Python runtime': 600,
-  'Voice engine': 7000,
+  'Voice model': 3100,
+  'Voice engine': 3900,
 };
 
 export function provision(

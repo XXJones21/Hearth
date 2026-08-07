@@ -48,6 +48,10 @@ runtime:
     package: omnivoice==0.1.5
     extras:
       - soundfile
+      # omnivoice brings plain uvicorn; without a WebSocket library the /tts
+      # upgrade 404s and the product is silent. Found on the first fresh
+      # install; the testbed env happened to carry it.
+      - websockets
     torch_index_cuda: https://download.pytorch.org/whl/cu130
 
 reserves:

@@ -1,14 +1,17 @@
 //! Provisioning: everything the installing screen places besides the models.
 //!
-//! Three rows, run while the model downloads: the backend (bundled with the
-//! client, unpacked), the inference engine (llama.cpp release assets, chosen
-//! by the plan's accelerator, downloaded and verified like a model), and the
-//! Python runtime (python-build-standalone, then the harness requirements
-//! installed into it). Every artifact's source, size and hash live in the
-//! dictionary; nothing here names a URL.
+//! Parallel where the work allows, because setup time is first-impression
+//! time. Three chains run alongside the model download the moment provision
+//! starts: the bundled backend unpacks, the inference engine fetches, and
+//! the Python runtime lands. When Python is in place the tree forks again:
+//! the harness requirements and then the voice MODEL fetch on one side, the
+//! voice engine's own environment (venv, torch, the engine) on the other.
+//! The model fetch rides the runtime python's huggingface_hub precisely so
+//! it does not queue behind torch; two pips cannot share one env.
 //!
-//! Idempotent by construction: fetches skip files already at exact size,
-//! and unpacks clear their target first. Retry is rerun.
+//! Every artifact's source, size and hash live in the dictionary; nothing
+//! here names a URL. Idempotent by construction: fetches skip files already
+//! at exact size, unpacks clear their target first. Retry is rerun.
 
 use hearth_probe::{dict::RuntimeArtifact, Dictionary};
 use std::path::{Path, PathBuf};
@@ -85,6 +88,36 @@ fn fetch_artifact(
     .map_err(|e| e.to_string())
 }
 
+/// Run a command with output appended to a named log, no console window.
+fn run_logged(mut cmd: std::process::Command, logs: &Path, log_name: &str) -> Result<(), String> {
+    let log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logs.join(log_name))
+        .map_err(|e| e.to_string())?;
+    cmd.stdout(std::process::Stdio::from(
+        log.try_clone().map_err(|e| e.to_string())?,
+    ))
+    .stderr(std::process::Stdio::from(log));
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let status = cmd.status().map_err(|e| e.to_string())?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{} (see logs/{})", status, log_name))
+    }
+}
+
+const ROW_BACKEND: &str = "The backend";
+const ROW_ENGINE: &str = "Inference engine";
+const ROW_PYTHON: &str = "Python runtime";
+const ROW_VOICE_MODEL: &str = "Voice model";
+const ROW_VOICE: &str = "Voice engine";
+
 /// The whole provisioning pass. `accel` is the plan's backend (cuda, vulkan,
 /// metal, cpu) and picks the llama assets.
 #[tauri::command]
@@ -112,240 +145,223 @@ pub async fn provision(
         let runtime = root.join("runtime");
         let cache = runtime.join(".cache");
         std::fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
+        let logs = root.join("logs");
+        let _ = std::fs::create_dir_all(&logs);
+        let hf_home = root.join("home").join("hf-cache");
 
-        // Row 1: the backend, bundled with the client.
-        const ROW_BACKEND: &str = "The backend";
-        send(&on_progress, ROW_BACKEND, 0, 1, "downloading", Some("unpacking".into()));
-        untar_gz(&backend_tgz, &runtime.join("backend")).map_err(|e| {
-            send(&on_progress, ROW_BACKEND, 0, 1, "failed", Some(e.clone()));
-            e
-        })?;
-        std::fs::copy(&supervisor_src, runtime.join("hearth-supervisor.exe"))
-            .map_err(|e| e.to_string())?;
-        send(&on_progress, ROW_BACKEND, 1, 1, "done", None);
+        let result: Result<(), String> = std::thread::scope(|s| {
+            // Chain A: the bundled backend and the supervisor. Seconds.
+            let ch = on_progress.clone();
+            let a_runtime = runtime.clone();
+            let a_tgz = backend_tgz.clone();
+            let a_sup = supervisor_src.clone();
+            let t_backend = s.spawn(move || -> Result<(), String> {
+                send(&ch, ROW_BACKEND, 0, 1, "downloading", Some("unpacking".into()));
+                untar_gz(&a_tgz, &a_runtime.join("backend")).map_err(|e| {
+                    send(&ch, ROW_BACKEND, 0, 1, "failed", Some(e.clone()));
+                    e
+                })?;
+                std::fs::copy(&a_sup, a_runtime.join("hearth-supervisor.exe"))
+                    .map_err(|e| e.to_string())?;
+                send(&ch, ROW_BACKEND, 1, 1, "done", None);
+                Ok(())
+            });
 
-        // Row 2: the inference engine, per the plan's accelerator.
-        const ROW_ENGINE: &str = "Inference engine";
-        let assets = match accel.as_str() {
-            "cuda" => &dict.runtime.llama_server.windows_cuda,
-            "vulkan" | "cpu" => &dict.runtime.llama_server.windows_vulkan,
-            "metal" => &dict.runtime.llama_server.macos_metal,
-            other => {
-                let e = format!("no llama-server assets for accelerator '{}'", other);
+            // Chain B: the inference engine, per the plan's accelerator.
+            let ch = on_progress.clone();
+            let b_runtime = runtime.clone();
+            let b_cache = cache.clone();
+            let b_assets = match accel.as_str() {
+                "cuda" => dict.runtime.llama_server.windows_cuda.clone(),
+                "vulkan" | "cpu" => dict.runtime.llama_server.windows_vulkan.clone(),
+                "metal" => dict.runtime.llama_server.macos_metal.clone(),
+                other => {
+                    let e = format!("no llama-server assets for accelerator '{}'", other);
+                    send(&on_progress, ROW_ENGINE, 0, 1, "failed", Some(e.clone()));
+                    return Err(e);
+                }
+            };
+            if b_assets.is_empty() {
+                let e = format!("dictionary has no llama-server assets for '{}'", accel);
                 send(&on_progress, ROW_ENGINE, 0, 1, "failed", Some(e.clone()));
                 return Err(e);
             }
-        };
-        if assets.is_empty() {
-            let e = format!("dictionary has no llama-server assets for '{}'", accel);
-            send(&on_progress, ROW_ENGINE, 0, 1, "failed", Some(e.clone()));
-            return Err(e);
-        }
-        let llama_dir = runtime.join("llama-server");
-        if llama_dir.exists() {
-            std::fs::remove_dir_all(&llama_dir).map_err(|e| e.to_string())?;
-        }
-        let engine_total: u64 = assets.iter().map(|a| a.bytes).sum();
-        let mut engine_done: u64 = 0;
-        for a in assets {
-            let archive = fetch_artifact(a, &cache, ROW_ENGINE, engine_done, engine_total, &on_progress)
-                .map_err(|e| {
-                    send(&on_progress, ROW_ENGINE, engine_done, engine_total, "failed", Some(e.clone()));
-                    e
-                })?;
-            engine_done += a.bytes;
-            send(&on_progress, ROW_ENGINE, engine_done, engine_total, "verifying", None);
-            unzip(&archive, &llama_dir).map_err(|e| {
-                send(&on_progress, ROW_ENGINE, engine_done, engine_total, "failed", Some(e.clone()));
+            let t_engine = s.spawn(move || -> Result<(), String> {
+                let llama_dir = b_runtime.join("llama-server");
+                if llama_dir.exists() {
+                    std::fs::remove_dir_all(&llama_dir).map_err(|e| e.to_string())?;
+                }
+                let total: u64 = b_assets.iter().map(|a| a.bytes).sum();
+                let mut done: u64 = 0;
+                for a in &b_assets {
+                    let archive = fetch_artifact(a, &b_cache, ROW_ENGINE, done, total, &ch)
+                        .map_err(|e| {
+                            send(&ch, ROW_ENGINE, done, total, "failed", Some(e.clone()));
+                            e
+                        })?;
+                    done += a.bytes;
+                    send(&ch, ROW_ENGINE, done, total, "verifying", None);
+                    unzip(&archive, &llama_dir).map_err(|e| {
+                        send(&ch, ROW_ENGINE, done, total, "failed", Some(e.clone()));
+                        e
+                    })?;
+                }
+                send(&ch, ROW_ENGINE, total, total, "done", None);
+                Ok(())
+            });
+
+            // Chain C, main thread: the Python runtime lands first, because
+            // both remaining chains need its interpreter.
+            let Some(py) = (match std::env::consts::OS {
+                "windows" => dict.runtime.python.windows.clone(),
+                "macos" => dict.runtime.python.macos.clone(),
+                _ => None,
+            }) else {
+                let e = "dictionary has no python runtime for this platform".to_string();
+                send(&on_progress, ROW_PYTHON, 0, 1, "failed", Some(e.clone()));
+                return Err(e);
+            };
+            let name = py.url.rsplit('/').next().unwrap_or("python.tar.gz").replace("%2B", "+");
+            let py_out = cache.join(&name);
+            let ch2 = on_progress.clone();
+            let py_total = py.bytes.max(1);
+            let mut py_report = move |done: u64, _t: u64| {
+                let _ = ch2.send(Progress {
+                    what: ROW_PYTHON.into(),
+                    done_bytes: (done.min(py_total) * 70) / py_total,
+                    total_bytes: 100,
+                    state: "downloading".into(),
+                    message: Some("downloading".into()),
+                });
+            };
+            let archive = hearth_probe::download::fetch_verified(
+                &py.url,
+                &py_out,
+                Some(py.bytes),
+                py.sha256.as_deref(),
+                &mut py_report,
+            )
+            .map_err(|e| {
+                let e = e.to_string();
+                send(&on_progress, ROW_PYTHON, 0, 100, "failed", Some(e.clone()));
                 e
             })?;
-        }
-        send(&on_progress, ROW_ENGINE, engine_total, engine_total, "done", None);
-
-        // Row 3: the Python runtime, then the harness requirements into it.
-        const ROW_PYTHON: &str = "Python runtime";
-        let Some(py) = (match std::env::consts::OS {
-            "windows" => dict.runtime.python.windows.clone(),
-            "macos" => dict.runtime.python.macos.clone(),
-            _ => None,
-        }) else {
-            let e = "dictionary has no python runtime for this platform".to_string();
-            send(&on_progress, ROW_PYTHON, 0, 1, "failed", Some(e.clone()));
-            return Err(e);
-        };
-        /* This row is download plus unpack plus a pip resolve, so it reports
-           on a percent scale that only moves forward: the download is the
-           first seventy points, the pip install the rest. The message names
-           the phase; the numbers feed the weighted bar. */
-        let name = py.url.rsplit('/').next().unwrap_or("python.tar.gz").replace("%2B", "+");
-        let py_out = cache.join(&name);
-        let ch2 = on_progress.clone();
-        let py_total = py.bytes.max(1);
-        let mut py_report = move |done: u64, _t: u64| {
-            let _ = ch2.send(Progress {
-                what: ROW_PYTHON.into(),
-                done_bytes: (done.min(py_total) * 70) / py_total,
-                total_bytes: 100,
-                state: "downloading".into(),
-                message: Some("downloading".into()),
-            });
-        };
-        let archive = hearth_probe::download::fetch_verified(
-            &py.url,
-            &py_out,
-            Some(py.bytes),
-            py.sha256.as_deref(),
-            &mut py_report,
-        )
-        .map_err(|e| {
-            let e = e.to_string();
-            send(&on_progress, ROW_PYTHON, 0, 100, "failed", Some(e.clone()));
-            e
-        })?;
-        send(&on_progress, ROW_PYTHON, 75, 100, "downloading", Some("unpacking".into()));
-        // The tarball's top directory is python/; unpack beside it and adopt.
-        let staging = runtime.join(".python-unpack");
-        untar_gz(&archive, &staging)?;
-        let unpacked = staging.join("python");
-        let target = runtime.join("python");
-        if target.exists() {
-            std::fs::remove_dir_all(&target).map_err(|e| e.to_string())?;
-        }
-        std::fs::rename(&unpacked, &target).map_err(|e| e.to_string())?;
-        let _ = std::fs::remove_dir_all(&staging);
-
-        send(
-            &on_progress,
-            ROW_PYTHON,
-            85,
-            100,
-            "downloading",
-            Some("installing packages".into()),
-        );
-        let logs = root.join("logs");
-        let _ = std::fs::create_dir_all(&logs);
-        let pip_log = std::fs::File::create(logs.join("provision-pip.log"))
-            .map_err(|e| e.to_string())?;
-        let requirements = runtime.join("backend").join("harness").join("requirements.txt");
-        let mut cmd = std::process::Command::new(target.join("python.exe"));
-        cmd.args([
-            "-m",
-            "pip",
-            "install",
-            "--no-warn-script-location",
-            "-r",
-        ])
-        .arg(&requirements)
-        .stdout(std::process::Stdio::from(
-            pip_log.try_clone().map_err(|e| e.to_string())?,
-        ))
-        .stderr(std::process::Stdio::from(pip_log));
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-        }
-        let status = cmd.status().map_err(|e| e.to_string())?;
-        if !status.success() {
-            let e = format!(
-                "pip install failed ({}); see logs/provision-pip.log",
-                status
-            );
-            send(&on_progress, ROW_PYTHON, 0, 1, "failed", Some(e.clone()));
-            return Err(e);
-        }
-        send(&on_progress, ROW_PYTHON, 100, 100, "done", None);
-
-        // Row 4: the voice engine, in its own environment. The heaviest row
-        // and the one that lets Sulivan speak at the end of the install.
-        const ROW_VOICE: &str = "Voice engine";
-        let run_logged = |mut cmd: std::process::Command, log_name: &str| -> Result<(), String> {
-            let log = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(logs.join(log_name))
-                .map_err(|e| e.to_string())?;
-            cmd.stdout(std::process::Stdio::from(
-                log.try_clone().map_err(|e| e.to_string())?,
-            ))
-            .stderr(std::process::Stdio::from(log));
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                cmd.creation_flags(0x0800_0000);
+            send(&on_progress, ROW_PYTHON, 75, 100, "downloading", Some("unpacking".into()));
+            let staging = runtime.join(".python-unpack");
+            untar_gz(&archive, &staging)?;
+            let unpacked = staging.join("python");
+            let py_dir = runtime.join("python");
+            if py_dir.exists() {
+                std::fs::remove_dir_all(&py_dir).map_err(|e| e.to_string())?;
             }
-            let status = cmd.status().map_err(|e| e.to_string())?;
-            if status.success() {
+            std::fs::rename(&unpacked, &py_dir).map_err(|e| e.to_string())?;
+            let _ = std::fs::remove_dir_all(&staging);
+
+            // Fork: the harness requirements then the voice model on one
+            // side, the voice engine's environment on the other.
+            let ch = on_progress.clone();
+            let c_logs = logs.clone();
+            let c_runtime = runtime.clone();
+            let c_hf = hf_home.clone();
+            let c_repo = dict.voice.repo.clone();
+            let c_voice_bytes = dict.voice.download_bytes;
+            let c_py = py_dir.clone();
+            let t_pip_fetch = s.spawn(move || -> Result<(), String> {
+                send(&ch, ROW_PYTHON, 85, 100, "downloading", Some("installing packages".into()));
+                let requirements = c_runtime.join("backend").join("harness").join("requirements.txt");
+                let mut pip = std::process::Command::new(c_py.join("python.exe"));
+                pip.args(["-m", "pip", "install", "--no-warn-script-location", "-r"])
+                    .arg(&requirements);
+                run_logged(pip, &c_logs, "provision-pip.log").map_err(|e| {
+                    send(&ch, ROW_PYTHON, 85, 100, "failed", Some(e.clone()));
+                    e
+                })?;
+                send(&ch, ROW_PYTHON, 100, 100, "done", None);
+
+                send(
+                    &ch,
+                    ROW_VOICE_MODEL,
+                    10,
+                    100,
+                    "downloading",
+                    Some(format!("downloading ({})", hearth_probe::human(c_voice_bytes))),
+                );
+                let mut prefetch = std::process::Command::new(c_py.join("python.exe"));
+                prefetch
+                    .args(["-c"])
+                    .arg(format!(
+                        "from huggingface_hub import snapshot_download; snapshot_download('{}')",
+                        c_repo
+                    ))
+                    .env("HF_HOME", &c_hf)
+                    // Symlinks need Developer Mode on Windows (WinError 1314
+                    // on a stranger's machine, found the honest way).
+                    .env("HF_HUB_DISABLE_SYMLINKS", "1");
+                run_logged(prefetch, &c_logs, "provision-voice-fetch.log").map_err(|e| {
+                    send(&ch, ROW_VOICE_MODEL, 10, 100, "failed", Some(e.clone()));
+                    e
+                })?;
+                send(&ch, ROW_VOICE_MODEL, 100, 100, "done", None);
                 Ok(())
-            } else {
-                Err(format!("{} (see logs/{})", status, log_name))
+            });
+
+            let ch = on_progress.clone();
+            let d_logs = logs.clone();
+            let d_root = root.clone();
+            let d_py = py_dir.clone();
+            let d_env = dict.runtime.voice_env.clone();
+            let d_accel = accel.clone();
+            let t_voice = s.spawn(move || -> Result<(), String> {
+                let voice_py = d_root
+                    .join("envs")
+                    .join("voice")
+                    .join("Scripts")
+                    .join("python.exe");
+                send(&ch, ROW_VOICE, 10, 100, "downloading", Some("creating environment".into()));
+                let mut mkenv = std::process::Command::new(d_py.join("python.exe"));
+                mkenv.args(["-m", "venv"]).arg(d_root.join("envs").join("voice"));
+                run_logged(mkenv, &d_logs, "provision-voice-pip.log").map_err(|e| {
+                    send(&ch, ROW_VOICE, 10, 100, "failed", Some(e.clone()));
+                    e
+                })?;
+
+                send(&ch, ROW_VOICE, 25, 100, "downloading", Some("installing torch".into()));
+                let mut torch = std::process::Command::new(&voice_py);
+                torch.args(["-m", "pip", "install", "--no-warn-script-location", "torch", "torchaudio"]);
+                if d_accel == "cuda" {
+                    if let Some(index) = &d_env.torch_index_cuda {
+                        torch.args(["--index-url", index]);
+                    }
+                }
+                run_logged(torch, &d_logs, "provision-voice-pip.log").map_err(|e| {
+                    send(&ch, ROW_VOICE, 25, 100, "failed", Some(e.clone()));
+                    e
+                })?;
+
+                send(&ch, ROW_VOICE, 70, 100, "downloading", Some("installing the engine".into()));
+                let mut engine = std::process::Command::new(&voice_py);
+                engine.args(["-m", "pip", "install", "--no-warn-script-location"]);
+                engine.arg(&d_env.package);
+                for extra in &d_env.extras {
+                    engine.arg(extra);
+                }
+                run_logged(engine, &d_logs, "provision-voice-pip.log").map_err(|e| {
+                    send(&ch, ROW_VOICE, 70, 100, "failed", Some(e.clone()));
+                    e
+                })?;
+                send(&ch, ROW_VOICE, 100, 100, "done", None);
+                Ok(())
+            });
+
+            // Every chain must land; the first error is the one reported,
+            // and its row already wears the message.
+            for handle in [t_backend, t_engine, t_pip_fetch, t_voice] {
+                handle.join().map_err(|_| "a provisioning thread panicked".to_string())??;
             }
-        };
+            Ok(())
+        });
 
-        let voice_py = root
-            .join("envs")
-            .join("voice")
-            .join("Scripts")
-            .join("python.exe");
-        send(&on_progress, ROW_VOICE, 5, 100, "downloading", Some("creating environment".into()));
-        let mut mkenv = std::process::Command::new(target.join("python.exe"));
-        mkenv.args(["-m", "venv"]).arg(root.join("envs").join("voice"));
-        run_logged(mkenv, "provision-voice-pip.log").map_err(|e| {
-            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
-            e
-        })?;
-
-        send(&on_progress, ROW_VOICE, 15, 100, "downloading", Some("installing torch".into()));
-        let mut torch = std::process::Command::new(&voice_py);
-        torch.args(["-m", "pip", "install", "--no-warn-script-location", "torch", "torchaudio"]);
-        if accel == "cuda" {
-            if let Some(index) = &dict.runtime.voice_env.torch_index_cuda {
-                torch.args(["--index-url", index]);
-            }
-        }
-        run_logged(torch, "provision-voice-pip.log").map_err(|e| {
-            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
-            e
-        })?;
-
-        send(&on_progress, ROW_VOICE, 55, 100, "downloading", Some("installing the engine".into()));
-        let mut engine = std::process::Command::new(&voice_py);
-        engine.args(["-m", "pip", "install", "--no-warn-script-location"]);
-        engine.arg(&dict.runtime.voice_env.package);
-        for extra in &dict.runtime.voice_env.extras {
-            engine.arg(extra);
-        }
-        run_logged(engine, "provision-voice-pip.log").map_err(|e| {
-            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
-            e
-        })?;
-
-        send(
-            &on_progress,
-            ROW_VOICE,
-            70,
-            100,
-            "downloading",
-            Some(format!("fetching the voice ({})", hearth_probe::human(dict.voice.download_bytes))),
-        );
-        let mut prefetch = std::process::Command::new(&voice_py);
-        prefetch
-            .args(["-c"])
-            .arg(format!(
-                "from huggingface_hub import snapshot_download; snapshot_download('{}')",
-                dict.voice.repo
-            ))
-            .env("HF_HOME", root.join("home").join("hf-cache"))
-            // Symlinks need Developer Mode on Windows (WinError 1314 on a
-            // stranger's machine, found the honest way). A per-install cache
-            // holds one model; duplicated plain files cost nothing.
-            .env("HF_HUB_DISABLE_SYMLINKS", "1");
-        run_logged(prefetch, "provision-voice-fetch.log").map_err(|e| {
-            send(&on_progress, ROW_VOICE, 0, 1, "failed", Some(e.clone()));
-            e
-        })?;
-        send(&on_progress, ROW_VOICE, 100, 100, "done", None);
-
+        result?;
         let _ = std::fs::remove_dir_all(&cache);
         Ok(())
     })

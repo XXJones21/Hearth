@@ -27,3 +27,8 @@ torchaudio>=2.1
 # environment is resolved against, so it lives in its own virtualenv built by
 # scripts/build_env.sh. Whether that split survives is a dependency resolve the
 # image build has to run, not an opinion to hold.
+
+# The installer fetches the voice model through this environment, in parallel
+# with the voice engine's own pip chain (two pips cannot share one env, and
+# the model download should not wait behind torch).
+huggingface_hub>=0.20
