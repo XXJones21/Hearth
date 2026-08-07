@@ -99,6 +99,19 @@ personas:
 
 ## Windows: producing `Hearth.wsl`
 
+> **SUPERSEDED 2026-08-06.** The Windows artifact is native, not a WSL image;
+> see [`native-runtime.md`](native-runtime.md) for the process model and
+> install layout, and `packaging-options.md` for why the decision moved.
+> The build-versus-install discipline above survives intact, and most steps
+> below translate directly: the pinned llama-server release asset (Windows
+> CUDA instead of Linux CUDA), the resolved Python environment (a vendored
+> `python-build-standalone` tree instead of a venv in a distro), the
+> supervisor as a release binary, the product tree copy, and the generated
+> configuration. What dies with the image: the apt set, the distro hygiene,
+> the oobe plumbing, and systemd, whose seven unit behaviors move into the
+> client's supervision layer. This section is kept as the record of the
+> investigated alternative.
+
 The artifact is a gzipped tar of a provisioned Linux root filesystem. Since WSL
 2.4.4 this is a first-class Microsoft-supported format that installs by being
 double-clicked in File Explorer.
@@ -153,14 +166,15 @@ Added 2026-08-06, after the first live install test; the full statement is in
 [`../first-run.md`](../first-run.md). The user chooses ONE folder during
 setup, `D:\Hearth` by default, and everything above that is install-time
 lands under it: the staged weights at `<root>\models`, the install record at
-`<root>\hearth-install.json`, the generated configuration, and the distro
-itself, imported with `wsl --import` so its virtual disk sits at
-`<root>\wsl` rather than in the default location on the system drive.
+`<root>\hearth-install.json`, the generated configuration, and the runtime
+itself at `<root>\runtime` with the voice environment at `<root>\envs`
+(native, per [`native-runtime.md`](native-runtime.md); the earlier draft's
+`<root>\wsl` distro import is superseded).
 
 Two consequences the installer must honor:
 
-- Uninstall is `wsl --unregister` plus deleting the folder. Any step that
-  writes product state elsewhere breaks that sentence and does not ship.
+- Uninstall is deleting the folder. Any step that writes product state
+  elsewhere breaks that sentence and does not ship.
 - The client revalidates the install record at boot and routes a missing or
   gutted install back into setup, so a half-deleted Hearth degrades into
   "install again", never into a house that dials a backend which is gone.

@@ -1,8 +1,9 @@
 ---
 title: Packaging Options
 status: draft
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-06
 related:
+  - native-runtime.md
   - component-catalog.md
   - portability-ledger.md
   - ../_index.md
@@ -128,6 +129,19 @@ PyTorch 2.12 builds CUDA 12.6.3, 13.0 and 13.2. The two-version split has to be
 resolved regardless of which route is chosen.
 
 ## The two paths, and why they are not exclusive
+
+> **DECIDED 2026-08-06: Path B, native, on both platforms, and pre-alpha does
+> NOT ship a `.wsl`.** See [`native-runtime.md`](native-runtime.md). Two facts
+> changed after this article was written. First, Path B's gate fell:
+> `omnivoice` resolves natively on Windows, torch included, so native no
+> longer waits for the voice to leave torch; torch ships isolated in its own
+> first-run environment, the ComfyUI shape this article already describes.
+> Second, the `.wsl` bridge failed its own inspection for an always-on
+> consumer product: Microsoft reserves the right to suspend the WSL VM when no
+> Windows process holds a handle, the clean-machine install chain is UAC plus
+> an optional component plus a reboot, and Docker Desktop's Windows backlog is
+> majority WSL. The analysis below stands as the record of how the decision
+> was reached; Path A remains developer-testbed knowledge only.
 
 ### Path A: the WSL image
 

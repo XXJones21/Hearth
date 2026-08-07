@@ -1,7 +1,7 @@
 ---
 title: Hearth Wiki
 status: draft
-last_reviewed: 2026-08-04
+last_reviewed: 2026-08-06
 related:
   - backend/component-catalog.md
 sources:
@@ -28,6 +28,7 @@ answers "what does a stranger install."
 | --- | --- |
 | What is the backend actually made of? | [`backend/component-catalog.md`](backend/component-catalog.md) |
 | How far is it from running on someone else's machine? | [`backend/portability-ledger.md`](backend/portability-ledger.md) |
+| How does the backend run on a user's machine? | [`backend/native-runtime.md`](backend/native-runtime.md) |
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
@@ -38,12 +39,14 @@ answers "what does a stranger install."
 Early. Six articles. Four are about the backend, because packaging is the gate
 everything else waits behind, and two describe what the person actually meets.
 
-The packaging question is answered as far as research can answer it. Containers
-are out: no runtime on Apple Silicon can reach the GPU, and on Windows the
-container GPU path runs through WSL2 anyway, so it adds a layer rather than
-removing one. The category ships native installers. The component blocking a
-native package is the voice engine, because it is the only reason torch is in
-the product at all.
+The packaging question is DECIDED as of 2026-08-06: the backend runs native
+on both platforms, no WSL, no container. Containers were ruled out first (no
+GPU on Apple Silicon, and the Windows GPU path runs through WSL2 anyway);
+the WSL image fell next, on its own steelman (the VM lifecycle conflicts
+with an always-on companion, and the consumer install and support costs are
+documented in `backend/packaging-options.md`). The voice engine no longer
+blocks native: its torch stack resolves on native Windows and ships isolated
+in its own first-run environment. See `backend/native-runtime.md`.
 
 Planned, in order:
 
