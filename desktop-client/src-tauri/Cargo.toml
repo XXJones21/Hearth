@@ -21,7 +21,7 @@ tauri-build = { version = "2.6.3", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-tauri = { version = "2.11.3", features = [] }
+tauri = { version = "2.11.3", features = ["tray-icon"] }
 tauri-plugin-log = "2"
 # Settings > On disk hands a path to the OS file browser. Any plugin needs
 # BOTH this dep and an entry in capabilities/default.json.
@@ -32,3 +32,8 @@ tauri-plugin-dialog = "2"
 # The hardware scan, the model dictionary and the download. Same crate the CLI
 # and the installation skill use, so all three give identical answers.
 hearth-probe = { path = "../../crates/hearth-probe" }
+
+# The house's Job Object: kill-on-close reaping for the supervised backend
+# tree, the closest Windows gets to systemd's cgroup guarantee.
+[target.'cfg(windows)'.dependencies]
+win32job = "2"

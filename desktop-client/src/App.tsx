@@ -11,7 +11,8 @@ import { SettingsView } from './components/settings/SettingsView';
 import { useHearthWebSocket } from './hooks/useHearthWebSocket';
 import { ttsPlayer } from './lib/audioPlayer';
 import { applyPersonaTheme } from './lib/personaTheme';
-import { hasProbe, installState } from './lib/probe';
+import { houseStart } from './lib/house';
+import { hasProbe, installRoot, installState } from './lib/probe';
 import { applyDocumentSettings, loadSettings, saveSettings } from './lib/settings';
 import { useAppStore } from './store/appStore';
 
@@ -33,16 +34,24 @@ export default function App() {
 
   /* The settings flag is only a cache. The truth is the install record on
      disk, so boot revalidates: a deleted or gutted install folder routes back
-     into setup, which is what makes deleting the folder a real uninstall. */
+     into setup, which is what makes deleting the folder a real uninstall.
+     A validated install starts the house: the supervised backend tree is the
+     client's to run now, and the socket that dials 18700 finds something
+     because we put it there. */
   useEffect(() => {
     const s = loadSettings();
     if (!s.setupComplete || !hasProbe()) return;
     installState(s.installRoot || undefined)
-      .then((state) => {
+      .then(async (state) => {
         if (!state.ok) {
           saveSettings({ setupComplete: false });
           setShowSetup(true);
+          return;
         }
+        const root = s.installRoot || (await installRoot());
+        houseStart(root).catch((e) => {
+          console.error('house did not start:', e);
+        });
       })
       .catch(() => {
         /* the probe failing is not evidence the install is gone */
@@ -96,8 +105,16 @@ export default function App() {
               /* Only a completed install marks setup complete. Closing out of
                  a blocked or unfinished setup must not: the flag is the only
                  thing standing between a fresh install and adopting whatever
-                 backend is already listening on this machine. */
-              if (installed) saveSettings({ setupComplete: true });
+                 backend is already listening on this machine. A completed one
+                 starts the house on the way in. */
+              if (installed) {
+                const s = saveSettings({ setupComplete: true });
+                if (s.installRoot) {
+                  houseStart(s.installRoot).catch((e) => {
+                    console.error('house did not start:', e);
+                  });
+                }
+              }
               setShowSetup(false);
             }}
           />
