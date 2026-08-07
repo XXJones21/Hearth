@@ -1,0 +1,56 @@
+{
+  "_comment": "The template create_persona expands. Six authored fields arrive from the interview (name, description, system_prompt, temperament, voice design, colour); everything else is this file, the colour ramp, and the install's environment. Structure mirrors Sulivan's manifest, the reference resident.",
+  "name": "",
+  "version": "1.0",
+  "description": "",
+  "classification": "resident",
+  "temperament": "",
+  "visualization": {
+    "type": "sphere_particle",
+    "layout_preset": "sulivan_dashed_aurora",
+    "position": { "x": 0, "y": 0, "z": 0 },
+    "scale": { "x": 1, "y": 1, "z": 1 },
+    "sphere": { "radius": 0.18, "color": null, "metallic": 0.08, "roughness": 0.78 },
+    "particle_system": {
+      "enabled": true,
+      "count": 96,
+      "particle_radius": 0.012,
+      "max_distance": 0.72,
+      "color": null
+    },
+    "state_colors": null
+  },
+  "voice": {
+    "reference_audio": null,
+    "voice_description": ""
+  },
+  "tool_loop": {
+    "reasoning": true,
+    "max_rounds": 4
+  },
+  "tool_grants": {
+    "_comment": "Resident defaults. No dev, no briefs; those are the operator's own surfaces.",
+    "domains": ["weather", "timers", "search", "news", "memory", "media"],
+    "allow": [],
+    "deny": []
+  },
+  "deep_model": {
+    "_comment": "Named, never pathed. The id and context come from the install's environment at creation time, so a persona made on this machine runs what this machine downloaded.",
+    "id": null,
+    "n_ctx": null,
+    "architecture": "gemma",
+    "n_gpu_layers": -1,
+    "temperature": 0.7,
+    "top_k": 64,
+    "top_p": 0.95,
+    "repeat_penalty": 1.0,
+    "max_tokens": 1024
+  },
+  "system_prompt": "",
+  "chat_templates": {
+    "gemma": "<start_of_turn>user\n{system_prompt}\n{prompt}<end_of_turn>\n<start_of_turn>model\n"
+  },
+  "stop_tokens": {
+    "gemma": ["<end_of_turn>"]
+  }
+}
