@@ -23,6 +23,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.3", features = ["tray-icon"] }
 tauri-plugin-log = "2"
+# A second launch focuses the running window instead of spawning a second
+# house. Three simultaneous instances fighting over one port block is how a
+# delete-the-folder uninstall test turned into a mystery.
+tauri-plugin-single-instance = "2"
 # Settings > On disk hands a path to the OS file browser. Any plugin needs
 # BOTH this dep and an entry in capabilities/default.json.
 tauri-plugin-opener = "2"
