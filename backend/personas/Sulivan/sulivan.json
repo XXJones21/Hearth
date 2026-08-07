@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A highly capable AI butler with understated wit",
   "classification": "abstract",
+  "shipped": true,
   "visualization": {
     "type": "sphere_particle",
     "layout_preset": "sulivan_dashed_aurora",
