@@ -53,6 +53,66 @@ fn unzip(archive: &Path, dest: &Path) -> Result<(), String> {
         .map_err(|e| format!("unpack {}: {}", archive.display(), e))
 }
 
+/// Unpack an engine archive by extension: the Windows releases are zips with
+/// flat contents, the macOS release a tar.gz with a versioned top directory
+/// that gets stripped so the binary lands at `dest` directly.
+fn unpack_engine(archive: &Path, dest: &Path) -> Result<(), String> {
+    let name = archive.to_string_lossy().to_lowercase();
+    if name.ends_with(".zip") {
+        return unzip(archive, dest);
+    }
+    let staging = dest.with_extension("unpack");
+    untar_gz(archive, &staging)?;
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    // One top directory: adopt its contents. Anything else: adopt as-is.
+    let entries: Vec<_> = std::fs::read_dir(&staging)
+        .map_err(|e| e.to_string())?
+        .filter_map(|e| e.ok())
+        .collect();
+    let source = if entries.len() == 1 && entries[0].path().is_dir() {
+        entries[0].path()
+    } else {
+        staging.clone()
+    };
+    for entry in std::fs::read_dir(&source).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let to = dest.join(entry.file_name());
+        if to.exists() {
+            let _ = if to.is_dir() {
+                std::fs::remove_dir_all(&to)
+            } else {
+                std::fs::remove_file(&to)
+            };
+        }
+        std::fs::rename(entry.path(), &to).map_err(|e| e.to_string())?;
+    }
+    let _ = std::fs::remove_dir_all(&staging);
+    Ok(())
+}
+
+/// The interpreter inside a python-build-standalone tree, per platform.
+fn python_in(dir: &Path) -> PathBuf {
+    if cfg!(windows) {
+        dir.join("python.exe")
+    } else {
+        dir.join("bin").join("python3")
+    }
+}
+
+/// The interpreter inside a venv, per platform.
+fn venv_python(env_dir: &Path) -> PathBuf {
+    if cfg!(windows) {
+        env_dir.join("Scripts").join("python.exe")
+    } else {
+        env_dir.join("bin").join("python")
+    }
+}
+
+/// The supervisor's file name, matching what pack_backend.sh emits.
+fn supervisor_name() -> &'static str {
+    if cfg!(windows) { "hearth-supervisor.exe" } else { "hearth-supervisor" }
+}
+
 /// Fetch one artifact, reporting CUMULATIVE bytes for its row: `base` is what
 /// earlier artifacts in the same row already downloaded, `row_total` the
 /// row's whole size, so a two-archive row never makes the bar step backward.
@@ -137,7 +197,7 @@ pub async fn provision(
         .map_err(|e| e.to_string())?;
     let supervisor_src = app
         .path()
-        .resolve("resources/hearth-supervisor.exe", tauri::path::BaseDirectory::Resource)
+        .resolve(format!("resources/{}", supervisor_name()), tauri::path::BaseDirectory::Resource)
         .map_err(|e| e.to_string())?;
     let dict = Dictionary::embedded().map_err(|e| e.to_string())?;
 
@@ -161,7 +221,7 @@ pub async fn provision(
                     send(&ch, ROW_BACKEND, 0, 1, "failed", Some(e.clone()));
                     e
                 })?;
-                std::fs::copy(&a_sup, a_runtime.join("hearth-supervisor.exe"))
+                std::fs::copy(&a_sup, a_runtime.join(supervisor_name()))
                     .map_err(|e| e.to_string())?;
                 send(&ch, ROW_BACKEND, 1, 1, "done", None);
                 Ok(())
@@ -201,7 +261,7 @@ pub async fn provision(
                         })?;
                     done += a.bytes;
                     send(&ch, ROW_ENGINE, done, total, "verifying", None);
-                    unzip(&archive, &llama_dir).map_err(|e| {
+                    unpack_engine(&archive, &llama_dir).map_err(|e| {
                         send(&ch, ROW_ENGINE, done, total, "failed", Some(e.clone()));
                         e
                     })?;
@@ -269,7 +329,7 @@ pub async fn provision(
             let t_pip_fetch = s.spawn(move || -> Result<(), String> {
                 send(&ch, ROW_PYTHON, 85, 100, "downloading", Some("installing packages".into()));
                 let requirements = c_runtime.join("backend").join("harness").join("requirements.txt");
-                let mut pip = std::process::Command::new(c_py.join("python.exe"));
+                let mut pip = std::process::Command::new(python_in(&c_py));
                 pip.args(["-m", "pip", "install", "--no-warn-script-location", "-r"])
                     .arg(&requirements);
                 run_logged(pip, &c_logs, "provision-pip.log").map_err(|e| {
@@ -286,7 +346,7 @@ pub async fn provision(
                     "downloading",
                     Some(format!("downloading ({})", hearth_probe::human(c_voice_bytes))),
                 );
-                let mut prefetch = std::process::Command::new(c_py.join("python.exe"));
+                let mut prefetch = std::process::Command::new(python_in(&c_py));
                 prefetch
                     .args(["-c"])
                     .arg(format!(
@@ -312,13 +372,9 @@ pub async fn provision(
             let d_env = dict.runtime.voice_env.clone();
             let d_accel = accel.clone();
             let t_voice = s.spawn(move || -> Result<(), String> {
-                let voice_py = d_root
-                    .join("envs")
-                    .join("voice")
-                    .join("Scripts")
-                    .join("python.exe");
+                let voice_py = venv_python(&d_root.join("envs").join("voice"));
                 send(&ch, ROW_VOICE, 10, 100, "downloading", Some("creating environment".into()));
-                let mut mkenv = std::process::Command::new(d_py.join("python.exe"));
+                let mut mkenv = std::process::Command::new(python_in(&d_py));
                 mkenv.args(["-m", "venv"]).arg(d_root.join("envs").join("voice"));
                 run_logged(mkenv, &d_logs, "provision-voice-pip.log").map_err(|e| {
                     send(&ch, ROW_VOICE, 10, 100, "failed", Some(e.clone()));

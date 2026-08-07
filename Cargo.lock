@@ -120,6 +120,7 @@ version = "0.1.0"
 dependencies = [
  "flate2",
  "hearth-probe",
+ "libc",
  "log",
  "serde",
  "serde_json",

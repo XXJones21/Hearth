@@ -177,8 +177,17 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
 
     // The voice service is optional by design: the house runs text-only
     // without it, and an install that skipped or failed the voice row still
-    // gets a working Hearth. Present and provisioned means supervised.
-    if let Some(voice_py) = file.get("HEARTH_VOICE_PYTHON") {
+    // gets a working Hearth. Present and provisioned means supervised, with
+    // one honest exception: on a machine whose plan said the mind and the
+    // voice cannot both stay resident (HEARTH_COEXIST=0, the 8 GB Air), the
+    // voice does not boot resident. The take-turns orchestration the small-
+    // machine screen promises is designed and not yet built; text-first is
+    // the truthful interim, not a silent overcommit that swaps the machine
+    // to a crawl.
+    let coexist = file.get("HEARTH_COEXIST").map(|v| v != "0").unwrap_or(true);
+    if !coexist {
+        // fall through with no voice spec
+    } else if let Some(voice_py) = file.get("HEARTH_VOICE_PYTHON") {
         let voice_py = PathBuf::from(voice_py);
         if voice_py.is_file() {
             specs.push(Spec {
@@ -212,7 +221,27 @@ fn spawn(spec: &Spec, logs_dir: &Path) -> std::io::Result<Child> {
         .stdin(Stdio::null());
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
+    // Each supervised process leads its own process group, so stopping it
+    // can take its children too (llama-server under the supervisor). The
+    // unix counterpart of the Windows Job Object, weaker but sufficient.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
     cmd.spawn()
+}
+
+/// Kill a supervised process and, on unix, its whole process group.
+fn kill_managed(managed: &mut Managed) {
+    #[cfg(unix)]
+    unsafe {
+        let pgid = managed.child.id() as i32;
+        libc::killpg(pgid, libc::SIGTERM);
+        std::thread::sleep(Duration::from_millis(300));
+        libc::killpg(pgid, libc::SIGKILL);
+    }
+    let _ = managed.child.kill();
 }
 
 fn port_answers(port: u16) -> bool {
@@ -396,7 +425,7 @@ pub fn stop(state: &HouseState) {
         house.stopping.store(true, Ordering::SeqCst);
         let mut children = house.children.lock().unwrap();
         for managed in children.iter_mut() {
-            let _ = managed.child.kill();
+            kill_managed(managed);
         }
         children.clear();
         // The Job Object handle drops here; KILL_ON_JOB_CLOSE reaps anything

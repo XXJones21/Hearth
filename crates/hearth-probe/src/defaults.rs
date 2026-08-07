@@ -27,15 +27,34 @@ pub const PORT_TTS: u16 = 18702;
 pub const FIRST_PERSONA: &str = "Sulivan";
 
 /// Layout under the install root, relative paths the renderer writes as
-/// absolute. One folder; deleting it is the uninstall.
+/// absolute. One folder; deleting it is the uninstall. Interpreter and
+/// binary locations differ per platform (venvs put python under Scripts on
+/// Windows and bin elsewhere; nothing ends in .exe on macOS), so those are
+/// functions of the OS this build runs on.
 pub const REL_MODELS: &str = "models";
 pub const REL_BACKEND: &str = "runtime/backend";
-pub const REL_PYTHON: &str = "runtime/python/python.exe";
-pub const REL_SUPERVISOR: &str = "runtime/hearth-supervisor.exe";
-pub const REL_LLAMA_SERVER: &str = "runtime/llama-server/llama-server.exe";
 pub const REL_HOME: &str = "home";
 pub const REL_ENGRAM: &str = "home/engram";
 pub const REL_HF_CACHE: &str = "home/hf-cache";
-pub const REL_VOICE_PYTHON: &str = "envs/voice/Scripts/python.exe";
 pub const REL_LOGS: &str = "logs";
 pub const REL_CONFIG: &str = "config/hearth.env";
+
+pub fn rel_python() -> &'static str {
+    if cfg!(windows) { "runtime/python/python.exe" } else { "runtime/python/bin/python3" }
+}
+
+pub fn rel_supervisor() -> &'static str {
+    if cfg!(windows) { "runtime/hearth-supervisor.exe" } else { "runtime/hearth-supervisor" }
+}
+
+pub fn rel_llama_server() -> &'static str {
+    if cfg!(windows) {
+        "runtime/llama-server/llama-server.exe"
+    } else {
+        "runtime/llama-server/llama-server"
+    }
+}
+
+pub fn rel_voice_python() -> &'static str {
+    if cfg!(windows) { "envs/voice/Scripts/python.exe" } else { "envs/voice/bin/python" }
+}

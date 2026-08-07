@@ -257,7 +257,9 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         />
       )}
 
-      {step === 'voice-test' && <VoiceTest onHeard={() => onExit(true)} />}
+      {step === 'voice-test' && (
+        <VoiceTest onHeard={() => onExit(true)} voiceResident={plan?.coexist ?? true} />
+      )}
       </div>
     </div>
   );

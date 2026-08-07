@@ -30,7 +30,7 @@
     "targets": "all",
     "resources": [
       "resources/backend.tar.gz",
-      "resources/hearth-supervisor.exe"
+      "resources/hearth-supervisor*"
     ],
     "icon": [
       "icons/32x32.png",

@@ -227,6 +227,11 @@ pub fn default_install_root() -> PathBuf {
         }
     }
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        // Visible on macOS, because deleting the folder is the uninstall and
+        // a dotdir hides the thing a person owns. A dotdir elsewhere.
+        if std::env::consts::OS == "macos" {
+            return PathBuf::from(home).join("Hearth");
+        }
         return PathBuf::from(home).join(".hearth");
     }
     PathBuf::from(".hearth")

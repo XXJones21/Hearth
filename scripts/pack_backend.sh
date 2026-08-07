@@ -15,7 +15,13 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 OUT="$REPO/desktop-client/src-tauri/resources"
-SUP="$REPO/backend/supervisor/target/release/hearth-supervisor.exe"
+# Per platform: the supervisor built on this machine is the one that ships
+# from it. Windows bundles the .exe, macOS the bare binary.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) SUP_NAME="hearth-supervisor.exe" ;;
+  *) SUP_NAME="hearth-supervisor" ;;
+esac
+SUP="$REPO/backend/supervisor/target/release/$SUP_NAME"
 
 [ -f "$SUP" ] || { echo "build the supervisor first: cargo build --release in backend/supervisor" >&2; exit 1; }
 
@@ -34,7 +40,7 @@ find "$STAGE" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$STAGE/backend/harness/sessions" 2>/dev/null || true
 
 tar -C "$STAGE/backend" -czf "$OUT/backend.tar.gz" .
-cp "$SUP" "$OUT/hearth-supervisor.exe"
+cp "$SUP" "$OUT/$SUP_NAME"
 
 echo "packed:"
 ls -la "$OUT"

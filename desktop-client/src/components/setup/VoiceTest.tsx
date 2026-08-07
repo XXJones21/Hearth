@@ -20,7 +20,18 @@ const GREETING_QUERY =
   'Introduce yourself in two or three short sentences, and mention that if ' +
   'I can hear your voice, everything is working.';
 
-export function VoiceTest({ onHeard }: { onHeard: () => void }) {
+/* `voiceResident` is the plan's coexist flag. On a machine that cannot hold
+   the mind and the voice together (the 8 GB Air), the voice is provisioned
+   but does not boot resident, so this screen becomes a written first meeting:
+   same greeting through the real mind, honestly no audio expected, one
+   button. The take-turns voice is designed and not yet built. */
+export function VoiceTest({
+  onHeard,
+  voiceResident = true,
+}: {
+  onHeard: () => void;
+  voiceResident?: boolean;
+}) {
   const [phase, setPhase] = useState<Phase>('waking');
   const [reply, setReply] = useState('');
   const [hint, setHint] = useState('');
@@ -79,7 +90,13 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
            state while the voice finishes its first warm (about a minute on
            first install), and only a ready voice gets the greeting. The cap
            is a backstop: past it we try anyway rather than sit forever,
-           since the engine also lazy-loads on first request. */
+           since the engine also lazy-loads on first request. On a machine
+           whose plan keeps the voice non-resident there is nothing to wait
+           for: the greeting arrives in writing. */
+        if (!voiceResident) {
+          window.setTimeout(() => speak(), 800);
+          return;
+        }
         setPhase('warming');
         const startedAt = Date.now();
         const waitForVoice = async () => {
@@ -120,7 +137,7 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
             setReply(msg.text);
           } else if (msg.action === 'speaking_complete') {
             setPhase('spoke');
-            if (framesRef.current === 0) {
+            if (voiceResident && framesRef.current === 0) {
               setHint(
                 'No audio arrived. The voice may still be warming after its first ' +
                   'install; give it a moment and ask him to say it again.',
@@ -147,14 +164,15 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
       wsRef.current?.close();
       ttsPlayer.reset();
     };
-  }, [speak]);
+  }, [speak, voiceResident]);
 
   return (
     <div className="mt-4 flex flex-col items-center">
       <h1 className="text-[26px] font-bold tracking-tight">Meet Sulivan.</h1>
       <p className="mt-2 max-w-[52ch] text-center text-[15px] leading-relaxed text-fawn">
-        Your guide to Hearth. He lives here now, and this is the first thing he
-        will ever say to you.
+        {voiceResident
+          ? 'Your guide to Hearth. He lives here now, and this is the first thing he will ever say to you.'
+          : 'Your guide to Hearth. He lives here now. On this machine his mind and his voice take turns, so today he writes; speaking comes in an update.'}
       </p>
 
       <div className="mt-6 w-full max-w-[520px] rounded-2xl border border-linen bg-fluff p-5 text-left shadow-soft">
@@ -178,31 +196,43 @@ export function VoiceTest({ onHeard }: { onHeard: () => void }) {
       )}
 
       <div className="mt-7 flex items-center justify-center gap-3 pb-4">
-        <button
-          onClick={() =>
-            setHint(
-              'Check the output device and volume, then ask him to say it again. ' +
-                'If it stays silent, the voice log lives in the logs folder of your install.',
-            )
-          }
-          className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn"
-        >
-          I didn't hear anything
-        </button>
-        <button
-          onClick={speak}
-          disabled={phase === 'waking' || phase === 'warming' || phase === 'asking'}
-          className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn disabled:opacity-50"
-        >
-          Say it again
-        </button>
-        <button
-          onClick={onHeard}
-          disabled={phase === 'waking' || phase === 'warming'}
-          className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream disabled:opacity-50"
-        >
-          I heard him
-        </button>
+        {voiceResident ? (
+          <>
+            <button
+              onClick={() =>
+                setHint(
+                  'Check the output device and volume, then ask him to say it again. ' +
+                    'If it stays silent, the voice log lives in the logs folder of your install.',
+                )
+              }
+              className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn"
+            >
+              I didn't hear anything
+            </button>
+            <button
+              onClick={speak}
+              disabled={phase === 'waking' || phase === 'warming' || phase === 'asking'}
+              className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn disabled:opacity-50"
+            >
+              Say it again
+            </button>
+            <button
+              onClick={onHeard}
+              disabled={phase === 'waking' || phase === 'warming'}
+              className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream disabled:opacity-50"
+            >
+              I heard him
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={onHeard}
+            disabled={phase === 'waking' || phase === 'asking'}
+            className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream disabled:opacity-50"
+          >
+            Meet the house
+          </button>
+        )}
       </div>
     </div>
   );

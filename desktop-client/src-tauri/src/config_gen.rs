@@ -56,10 +56,10 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line(String::new());
     line("# Where things are".into());
     line(format!("HEARTH_BACKEND_DIR={}", slash(&root.join(d::REL_BACKEND))));
-    line(format!("HEARTH_PYTHON={}", slash(&root.join(d::REL_PYTHON))));
-    line(format!("HEARTH_VOICE_PYTHON={}", slash(&root.join(d::REL_VOICE_PYTHON))));
-    line(format!("HEARTH_SUPERVISOR_BIN={}", slash(&root.join(d::REL_SUPERVISOR))));
-    line(format!("HEARTH_LLAMA_SERVER_BIN={}", slash(&root.join(d::REL_LLAMA_SERVER))));
+    line(format!("HEARTH_PYTHON={}", slash(&root.join(d::rel_python()))));
+    line(format!("HEARTH_VOICE_PYTHON={}", slash(&root.join(d::rel_voice_python()))));
+    line(format!("HEARTH_SUPERVISOR_BIN={}", slash(&root.join(d::rel_supervisor()))));
+    line(format!("HEARTH_LLAMA_SERVER_BIN={}", slash(&root.join(d::rel_llama_server()))));
     line(format!("HEARTH_HOME={}", slash(&root.join(d::REL_HOME))));
     line(format!("HEARTH_ENGRAM={}", slash(&root.join(d::REL_ENGRAM))));
     line(format!("HF_HOME={}", slash(&root.join(d::REL_HF_CACHE))));
