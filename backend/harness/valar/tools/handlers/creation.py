@@ -18,7 +18,8 @@ import json
 import logging
 import os
 import re
-import urllib.request
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -134,29 +135,102 @@ def _ramp(hex_colour: str) -> dict:
     }
 
 
-def _design_voice(text: str, attributes: list[str]) -> bytes | None:
-    """Ask the voice service to design the reference clip. None means the
-    service is unavailable or failed; the persona is still created and the
-    design is recorded for a later pass."""
-    url = os.environ.get("HEARTH_TTS_SERVICE_URL", "ws://127.0.0.1:18702/tts")
-    base = url.replace("ws://", "http://").replace("wss://", "https://")
-    if base.endswith("/tts"):
-        base = base[: -len("/tts")]
-    req = urllib.request.Request(
-        f"{base}/design",
-        data=json.dumps({"text": text, "attributes": attributes}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
+def _design_binary() -> Path | None:
+    """The voice-design CLI, installed beside the streaming engine.
+
+    HEARTH_OMNIVOICE_TTS overrides for a dev tree; otherwise it sits at
+    <root>/runtime/omnivoice-tts, which is where provision.rs puts it.
+    """
+    override = (os.environ.get("HEARTH_OMNIVOICE_TTS") or "").strip()
+    if override:
+        p = Path(override).expanduser()
+        return p if p.is_file() else None
+    name = "omnivoice-tts.exe" if os.name == "nt" else "omnivoice-tts"
     try:
-        # Voice design is a full synthesis pass; a cold engine adds a load.
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            if resp.status == 200:
-                return resp.read()
-            logger.warning("voice design HTTP %s", resp.status)
-    except Exception as exc:  # noqa: BLE001 - unavailable is a normal state
-        logger.info("voice design unavailable: %s", exc)
-    return None
+        p = hearth_root() / "runtime" / name
+    except Exception:  # noqa: BLE001 - an unlocatable tree is just "no design"
+        return None
+    return p if p.is_file() else None
+
+
+def _voice_models() -> tuple[Path, Path] | None:
+    """The GGUF pair the engine runs on, the same two tts-server is given."""
+    base = (os.environ.get("HEARTH_TTS_MODEL") or "").strip()
+    codec = (os.environ.get("HEARTH_TTS_CODEC") or "").strip()
+    if base and codec:
+        b, c = Path(base).expanduser(), Path(codec).expanduser()
+        return (b, c) if b.is_file() and c.is_file() else None
+    try:
+        voice_dir = hearth_root() / "models" / "voice"
+    except Exception:  # noqa: BLE001
+        return None
+    bases = sorted(voice_dir.glob("omnivoice-base-*.gguf"))
+    codecs = sorted(voice_dir.glob("omnivoice-tokenizer-*.gguf"))
+    if not bases or not codecs:
+        return None
+    return bases[0], codecs[0]
+
+
+def _design_voice(text: str, attributes: list[str]) -> bytes | None:
+    """Design the persona's reference clip from instruct attributes.
+
+    Design once, clone always: this runs exactly ONCE per persona, and what it
+    returns becomes the reference every later sentence is cloned from. So the
+    runtime never depends on design support and this can afford to be a
+    subprocess.
+
+    It IS a subprocess, and that is the correction. The old implementation
+    POSTed to the voice service's /design, which only the torch engine
+    implements; on omnivoice.cpp it raised AttributeError and returned a 500,
+    and the persona was created voiceless -- then spoke in whoever's voice the
+    streamer happened to hold. tts-server cannot help either: its
+    /v1/audio/speech validates `voice` against the names loaded at ITS startup,
+    so instruct attributes have no way through. The engine could do it the whole
+    time; only the CLI reaches that path.
+
+    Returns WAV bytes, or None when design is unavailable -- which stays a
+    normal state rather than an error, because a house with no voice engine
+    still makes personas.
+    """
+    binary = _design_binary()
+    models = _voice_models()
+    if not binary or not models:
+        logger.info(
+            "voice design unavailable: binary=%s models=%s",
+            bool(binary), bool(models),
+        )
+        return None
+    base, codec = models
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "design.wav"
+        cmd = [
+            str(binary),
+            "--model", str(base),
+            "--codec", str(codec),
+            "--instruct", ", ".join(attributes),
+            "-o", str(out),
+        ]
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=text.encode("utf-8"),   # the CLI takes target text on stdin
+                capture_output=True,
+                timeout=300,                  # a cold model load plus a full pass
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.warning("voice design failed to run: %s", exc)
+            return None
+        if proc.returncode != 0 or not out.is_file():
+            tail = (proc.stderr or b"").decode("utf-8", "replace").strip().splitlines()
+            logger.warning(
+                "voice design exited %s: %s",
+                proc.returncode, tail[-1] if tail else "(no output)",
+            )
+            return None
+        data = out.read_bytes()
+    logger.info("voice design produced %d bytes for '%s'", len(data), ", ".join(attributes))
+    return data
 
 
 def create_persona(

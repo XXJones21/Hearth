@@ -120,6 +120,18 @@ fn tts_server_name() -> &'static str {
     if cfg!(windows) { "tts-server.exe" } else { "tts-server" }
 }
 
+/// The voice DESIGN tool, from the same build as tts-server.
+///
+/// A second binary rather than a second endpoint, because design is a one-time
+/// cost per persona: it runs once at creation, its output becomes the
+/// reference clip, and every later sentence is ordinary cloning through the
+/// streaming server. tts-server cannot do it -- /v1/audio/speech validates
+/// `voice` against the names loaded at startup -- so the CLI is the only way
+/// to reach the engine's instruct path.
+fn omnivoice_tts_name() -> &'static str {
+    if cfg!(windows) { "omnivoice-tts.exe" } else { "omnivoice-tts" }
+}
+
 /// Fetch one artifact, reporting CUMULATIVE bytes for its row: `base` is what
 /// earlier artifacts in the same row already downloaded, `row_total` the
 /// row's whole size, so a two-archive row never makes the bar step backward.
@@ -213,6 +225,11 @@ pub async fn provision(
         .resolve(format!("resources/{}", tts_server_name()), tauri::path::BaseDirectory::Resource)
         .ok()
         .filter(|p| p.is_file());
+    let design_src = app
+        .path()
+        .resolve(format!("resources/{}", omnivoice_tts_name()), tauri::path::BaseDirectory::Resource)
+        .ok()
+        .filter(|p| p.is_file());
     let dict = Dictionary::embedded().map_err(|e| e.to_string())?;
     // Which voice engine this platform runs, and therefore whether the voice
     // is a pair of named GGUF files or a Hugging Face snapshot plus a torch
@@ -234,6 +251,7 @@ pub async fn provision(
             let a_tgz = backend_tgz.clone();
             let a_sup = supervisor_src.clone();
             let a_tts = tts_server_src.clone();
+            let a_design = design_src.clone();
             let t_backend = s.spawn(move || -> Result<(), String> {
                 send(&ch, ROW_BACKEND, 0, 1, "downloading", Some("unpacking".into()));
                 untar_gz(&a_tgz, &a_runtime.join("backend")).map_err(|e| {
@@ -242,8 +260,12 @@ pub async fn provision(
                 })?;
                 std::fs::copy(&a_sup, a_runtime.join(supervisor_name()))
                     .map_err(|e| e.to_string())?;
-                if let Some(src) = &a_tts {
-                    let dst = a_runtime.join(tts_server_name());
+                for (src, name) in [
+                    (&a_tts, tts_server_name()),
+                    (&a_design, omnivoice_tts_name()),
+                ] {
+                    let Some(src) = src else { continue };
+                    let dst = a_runtime.join(name);
                     std::fs::copy(src, &dst).map_err(|e| e.to_string())?;
                     // Tauri's resource copy does not carry the execute bit.
                     #[cfg(unix)]

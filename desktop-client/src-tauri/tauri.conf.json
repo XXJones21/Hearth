@@ -30,7 +30,9 @@
     "targets": "all",
     "resources": [
       "resources/backend.tar.gz",
-      "resources/hearth-supervisor*"
+      "resources/hearth-supervisor*",
+      "resources/tts-server*",
+      "resources/omnivoice-tts*"
     ],
     "icon": [
       "icons/32x32.png",
