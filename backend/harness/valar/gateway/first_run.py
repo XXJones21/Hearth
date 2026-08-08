@@ -73,7 +73,14 @@ def _all_personas_shipped(persona_dir: Path) -> bool:
 def active(persona_dir: Path) -> bool:
     """Whether the house is factory-fresh. Cached briefly: the scan is cheap
     but runs per turn, and three seconds of staleness cannot matter when the
-    only transition is create_persona, whose own turn ends first."""
+    only transition is create_persona, whose own turn ends first.
+
+    HEARTH_FORCE_FIRST_RUN=1 (debug, hearth.env) overrides the detection so
+    the interview can be exercised on a lived-in install without a clean
+    reinstall. While it is set the WHOLE house is in interview mode; set it
+    back to 0 when done. Pairs with the client's setup stage buttons."""
+    if os.environ.get("HEARTH_FORCE_FIRST_RUN", "").strip() in ("1", "true", "yes"):
+        return True
     now = time.monotonic()
     if now - _cache["at"] < _CACHE_TTL_S:
         return _cache["active"]
