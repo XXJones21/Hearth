@@ -12,9 +12,26 @@ desktop-client/node_modules/
 .env
 .env.local
 
-# Model weights and anything downloaded at install time.
-models/
+# Model weights and anything downloaded at install time. ANCHORED, and it has to
+# stay that way: an unanchored `models/` matches at every depth, and because
+# macOS sets core.ignorecase=true it matches `Models/` too -- which is a Swift
+# source directory in apple-client. The bare pattern silently swallowed the
+# entire wire-type layer: builds pass on the machine that wrote them and every
+# clone fails to compile. Weights live under HEARTH_ROOT, which is backend/ in a
+# checkout, so that is where the rule points.
+/backend/models/
 *.gguf
+
+# Xcode. Nothing in this repository needed these until apple-client existed.
+# Note what is NOT here: Package.resolved. The pinned revisions are the ones
+# that build, and for a zero-dependency project it is a short file that usefully
+# documents the absence.
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+DerivedData/
+.swiftpm/
+apple-client/**/Config/Local.xcconfig
 
 # Python
 __pycache__/
