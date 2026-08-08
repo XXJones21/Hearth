@@ -134,9 +134,26 @@ def create_tts_app(
 
                 t_req = _time.monotonic()
                 # Ensure the requested persona voice is encoded (cached server-side).
+                #
+                # A persona with NO reference clip used to skip this entirely,
+                # which is how a newly made persona spoke in Sulivan's voice on
+                # 2026-08-08: sync was never called, the streamer kept the last
+                # voice it resolved, and every sentence went out under that
+                # name. tts_cpp's own docstring had already called it -- "a
+                # persona silently speaking in the default voice is worse than
+                # an error, nothing downstream can tell it happened" -- and the
+                # guard that says so lives INSIDE the call being skipped.
+                #
+                # So the no-clip case is now explicit: clear the voice and let
+                # the engine refuse. Better a turn that fails loudly than a
+                # house that quietly puts words in the wrong mouth.
                 if ref_audio:
                     await loop.run_in_executor(
                         None, tts.sync_persona_voice, Path(ref_audio), ref_text
+                    )
+                else:
+                    await loop.run_in_executor(
+                        None, tts.sync_persona_voice, None, None
                     )
                 t_sync = _time.monotonic()
                 try:

@@ -136,6 +136,10 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
             "HEARTH_TTS_VOICE_MODELS={}",
             slash(&root.join(d::REL_VOICE_MODELS))
         ));
+        line(format!(
+            "HEARTH_OMNIVOICE_TTS={}",
+            slash(&root.join(d::rel_omnivoice_tts()))
+        ));
         line(format!("HEARTH_TTS_STEPS={}", dict.voice.steps));
     } else {
         line("HEARTH_TTS_SERVICE=omnivoice".into());

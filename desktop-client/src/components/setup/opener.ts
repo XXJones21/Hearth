@@ -51,3 +51,10 @@ export function freshOpener(): PrefetchedOpener {
    identical) and answers with fixed product copy and the fixed first
    card, no model turn at all. */
 export const INTERVIEW_KICKOFF = '(Open the interview.)';
+
+/* Beat three's kickoff, sent by the second-brain screen when it opens.
+   Matched exactly by the server (first_run.BRAIN_KICKOFF, keep the two
+   identical). Unlike the interview's, this one does reach the model: the
+   beat is improvised in the new persona's own voice, with a direction and
+   two tools, rather than scripted product copy. */
+export const BRAIN_KICKOFF = '(Open the second brain.)';

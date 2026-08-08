@@ -23,6 +23,7 @@ from typing import Awaitable, Callable
 
 from ..brain import BrainProvider, BrainStreamResult, ChatMessage, ChatOptions
 from ..config import ValarConfig
+from ..config.settings import hearth_engram
 from ..memory import EngramMemory
 from ..persona import Persona
 from ..telemetry import Timer, TurnTelemetry
@@ -115,6 +116,11 @@ class VoiceLoop:
         self.tts = tts
         self.personas = personas
         self.assembler = ContextAssembler(config.context)
+        # Beat three, opened by the client's sentinel and closed by the first
+        # project existing. See first_run.BRAIN_KICKOFF for why this is a flag
+        # plus a disk check rather than derived state alone: derived alone
+        # re-triggers for anyone who later deletes their last project.
+        self._brain_beat = False
         # The House Ledger (SCX v2): day-first decision records. The gateway
         # is the single writer; persona_dir.parent is the repo root.
         from ..ledger import Ledger
@@ -171,6 +177,11 @@ class VoiceLoop:
                 return
             if not first_run.is_voice_check(user_text):
                 impl = self._structured_interview_turn
+        elif first_run.is_brain_kickoff(user_text):
+            # Beat three opens. First run is already over by construction --
+            # the new resident ended it -- so this is the normal path with a
+            # direction and two tools, held open until a project exists.
+            self._brain_beat = True
 
         telemetry = TurnTelemetry(
             session_id=session.session_id,
@@ -252,6 +263,8 @@ class VoiceLoop:
         system_prompt = persona.system_prompt
         if first_run.active(self.config.persona_dir):
             system_prompt = system_prompt + "\n\n" + first_run.GREETING_DIRECTION
+        elif self._in_brain_beat():
+            system_prompt = system_prompt + "\n\n" + first_run.BRAIN_DIRECTION
 
         messages = self.assembler.build(
             system_prompt=system_prompt,
@@ -651,9 +664,33 @@ class VoiceLoop:
             # The interview and nothing else; seventeen tools and no
             # direction measured out to zero interview-tool calls.
             return dict(first_run.INTERVIEW_GRANTS)
+        if self._in_brain_beat():
+            # Same reasoning, one beat later. Also keeps the new persona from
+            # creating ANOTHER persona while talking about memory.
+            return dict(first_run.BRAIN_GRANTS)
         cfg = persona.config if isinstance(persona.config, dict) else {}
         grants = cfg.get("tool_grants")
         return grants if isinstance(grants, dict) else None
+
+    def _in_brain_beat(self) -> bool:
+        """True while the second-brain beat is open.
+
+        Two conditions, and both are load-bearing. The flag says the client
+        reached the screen and asked for it; the disk check says the beat still
+        has work to do. Either alone is wrong: the flag alone would keep the
+        direction attached for the rest of the session after the project is
+        written, and the disk check alone would re-open the beat months later
+        for anyone who deleted their last project.
+        """
+        if not self._brain_beat:
+            return False
+        try:
+            open_still = first_run.brain_beat_open(hearth_engram())
+        except Exception:  # noqa: BLE001 - unconfigured memory ends the beat
+            open_still = False
+        if not open_still:
+            self._brain_beat = False
+        return open_still
 
     def _tool_priming_specs(self, persona: Persona, session: Session):
         """The enabled tools' (name, description) for the system-prompt priming
@@ -834,6 +871,21 @@ class VoiceLoop:
         ui_enabled = bool(session.capabilities.get("ui_render"))
 
         async def on_tool_result(name: str, result) -> None:
+            # The second brain's commit, told to the client the same way the
+            # persona handover is: a named message rather than a card. The
+            # screen needs to know the beat closed, and "the persona stopped
+            # talking" is not that -- it is also what a failed turn looks like.
+            if name == "start_project" and getattr(result, "ok", False):
+                data = getattr(result, "data", {}) or {}
+                await emit(
+                    "project_started",
+                    {
+                        "action": "project_started",
+                        "project": data.get("project"),
+                        "title": data.get("title"),
+                        "created": bool(data.get("created")),
+                    },
+                )
             if not ui_enabled:
                 return
             for op in compose_for_result(name, result):

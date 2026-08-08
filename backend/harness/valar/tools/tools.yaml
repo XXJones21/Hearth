@@ -447,6 +447,29 @@ tools:
           description: Almost always true; false only for a strict either-or.
       required: [question, options]
 
+  - name: start_project
+    description: >-
+      Give the person's memory its first real thing. Call this ONCE, only when
+      they have named something they are actually working on. Not a category,
+      not an example, not something you suggested -- their own answer. After it
+      returns, tell them where it lives and stop.
+    handler: valar.tools.handlers.second_brain:start_project
+    domain: projects
+    risk: write
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        name:
+          type: string
+          description: What they are working on, in their words. A short title.
+        note:
+          type: string
+          description: >-
+            One or two lines of what it is, from what they told you. Their
+            framing, not a summary of the feature.
+      required: [name]
+
   - name: create_persona
     description: >-
       Create a new persona from what the conversation taught you. Call this

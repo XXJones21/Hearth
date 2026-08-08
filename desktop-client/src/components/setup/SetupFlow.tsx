@@ -31,6 +31,7 @@ import {
 import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
 import { Interview } from './Interview';
+import { SecondBrain } from './SecondBrain';
 import { freshOpener, type PrefetchedOpener } from './opener';
 import { VoiceTest } from './VoiceTest';
 
@@ -297,25 +298,7 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
       {step === 'interview' && <Interview onDone={() => setStep('second-brain')} opener={openerRef} />}
 
       {step === 'second-brain' && (
-        /* The next cut: mockup screens 14 through 16, hosted by the persona
-           just made, in their own voice. This stub holds the stage number
-           and the exit until that lands. */
-        <>
-          <Panel title="A memory of their own.">
-            <p className="mx-auto max-w-[58ch] text-[15px] leading-relaxed text-fawn">
-              The second brain: where your persona starts remembering you. This part of
-              setup is still being built; the house works fully without it.
-            </p>
-          </Panel>
-          <div className="mt-6">
-            <button
-              onClick={() => onExit(true)}
-              className="rounded-full bg-roast px-6 py-2.5 text-[14px] font-bold text-cream"
-            >
-              Go to the house
-            </button>
-          </div>
-        </>
+        <SecondBrain onDone={() => onExit(true)} />
       )}
       </div>
     </div>
