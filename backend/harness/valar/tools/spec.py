@@ -1,8 +1,10 @@
 """Tool interface: the clean contract every Valar tool handler implements.
 
-A handler is a plain callable ``handler(args: dict) -> ToolResult`` (sync or
-async). It takes a JSON-decodable argument dict (the model's function-call
-arguments) and returns a ToolResult. Handlers are pure with respect to the voice
+A handler is a plain callable returning a ToolResult (sync or async), in
+either of two shapes the registry detects by signature: ``handler(args: dict)``
+(a single parameter named ``args`` receives the model's whole argument dict)
+or keyword-style ``handler(question="", options=None, **_)`` (the dict is
+unpacked; keep the ``**_`` catch-all so unexpected model keys never crash). Handlers are pure with respect to the voice
 loop: they never touch the websocket, the session, or the brain -- they do one
 thing and return a string result the loop can feed back to the model. That keeps
 every handler unit-testable in isolation, with no live loop.
