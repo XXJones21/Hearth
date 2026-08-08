@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import inspect
 import logging
 import os
 from pathlib import Path
@@ -195,7 +196,7 @@ class ToolRegistry:
         return ""
 
     # ---- dispatch ---------------------------------------------------------
-    def _resolve(self, name: str) -> Callable[..., Any]:
+    def _resolve(self, name: str) -> tuple[Callable[..., Any], str]:
         if name in self._resolved:
             return self._resolved[name]
         spec = self._specs[name]
@@ -204,8 +205,24 @@ class ToolRegistry:
             raise ValueError(f"tool '{name}' has malformed handler '{spec.handler}'")
         module = importlib.import_module(mod_name)
         fn = getattr(module, fn_name)
-        self._resolved[name] = fn
-        return fn
+        # Two handler styles live in this codebase and both must work: the
+        # spec contract ``handler(args: dict)`` and keyword-style
+        # ``handler(question="", options=None, **_)``. The registry used to
+        # pass one positional dict unconditionally, which quietly poured the
+        # whole argument dict into a keyword handler's FIRST parameter --
+        # choice_card, compose_view and create_persona all failed live this
+        # way, each looking like a different bug. Detect once, here.
+        params = list(inspect.signature(fn).parameters.values())
+        style = (
+            "dict"
+            if len(params) == 1
+            and params[0].name == "args"
+            and params[0].kind
+            in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+            else "kwargs"
+        )
+        self._resolved[name] = (fn, style)
+        return fn, style
 
     async def invoke(self, name: str, args: dict[str, Any] | None) -> ToolResult:
         """Invoke a tool by name with the model's argument dict. Sync handlers run
@@ -216,16 +233,18 @@ class ToolRegistry:
         if name not in self._specs:
             return ToolResult.error(f"unknown tool: {name}")
         try:
-            fn = self._resolve(name)
+            fn, style = self._resolve(name)
         except Exception as exc:  # noqa: BLE001
             logger.error("failed to resolve tool '%s': %s", name, exc)
             return ToolResult.error(f"tool '{name}' is unavailable")
+        kwargs = {k: v for k, v in args.items() if isinstance(k, str)}
         try:
             if asyncio.iscoroutinefunction(fn):
-                result = await fn(args)
+                result = await (fn(args) if style == "dict" else fn(**kwargs))
             else:
                 loop = asyncio.get_running_loop()
-                result = await loop.run_in_executor(None, fn, args)
+                call = (lambda: fn(args)) if style == "dict" else (lambda: fn(**kwargs))
+                result = await loop.run_in_executor(None, call)
         except Exception as exc:  # noqa: BLE001
             logger.error("tool '%s' raised: %s", name, exc)
             return ToolResult.error(f"tool '{name}' failed: {exc}")

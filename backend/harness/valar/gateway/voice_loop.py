@@ -610,9 +610,12 @@ class VoiceLoop:
         # chain (consult -> list_cards -> forge_card) fits in one turn.
         tl = persona.config.get("tool_loop") if isinstance(persona.config, dict) else None
         tl = tl if isinstance(tl, dict) else {}
-        decision_opts = (
-            replace(opts, enable_thinking=True) if tl.get("reasoning") else opts
-        )
+        # First run overrides the persona's reasoning to OFF: the interview
+        # offers two tools and no discovery chain, and thinking was costing
+        # 10-17s per decision round on a turn whose whole job is one
+        # choice_card. Sulivan thinks again the moment the house is his.
+        think = bool(tl.get("reasoning")) and not first_run.active(self.config.persona_dir)
+        decision_opts = replace(opts, enable_thinking=True) if think else opts
         from ..tools.loop import MAX_TOOL_ROUNDS as _DEFAULT_ROUNDS
 
         max_rounds = int(tl.get("max_rounds", _DEFAULT_ROUNDS))
