@@ -392,10 +392,36 @@ and an extension with a higher floor than its host is a divergence nobody chose.
 entirely.
 
 A consequence of the split floor worth stating, because it is the argument
-§2.1's package shape rests on: iOS at 26.0 and visionOS at 27.0 cannot be one
+§2.1's target topology rests on: iOS at 26.0 and visionOS at 27.0 cannot be one
 target. A single target expresses two floors as two settings fighting inside one
-configuration, which is what Valinor's project does today. Two app targets state
-each floor once, in the place it applies.
+configuration.
+
+That is not hypothetical, and it is worth reading off Valinor's project file
+directly, because the two-target shape is a **departure** from Valinor rather
+than a copy of it. Verified 2026-08-08:
+
+```
+2 native targets:  Valinor (application), ValinorWidgetsExtension (app-extension)
+
+  SUPPORTED_PLATFORMS         = "iphoneos iphonesimulator xros xrsimulator"
+  TARGETED_DEVICE_FAMILY      = "1,2,7"        # iPhone, iPad, Vision Pro
+  IPHONEOS_DEPLOYMENT_TARGET  = 26.0           # both floors,
+  XROS_DEPLOYMENT_TARGET      = 27.0           # one configuration
+  INFOPLIST_FILE[sdk=xros*]        = Info-visionOS.plist
+  INFOPLIST_FILE[sdk=xrsimulator*] = Info-visionOS.plist
+```
+
+There is no visionOS target. One app target carries both platforms, and every
+mechanism the other articles complain about follows from that single fact: the
+per-SDK `INFOPLIST_FILE` override exists because one target cannot own two
+plists, `Compat/WearablesShim.swift` exists because one target cannot link an
+iOS-only framework conditionally, and eight Swift files carry `#if os(visionOS)`
+because one target compiles everything for both. What can look like two targets
+in the Xcode UI is two *schemes* — `Valinor.xcscheme` and
+`ValinorWidgetsExtension.xcscheme` — which are per target, not per platform.
+
+Two app targets state each floor once, in the place it applies, and retire all
+three mechanisms.
 
 The visionOS target is present from the first commit and holds a volumetric
 window with the orb in it. The volumetric surface's own contents — orbiting card
@@ -467,7 +493,11 @@ the two additional App IDs and nothing has to be re-provisioned.
 
 Two notes on the derived rows. The widget extension's identifier **must** be
 prefixed by its host app's — that is an Apple requirement, not a style choice,
-and it is why one widget target cannot be embedded by both apps. The visionOS
+and it is why one widget target cannot be embedded by both apps. It is also why
+`apple-client/Hearth/Hearth/widgets/` cannot become a widget by being a folder:
+an `.appex` needs its own target, bundle identifier, entitlements and
+`Info.plist`, none of which a directory can supply. The folder is the right home
+for the source and phase 2 points a target at it. The visionOS
 app is deliberately `HearthVision` rather than `Hearth.vision`: a separate app
 whose identifier looks like an extension of another app is legal and reads as a
 mistake every time anyone opens the provisioning portal.
