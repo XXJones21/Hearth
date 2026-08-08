@@ -182,8 +182,29 @@ def strip_comments(text: str) -> str:
 
 
 def gate(path: Path, text: str) -> list[str]:
+    """Report WHERE and HOW OFTEN, not just that something survived.
+
+    This used to return one line per file per pattern. During area 3 that made
+    33 surviving `valinorState` references -- the property behind the whole
+    state machine, missed because the blanket rule is word-anchored and only
+    renamed the type -- look exactly like the single expected survivor sitting
+    in a fixture that was about to be deleted anyway. A gate that fires without
+    saying how loudly invites the reader to explain it away.
+    """
     code = strip_comments(text)
-    return [f"{path}: {name}" for name, pattern in GATES if pattern.search(code)]
+    out = []
+    for name, pattern in GATES:
+        hits = pattern.findall(code)
+        if not hits:
+            continue
+        lines = [
+            i for i, line in enumerate(code.splitlines(), 1) if pattern.search(line)
+        ]
+        where = ", ".join(str(n) for n in lines[:5])
+        if len(lines) > 5:
+            where += f", +{len(lines) - 5} more"
+        out.append(f"{path}: {name} x{len(hits)} (line {where})")
+    return out
 
 
 def work_items(manifest: dict, area: int | None):

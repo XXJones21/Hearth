@@ -392,14 +392,33 @@ components:
     lines: 1386
     disposition: edits
     note: >-
-      The state machine, and the hub every later area attaches to. Four
-      subtractions, each of which the scrub must make by name rather than by
-      pattern: the Mentat poll and its status line; the six seeded journal
-      fixtures at 1184-1200, which carry real dates, "project": "valinor" and
-      titles like "CHOAM market load latency" and would show a stranger six
-      sessions from Joshua's June; the TTSAudioPlayer fallback at 127 and 403;
-      and the MWDAT lifecycle. Two "Sulivan" and two "Valinor" name fallbacks
-      also live here.
+      The state machine, and the hub every later area attaches to. LANDED
+      2026-08-08; this note is now a record rather than a forecast, and it was
+      wrong in four places worth keeping (see apple-implementation.md, "What
+      area 3 did by hand"):
+
+      - The "Mentat poll" does not exist. grep -ci mentat over the source
+        returns 0. Nothing was removed because nothing was there.
+      - The six seeded journal fixtures were real and did carry real dates and
+        summaries. Replaced with two obvious placeholders, not deleted, so the
+        gallery layout stays testable without shipping a week of real work.
+      - The TTSAudioPlayer fallback is five sites, not two: also the
+        onSpeakingComplete branch, onAudioResponseReceived, and
+        handleAudioResponse. currentResponseUsedPCM went with them.
+      - The MWDAT lifecycle is 50 references and two whole MARK: sections, and
+        removing it changes the initializer's shape: init(wearables:) -> init().
+
+      One subtraction was missing from this note entirely: on-device inference
+      is on the excluded list, so InferenceRouter, LocalModelManager,
+      OnDeviceInferenceEngine and PersonaStore all had to come out of here too
+      -- setupLocalMode, runLocalInference, toggleInferenceMode, and two mode
+      branches. PersonaStore's one live use, remembering the last persona, is
+      now a UserDefaults key rather than an excluded file dragged across to
+      carry a single preference.
+
+      The scrub's blanket rule is word-anchored, so it renames the TYPE
+      ValinorState and leaves the PROPERTY valinorState alone: 32 survivors,
+      the most-referenced name in the file. Renamed to hearthState by hand.
 
   - name: cards
     source: Valinor/Views/Dynamic/
@@ -423,11 +442,18 @@ components:
           double or string, only a missing type or an unknown version fatal.
           Drop the two commissioned type constants at :41 and :42. Their absence
           is silent and correct precisely because the decoder is tolerant.
+          Note there are TWO commissioned types, not one: the cards row below
+          names choam_portfolio_dashboard and misses ticker_insight_card sitting
+          on the next line. Both are gone, and DynamicComponent dispatched both.
       - from: DynamicComponent.swift
         to: DynamicComponent.swift
         lines: 334
         disposition: edits
-        note: "the registry; drop the ChoamPortfolioDashboardCard dispatch at :39-40"
+        note: >-
+          the registry; drop the commissioned dispatches -- BOTH of them.
+          ChoamPortfolioDashboardCard at :39-40 and TickerInsightCard at :41-42.
+          A server still sending either now falls through to EmptyView, which is
+          the tolerant-descriptor behaviour rather than a gap.
       - {from: GeneratedViewCard.swift, to: GeneratedViewCard.swift, lines: 111, disposition: edits}
       - from: RemoteImage.swift
         to: RemoteImage.swift

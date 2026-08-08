@@ -45,8 +45,9 @@ Updated 2026-08-08. Branch `apple-client-migration`; rollback points are
 | 2, the project | done | three targets build; both apps install as **Hearth** |
 | 3 area 1, foundation | done | orb drawn from bundled JSON with nothing listening |
 | 3 area 2, transport and voice | done | live handshake on 18700 against the local stack |
-| 3 area 3, the turn and the cards | **next** | — |
-| 3 areas 4–6 | not started | — |
+| 3 area 3, the turn and the cards | done | `HearthCore` and the iOS app both build clean, no warnings |
+| 3 area 4, the iOS shell and house surfaces | **next** | — |
+| 3 areas 5–6 | not started | — |
 | 4, capabilities and signing | not started | App Group is the check that needs a device |
 | 5, first run on a real network | not started | the one check that cannot be faked locally |
 
@@ -73,17 +74,56 @@ python3 tools/sync-report.py --manifest apple-client/manifest.yaml
 As of this commit: 41 source files checked, all gates clean, 65 files tracked
 under `apple-client/`, no drift from Valinor since `9235cd0`.
 
-### What area 3 has to do by hand
+### What area 3 did by hand — and what the plan got wrong
 
-The scrub cannot make these, and the manifest prints them after every run:
+The scrub cannot make these, and the manifest prints them after every run. What
+the plan predicted, against what executing it actually found:
 
-- `ChatViewModel`, four named subtractions: the Mentat poll; the six seeded
-  journal fixtures at 1184–1200, which carry real dates, `"project": "valinor"`
-  and titles like "CHOAM market load latency"; the `TTSAudioPlayer` blob-player
-  fallback at 127 and 403; and the MWDAT lifecycle.
-- The commissioned cards, out of **four** sites rather than the three the
-  inventory records — the fourth is `CardLibraryView.swift:242`.
-- The `public` pass, compiler-driven, for whatever area 4's shell needs.
+| Planned | Found |
+| --- | --- |
+| the Mentat poll | **does not exist.** `grep -ci mentat` over Valinor's `ChatViewModel` returns 0. Nothing was removed because nothing was there. |
+| six seeded journal fixtures at 1184–1200 | correct. Replaced with two obvious placeholders rather than deleted, so the gallery layout stays testable without shipping a week of someone's real work. |
+| the `TTSAudioPlayer` blob fallback at 127 and 403 | correct, plus three more sites the note misses: the `onSpeakingComplete` branch, `onAudioResponseReceived`, and `handleAudioResponse` itself. `currentResponseUsedPCM` went with them — with one format there is no branch to record. |
+| the MWDAT lifecycle | far larger than "a lifecycle": 50 references, an injected `WearablesInterface`, and two whole `MARK:` sections (registration, streaming). The initializer changed shape, `init(wearables:)` → `init()`. |
+| — | **missing from the plan entirely.** On-device inference is on the excluded list, so `InferenceRouter`, `LocalModelManager`, `OnDeviceInferenceEngine` and `PersonaStore` all had to come out too: `setupLocalMode`, `runLocalInference`, `toggleInferenceMode`, and two mode branches. `PersonaStore`'s one live use — remembering the last persona — is now a `UserDefaults` key rather than an excluded file dragged across to carry it. |
+| the commissioned cards, out of four sites | three sites are in area 3 (`UiComponentDescriptor` constants, `DynamicComponent` dispatch, and `CommissionedCards.swift` excluded wholesale); `CardLibraryView.swift:242` is area 4. There are **two** commissioned types, not one — the manifest names only `choam_portfolio_dashboard` and misses `ticker_insight_card` beside it. |
+| the `public` pass, compiler-driven | **deferred to area 4, deliberately.** It cannot be compiler-driven before the shell that drives it exists, and area 2 already set the precedent: `HearthWebSocketClient` landed with 1 public declaration out of 115. Guessing the boundary now is the "decided later, copied because adjacent" trap the manifest warns about.
+
+Four more sites failed to compile for a reason worth keeping: area 1 made
+`serverHost` optional, so `serverURL` and `httpOrigin` are now `String?`. Every
+one of them now goes through `ServerConfig.url(_:)`, and `setupWebSocket` returns
+early when no house is configured rather than dialling a placeholder and
+spending the reconnect backoff on it.
+
+### The gate has a blind spot for compound identifiers
+
+Worth its own heading, because it nearly cost a silent landing. The scrub's
+blanket `Valinor → Hearth` rule is word-anchored, so it renamed the *type*
+`ValinorState → HearthState` and left the *property* `valinorState` alone — 33
+occurrences, the most-referenced name in the file, the spine of the state
+machine.
+
+`apple-scrub.py --check` did fire. But its gate reported one line per file per
+pattern, so 32 survivors and 1 survivor looked identical in the output — and
+the single line was easy to attribute to the journal fixture that was also
+still present and also about to be deleted. The gate was right; the reader
+explained it away.
+
+`tools/apple-gates.sh` was never at fault: it greps the working tree with
+`grep -inE` and prints every hit with its line number. The two tools are not
+redundant — the scrub gate runs on text about to be written, before the file
+exists, which is exactly when the information is cheapest to act on.
+
+Fixed in `apple-scrub.py`'s `gate()`, which now reports the count and the first
+five line numbers:
+
+```
+Core/.../ChatViewModel.swift: valinor x32 (line 53, 397, 451, 483, 484, +27 more)
+```
+
+The rule this leaves behind: **a gate that fires without saying how loudly
+invites the reader to explain it away.** Counts are cheap; discovering the miss
+two areas later is not.
 
 ### Standing corrections to this document's own plan
 
@@ -816,7 +856,7 @@ target as well as a set of files, and that the loop has no handoff in it.
 | 3 | The turn and the cards | `HearthKit` | `ChatViewModel` and `Views/Dynamic/` entire, including the drawing card |
 | 4 | The iOS shell and house surfaces | iOS app | the stage, the shelf, the status bar, the composer, and the four surfaces |
 | 5 | Widgets | widgets target | now a package dependency, not a membership list |
-| 6 | Visualization and the visionOS skeleton | visionOS app | `RealityKitSceneManager`, `PersonaModelView`, the volumetric window |
+| 6 | Visualization and the visionOS skeleton | visionOS app | `RealityKitSceneManager`, the volumetric window. **Not `PersonaModelView`** — this table said area 6 and the manifest said area 3; the manifest is right and it landed with area 3. It is the `glb_animated` renderer, called from the iOS main view and only *reachable* from visionOS, so it is core rather than visionOS-app. |
 
 Per area, exactly this, and it is now four steps rather than five:
 
