@@ -536,6 +536,33 @@ Half an hour, no code moves.
 name the manifest will create. Generate that list from the manifest in phase 1
 and re-run it; do not eyeball it.
 
+**Executed 2026-08-08.** Branch `apple-client-migration`; Valinor tagged
+`rc-pre-apple-move` at `9235cd0`; Hearth tagged `pre-apple` at `bc477f5`, with
+`4111e54` (the plan), `5a1d778` (the ignore fix) and `0e7574a` (the scaffold)
+after it. The ignore fix was verified against eleven paths spanning every
+directory the manifest will create, including a lowercase `Core/models/`, with
+the three rules it protects — `/backend/models/`, `*.gguf`, `xcuserdata/` —
+re-confirmed to still bite. Step 4 is outstanding and needs a password:
+`sudo xcode-select -s /Users/jones/Downloads/Xcode-beta.app/Contents/Developer`.
+
+Two findings from the tag step, neither of them blocking.
+
+**Valinor's working tree is not clean, and was not made unclean by this
+migration.** Two `xcuserdata` files are modified and two `xcuserdata`
+directories are untracked; `UserInterfaceState.xcuserstate` was last written at
+10:18 on 2026-08-08, before this session opened anything. The consequence is for
+F4 item 18, which asks that `git status` in Valinor be clean: read it as **clean
+under `Apple Client/` excluding `xcuserdata/`**, because Valinor tracks user
+state and merely opening the project dirties it. The tag is unaffected — it
+names a commit, and none of this is committed.
+
+**Valinor does have shared schemes, contrary to the inventory.**
+`Valinor.xcodeproj/xcshareddata/xcschemes/` holds `Valinor.xcscheme` and
+`ValinorWidgetsExtension.xcscheme`, created 2026-06-08. They are untracked, so
+the inventory's conclusion still holds for a fresh clone — the schemes are not
+in the repository and Xcode regenerates them per user — but the reason is that
+they were never added, not that they do not exist.
+
 ### Phase 1 — The manifest, and the scrub
 
 This is the migration plan's "first thing to do" and it survives intact. The
