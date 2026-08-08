@@ -75,6 +75,17 @@
   --color-tab: #3e2f22;
   --background: #221a14;
   --foreground: #f3e9dc;
+
+  /* Ember rides on .hearth-field, which is INSIDE body -- so `body { color:
+     var(--foreground) }` was resolved before this class exists and keeps the
+     light-mode ink. Anything carrying a token class (text-fawn, text-roast)
+     re-read the overridden variable and looked right; anything relying on
+     inherited colour stayed #3b2b20 on a #221a14 field and was effectively
+     invisible. That is every plain value in the plan card, the model heading,
+     and the install percentage -- readable labels beside unreadable numbers.
+     Setting colour here hands the whole subtree the dark-mode ink, so the
+     fix is one rule rather than a colour class on every span that lacks one. */
+  color: var(--foreground);
 }
 
 .ember.hearth-field::before {
