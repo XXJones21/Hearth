@@ -45,11 +45,16 @@ export function freshOpener(): PrefetchedOpener {
 }
 
 /* One kickoff, sent by whichever screen gets to send it: the voice test
-   when it prefetches, the interview when it has to start cold. The
-   server's first-run direction keys its two beats off these stage
-   directions, so the wording is part of the contract. */
-export const INTERVIEW_KICKOFF =
-  '(This is my first run and I heard your voice. Open the interview now, ' +
-  'in one message: one sentence picking up from your greeting, one ' +
-  'sentence of what a persona is, then your first question with ' +
-  'choice_card already called. Do not ask whether to begin.)';
+   when it prefetches, the interview when it has to start cold. Since the
+   scripted opening (2026-08-07) this is a machine sentinel, not a prompt:
+   the server matches it exactly (first_run.KICKOFF_SENTINEL, keep the two
+   identical) and answers with fixed product copy and the fixed first
+   card, no model turn at all. */
+export const INTERVIEW_KICKOFF = '(Open the interview.)';
+
+/* Beat three's kickoff, sent by the second-brain screen when it opens.
+   Matched exactly by the server (first_run.BRAIN_KICKOFF, keep the two
+   identical). Unlike the interview's, this one does reach the model: the
+   beat is improvised in the new persona's own voice, with a direction and
+   two tools, rather than scripted product copy. */
+export const BRAIN_KICKOFF = '(Open the second brain.)';

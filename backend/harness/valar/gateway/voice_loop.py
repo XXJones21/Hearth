@@ -23,6 +23,7 @@ from typing import Awaitable, Callable
 
 from ..brain import BrainProvider, BrainStreamResult, ChatMessage, ChatOptions
 from ..config import ValarConfig
+from ..config.settings import hearth_engram
 from ..memory import EngramMemory
 from ..persona import Persona
 from ..telemetry import Timer, TurnTelemetry
@@ -59,6 +60,41 @@ _ANNOUNCE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A tool call written into the TEXT channel: gemma's "call:name{json}" shape,
+# with or without its <|tool_call> marker. Used twice: to mute the TTS queue
+# the moment syntax appears mid-stream (the person should never hear JSON),
+# and to SALVAGE the call afterwards — the model that does this composed real
+# arguments, and honoring them beats apologizing for them.
+_TEXT_TOOL_CALL_RE = re.compile(r"call:([A-Za-z_]\w*)\s*\{")
+_SYNTAX_SENTENCE_RE = re.compile(r"<\|?tool_call|<tool_call\||call:[A-Za-z_]\w*\s*\{")
+
+
+def _balanced_json(text: str, start: int) -> str | None:
+    """The {...} object starting at `start`, honoring strings and escapes;
+    None when the braces never close (a truncated stream)."""
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
 
 class VoiceLoop:
     def __init__(
@@ -69,12 +105,22 @@ class VoiceLoop:
         # Any streamer with the say/stream surface. NeuTTS left with the
         # migration; remote OmniVoice is the shipped arrangement.
         tts: object,
+        # PersonaEngine, for the first-run handover: the commit turn switches
+        # the session's speaker to the persona it just created. Optional so
+        # headless proofs can run without one.
+        personas: object | None = None,
     ):
         self.config = config
         self.brain = brain
         self.memory = memory
         self.tts = tts
+        self.personas = personas
         self.assembler = ContextAssembler(config.context)
+        # Beat three, opened by the client's sentinel and closed by the first
+        # project existing. See first_run.BRAIN_KICKOFF for why this is a flag
+        # plus a disk check rather than derived state alone: derived alone
+        # re-triggers for anyone who later deletes their last project.
+        self._brain_beat = False
         # The House Ledger (SCX v2): day-first decision records. The gateway
         # is the single writer; persona_dir.parent is the repo root.
         from ..ledger import Ledger
@@ -116,6 +162,27 @@ class VoiceLoop:
         history with an explicit cut-off marker so the next turn's context (and
         the operator) knows the user heard an incomplete answer.
         """
+        # First-run dispatch. The kickoff sentinel gets the scripted
+        # walkthrough (product copy, no LLM call). The voice-check greeting
+        # stays on the normal streaming path with a minimal direction. Every
+        # OTHER first-run turn is a structured interview turn: one grammar-
+        # constrained call whose JSON reply carries the speech, the card, and
+        # eventually the commit -- tool selection by a 12B was
+        # non-deterministic three different ways, and the schema replaces all
+        # three guards with a certainty.
+        impl = self._run_turn_impl
+        if first_run.active(self.config.persona_dir):
+            if first_run.is_kickoff(user_text):
+                await self._scripted_opening(session, persona, emit)
+                return
+            if not first_run.is_voice_check(user_text):
+                impl = self._structured_interview_turn
+        elif first_run.is_brain_kickoff(user_text):
+            # Beat three opens. First run is already over by construction --
+            # the new resident ended it -- so this is the normal path with a
+            # direction and two tools, held open until a project exists.
+            self._brain_beat = True
+
         telemetry = TurnTelemetry(
             session_id=session.session_id,
             persona=persona.name,
@@ -127,7 +194,7 @@ class VoiceLoop:
         # that died after first token.
         ctx: dict = {"stage": "start", "partial": False, "partial_text": ""}
         try:
-            await self._run_turn_impl(session, persona, user_text, emit, telemetry, ctx)
+            await impl(session, persona, user_text, emit, telemetry, ctx)
         except Exception as exc:  # noqa: BLE001 - typed emit, then re-raise
             telemetry.error_stage = str(ctx["stage"])
             telemetry.error_kind = self._classify_error(exc)
@@ -190,13 +257,14 @@ class VoiceLoop:
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
 
-        # First run: the default persona carries the interview direction and
-        # nothing else changes. Expires by itself when a persona is created.
+        # First run on the normal path is the voice-check greeting; it gets
+        # the minimal direction. The full interview direction (which describes
+        # the structured reply form) belongs to the structured turns only.
         system_prompt = persona.system_prompt
         if first_run.active(self.config.persona_dir):
-            direction = first_run.direction_text()
-            if direction:
-                system_prompt = system_prompt + "\n\n" + direction
+            system_prompt = system_prompt + "\n\n" + first_run.GREETING_DIRECTION
+        elif self._in_brain_beat():
+            system_prompt = system_prompt + "\n\n" + first_run.BRAIN_DIRECTION
 
         messages = self.assembler.build(
             system_prompt=system_prompt,
@@ -300,6 +368,12 @@ class VoiceLoop:
             segmenter = SentenceSegmenter()
             full_reply: list[str] = []
             first_token_seen = False
+            # Once tool syntax appears in a sentence, nothing after it is
+            # speech: the live 2026-08-07 turn spoke
+            # '<|tool_call>call:choice_card{"question":' aloud because the
+            # syntax guard only ran at end of stream. The full text still
+            # accumulates for the salvage pass; only the audio is muted.
+            muted = False
 
             queue: asyncio.Queue = asyncio.Queue()
             _DONE = object()
@@ -348,10 +422,20 @@ class VoiceLoop:
                                 )
                         full_reply.append(delta)
                         for sentence in segmenter.feed(delta):
-                            queue.put_nowait(sentence)
+                            if not muted and _SYNTAX_SENTENCE_RE.search(sentence):
+                                muted = True
+                                logger.warning(
+                                    "tool syntax reached the speech channel; muting TTS: %r",
+                                    sentence[:80],
+                                )
+                            if not muted:
+                                queue.put_nowait(sentence)
                     tail = segmenter.flush()
                     if tail:
-                        queue.put_nowait(tail)
+                        if not muted and _SYNTAX_SENTENCE_RE.search(tail):
+                            muted = True
+                        if not muted:
+                            queue.put_nowait(tail)
                 queue.put_nowait(_DONE)
                 spoken = await consumer
             except BaseException:
@@ -387,11 +471,36 @@ class VoiceLoop:
         syntax_leak = bool(reply_text) and (
             "<|tool_call" in reply_text or "<tool_call|" in reply_text
             or reply_text.strip().startswith("call:")
+            or _TEXT_TOOL_CALL_RE.search(reply_text) is not None
         )
         if syntax_leak:
-            logger.warning("final answer was raw tool syntax; treating as empty: %r",
-                           reply_text[:120])
-            reply_text = ""
+            # First, honor the call if it can be honored: the model composed
+            # real arguments in the wrong channel (live 2026-08-07, the
+            # temperament card), and running them beats apologizing for them.
+            salvaged = await self._salvage_text_tool_call(
+                reply_text, session, emit, persona, telemetry
+            )
+            # Prose before the first syntax marker was real speech and has
+            # already been heard; with the call honored it IS the answer.
+            cut = len(reply_text)
+            for mark in ("<|tool_call", "<tool_call|"):
+                idx = reply_text.find(mark)
+                if idx != -1:
+                    cut = min(cut, idx)
+            m_call = _TEXT_TOOL_CALL_RE.search(reply_text)
+            if m_call is not None:
+                cut = min(cut, m_call.start())
+            prose = reply_text[:cut].strip()
+            if salvaged and prose:
+                logger.warning(
+                    "tool syntax in final stream; call salvaged, prose kept: %r",
+                    prose[:120],
+                )
+                reply_text = prose
+            else:
+                logger.warning("final answer was raw tool syntax; treating as empty: %r",
+                               reply_text[:120])
+                reply_text = ""
 
         if not reply_text and (telemetry.tools_invoked or syntax_leak):
             logger.warning(
@@ -463,6 +572,44 @@ class VoiceLoop:
                 )
                 reply_text = (reply_text + " " + follow_text).strip()
 
+        # Interview card guard (2026-08-08): the third shape of the same
+        # failure. A proper tool round renders the card; a call leaked into
+        # the speech channel is salvaged; and sometimes the model asks its
+        # question in clean prose and never reaches for the tool at all
+        # (live: "How should their voice sound?" with tools=[]). During
+        # first run every question owes the person choices, so a cardless
+        # question gets one forced tool round. The question is already
+        # spoken; the follow-up asks ONLY for the call and adds no speech.
+        if (
+            reply_text
+            and "?" in reply_text
+            and not telemetry.tools_invoked
+            and first_run.active(self.config.persona_dir)
+        ):
+            logger.warning(
+                "interview question with no card — forcing the call: %r",
+                reply_text[:80],
+            )
+            card_msgs = messages + [
+                ChatMessage(role="assistant", content=reply_text),
+                ChatMessage(
+                    role="user",
+                    content=(
+                        "[Your question is already spoken and heard. Call "
+                        "choice_card NOW for that exact question, with options "
+                        "composed from this conversation. Output ONLY the tool "
+                        "call; no prose.]"
+                    ),
+                ),
+            ]
+            with Timer(telemetry, "tool_round_trip_ms"):
+                await self._maybe_run_tools(
+                    card_msgs, opts, telemetry, session, emit, persona,
+                    decisions_out=turn_decisions,
+                )
+            if telemetry.tools_invoked:
+                logger.info("forced card round delivered: %s", telemetry.tools_invoked)
+
         # Diagnosis visibility: the spoken answer's head goes to the journal on
         # EVERY turn (2026-07-31 -- a promise spoken on a no-tool turn was only
         # findable via a TTS line; no-tool turns were invisible).
@@ -517,9 +664,33 @@ class VoiceLoop:
             # The interview and nothing else; seventeen tools and no
             # direction measured out to zero interview-tool calls.
             return dict(first_run.INTERVIEW_GRANTS)
+        if self._in_brain_beat():
+            # Same reasoning, one beat later. Also keeps the new persona from
+            # creating ANOTHER persona while talking about memory.
+            return dict(first_run.BRAIN_GRANTS)
         cfg = persona.config if isinstance(persona.config, dict) else {}
         grants = cfg.get("tool_grants")
         return grants if isinstance(grants, dict) else None
+
+    def _in_brain_beat(self) -> bool:
+        """True while the second-brain beat is open.
+
+        Two conditions, and both are load-bearing. The flag says the client
+        reached the screen and asked for it; the disk check says the beat still
+        has work to do. Either alone is wrong: the flag alone would keep the
+        direction attached for the rest of the session after the project is
+        written, and the disk check alone would re-open the beat months later
+        for anyone who deleted their last project.
+        """
+        if not self._brain_beat:
+            return False
+        try:
+            open_still = first_run.brain_beat_open(hearth_engram())
+        except Exception:  # noqa: BLE001 - unconfigured memory ends the beat
+            open_still = False
+        if not open_still:
+            self._brain_beat = False
+        return open_still
 
     def _tool_priming_specs(self, persona: Persona, session: Session):
         """The enabled tools' (name, description) for the system-prompt priming
@@ -700,6 +871,21 @@ class VoiceLoop:
         ui_enabled = bool(session.capabilities.get("ui_render"))
 
         async def on_tool_result(name: str, result) -> None:
+            # The second brain's commit, told to the client the same way the
+            # persona handover is: a named message rather than a card. The
+            # screen needs to know the beat closed, and "the persona stopped
+            # talking" is not that -- it is also what a failed turn looks like.
+            if name == "start_project" and getattr(result, "ok", False):
+                data = getattr(result, "data", {}) or {}
+                await emit(
+                    "project_started",
+                    {
+                        "action": "project_started",
+                        "project": data.get("project"),
+                        "title": data.get("title"),
+                        "created": bool(data.get("created")),
+                    },
+                )
             if not ui_enabled:
                 return
             for op in compose_for_result(name, result):
@@ -770,6 +956,261 @@ class VoiceLoop:
             )
             for d in augmented
         ], filler_holder["task"]
+
+    async def _structured_interview_turn(
+        self,
+        session: Session,
+        persona: Persona,
+        user_text: str,
+        emit: Emit,
+        telemetry: TurnTelemetry,
+        ctx: dict,
+    ) -> None:
+        """One interview turn as structured output: a single grammar-
+        constrained brain call whose JSON carries the speech, the card, and
+        eventually the commit. Deterministic form, improvised content -- the
+        model cannot omit the card, cannot leak it into the voice, and cannot
+        double-call it, because the reply shape is enforced at the token
+        level. The parsing side stays tolerant anyway (the compose_view
+        discipline): a malformed field costs that field, never the turn."""
+        import json as _json
+
+        session.state = State.THINKING
+        await emit(
+            "thinking_message",
+            {"action": "thinking_message", "persona_name": persona.name},
+        )
+
+        ctx["stage"] = "tts"
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            self.tts.sync_persona_voice,
+            persona.voice_reference_audio,
+            persona.voice_reference_text,
+        )
+
+        chat_structured = getattr(self.brain, "chat_structured", None)
+        if chat_structured is None:
+            logger.warning("brain has no chat_structured; interview falls back to the normal path")
+            await self._run_turn_impl(session, persona, user_text, emit, telemetry, ctx)
+            return
+
+        ctx["stage"] = "context_assembly"
+        system_prompt = persona.system_prompt
+        direction = first_run.direction_text()
+        if direction:
+            system_prompt = system_prompt + "\n\n" + direction
+        messages = self.assembler.build(
+            system_prompt=system_prompt,
+            memory_block="",
+            history=session.history,
+            user_text=user_text,
+            telemetry=telemetry,
+            device_context=session.device_context,
+            tool_specs=[],
+        )
+
+        dm = persona.config.get("deep_model") if isinstance(persona.config, dict) else None
+        dm = dm if isinstance(dm, dict) else {}
+        bc = self.config.brain
+        opts = ChatOptions(
+            max_tokens=int(dm.get("max_tokens", bc.max_tokens)),
+            temperature=float(dm.get("temperature", bc.temperature)),
+            top_p=float(dm.get("top_p", bc.top_p)),
+            top_k=int(dm.get("top_k", bc.top_k)),
+            model=bc.model,
+            persona_name=persona.name,
+            model_path=resolve_model(dm),
+            enable_thinking=False,
+        )
+
+        ctx["stage"] = "brain_structured"
+        with Timer(telemetry, "brain_total_ms"):
+            raw = await chat_structured(messages, opts, first_run.INTERVIEW_SCHEMA, "interview_turn")
+
+        data: dict = {}
+        try:
+            parsed = _json.loads(raw)
+            if isinstance(parsed, dict):
+                data = parsed
+        except ValueError:
+            logger.warning("structured interview reply did not parse: %.300r", raw)
+
+        speech = str(data.get("speech") or "").strip()
+        if not speech:
+            speech = "Forgive me, I lost my words for a moment. Could you say that again?"
+
+        # The commit first: if the persona is ready, the speech is the goodbye
+        # and the card fields are noise by contract.
+        commit = data.get("commit")
+        committed = False
+        new_persona_name = ""
+        if isinstance(commit, dict) and str(commit.get("name") or "").strip():
+            from ..tools.handlers.creation import create_persona as _create
+
+            allowed = ("name", "description", "system_prompt", "temperament", "voice_design", "colour")
+            result = await loop.run_in_executor(
+                None, lambda: _create(**{k: commit[k] for k in allowed if k in commit})
+            )
+            if result.ok:
+                committed = True
+                new_persona_name = str((result.data or {}).get("persona_created") or "")
+                telemetry.tools_invoked.append("create_persona")
+                logger.info("structured interview committed: %s", commit.get("name"))
+                # The handover is product copy, same as the opening: Sulivan's
+                # goodbye lands the same way every install, whatever goodbye
+                # the model composed.
+                speech = first_run.farewell_text(str(commit.get("name")).strip())
+            else:
+                logger.warning("structured commit failed: %s", result.content[:160])
+
+        await emit(
+            "ai_response",
+            {"action": "ai_response", "text": speech, "persona_name": persona.name},
+        )
+
+        card_note = ""
+        question = str(data.get("question") or "").strip()
+        options = data.get("options") if isinstance(data.get("options"), list) else []
+        if not committed and question and options:
+            from ..tools.handlers.choice import choice_card as _choice
+
+            result = _choice(question=question, options=options)
+            if result.ok and session.capabilities.get("ui_render"):
+                card = result.data.get("ui_component")
+                if card:
+                    await emit("ui_component", {"action": "ui_component", **card})
+                    telemetry.tools_invoked.append("choice_card")
+                    card_note = " [The options are on a card on their screen.]"
+            elif not result.ok:
+                logger.warning("structured card rejected: %s", result.content[:120])
+
+        await self.say(session, persona, speech, emit)
+        session.record_turn(user_text, speech + card_note)
+
+        if committed and new_persona_name and self.personas is not None:
+            # The handover: the new persona owns the house from here. Fresh
+            # history so their first words come from their own prompt, not
+            # from five turns of Sulivan speaking (the subagent principle:
+            # a new speaker gets a new context). The interview itself is
+            # preserved in the ledger.
+            try:
+                switched = self.personas.switch(new_persona_name)
+                session.history.clear()
+                await emit(
+                    "persona_switched",
+                    {
+                        "action": "persona_switched",
+                        "persona_name": new_persona_name,
+                        "status": "success",
+                    },
+                )
+                await emit(
+                    "persona_config",
+                    {
+                        "action": "persona_config",
+                        "persona_name": new_persona_name,
+                        "config": switched.public_config(),
+                    },
+                )
+                logger.info("first-run handover: session now speaks as %s", new_persona_name)
+            except Exception as exc:  # noqa: BLE001 - a failed switch must not kill the turn
+                logger.warning("first-run handover failed (%s); Sulivan remains", exc)
+
+        self.ledger.decision(
+            session=session.session_id,
+            persona=persona.name,
+            question=user_text,
+            decisions=[{"round": 1, "reasoning": "", "tools": list(telemetry.tools_invoked)}],
+            tools_invoked=list(telemetry.tools_invoked),
+            answer_head=speech,
+        )
+        logger.info(
+            "structured interview turn (tools=%s): %r",
+            telemetry.tools_invoked,
+            speech[:160],
+        )
+        telemetry.emit()
+
+    async def _salvage_text_tool_call(
+        self,
+        text: str,
+        session: Session,
+        emit: Emit,
+        persona,
+        telemetry: TurnTelemetry,
+    ) -> bool:
+        """A tool call written into the speech channel still means the tool.
+
+        Parses the first call:name{...} out of the streamed text; when the
+        turn's own registry knows the tool and the arguments parse, the call
+        runs and its cards emit exactly as a proper tool round would have.
+        Returns True only when a call actually executed. Never raises: a
+        salvage that fails leaves the empty-answer path to do its work."""
+        from ..tools import resolve_registry, tools_enabled
+        from ..tools.loop import parse_tool_args
+
+        try:
+            if not tools_enabled():
+                return False
+            m = _TEXT_TOOL_CALL_RE.search(text)
+            if m is None:
+                return False
+            raw = _balanced_json(text, m.end() - 1)
+            if raw is None:
+                return False
+            args = parse_tool_args(raw)
+            if not args:
+                return False
+            name = m.group(1)
+            registry = resolve_registry(
+                self._persona_tool_grants(persona), session.capabilities
+            )
+            if name not in registry.names():
+                return False
+            result = await registry.invoke(name, args)
+            if not result.ok:
+                logger.warning("salvaged %s ran but failed: %s", name, result.content[:120])
+                return False
+            telemetry.tools_invoked.append(name)
+            if session.capabilities.get("ui_render"):
+                from .composer import compose_for_result
+
+                for op in compose_for_result(name, result):
+                    with contextlib.suppress(Exception):
+                        await emit("ui_component", {"action": "ui_component", **op})
+            logger.info("salvaged text-channel tool call: %s", name)
+            return True
+        except Exception as exc:  # noqa: BLE001 - salvage is best-effort
+            logger.warning("text tool-call salvage failed: %s", exc)
+            return False
+
+    async def _scripted_opening(self, session: Session, persona, emit: Emit) -> None:
+        """The interview walkthrough: what a persona is, and the first
+        question, with its card. Deterministic on purpose (2026-08-07): a
+        12B asked to open freely produced a different opener every run --
+        permission-asking, answering its own card, promising cards it never
+        rendered. The text lands in history as the assistant turn, so the
+        model picks up the conversation as if it had said it."""
+        text = first_run.OPENING_TEXT
+        await emit(
+            "thinking_message",
+            {"action": "thinking_message", "persona_name": persona.name},
+        )
+        await emit(
+            "ai_response",
+            {"action": "ai_response", "text": text, "persona_name": persona.name},
+        )
+        if session.capabilities.get("ui_render"):
+            await emit("ui_component", {"action": "ui_component", **first_run.OPENING_CARD})
+        # say() streams the TTS and closes with speaking_complete.
+        await self.say(session, persona, text, emit)
+        session.record_turn(
+            "(I am ready to make my persona.)",
+            text + " [The options are on a card on their screen; their answer comes next.]",
+        )
+        logger.info("first-run: scripted opening delivered")
 
     async def say(self, session: Session, persona, text: str, emit: Emit) -> None:
         """Speak `text` verbatim in the persona voice, with NO LLM turn. Used for

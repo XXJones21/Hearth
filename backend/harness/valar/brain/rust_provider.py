@@ -154,6 +154,59 @@ class RustBrainProvider:
             "reasoning": message.get("reasoning_content") or "",
         }
 
+    async def chat_structured(
+        self,
+        messages: list[ChatMessage],
+        opts: ChatOptions,
+        schema: dict,
+        name: str = "structured_reply",
+    ) -> str:
+        """Grammar-constrained, NON-streaming brain call: the model cannot emit
+        anything but JSON matching `schema` (llama-server converts the schema
+        to a GBNF grammar). Returns the raw JSON text for the caller to parse.
+
+        The interview runs on this (2026-08-08): tool selection by a 12B was
+        non-deterministic three different ways -- proper calls, calls leaked
+        into the speech channel, and plain omission -- and each got its own
+        guard. A response format enforced at the token level replaces all
+        three hopes with a certainty."""
+        payload = self._build_payload(messages, opts)
+        payload["stream"] = False
+        payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": name, "schema": schema, "strict": True},
+        }
+        obj: dict = {}
+        last_exc: Exception | None = None
+        for attempt in range(1 + _CONNECT_RETRIES):
+            if attempt:
+                delay = _CONNECT_BACKOFF_S[attempt - 1]
+                logger.warning(
+                    "brain (structured) connect failed (%s); retry %d/%d in %.0fs",
+                    last_exc, attempt, _CONNECT_RETRIES, delay,
+                )
+                await _retry_sleep(delay)
+            try:
+                async with self._client() as client:
+                    resp = await client.post(self._chat_url(), json=payload)
+                    if resp.status_code != 200:
+                        raise BrainError(
+                            f"brain (structured) returned {resp.status_code}: {resp.text[:500]}"
+                        )
+                    obj = resp.json()
+                break
+            except _CONNECT_ERRORS as exc:
+                last_exc = exc
+        else:
+            raise BrainError(
+                f"brain (structured) unreachable after {1 + _CONNECT_RETRIES} attempts: {last_exc}"
+            ) from last_exc
+        choices = obj.get("choices") or []
+        if not choices:
+            return ""
+        message = choices[0].get("message") or {}
+        return str(message.get("content") or "")
+
     async def chat(
         self,
         messages: list[ChatMessage],

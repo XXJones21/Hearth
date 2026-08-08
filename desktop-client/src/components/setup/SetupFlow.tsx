@@ -31,10 +31,23 @@ import {
 import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
 import { Interview } from './Interview';
+import { SecondBrain } from './SecondBrain';
 import { freshOpener, type PrefetchedOpener } from './opener';
 import { VoiceTest } from './VoiceTest';
 
-type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'interview' | 'blocked';
+type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'interview' | 'second-brain' | 'blocked';
+
+/* Debug stages (temporary, developer mode only): jump the setup flow to a
+   beat without a clean reinstall. 0 = fresh install (the welcome), 1 =
+   persona creation (the interview, against the already-installed house),
+   2 = second brain (the next cut; a stub until it exists). Stage 1 needs
+   the server to believe it is first run: set HEARTH_FORCE_FIRST_RUN=1 in
+   the install's config/hearth.env and relaunch, then set it back when done. */
+const DEBUG_STAGES: { stage: 0 | 1 | 2; step: Step; label: string }[] = [
+  { stage: 0, step: 'welcome', label: '0 install' },
+  { stage: 1, step: 'interview', label: '1 persona' },
+  { stage: 2, step: 'second-brain', label: '2 brain' },
+];
 
 /* The blocked panel serves three different misfortunes, and they deserve
    different sentences. A dev server is not a broken machine, and a machine
@@ -190,9 +203,18 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
           setSim(s);
           run(s);
         }}
+        onStage={(target) => {
+          /* Stage 1 talks to the installed house, so make sure it is up;
+             a house already running ignores the second start. */
+          if (target !== 'welcome') {
+            const root = loadSettings().installRoot;
+            if (root) houseStart(root).catch(() => {});
+          }
+          setStep(target);
+        }}
         /* Close from the voice test counts as installed: everything landed
            and the house is up; only the human confirmation was skipped. */
-        onExit={() => onExit(step === 'voice-test' || step === 'interview')}
+        onExit={() => onExit(step === 'voice-test' || step === 'interview' || step === 'second-brain')}
       />
 
       {step === 'welcome' && (
@@ -273,7 +295,11 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         />
       )}
 
-      {step === 'interview' && <Interview onDone={() => onExit(true)} opener={openerRef} />}
+      {step === 'interview' && <Interview onDone={() => setStep('second-brain')} opener={openerRef} />}
+
+      {step === 'second-brain' && (
+        <SecondBrain onDone={() => onExit(true)} />
+      )}
       </div>
     </div>
   );
@@ -650,11 +676,13 @@ function DevBar({
   sims,
   active,
   onPick,
+  onStage,
   onExit,
 }: {
   sims: string[];
   active?: string;
   onPick: (s?: string) => void;
+  onStage: (step: Step) => void;
   onExit: () => void;
 }) {
   return (
@@ -665,6 +693,16 @@ function DevBar({
           download marks setup complete. */}
       {loadSettings().developerMode && (
         <>
+      <span className="text-fawn">Stage:</span>
+      {DEBUG_STAGES.map((d) => (
+        <button
+          key={d.stage}
+          onClick={() => onStage(d.step)}
+          className="rounded-lg border border-linen bg-parchment px-2.5 py-1 text-fawn"
+        >
+          {d.label}
+        </button>
+      ))}
       <span className="text-fawn">Pretend to be:</span>
       <button
         onClick={() => onPick(undefined)}

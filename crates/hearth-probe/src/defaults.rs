@@ -68,6 +68,15 @@ pub fn rel_tts_server() -> &'static str {
     if cfg!(windows) { "runtime/tts-server.exe" } else { "runtime/tts-server" }
 }
 
+/// The voice DESIGN tool, from the same build and unpacked beside the engine.
+///
+/// A separate binary because tts-server cannot design: its /v1/audio/speech
+/// validates `voice` against the names loaded at ITS startup, so instruct
+/// attributes have no way through. Design runs once per persona, at creation.
+pub fn rel_omnivoice_tts() -> &'static str {
+    if cfg!(windows) { "runtime/omnivoice-tts.exe" } else { "runtime/omnivoice-tts" }
+}
+
 /// Voice weights live with the other weights, not in the Hugging Face cache:
 /// they are named files the installer verifies, not a repository snapshot.
 pub const REL_VOICE_MODELS: &str = "models/voice";

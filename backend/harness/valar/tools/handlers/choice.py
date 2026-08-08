@@ -101,8 +101,15 @@ def choice_card(
     }
     logger.info("choice_card: %d option(s) for %r", len(cleaned), q[:40])
     # Short on purpose; instruction-shaped tool output survives into history
-    # and gets replayed instead of the tool being called again.
+    # and gets replayed instead of the tool being called again. The "no answer
+    # has arrived" clause is live-earned: the model once read this result and
+    # replied "I see. A creative partner..." -- choosing its own first option
+    # for the person and moving on.
     return ToolResult(
-        content="The choices are on their screen. Their answer comes next; wait for it.",
+        content=(
+            "The choices are on their screen. NO ANSWER HAS ARRIVED YET: speak "
+            "your question aloud in one short sentence and stop. Do not pick "
+            "for them, do not react to any option as if it were chosen."
+        ),
         data={"ui_component": card},
     )

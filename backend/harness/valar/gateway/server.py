@@ -116,7 +116,7 @@ def create_app(config: ValarConfig) -> FastAPI:
     tts = RemoteVoiceStreamer(config.voice.tts_service_url, config.voice.output_sample_rate)
     logger.info("voice service at %s", config.voice.tts_service_url)
     stt = WhisperSTT(config.voice.whisper_model, config.voice.input_sample_rate)
-    voice_loop = VoiceLoop(config, brain, memory, tts)
+    voice_loop = VoiceLoop(config, brain, memory, tts, personas=personas)
 
     # Personas-as-subagents (2026-06-07): hand the shared seams to the subagent
     # runtime once, so standalone tool handlers (consult_memory -> Selene) can
@@ -642,7 +642,9 @@ async def _handle_command(raw: str, session, personas, voice_loop, emit) -> None
         )
 
     elif action == "switch_persona":
-        name = cmd.get("persona_name", "")
+        # Both spellings arrive in the wild: the house clients send
+        # persona_name; the setup flow sent bare name (found live 2026-08-08).
+        name = cmd.get("persona_name") or cmd.get("name") or ""
         try:
             personas.switch(name)
             await emit(

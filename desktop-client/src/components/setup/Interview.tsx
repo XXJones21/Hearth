@@ -72,9 +72,29 @@ export function Interview({
     [push],
   );
 
-  /* After each completed reply, look for a resident that was not there at
-     the start. The server's create_persona wrote them; the house health
-     endpoint lists them; a new name is the handoff. */
+  /* The handover, from either signal: the server's persona_switched after the
+     commit turn (primary), or the health poll below (fallback). Idempotent;
+     the guard makes the second arrival a no-op. */
+  const beginHandoff = useCallback(
+    (name: string) => {
+      if (handedOffRef.current || !name) return;
+      handedOffRef.current = true;
+      newNameRef.current = name;
+      setNewName(name);
+      setPhase('handoff');
+      /* Harmless when the server already switched; the fallback path needs it. */
+      wsRef.current?.send(JSON.stringify({ action: 'switch_persona', persona_name: name }));
+      /* A beat for the switch to settle, then the first hello. */
+      window.setTimeout(() => {
+        sendUser(MEET_KICKOFF, { silent: true });
+      }, 1200);
+    },
+    [sendUser],
+  );
+
+  /* Fallback detection: after each completed reply, look for a resident that
+     was not there at the start. The server's create_persona wrote them; the
+     house health endpoint lists them; a new name is the handoff. */
   const checkForNewPersona = useCallback(async () => {
     if (handedOffRef.current) return;
     try {
@@ -87,23 +107,14 @@ export function Interview({
       }
       for (const name of names) {
         if (!baselineRef.current.has(name)) {
-          handedOffRef.current = true;
-          newNameRef.current = name;
-          setNewName(name);
-          setPhase('handoff');
-          const ws = wsRef.current;
-          ws?.send(JSON.stringify({ action: 'switch_persona', name }));
-          /* A beat for the switch to settle, then the first hello. */
-          window.setTimeout(() => {
-            sendUser(MEET_KICKOFF, { silent: true });
-          }, 1200);
+          beginHandoff(name);
           return;
         }
       }
     } catch {
       /* health being briefly unreachable is not a handoff */
     }
-  }, [sendUser]);
+  }, [beginHandoff]);
 
   useEffect(() => {
     closedRef.current = false;
@@ -131,6 +142,21 @@ export function Interview({
         } else if (msg.action === 'ui_component') {
           const comp = msg.component ?? msg;
           if (comp?.type === 'choice_card') setCard(comp.props ?? null);
+        } else if (msg.action === 'persona_switched' && typeof msg.persona_name === 'string') {
+          /* The server hands the session over at commit; this is the primary
+             handoff signal. Sulivan is a switch too (the fallback path echoes
+             one) so only a NEW name counts. */
+          if (msg.persona_name.toLowerCase() !== 'sulivan') beginHandoff(msg.persona_name);
+        } else if (msg.action === 'persona_config' && msg.config) {
+          /* The new persona's colour, into the shared accent channel: the
+             store's config drives applyPersonaTheme on the root, which the
+             avatar nodes and the pill read through var(--persona). */
+          const cfg = msg.config as { name?: unknown; visualization?: unknown };
+          if (typeof cfg.name === 'string' && cfg.visualization) {
+            const s = useAppStore.getState();
+            s.setPersonaConfig(msg.config);
+            s.setCurrentPersonaName(cfg.name);
+          }
         } else if (msg.action === 'speaking_complete') {
           if (handedOffRef.current) {
             setPhase('met');
@@ -272,7 +298,10 @@ export function Interview({
         /* The sign that the handover is real: they are the one on the wire
            now, voice and all, and the chat below already belongs to them. */
         <div className="mt-2.5 flex items-center gap-2 rounded-full border border-linen bg-glowtint px-3.5 py-1.5 text-[12.5px] font-semibold">
-          <span className="size-2 animate-pulse rounded-full bg-fennec" />
+          <span
+            className="size-2 animate-pulse rounded-full"
+            style={{ background: 'var(--persona, #E39A5B)' }}
+          />
           {newName} is here, listening
         </div>
       )}

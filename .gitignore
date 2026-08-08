@@ -54,6 +54,19 @@ desktop-client/src-tauri/resources/hearth-supervisor.exe
 desktop-client/src-tauri/resources/hearth-supervisor
 desktop-client/src-tauri/resources/tts-server
 desktop-client/src-tauri/resources/tts-server.exe
+desktop-client/src-tauri/resources/omnivoice-tts
+desktop-client/src-tauri/resources/omnivoice-tts.exe
+
+# Xcode. The apple-client tree lives on its own branch, but its user state and
+# local signing config are physically present in this working directory, so
+# without these rules a desktop commit sweeps them in -- which is how four of
+# them reached a merge on 2026-08-08.
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+DerivedData/
+.swiftpm/
+apple-client/**/Local.xcconfig
 
 # The voice engine's pinned upstream checkout, cloned and patched by
 # scripts/build_omnivoice.sh. Reproducible from the pin plus vendor/omnivoice,

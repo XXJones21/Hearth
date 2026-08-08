@@ -104,6 +104,25 @@ class RouterBrainProvider:
         finally:
             self._last_activity = time.monotonic()
 
+    async def chat_structured(
+        self,
+        messages: list[ChatMessage],
+        opts: ChatOptions,
+        schema: dict,
+        name: str = "structured_reply",
+    ) -> str:
+        """Grammar-constrained round-trip with model routing applied first. The
+        interview runs on this; without the passthrough the voice loop sees no
+        chat_structured on the router and silently falls back to the tool path
+        (found live 2026-08-08)."""
+        self._last_activity = time.monotonic()
+        self._ensure_watchdog()
+        await self._ensure_model(opts)
+        try:
+            return await self._inner.chat_structured(messages, opts, schema, name)
+        finally:
+            self._last_activity = time.monotonic()
+
     async def health(self) -> bool:
         return await self._inner.health()
 

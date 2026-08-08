@@ -18,7 +18,8 @@ import json
 import logging
 import os
 import re
-import urllib.request
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -52,10 +53,27 @@ _SWATCHES = {
     "ember": "#E39A5B",
     "tide": "#5B9CC9",
     "fern": "#7BA85F",
-    "heather": "#9B72B8",
+    # Was "heather": a live run named the persona after the swatch the person
+    # tapped for the colour question. No swatch may double as a person's name.
+    "plum": "#9B72B8",
     "clay": "#C96B6B",
 }
 _DEFAULT_COLOUR = _SWATCHES["ember"]
+
+# Every made persona learns the voice's non-verbal vocabulary. OmniVoice
+# performs these tags instead of reading them, which gives a designed voice
+# some life a system prompt alone cannot: a laugh that is a laugh. Kept to a
+# short leash in the wording; a 12B told about thirteen toys will use five a
+# sentence.
+_VOICE_TAG_NOTE = (
+    "\n\nYour voice can perform as well as speak. You may place these tags "
+    "inline in a reply, where the feeling belongs, and they will be sounded "
+    "rather than read: [laughter], [sigh], [confirmation-en], [question-en], "
+    "[question-ah], [question-oh], [question-ei], [question-yi], "
+    "[surprise-ah], [surprise-oh], [surprise-wa], [surprise-yo], "
+    "[dissatisfaction-hnn]. Use at most one or two per reply, and only when "
+    "the moment truly calls for it."
+)
 
 
 def _coerce_colour(raw: str) -> tuple[str, str]:
@@ -117,29 +135,117 @@ def _ramp(hex_colour: str) -> dict:
     }
 
 
-def _design_voice(text: str, attributes: list[str]) -> bytes | None:
-    """Ask the voice service to design the reference clip. None means the
-    service is unavailable or failed; the persona is still created and the
-    design is recorded for a later pass."""
-    url = os.environ.get("HEARTH_TTS_SERVICE_URL", "ws://127.0.0.1:18702/tts")
-    base = url.replace("ws://", "http://").replace("wss://", "https://")
-    if base.endswith("/tts"):
-        base = base[: -len("/tts")]
-    req = urllib.request.Request(
-        f"{base}/design",
-        data=json.dumps({"text": text, "attributes": attributes}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        # Voice design is a full synthesis pass; a cold engine adds a load.
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            if resp.status == 200:
-                return resp.read()
-            logger.warning("voice design HTTP %s", resp.status)
-    except Exception as exc:  # noqa: BLE001 - unavailable is a normal state
-        logger.info("voice design unavailable: %s", exc)
+def _design_binary() -> Path | None:
+    """The voice-design CLI.
+
+    Resolved from the INSTALL's environment, not from hearth_root(). That
+    distinction cost a live first run on 2026-08-08: hearth_root() is the
+    product tree -- the directory holding manifest.yaml, which in an install is
+    <root>/runtime/backend -- so <root>/runtime/omnivoice-tts resolved to
+    <root>/runtime/backend/runtime/omnivoice-tts and reported "unavailable"
+    while the binary sat installed and correct one level up. The bug survived a
+    unit test because the test set HEARTH_OMNIVOICE_TTS by hand.
+
+    HEARTH_OMNIVOICE_TTS is written by config_gen.rs and is the answer. Older
+    installs predate it, so fall back to the engine's own path -- the two
+    binaries ship together and land in the same directory.
+    """
+    configured = (os.environ.get("HEARTH_OMNIVOICE_TTS") or "").strip()
+    if configured:
+        p = Path(configured).expanduser()
+        return p if p.is_file() else None
+
+    engine = (os.environ.get("HEARTH_TTS_ENGINE_BIN") or "").strip()
+    if engine:
+        name = "omnivoice-tts.exe" if os.name == "nt" else "omnivoice-tts"
+        p = Path(engine).expanduser().parent / name
+        return p if p.is_file() else None
     return None
+
+
+def _voice_models() -> tuple[Path, Path] | None:
+    """The GGUF pair the engine runs on, from the same directory tts-server
+    is pointed at. Same reasoning as above: the install says where, not the
+    product tree."""
+    explicit_base = (os.environ.get("HEARTH_TTS_MODEL") or "").strip()
+    explicit_codec = (os.environ.get("HEARTH_TTS_CODEC") or "").strip()
+    if explicit_base and explicit_codec:
+        b, c = Path(explicit_base).expanduser(), Path(explicit_codec).expanduser()
+        return (b, c) if b.is_file() and c.is_file() else None
+
+    configured = (os.environ.get("HEARTH_TTS_VOICE_MODELS") or "").strip()
+    if not configured:
+        return None
+    voice_dir = Path(configured).expanduser()
+    bases = sorted(voice_dir.glob("omnivoice-base-*.gguf"))
+    codecs = sorted(voice_dir.glob("omnivoice-tokenizer-*.gguf"))
+    if not bases or not codecs:
+        return None
+    return bases[0], codecs[0]
+
+
+def _design_voice(text: str, attributes: list[str]) -> bytes | None:
+    """Design the persona's reference clip from instruct attributes.
+
+    Design once, clone always: this runs exactly ONCE per persona, and what it
+    returns becomes the reference every later sentence is cloned from. So the
+    runtime never depends on design support and this can afford to be a
+    subprocess.
+
+    It IS a subprocess, and that is the correction. The old implementation
+    POSTed to the voice service's /design, which only the torch engine
+    implements; on omnivoice.cpp it raised AttributeError and returned a 500,
+    and the persona was created voiceless -- then spoke in whoever's voice the
+    streamer happened to hold. tts-server cannot help either: its
+    /v1/audio/speech validates `voice` against the names loaded at ITS startup,
+    so instruct attributes have no way through. The engine could do it the whole
+    time; only the CLI reaches that path.
+
+    Returns WAV bytes, or None when design is unavailable -- which stays a
+    normal state rather than an error, because a house with no voice engine
+    still makes personas.
+    """
+    binary = _design_binary()
+    models = _voice_models()
+    if not binary or not models:
+        logger.info(
+            "voice design unavailable: binary=%s (HEARTH_OMNIVOICE_TTS=%r) "
+            "models=%s (HEARTH_TTS_VOICE_MODELS=%r)",
+            bool(binary), os.environ.get("HEARTH_OMNIVOICE_TTS", ""),
+            bool(models), os.environ.get("HEARTH_TTS_VOICE_MODELS", ""),
+        )
+        return None
+    base, codec = models
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "design.wav"
+        cmd = [
+            str(binary),
+            "--model", str(base),
+            "--codec", str(codec),
+            "--instruct", ", ".join(attributes),
+            "-o", str(out),
+        ]
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=text.encode("utf-8"),   # the CLI takes target text on stdin
+                capture_output=True,
+                timeout=300,                  # a cold model load plus a full pass
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            logger.warning("voice design failed to run: %s", exc)
+            return None
+        if proc.returncode != 0 or not out.is_file():
+            tail = (proc.stderr or b"").decode("utf-8", "replace").strip().splitlines()
+            logger.warning(
+                "voice design exited %s: %s",
+                proc.returncode, tail[-1] if tail else "(no output)",
+            )
+            return None
+        data = out.read_bytes()
+    logger.info("voice design produced %d bytes for '%s'", len(data), ", ".join(attributes))
+    return data
 
 
 def create_persona(
@@ -206,7 +312,7 @@ def create_persona(
     manifest["name"] = name
     manifest["description"] = description[:160]
     manifest["temperament"] = temperament[:80]
-    manifest["system_prompt"] = system_prompt[:4000]
+    manifest["system_prompt"] = system_prompt[:4000] + _VOICE_TAG_NOTE
 
     ramp = _ramp(colour)
     vis = manifest["visualization"]
