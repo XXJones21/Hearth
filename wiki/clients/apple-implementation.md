@@ -33,6 +33,73 @@ written, and each one changes the plan rather than decorating it.
 
 ---
 
+## 0. Where this stands
+
+Updated 2026-08-08. Branch `apple-client-migration`; rollback points are
+`pre-apple` here and `rc-pre-apple-move` in Valinor.
+
+| Phase | State | Proved by |
+| --- | --- | --- |
+| 0, rollback and toolchain | done | ignore fix verified against 11 paths; `xcode-select` now Xcode 27 |
+| 1, manifest and scrub | done | 79 files reconciled against the source tree, none unaccounted, none phantom |
+| 2, the project | done | three targets build; both apps install as **Hearth** |
+| 3 area 1, foundation | done | orb drawn from bundled JSON with nothing listening |
+| 3 area 2, transport and voice | done | live handshake on 18700 against the local stack |
+| 3 area 3, the turn and the cards | **next** | — |
+| 3 areas 4–6 | not started | — |
+| 4, capabilities and signing | not started | App Group is the check that needs a device |
+| 5, first run on a real network | not started | the one check that cannot be faked locally |
+
+### Resuming
+
+Three things about this machine, none of which survive a fresh shell:
+
+- **`export DEVELOPER_DIR=/Users/jones/Downloads/Xcode-beta.app/Contents/Developer`**
+  for any command-line build. `xcode-select` is pointed at 27 now, but the
+  scripts should not depend on machine state.
+- **Open the project in Xcode 27 before starting a session.** The MCP bridge
+  advertises no tools when Xcode is closed, which looks exactly like a broken
+  configuration (§1.6).
+- The Hearth stack answers on 18700; **nothing may be listening on 8700** while
+  testing, or a passing first-run check proves nothing.
+
+Two commands say whether the tree is still good:
+
+```
+tools/apple-gates.sh                                        # F1 over the tree
+python3 tools/sync-report.py --manifest apple-client/manifest.yaml
+```
+
+As of this commit: 41 source files checked, all gates clean, 65 files tracked
+under `apple-client/`, no drift from Valinor since `9235cd0`.
+
+### What area 3 has to do by hand
+
+The scrub cannot make these, and the manifest prints them after every run:
+
+- `ChatViewModel`, four named subtractions: the Mentat poll; the six seeded
+  journal fixtures at 1184–1200, which carry real dates, `"project": "valinor"`
+  and titles like "CHOAM market load latency"; the `TTSAudioPlayer` blob-player
+  fallback at 127 and 403; and the MWDAT lifecycle.
+- The commissioned cards, out of **four** sites rather than the three the
+  inventory records — the fourth is `CardLibraryView.swift:242`.
+- The `public` pass, compiler-driven, for whatever area 4's shell needs.
+
+### Standing corrections to this document's own plan
+
+Found by executing it, and each one is written up where it belongs:
+
+- `swift build` is the wrong gate for `HearthCore` — it targets macOS, which
+  the package does not support. Use `xcodebuild` with an iOS destination.
+- Swift 6 for the package does not survive the boundary this migration drew;
+  see `Core/Package.swift`, which carries the argument.
+- `verbatim` is almost never right for a Swift file: 65 of 73 carry a header
+  line naming the old project.
+- The MCP bridge cannot create targets, add packages, assign base
+  configurations, create schemes, or edit project-level settings (§1.6).
+
+---
+
 ## 1. What changed under the plan
 
 ### 1.1 Both repositories are on one machine, and it is the Mac
