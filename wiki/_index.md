@@ -38,6 +38,7 @@ answers "what does a stranger install."
 | What is in the Valinor Apple client, and what ships? | [`clients/apple-inventory.md`](clients/apple-inventory.md) |
 | What does the clean Apple project look like? | [`clients/apple-project-architecture.md`](clients/apple-project-architecture.md) |
 | How does the Apple migration actually run? | [`clients/apple-migration-plan.md`](clients/apple-migration-plan.md) |
+| What are the steps, on this machine, in order? | [`clients/apple-implementation.md`](clients/apple-implementation.md) |
 
 ## Status
 
