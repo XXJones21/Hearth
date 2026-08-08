@@ -23,6 +23,10 @@ desktop-client/node_modules/
 *.gguf
 
 # Xcode. Nothing in this repository needed these until apple-client existed.
+# They apply repo-wide on purpose: apple-client sits in this working directory
+# even on branches that do not track it, so without them a DESKTOP commit
+# sweeps up Xcode user state and the signing config -- which is how four such
+# files reached a merge on 2026-08-08.
 # Note what is NOT here: Package.resolved. The pinned revisions are the ones
 # that build, and for a zero-dependency project it is a short file that usefully
 # documents the absence.
@@ -56,17 +60,6 @@ desktop-client/src-tauri/resources/tts-server
 desktop-client/src-tauri/resources/tts-server.exe
 desktop-client/src-tauri/resources/omnivoice-tts
 desktop-client/src-tauri/resources/omnivoice-tts.exe
-
-# Xcode. The apple-client tree lives on its own branch, but its user state and
-# local signing config are physically present in this working directory, so
-# without these rules a desktop commit sweeps them in -- which is how four of
-# them reached a merge on 2026-08-08.
-xcuserdata/
-*.xcuserstate
-*.xcuserdatad
-DerivedData/
-.swiftpm/
-apple-client/**/Local.xcconfig
 
 # The voice engine's pinned upstream checkout, cloned and patched by
 # scripts/build_omnivoice.sh. Reproducible from the pin plus vendor/omnivoice,
