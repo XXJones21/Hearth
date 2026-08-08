@@ -59,6 +59,21 @@ _SWATCHES = {
 }
 _DEFAULT_COLOUR = _SWATCHES["ember"]
 
+# Every made persona learns the voice's non-verbal vocabulary. OmniVoice
+# performs these tags instead of reading them, which gives a designed voice
+# some life a system prompt alone cannot: a laugh that is a laugh. Kept to a
+# short leash in the wording; a 12B told about thirteen toys will use five a
+# sentence.
+_VOICE_TAG_NOTE = (
+    "\n\nYour voice can perform as well as speak. You may place these tags "
+    "inline in a reply, where the feeling belongs, and they will be sounded "
+    "rather than read: [laughter], [sigh], [confirmation-en], [question-en], "
+    "[question-ah], [question-oh], [question-ei], [question-yi], "
+    "[surprise-ah], [surprise-oh], [surprise-wa], [surprise-yo], "
+    "[dissatisfaction-hnn]. Use at most one or two per reply, and only when "
+    "the moment truly calls for it."
+)
+
 
 def _coerce_colour(raw: str) -> tuple[str, str]:
     """(hex, note). A hex passes through; a swatch name maps; a hex buried
@@ -208,7 +223,7 @@ def create_persona(
     manifest["name"] = name
     manifest["description"] = description[:160]
     manifest["temperament"] = temperament[:80]
-    manifest["system_prompt"] = system_prompt[:4000]
+    manifest["system_prompt"] = system_prompt[:4000] + _VOICE_TAG_NOTE
 
     ramp = _ramp(colour)
     vis = manifest["visualization"]

@@ -18,12 +18,28 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
 import websockets
 
 logger = logging.getLogger("valar.voice.tts_remote")
+
+# Spoken-only pronunciation fixes, in OmniVoice's CMU-arpabet bracket
+# convention. Applied to the TTS request text alone: the chat bubble keeps
+# the written name. Sulivan carries one L on screen but sounds like
+# Sullivan.
+_PRONUNCIATIONS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bSulivan\b", re.IGNORECASE), "[S AH1 L AH0 V AH0 N]"),
+)
+
+
+def speakable(text: str) -> str:
+    """The text as the voice service should say it."""
+    for pattern, arpabet in _PRONUNCIATIONS:
+        text = pattern.sub(arpabet, text)
+    return text
 
 
 class RemoteVoiceStreamer:
@@ -50,7 +66,11 @@ class RemoteVoiceStreamer:
             ) as ws:
                 await ws.send(
                     json.dumps(
-                        {"text": text, "ref_audio": self._ref_audio, "ref_text": self._ref_text}
+                        {
+                            "text": speakable(text),
+                            "ref_audio": self._ref_audio,
+                            "ref_text": self._ref_text,
+                        }
                     )
                 )
                 frames = 0
