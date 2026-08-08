@@ -136,34 +136,47 @@ def _ramp(hex_colour: str) -> dict:
 
 
 def _design_binary() -> Path | None:
-    """The voice-design CLI, installed beside the streaming engine.
+    """The voice-design CLI.
 
-    HEARTH_OMNIVOICE_TTS overrides for a dev tree; otherwise it sits at
-    <root>/runtime/omnivoice-tts, which is where provision.rs puts it.
+    Resolved from the INSTALL's environment, not from hearth_root(). That
+    distinction cost a live first run on 2026-08-08: hearth_root() is the
+    product tree -- the directory holding manifest.yaml, which in an install is
+    <root>/runtime/backend -- so <root>/runtime/omnivoice-tts resolved to
+    <root>/runtime/backend/runtime/omnivoice-tts and reported "unavailable"
+    while the binary sat installed and correct one level up. The bug survived a
+    unit test because the test set HEARTH_OMNIVOICE_TTS by hand.
+
+    HEARTH_OMNIVOICE_TTS is written by config_gen.rs and is the answer. Older
+    installs predate it, so fall back to the engine's own path -- the two
+    binaries ship together and land in the same directory.
     """
-    override = (os.environ.get("HEARTH_OMNIVOICE_TTS") or "").strip()
-    if override:
-        p = Path(override).expanduser()
+    configured = (os.environ.get("HEARTH_OMNIVOICE_TTS") or "").strip()
+    if configured:
+        p = Path(configured).expanduser()
         return p if p.is_file() else None
-    name = "omnivoice-tts.exe" if os.name == "nt" else "omnivoice-tts"
-    try:
-        p = hearth_root() / "runtime" / name
-    except Exception:  # noqa: BLE001 - an unlocatable tree is just "no design"
-        return None
-    return p if p.is_file() else None
+
+    engine = (os.environ.get("HEARTH_TTS_ENGINE_BIN") or "").strip()
+    if engine:
+        name = "omnivoice-tts.exe" if os.name == "nt" else "omnivoice-tts"
+        p = Path(engine).expanduser().parent / name
+        return p if p.is_file() else None
+    return None
 
 
 def _voice_models() -> tuple[Path, Path] | None:
-    """The GGUF pair the engine runs on, the same two tts-server is given."""
-    base = (os.environ.get("HEARTH_TTS_MODEL") or "").strip()
-    codec = (os.environ.get("HEARTH_TTS_CODEC") or "").strip()
-    if base and codec:
-        b, c = Path(base).expanduser(), Path(codec).expanduser()
+    """The GGUF pair the engine runs on, from the same directory tts-server
+    is pointed at. Same reasoning as above: the install says where, not the
+    product tree."""
+    explicit_base = (os.environ.get("HEARTH_TTS_MODEL") or "").strip()
+    explicit_codec = (os.environ.get("HEARTH_TTS_CODEC") or "").strip()
+    if explicit_base and explicit_codec:
+        b, c = Path(explicit_base).expanduser(), Path(explicit_codec).expanduser()
         return (b, c) if b.is_file() and c.is_file() else None
-    try:
-        voice_dir = hearth_root() / "models" / "voice"
-    except Exception:  # noqa: BLE001
+
+    configured = (os.environ.get("HEARTH_TTS_VOICE_MODELS") or "").strip()
+    if not configured:
         return None
+    voice_dir = Path(configured).expanduser()
     bases = sorted(voice_dir.glob("omnivoice-base-*.gguf"))
     codecs = sorted(voice_dir.glob("omnivoice-tokenizer-*.gguf"))
     if not bases or not codecs:
@@ -196,8 +209,10 @@ def _design_voice(text: str, attributes: list[str]) -> bytes | None:
     models = _voice_models()
     if not binary or not models:
         logger.info(
-            "voice design unavailable: binary=%s models=%s",
-            bool(binary), bool(models),
+            "voice design unavailable: binary=%s (HEARTH_OMNIVOICE_TTS=%r) "
+            "models=%s (HEARTH_TTS_VOICE_MODELS=%r)",
+            bool(binary), os.environ.get("HEARTH_OMNIVOICE_TTS", ""),
+            bool(models), os.environ.get("HEARTH_TTS_VOICE_MODELS", ""),
         )
         return None
     base, codec = models
