@@ -32,6 +32,7 @@ answers "what does a stranger install."
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
 | How does someone install it on a Mac? | [`install-macos.md`](install-macos.md) |
+| How does an install become a newer one? | [`updates.md`](updates.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
 | How does the card library grow? | [`card-forge.md`](card-forge.md) |
 | What is in the Valinor Apple client, and what ships? | [`clients/apple-inventory.md`](clients/apple-inventory.md) |
