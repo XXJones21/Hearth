@@ -3,6 +3,7 @@ import { Btn, IconFolder, Row, Section, Segmented, Toggle } from './controls';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { can } from '../../lib/clientProfile';
 import { defaultAddressLabel } from '../../lib/config';
+import { houseStart, houseStatus, houseStop, type HouseStatus } from '../../lib/house';
 import { revealFolder, toHostPath } from '../../lib/openPath';
 import {
   applyDocumentSettings,
@@ -58,6 +59,50 @@ export function SettingsView({ onReconnect }: Props) {
   useEffect(() => {
     ttsPlayer.setOutput(s.voiceEnabled, s.voiceVolume);
   }, [s.voiceEnabled, s.voiceVolume]);
+
+  /* The house is the backend process tree this client supervises, and it is
+     only ever started for you: on boot, and at the end of setup. When it dies
+     or is stopped there is nothing in the interface that can bring it back,
+     so the only way out has been to quit and relaunch. These two buttons are
+     that missing door. Local installs only -- a client pointed at another
+     machine's house has no business starting or stopping it. */
+  const [house, setHouse] = useState<HouseStatus | null>(null);
+  const [houseBusy, setHouseBusy] = useState(false);
+  const localHouse = !s.serverAddress.trim() && !!s.installRoot;
+
+  useEffect(() => {
+    if (!localHouse) return;
+    let alive = true;
+    const poll = () => {
+      houseStatus()
+        .then((h) => alive && setHouse(h))
+        .catch(() => alive && setHouse(null));
+    };
+    poll();
+    const id = window.setInterval(poll, 2000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [localHouse]);
+
+  async function toggleHouse(start: boolean) {
+    setHouseBusy(true);
+    try {
+      if (start) {
+        await houseStart(s.installRoot);
+        flash('Starting the house');
+      } else {
+        await houseStop();
+        flash('Stopped the house');
+      }
+    } catch (e) {
+      flash(String(e));
+    } finally {
+      setHouseBusy(false);
+      houseStatus().then(setHouse).catch(() => undefined);
+    }
+  }
 
   async function runTest() {
     setTesting(true);
@@ -128,6 +173,46 @@ export function SettingsView({ onReconnect }: Props) {
               Apply
             </Btn>
           </Row>
+
+          {localHouse && (
+            <Row
+              label="The house"
+              hint="The backend on this machine: the mind, the voice, and the ears. Stopping it frees their memory; starting it brings them back without relaunching Hearth."
+            >
+              <span
+                className={`text-[12px] ${
+                  house?.running ? 'font-semibold text-[#0F7A52]' : 'text-fawn'
+                }`}
+              >
+                {house === null
+                  ? 'unknown'
+                  : house.running
+                    ? `running${
+                        house.processes.length ? ` (${house.processes.length} processes)` : ''
+                      }`
+                    : 'stopped'}
+              </span>
+              <Btn onClick={() => toggleHouse(true)} disabled={houseBusy || !!house?.running}>
+                Start
+              </Btn>
+              <Btn onClick={() => toggleHouse(false)} disabled={houseBusy || !house?.running}>
+                Stop
+              </Btn>
+            </Row>
+          )}
+
+          {localHouse && house?.processes?.some((p) => p.state === 'failed') && (
+            <div className="mt-2 rounded-[14px] border border-[#E8CFC2] bg-glowtint px-4 py-2.5 text-[12px] text-fawn">
+              {house.processes
+                .filter((p) => p.state === 'failed')
+                .map((p) => (
+                  <div key={p.name}>
+                    <span className="font-semibold">{p.name}</span> failed
+                    {p.detail ? `: ${p.detail}` : ''}
+                  </div>
+                ))}
+            </div>
+          )}
 
           <div className="mt-2 flex flex-wrap items-center gap-4 rounded-[14px] border border-bubble-line bg-glowtint px-4 py-2.5 text-[12px] text-fawn">
             <span className={connection === 'ready' ? 'font-semibold text-[#0F7A52]' : ''}>

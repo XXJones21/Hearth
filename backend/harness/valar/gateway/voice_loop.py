@@ -311,7 +311,11 @@ class VoiceLoop:
                 # finish before the answer's first sentence so audio stays
                 # strictly in order.
                 if filler is not None:
-                    with contextlib.suppress(Exception):
+                    # CancelledError is a BaseException, so suppress(Exception)
+                    # does NOT catch it: a filler dropped because a card beat
+                    # it would tear down this consumer and take the whole
+                    # spoken answer with it. Caught by name, deliberately.
+                    with contextlib.suppress(Exception, asyncio.CancelledError):
                         speaking_started, spoken = await filler
                 while True:
                     item = await queue.get()
@@ -635,7 +639,10 @@ class VoiceLoop:
         # carries tool_calls, BEFORE the handlers run — so the phrase synthesizes
         # and plays while the tool executes (the gap it exists to cover). The task
         # is returned to run_turn; the answer consumer joins it for audio order.
-        filler_holder: dict = {"task": None}
+        # "audio" flips the moment the filler's first PCM frame is emitted.
+        # Before that it can still be called off; after it, cancelling would
+        # cut a word in half.
+        filler_holder: dict = {"task": None, "audio": False}
 
         async def _emit_stage(stage: str) -> None:
             # State-machine sub-stage events (Phase B, 2026-06-06): the notify
@@ -672,7 +679,10 @@ class VoiceLoop:
             phrase = registry.speak_phrase(names)
             if phrase and filler_holder["task"] is None:
                 filler_holder["task"] = asyncio.create_task(
-                    self._speak(phrase, session, emit, False, 0, telemetry)
+                    self._speak(
+                        phrase, session, emit, False, 0, telemetry,
+                        audio_flag=filler_holder,
+                    )
                 )
 
         # Generative UI (Phase C): the COMPOSER is the single author of
@@ -697,6 +707,29 @@ class VoiceLoop:
                         op.get("type") or op.get("op"),
                         name,
                     )
+                    # A card on screen has already answered, so "let me check
+                    # the weather" is no longer covering a wait -- it is
+                    # narrating something the operator can read. The filler
+                    # covers latency; when it loses the race to the card it has
+                    # nothing left to cover and is dropped.
+                    #
+                    # This is a race, and losing it is normal on a slow
+                    # machine: the phrase is queued the instant tool_calls
+                    # arrive, but synthesis took 7.6s on the 8 GB Air while the
+                    # handler returned in 2.4s. A machine that synthesises
+                    # faster than its tools run still speaks it, which is the
+                    # behaviour worth keeping.
+                    #
+                    # Only before the first frame. After that it is being heard
+                    # and cancelling would cut a word in half.
+                    task = filler_holder.get("task")
+                    if task is not None and not task.done() and not filler_holder["audio"]:
+                        task.cancel()
+                        filler_holder["task"] = None
+                        logger.info(
+                            "filler dropped: %s rendered before it could be spoken",
+                            op.get("type") or op.get("op"),
+                        )
                 except Exception as exc:  # noqa: BLE001 - UI never breaks the turn
                     logger.warning("ui_component emit failed for %s: %s", name, exc)
 
@@ -774,6 +807,7 @@ class VoiceLoop:
         speaking_started: bool,
         sentences_spoken: int,
         telemetry: TurnTelemetry,
+        audio_flag: dict | None = None,
     ) -> tuple[bool, int]:
         """Stream one sentence's TTS as PCM chunks (tts_chunk_start/binary/end)."""
         sr = self.config.voice.output_sample_rate
@@ -795,6 +829,11 @@ class VoiceLoop:
         with Timer(telemetry, "tts_total_ms", accumulate=True):  # summed across sentences
             try:
                 async for pcm in self.tts.stream_sentence(sentence):
+                    # Once a frame is out it is being heard, and this sentence
+                    # can no longer be cancelled without cutting a word in
+                    # half. See the filler's cancellation in _maybe_run_tools.
+                    if audio_flag is not None:
+                        audio_flag["audio"] = True
                     await emit("audio", pcm)  # binary PCM frame
             except Exception as exc:  # noqa: BLE001 - surface but keep turn alive
                 logger.error("TTS failed for sentence: %s", exc)
