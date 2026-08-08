@@ -259,6 +259,14 @@ This is a phase-0 fix, before anything is copied, and it needs three changes:
   pinned revisions are the ones that build, and for a zero-dependency project
   it is a two-line file that documents the absence.
 
+**And do not solve it with `.gitkeep`.** Tried, 2026-08-08, and it fails
+loudly: a synchronized root group treats every file in the folder as a resource,
+including dotfiles, and flattens them into `Resources/`. Four folders each
+holding a `.gitkeep` produced four commands writing one output path and the
+build stopped with `Multiple commands produce .../Resources/.gitkeep`. Empty
+organization folders therefore cannot be kept in git by the usual trick; they
+arrive when their first real file does.
+
 The general form of the check, which is F1 item 8 and which should run after
 every area rather than once at the end:
 
@@ -300,6 +308,30 @@ phase 4 has to happen through the UI, which was the part of this plan least able
 to be checked by anyone but the person doing it. The `xcodebuild` gates stay as
 written, because they are what a fresh clone runs and the bridge is not.
 
+**What the bridge cannot do**, established by working through phase 2 with it
+rather than by reading the tool list. The 47 tools operate on things that
+already exist; they do not create project structure. There is no tool that:
+
+- creates a target
+- adds a local package to a project
+- assigns a base configuration file (`.xcconfig`) to a build configuration
+- creates or shares a scheme
+- edits a **project**-level build setting — `UpdateTargetBuildSetting` is
+  target-level only, and that gap has a sharp edge, see below
+
+So phase 2's topology is a UI session, and everything after it is drivable.
+Plan accordingly: make the targets, the package and the xcconfig assignments in
+one sitting, then hand the settings, entitlements, plists and build gates to the
+bridge.
+
+**The project-level gap is not cosmetic.** `DEVELOPMENT_TEAM` can be deleted
+from all three targets through the bridge and still sit in the project's own
+build configurations, where nothing but Xcode or a pbxproj edit can reach it.
+A clone then builds using the committed team rather than failing over to
+`Local.xcconfig`, which is precisely the failure `Local.xcconfig` exists to
+produce loudly. Clear it at the project level by hand, and check with
+`git grep AS9PH6XDN4 -- apple-client/` rather than by reading the target editor.
+
 ---
 
 ## 2. Decisions to settle before phase 2
@@ -315,7 +347,7 @@ stated cost.
 | Container | one `.xcodeproj` | `.xcworkspace` |
 | Targets | 2: app (iOS + visionOS in one), widgets | 4: iOS app, visionOS app, iOS widgets, visionOS widgets |
 | Shared code | `Shared/` folder, widget sees five files by `membershipExceptions` | local package `HearthKit`, product dependency |
-| Config | settings in the project file | `Config/*.xcconfig`, `Local.xcconfig` gitignored |
+| Config | settings in the project file | `*.xcconfig` at the project root, `Local.xcconfig` gitignored |
 | Created by | hand, in Xcode, committed alone | hand or generated; explicitly left open |
 
 They cannot both be executed. The migration plan's area order, its section B4
@@ -340,7 +372,7 @@ apple-client/
   Hearth iOS/                    host scenes, iOS-shaped layout
   Hearth visionOS/               host scenes, RealityKit
   Hearth Widgets/
-  Config/  Shared.xcconfig  Dev.xcconfig  Release.xcconfig  Local.xcconfig
+  Shared.xcconfig  Dev.xcconfig  Release.xcconfig  Local.xcconfig   (project root)
   docs/runbook.md
 ```
 
@@ -373,7 +405,7 @@ what the visionOS skeleton target exists to mitigate.
 documents raise XcodeGen or Tuist. Against: the scaffold is
 `objectVersion = 110`, newer than the format either generator reliably emits;
 the generators' selling point — a project file reviewable as text — is largely
-bought instead by `Config/*.xcconfig`, where the settings that matter live; and
+bought instead by the xcconfigs, where the settings that matter live; and
 regenerating would discard the signing association the scaffold was created to
 establish. Revisit if the target count grows past four.
 
@@ -667,7 +699,7 @@ because each step is cheaper before the next one exists:
 
 1. Delete `Item.swift` and the SwiftData `ModelContainer` from `HearthApp.swift`.
 2. Fix the floors and platforms: iOS 26.0, visionOS 27.0, `macosx` out.
-3. Move identity into `Config/*.xcconfig` — `HEARTH_ID_PREFIX`,
+3. Move identity into the project-root xcconfigs — `HEARTH_ID_PREFIX`,
    `HEARTH_APP_GROUP` — and `DEVELOPMENT_TEAM` into a gitignored
    `Local.xcconfig`. The iOS App ID already exists; register
    `group.com.joshuajones.Hearth` and, in step 5, the two additional App IDs
@@ -815,7 +847,7 @@ by the `valinor` grep, which is the one that matters.
 **`git grep AS9PH6XDN4` is dropped as a source grep and becomes a project-file
 check.** The team ID is legitimately present on this machine; what must be true
 is that it lives only in the gitignored `Local.xcconfig`. The check is
-`git grep AS9PH6XDN4 -- apple-client/ ':!Config/Local.xcconfig'` returning
+`git grep AS9PH6XDN4 -- apple-client/ ':!*/Local.xcconfig'` returning
 nothing, which is a different assertion from "the string does not appear".
 
 **The `valinor` grep gains two path exclusions.** `SUPPORTED_PLATFORMS` and
@@ -846,7 +878,7 @@ Recorded here so it is estimated rather than discovered. None of it is a port.
 | `Resources/Personas/sulivan.json` and the decoder path that reads it | area 1 | the Apple client has never bundled a persona |
 | The no-host first-run state and its connection prompt | area 1 | today an empty field restores the build-time default |
 | `HearthKit`'s public surface | areas 1–3, compiler-driven | there is no package today |
-| `Config/*.xcconfig` and `Local.xcconfig` | phase 2 | settings live in the project file today |
+| The xcconfig set and `Local.xcconfig` | phase 2 | settings live in the project file today |
 | A shared scheme, committed | phase 2 | Valinor's `xcshareddata/` does not exist; `xcuserdata/` is checked in |
 | App icons | not gated | both catalogs hold only `Contents.json`; same state as the desktop client |
 | Widget chrome from the palette | area 5 | three hardcoded violet literals and a near-black background |

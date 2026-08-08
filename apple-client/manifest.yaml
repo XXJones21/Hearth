@@ -59,7 +59,7 @@ identity:
   # the app in that state does not dial: it renders the bundled Sulivan and
   # shows the connection field.
   default_host:       ""
-  development_team_var: DEVELOPMENT_TEAM   # lives in Config/Local.xcconfig, gitignored
+  development_team_var: DEVELOPMENT_TEAM   # lives in Local.xcconfig, gitignored
 
 # Applied to every crossing file. Type and filename rename in the same pass:
 # Swift does not require them to match, which is exactly why a half-done rename
@@ -111,7 +111,7 @@ do_not_rewrite:
     - Hearth.xcodeproj/
     - "*/Info.plist"
     - "*.entitlements"
-    - Config/*.xcconfig
+    - "*.xcconfig"
 
 # ---------------------------------------------------------------------------
 # Area 1 -- Foundation, and first run
@@ -764,7 +764,7 @@ components:
 # file above.
 # ---------------------------------------------------------------------------
   - name: xcconfig
-    destination: Config/
+    destination: ./
     area: 0
     disposition: generated
     files:
@@ -970,9 +970,9 @@ counts:
     - Core/Sources/HearthCore/Resources/Personas/sulivan.json
     - visionOS/HearthVisionApp.swift
     - visionOS/HearthVision.entitlements
-    - Config/Shared.xcconfig
-    - Config/Dev.xcconfig
-    - Config/Release.xcconfig
+    - Shared.xcconfig
+    - Dev.xcconfig
+    - Release.xcconfig
     - 3 shared schemes
   note: >-
     Asset catalogs cross as directories and their Contents.json files are not

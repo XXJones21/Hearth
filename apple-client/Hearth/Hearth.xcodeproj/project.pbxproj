@@ -6,14 +6,87 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		DF8513B33027B55E00F0D2D5 /* Dev.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF8513B23027B55E00F0D2D5 /* Dev.xcconfig */; };
+		DF8513B53027B56C00F0D2D5 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF8513B43027B56C00F0D2D5 /* Release.xcconfig */; };
+		DF8513B83027B5A300F0D2D5 /* HearthCore in Frameworks */ = {isa = PBXBuildFile; productRef = DF8513B73027B5A300F0D2D5 /* HearthCore */; };
+		DF8513DE3027B5E400F0D2D5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF8513DD3027B5E400F0D2D5 /* WidgetKit.framework */; };
+		DF8513E03027B5E400F0D2D5 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF8513DF3027B5E400F0D2D5 /* SwiftUI.framework */; };
+		DF8513F13027B5E700F0D2D5 /* Hearth WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DF8513DB3027B5E400F0D2D5 /* Hearth WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DF8513EF3027B5E700F0D2D5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DF85138430279D0300F0D2D5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DF8513DA3027B5E400F0D2D5;
+			remoteInfo = "Hearth WidgetExtension";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DF8513F63027B5E700F0D2D5 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				DF8513F13027B5E700F0D2D5 /* Hearth WidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		DF85138C30279D0300F0D2D5 /* Hearth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hearth.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF8513B23027B55E00F0D2D5 /* Dev.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Dev.xcconfig; sourceTree = "<group>"; };
+		DF8513B43027B56C00F0D2D5 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		DF8513BD3027B5C400F0D2D5 /* Hearth.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Hearth.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF8513DB3027B5E400F0D2D5 /* Hearth WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "Hearth WidgetExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF8513DD3027B5E400F0D2D5 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		DF8513DF3027B5E400F0D2D5 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		DF8513CF3027B5C700F0D2D5 /* Exceptions for "Hearth Vision" folder in "Hearth Vision" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DF8513BC3027B5C400F0D2D5 /* Hearth Vision */;
+		};
+		DF8513F23027B5E700F0D2D5 /* Exceptions for "Hearth Widget" folder in "Hearth WidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DF8513DA3027B5E400F0D2D5 /* Hearth WidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DF85138E30279D0300F0D2D5 /* Hearth */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Hearth;
+			sourceTree = "<group>";
+		};
+		DF8513BE3027B5C400F0D2D5 /* Hearth Vision */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DF8513CF3027B5C700F0D2D5 /* Exceptions for "Hearth Vision" folder in "Hearth Vision" target */,
+			);
+			explicitFolders = (
+				Resources/Materials,
+			);
+			path = "Hearth Vision";
+			sourceTree = "<group>";
+		};
+		DF8513E13027B5E400F0D2D5 /* Hearth Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DF8513F23027B5E700F0D2D5 /* Exceptions for "Hearth Widget" folder in "Hearth WidgetExtension" target */,
+			);
+			path = "Hearth Widget";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -22,6 +95,19 @@
 		DF85138930279D0300F0D2D5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				DF8513B83027B5A300F0D2D5 /* HearthCore in Frameworks */,
+			);
+		};
+		DF8513BA3027B5C400F0D2D5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		DF8513D83027B5E400F0D2D5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+				DF8513E03027B5E400F0D2D5 /* SwiftUI.framework in Frameworks */,
+				DF8513DE3027B5E400F0D2D5 /* WidgetKit.framework in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -31,7 +117,12 @@
 			isa = PBXGroup;
 			children = (
 				DF85138E30279D0300F0D2D5 /* Hearth */,
+				DF8513BE3027B5C400F0D2D5 /* Hearth Vision */,
+				DF8513E13027B5E400F0D2D5 /* Hearth Widget */,
+				DF8513DC3027B5E400F0D2D5 /* Frameworks */,
 				DF85138D30279D0300F0D2D5 /* Products */,
+				DF8513B23027B55E00F0D2D5 /* Dev.xcconfig */,
+				DF8513B43027B56C00F0D2D5 /* Release.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -39,8 +130,19 @@
 			isa = PBXGroup;
 			children = (
 				DF85138C30279D0300F0D2D5 /* Hearth.app */,
+				DF8513BD3027B5C400F0D2D5 /* Hearth.app */,
+				DF8513DB3027B5E400F0D2D5 /* Hearth WidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		DF8513DC3027B5E400F0D2D5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DF8513DD3027B5E400F0D2D5 /* WidgetKit.framework */,
+				DF8513DF3027B5E400F0D2D5 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -53,16 +155,59 @@
 				DF85138830279D0300F0D2D5 /* Sources */,
 				DF85138930279D0300F0D2D5 /* Frameworks */,
 				DF85138A30279D0300F0D2D5 /* Resources */,
+				DF8513F63027B5E700F0D2D5 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				DF8513F03027B5E700F0D2D5 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				DF85138E30279D0300F0D2D5 /* Hearth */,
 			);
 			name = Hearth;
+			packageProductDependencies = (
+				DF8513B73027B5A300F0D2D5 /* HearthCore */,
+			);
 			productName = Hearth;
 			productReference = DF85138C30279D0300F0D2D5 /* Hearth.app */;
 			productType = "com.apple.product-type.application";
+		};
+		DF8513BC3027B5C400F0D2D5 /* Hearth Vision */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DF8513D03027B5C700F0D2D5 /* Build configuration list for PBXNativeTarget "Hearth Vision" */;
+			buildPhases = (
+				DF8513B93027B5C400F0D2D5 /* Sources */,
+				DF8513BA3027B5C400F0D2D5 /* Frameworks */,
+				DF8513BB3027B5C400F0D2D5 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				DF8513BE3027B5C400F0D2D5 /* Hearth Vision */,
+			);
+			name = "Hearth Vision";
+			productName = "Hearth Vision";
+			productReference = DF8513BD3027B5C400F0D2D5 /* Hearth.app */;
+			productType = "com.apple.product-type.application";
+		};
+		DF8513DA3027B5E400F0D2D5 /* Hearth WidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DF8513F33027B5E700F0D2D5 /* Build configuration list for PBXNativeTarget "Hearth WidgetExtension" */;
+			buildPhases = (
+				DF8513D73027B5E400F0D2D5 /* Sources */,
+				DF8513D83027B5E400F0D2D5 /* Frameworks */,
+				DF8513D93027B5E400F0D2D5 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				DF8513E13027B5E400F0D2D5 /* Hearth Widget */,
+			);
+			name = "Hearth WidgetExtension";
+			productName = "Hearth WidgetExtension";
+			productReference = DF8513DB3027B5E400F0D2D5 /* Hearth WidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -77,6 +222,12 @@
 					DF85138B30279D0300F0D2D5 = {
 						CreatedOnToolsVersion = 27.0;
 					};
+					DF8513BC3027B5C400F0D2D5 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					DF8513DA3027B5E400F0D2D5 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = DF85138730279D0300F0D2D5 /* Build configuration list for PBXProject "Hearth" */;
@@ -88,18 +239,35 @@
 			);
 			mainGroup = DF85138330279D0300F0D2D5;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				DF8513B63027B5A300F0D2D5 /* XCLocalSwiftPackageReference "Core" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DF85138D30279D0300F0D2D5 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				DF85138B30279D0300F0D2D5 /* Hearth */,
+				DF8513BC3027B5C400F0D2D5 /* Hearth Vision */,
+				DF8513DA3027B5E400F0D2D5 /* Hearth WidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		DF85138A30279D0300F0D2D5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+				DF8513B33027B55E00F0D2D5 /* Dev.xcconfig in Resources */,
+				DF8513B53027B56C00F0D2D5 /* Release.xcconfig in Resources */,
+			);
+		};
+		DF8513BB3027B5C400F0D2D5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		DF8513D93027B5E400F0D2D5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -112,11 +280,30 @@
 			files = (
 			);
 		};
+		DF8513B93027B5C400F0D2D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		DF8513D73027B5E400F0D2D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DF8513F03027B5E700F0D2D5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DF8513DA3027B5E400F0D2D5 /* Hearth WidgetExtension */;
+			targetProxy = DF8513EF3027B5E700F0D2D5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		DF85139730279D0500F0D2D5 /* Debug configuration for PBXProject "Hearth" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DF8513B23027B55E00F0D2D5 /* Dev.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -179,6 +366,7 @@
 		};
 		DF85139830279D0500F0D2D5 /* Release configuration for PBXProject "Hearth" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DF8513B43027B56C00F0D2D5 /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -233,17 +421,18 @@
 		};
 		DF85139A30279D0500F0D2D5 /* Debug configuration for PBXNativeTarget "Hearth" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DF8513B23027B55E00F0D2D5 /* Dev.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AS9PH6XDN4;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hearth;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -254,11 +443,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(HEARTH_IOS_FLOOR)";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshuajones.Hearth;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HEARTH_BUNDLE_ID_IOS)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -275,17 +464,18 @@
 		};
 		DF85139B30279D0500F0D2D5 /* Release configuration for PBXNativeTarget "Hearth" */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = DF8513B43027B56C00F0D2D5 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = AS9PH6XDN4;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Hearth;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -296,11 +486,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				IPHONEOS_DEPLOYMENT_TARGET = "$(HEARTH_IOS_FLOOR)";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshuajones.Hearth;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HEARTH_BUNDLE_ID_IOS)";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -312,6 +502,132 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DF8513D13027B5C700F0D2D5 /* Debug configuration for PBXNativeTarget "Hearth Vision" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Hearth;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HEARTH_BUNDLE_ID_VISIONOS)";
+				PRODUCT_NAME = Hearth;
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = "$(HEARTH_VISIONOS_FLOOR)";
+			};
+			name = Debug;
+		};
+		DF8513D23027B5C700F0D2D5 /* Release configuration for PBXNativeTarget "Hearth Vision" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Hearth;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HEARTH_BUNDLE_ID_VISIONOS)";
+				PRODUCT_NAME = Hearth;
+				SDKROOT = xros;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				VALIDATE_PRODUCT = YES;
+				XROS_DEPLOYMENT_TARGET = "$(HEARTH_VISIONOS_FLOOR)";
+			};
+			name = Release;
+		};
+		DF8513F43027B5E700F0D2D5 /* Debug configuration for PBXNativeTarget "Hearth WidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Hearth Widget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Hearth Widget";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(HEARTH_IOS_FLOOR)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HEARTH_BUNDLE_ID_WIDGETS)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DF8513F53027B5E700F0D2D5 /* Release configuration for PBXNativeTarget "Hearth WidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Hearth Widget/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Hearth Widget";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = "$(HEARTH_IOS_FLOOR)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(HEARTH_BUNDLE_ID_WIDGETS)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -334,7 +650,37 @@
 			);
 			defaultConfigurationName = Release;
 		};
+		DF8513D03027B5C700F0D2D5 /* Build configuration list for PBXNativeTarget "Hearth Vision" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DF8513D13027B5C700F0D2D5 /* Debug configuration for PBXNativeTarget "Hearth Vision" */,
+				DF8513D23027B5C700F0D2D5 /* Release configuration for PBXNativeTarget "Hearth Vision" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		DF8513F33027B5E700F0D2D5 /* Build configuration list for PBXNativeTarget "Hearth WidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DF8513F43027B5E700F0D2D5 /* Debug configuration for PBXNativeTarget "Hearth WidgetExtension" */,
+				DF8513F53027B5E700F0D2D5 /* Release configuration for PBXNativeTarget "Hearth WidgetExtension" */,
+			);
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		DF8513B63027B5A300F0D2D5 /* XCLocalSwiftPackageReference "Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DF8513B73027B5A300F0D2D5 /* HearthCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HearthCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = DF85138430279D0300F0D2D5 /* Project object */;
 	validationLevel = 1;
