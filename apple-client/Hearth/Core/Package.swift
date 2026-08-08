@@ -45,12 +45,27 @@ let package = Package(
                 .process("Resources/Personas"),
             ],
             swiftSettings: [
-                // Swift 6 language mode here only. The app targets stay on
-                // Swift 5 until the audio path -- an AVAudioEngine tap, a
-                // player node and a recogniser callback -- has been audited
-                // properly. Adopting strict concurrency across that as part of
-                // a migration is how a migration becomes a rewrite.
-                .swiftLanguageMode(.v6),
+                // Swift 5, and this is a correction rather than a default.
+                //
+                // The architecture article proposes Swift 6 for the shared
+                // package "where the code is protocol, models and decoding and
+                // the concurrency story is simple", with the app targets left
+                // on Swift 5 until the audio path -- an AVAudioEngine tap, a
+                // player node and a recogniser callback -- has been audited.
+                //
+                // That split does not survive contact with the boundary this
+                // migration actually drew. ChatViewModel, TTSStreamPlayer,
+                // SpeechRecognitionManager and AudioSessionManager all land
+                // HERE, because both app targets need them. So Swift 6 mode on
+                // this package would apply strict concurrency to precisely the
+                // code the article says to leave alone, and area 1 found the
+                // first instance immediately: ServerConfig.shared is a static
+                // on a non-Sendable class, which is a real finding and also the
+                // thin end of a wedge that ends in the audio path.
+                //
+                // Swift 6 is worth adopting deliberately, on its own branch,
+                // against a client that already compiles. Not during the move.
+                .swiftLanguageMode(.v5),
             ]
         ),
     ]

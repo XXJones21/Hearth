@@ -70,8 +70,13 @@ renames:
     ValinorMainView:         HearthMainView
     ValinorState:            HearthState
     ValinorWebSocketClient:  HearthWebSocketClient
+    ValinorWidgetsExtension: Hearth WidgetExtension   # the target's real name
     ValinorWidgetProvider:   HearthWidgetProvider
     ValinorWidgetsBundle:    HearthWidgetsBundle
+    ValinorWidgets:          Hearth Widget            # the folder's real name
+    ValinorSnapshot:         HearthSnapshot
+    ValinorProvider:         HearthProvider
+    ValinorEntry:            HearthEntry
     SulivanWidget:           PersonaWidget
     AudioInputManager:       AudioSessionManager
   # UserDefaults keys. Renaming is correct for a product that has never shipped
@@ -174,7 +179,7 @@ components:
     kind: directory
     disposition: edits
     files:
-      - {from: ChatMessage.swift, to: ChatMessage.swift, lines: 30, disposition: verbatim}
+      - {from: ChatMessage.swift, to: ChatMessage.swift, lines: 30, disposition: edits}
       - from: ClientInfo.swift
         to: ClientInfo.swift
         lines: 142
@@ -216,11 +221,11 @@ components:
     kind: directory
     disposition: verbatim
     files:
-      - {from: ColorHex.swift, to: ColorHex.swift, lines: 54, disposition: verbatim}
+      - {from: ColorHex.swift, to: ColorHex.swift, lines: 54, disposition: edits}
       - from: HearthPalette.swift
         to: HearthPalette.swift
         lines: 237
-        disposition: verbatim
+        disposition: edits
         note: >-
           Already correct. Writes each token once as a hex literal and decodes
           it into both a SwiftUI Color and a SIMD3<Float>, so the flat and
@@ -228,7 +233,7 @@ components:
       - from: HearthIcons.swift
         to: HearthIcons.swift
         lines: 133
-        disposition: verbatim
+        disposition: edits
         note: "the desktop's icons.tsx redrawn as SwiftUI shapes on the same 24-unit grid"
 
   - name: persona
@@ -239,7 +244,7 @@ components:
     kind: directory
     disposition: edits
     files:
-      - {from: PersonaOrb.swift, to: PersonaOrb.swift, lines: 231, disposition: verbatim}
+      - {from: PersonaOrb.swift, to: PersonaOrb.swift, lines: 231, disposition: edits}
       - from: PersonaPalette.swift
         to: PersonaPalette.swift
         lines: 103
@@ -251,7 +256,7 @@ components:
       - from: PersonaVisualization.swift
         to: PersonaVisualization.swift
         lines: 90
-        disposition: verbatim
+        disposition: edits
         note: >-
           The renderer switch is properly data-driven: it decodes
           visualization.type and nothing anywhere says "if Selene". Preserve
@@ -283,7 +288,7 @@ components:
 
   - name: ios-app-entry
     source: Valinor/ValinorApp.swift
-    destination: iOS/HearthApp.swift
+    destination: Hearth/HearthApp.swift
     area: 1
     target: ios
     lines: 96
@@ -298,7 +303,7 @@ components:
 
   - name: ios-assets
     source: Valinor/Assets.xcassets/
-    destination: iOS/Assets.xcassets/
+    destination: Hearth/Assets.xcassets/
     area: 1
     target: ios
     kind: directory
@@ -465,7 +470,7 @@ components:
 # ---------------------------------------------------------------------------
   - name: ios-shell
     source: Valinor/Views/
-    destination: iOS/Views/
+    destination: Hearth/Views/
     area: 4
     target: ios
     kind: directory
@@ -507,7 +512,7 @@ components:
 
   - name: timeline
     source: Valinor/Views/Timeline/TimelineFeed.swift
-    destination: iOS/Views/Timeline/TimelineFeed.swift
+    destination: Hearth/Views/Timeline/TimelineFeed.swift
     area: 4
     target: ios
     lines: 283
@@ -516,7 +521,7 @@ components:
 
   - name: settings-surface
     source: Valinor/Views/Settings/HearthSettingsView.swift
-    destination: iOS/Views/Settings/HearthSettingsView.swift
+    destination: Hearth/Views/Settings/HearthSettingsView.swift
     area: 4
     target: ios
     lines: 402
@@ -530,7 +535,7 @@ components:
 
   - name: apps-surface
     source: Valinor/Views/Apps/
-    destination: iOS/Views/Apps/
+    destination: Hearth/Views/Apps/
     area: 4
     target: ios
     kind: directory
@@ -554,7 +559,7 @@ components:
 
   - name: persona-surface
     source: Valinor/Views/Persona/
-    destination: iOS/Views/Persona/
+    destination: Hearth/Views/Persona/
     area: 4
     target: ios
     kind: directory
@@ -565,7 +570,7 @@ components:
 
   - name: journal
     source: Valinor/Views/Journal/
-    destination: iOS/Views/Journal/
+    destination: Hearth/Views/Journal/
     area: 4
     target: ios
     kind: directory
@@ -578,7 +583,7 @@ components:
 
   - name: ios-plist
     source: Valinor/Info.plist
-    destination: iOS/Info.plist
+    destination: Hearth/Info.plist
     area: 4
     target: ios
     lines: 95
@@ -596,7 +601,7 @@ components:
 
   - name: ios-entitlements
     source: Valinor/Valinor.entitlements
-    destination: iOS/Hearth.entitlements
+    destination: Hearth/Hearth.entitlements
     area: 4
     target: ios
     lines: 12
@@ -614,7 +619,7 @@ components:
 # ---------------------------------------------------------------------------
   - name: widgets
     source: ValinorWidgets/
-    destination: widgets/
+    destination: Hearth Widget/
     area: 5
     target: widgets
     kind: directory
@@ -653,7 +658,7 @@ components:
 
   - name: widgets-assets
     source: ValinorWidgets/Assets.xcassets/
-    destination: widgets/Assets.xcassets/
+    destination: Hearth Widget/Assets.xcassets/
     area: 5
     target: widgets
     kind: directory
@@ -661,7 +666,7 @@ components:
 
   - name: widgets-plist
     source: ValinorWidgets/Info.plist
-    destination: widgets/Info.plist
+    destination: Hearth Widget/Info.plist
     area: 5
     target: widgets
     lines: 11
@@ -674,7 +679,7 @@ components:
 
   - name: widgets-entitlements
     source: ValinorWidgetsExtension.entitlements
-    destination: widgets/HearthWidgets.entitlements
+    destination: Hearth Widget/HearthWidgets.entitlements
     area: 5
     target: widgets
     lines: 10
@@ -689,7 +694,7 @@ components:
 # not been, and is the whole of the excluded set here.
 # ---------------------------------------------------------------------------
   - name: visionos-app-entry
-    destination: visionOS/HearthVisionApp.swift
+    destination: Hearth Vision/HearthVisionApp.swift
     area: 6
     target: visionos
     disposition: generated
@@ -703,7 +708,7 @@ components:
 
   - name: reality-kit-scene
     source: Valinor/Visualization/RealityKitSceneManager.swift
-    destination: visionOS/RealityKitSceneManager.swift
+    destination: Hearth Vision/RealityKitSceneManager.swift
     area: 6
     target: visionos
     lines: 611
@@ -715,7 +720,7 @@ components:
 
   - name: visionos-views
     source: Valinor/VisionOS/
-    destination: visionOS/Views/
+    destination: Hearth Vision/Views/
     area: 6
     target: visionos
     kind: directory
@@ -737,7 +742,7 @@ components:
 
   - name: visionos-plist
     source: Info-visionOS.plist
-    destination: visionOS/Info.plist
+    destination: Hearth Vision/Info.plist
     area: 6
     target: visionos
     lines: 62
@@ -750,7 +755,7 @@ components:
       when it is absent. Diff this against iOS/Info.plist deliberately.
 
   - name: visionos-entitlements
-    destination: visionOS/HearthVision.entitlements
+    destination: Hearth Vision/HearthVision.entitlements
     area: 6
     target: visionos
     disposition: generated
