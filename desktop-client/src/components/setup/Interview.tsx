@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { getHttpOrigin, getWsUrl } from '../../lib/config';
+import { saveSettings } from '../../lib/settings';
 import { useAppStore } from '../../store/appStore';
 import { ChoiceCard } from '../cards/ChoiceCard';
 import { MessageCard } from '../feed/MessageCard';
@@ -156,6 +157,11 @@ export function Interview({
             const s = useAppStore.getState();
             s.setPersonaConfig(msg.config);
             s.setCurrentPersonaName(cfg.name);
+            /* The promise in Sulivan's farewell, kept across restarts: the
+               made persona is the main one now. The connect flow already
+               switches to this pin on every dial, so recording it here is
+               the entire persistence mechanism. */
+            saveSettings({ startPersona: cfg.name });
           }
         } else if (msg.action === 'speaking_complete') {
           if (handedOffRef.current) {

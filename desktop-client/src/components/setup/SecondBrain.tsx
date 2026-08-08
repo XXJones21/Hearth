@@ -24,6 +24,17 @@ import { BRAIN_KICKOFF } from './opener';
 
 type Bubble = { who: 'them' | 'you'; text: string; ts: number };
 type Phase = 'waking' | 'thinking' | 'speaking' | 'waiting' | 'done';
+type BrainInfo = { root: string; folders: { name: string; entries: number }[] };
+
+/* Mockup screen 14's chips: the four folders and what each is for. The
+   meanings are product copy, fixed here; only the counts and the path come
+   from the server's brain_info. */
+const FOLDER_MEANINGS: Record<string, string> = {
+  Projects: 'Things with an end',
+  Areas: 'Things that never end',
+  Thoughts: 'What we talked about, by day',
+  Resources: 'Things worth keeping',
+};
 
 export function SecondBrain({ onDone }: { onDone: () => void }) {
   /* Whoever the house is currently speaking as. The interview's handover set
@@ -36,6 +47,7 @@ export function SecondBrain({ onDone }: { onDone: () => void }) {
   const [card, setCard] = useState<Record<string, unknown> | null>(null);
   const [draft, setDraft] = useState('');
   const [project, setProject] = useState<string | null>(null);
+  const [brain, setBrain] = useState<BrainInfo | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const closedRef = useRef(false);
   /* The message handler is attached once and would otherwise close over the
@@ -86,12 +98,30 @@ export function SecondBrain({ onDone }: { onDone: () => void }) {
         } else if (msg.action === 'ui_component') {
           const comp = msg.component ?? msg;
           if (comp?.type === 'choice_card') setCard(comp.props ?? null);
+        } else if (msg.action === 'brain_info' && typeof msg.root === 'string') {
+          setBrain({
+            root: msg.root,
+            folders: Array.isArray(msg.folders)
+              ? (msg.folders as { name: string; entries: number }[])
+              : [],
+          });
         } else if (msg.action === 'project_started') {
           /* The beat closed. The server says so rather than the screen
              inferring it, because "they stopped talking" is also what a
              failed turn looks like. */
           doneRef.current = true;
           if (typeof msg.title === 'string') setProject(msg.title);
+          /* The footnote's count goes 0 to 1 without a round-trip. */
+          setBrain((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  folders: prev.folders.map((f) =>
+                    f.name === 'Projects' ? { ...f, entries: f.entries + 1 } : f,
+                  ),
+                }
+              : prev,
+          );
         } else if (msg.action === 'speaking_complete') {
           setPhase(doneRef.current ? 'done' : 'waiting');
         }
@@ -178,6 +208,32 @@ export function SecondBrain({ onDone }: { onDone: () => void }) {
             style={{ background: 'var(--persona, #E39A5B)' }}
           />
           {project} is the first thing in it
+        </div>
+      )}
+
+      {brain && (
+        /* Mockup 14: the four folders as fixed furniture, with the real path
+           underneath. The persona talks about them; the screen shows them. */
+        <div className="mt-3 w-full">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {brain.folders.map((f) => (
+              <div
+                key={f.name}
+                className="rounded-2xl border border-linen bg-parchment px-3 py-2.5 text-left"
+              >
+                <div className="text-[13px] font-bold text-roast">{f.name}</div>
+                <div className="mt-0.5 text-[11.5px] leading-snug text-fawn">
+                  {FOLDER_MEANINGS[f.name] ?? ''}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-center text-[12px] text-fawn">
+            Created at <span className="font-mono">{brain.root}</span>
+            {' · '}
+            {brain.folders.length} folders,{' '}
+            {brain.folders.reduce((n, f) => n + f.entries, 0)} entries
+          </p>
         </div>
       )}
 

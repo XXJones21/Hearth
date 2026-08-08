@@ -182,6 +182,10 @@ class VoiceLoop:
             # the new resident ended it -- so this is the normal path with a
             # direction and two tools, held open until a project exists.
             self._brain_beat = True
+            # The screen's furniture (mockup 14): the real root and folder
+            # counts, rendered by the client beside the beat rather than
+            # spoken. Product data the model never has to get right.
+            await self._emit_brain_info(emit)
 
         telemetry = TurnTelemetry(
             session_id=session.session_id,
@@ -671,6 +675,26 @@ class VoiceLoop:
         cfg = persona.config if isinstance(persona.config, dict) else {}
         grants = cfg.get("tool_grants")
         return grants if isinstance(grants, dict) else None
+
+    async def _emit_brain_info(self, emit: Emit) -> None:
+        """The second-brain screen's furniture: where the memory lives and
+        what is in it, from disk. Emitted once when the beat opens. Best
+        effort: an unconfigured root just means the screen shows no path."""
+        try:
+            root = hearth_engram()
+        except Exception:  # noqa: BLE001 - unconfigured memory is not fatal
+            return
+        folders = []
+        for name in ("Projects", "Areas", "Thoughts", "Resources"):
+            d = root / name
+            entries = 0
+            if d.is_dir():
+                entries = sum(1 for _ in d.iterdir())
+            folders.append({"name": name, "entries": entries})
+        await emit(
+            "brain_info",
+            {"action": "brain_info", "root": str(root), "folders": folders},
+        )
 
     def _in_brain_beat(self) -> bool:
         """True while the second-brain beat is open.
