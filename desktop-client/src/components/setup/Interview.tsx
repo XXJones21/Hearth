@@ -1,32 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { getHttpOrigin, getWsUrl } from '../../lib/config';
 import { useAppStore } from '../../store/appStore';
 import { ChoiceCard } from '../cards/ChoiceCard';
 import { MessageCard } from '../feed/MessageCard';
 import { TimelineEntry } from '../feed/TimelineEntry';
+import { INTERVIEW_KICKOFF, type PrefetchedOpener } from './opener';
 
 /* The interview: Sulivan and the user make someone new, then the house hands
    over and the new persona speaks first. The mockup's screens 8 through 13 as
    one conversation rather than five forms; the server's first-run direction
    drives the questions, this screen only carries them.
 
-   Owns its WebSocket like the voice test does: setup is still in charge, and
-   the house it talks to is the one setup started. */
+   Normally this screen adopts the voice test's socket rather than dialing its
+   own: the session that holds the greeting and the prefetched opener lives on
+   that connection, so the opener Sulivan composed behind the "I heard him"
+   button appears here instantly and the answers that follow land in the same
+   history. Dialing fresh is the fallback (no prefetch, a dead socket, a
+   reconnect), and then the kickoff goes out cold like it always did. */
 
 type Bubble = { who: 'sulivan' | 'you' | 'other'; text: string; name?: string; ts: number };
 type Phase = 'waking' | 'thinking' | 'speaking' | 'waiting' | 'handoff' | 'met';
-
-const KICKOFF =
-  '(This is my first run. Open the interview now, in one message: a one-' +
-  'sentence hello, one sentence of what a persona is, then your first ' +
-  'question with choice_card already called. Do not ask whether to begin.)';
 
 const MEET_KICKOFF =
   '(Say hello to me for the very first time, as yourself. Two or three short ' +
   'sentences, in your own voice.)';
 
-export function Interview({ onDone }: { onDone: () => void }) {
+export function Interview({
+  onDone,
+  opener,
+}: {
+  onDone: () => void;
+  opener?: MutableRefObject<PrefetchedOpener>;
+}) {
   const [phase, setPhase] = useState<Phase>('waking');
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [card, setCard] = useState<Record<string, unknown> | null>(null);
@@ -36,6 +43,9 @@ export function Interview({ onDone }: { onDone: () => void }) {
   const closedRef = useRef(false);
   const baselineRef = useRef<Set<string> | null>(null);
   const handedOffRef = useRef(false);
+  /* The message handler reads this, not the state: the handler is attached
+     once and would otherwise close over the null the state started as. */
+  const newNameRef = useRef<string | null>(null);
 
   /* The orb above is the shared particle animation; it thinks and speaks as
      the conversation does, same as everywhere else. */
@@ -78,6 +88,7 @@ export function Interview({ onDone }: { onDone: () => void }) {
       for (const name of names) {
         if (!baselineRef.current.has(name)) {
           handedOffRef.current = true;
+          newNameRef.current = name;
           setNewName(name);
           setPhase('handoff');
           const ws = wsRef.current;
@@ -97,6 +108,48 @@ export function Interview({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     closedRef.current = false;
     let retry: number | undefined;
+    let playout: number | undefined;
+
+    const onMessage = (ev: MessageEvent) => {
+      if (typeof ev.data !== 'string') {
+        if (ev.data instanceof ArrayBuffer) {
+          ttsPlayer.push(ev.data);
+          setPhase((p) => (p === 'thinking' || p === 'handoff' ? 'speaking' : p));
+        }
+        return;
+      }
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.action === 'tts_chunk_start') {
+          ttsPlayer.begin(Number(msg.sample_rate) || 48000);
+        } else if (msg.action === 'ai_response' && typeof msg.text === 'string') {
+          if (handedOffRef.current && newNameRef.current) {
+            push({ who: 'other', text: msg.text, name: newNameRef.current, ts: Date.now() });
+          } else {
+            push({ who: 'sulivan', text: msg.text, ts: Date.now() });
+          }
+        } else if (msg.action === 'ui_component') {
+          const comp = msg.component ?? msg;
+          if (comp?.type === 'choice_card') setCard(comp.props ?? null);
+        } else if (msg.action === 'speaking_complete') {
+          if (handedOffRef.current) {
+            setPhase('met');
+          } else {
+            setPhase('waiting');
+            void checkForNewPersona();
+          }
+        }
+      } catch {
+        /* not JSON */
+      }
+    };
+
+    const onClose = () => {
+      wsRef.current = null;
+      if (closedRef.current) return;
+      setPhase('waking');
+      retry = window.setTimeout(connect, 3000);
+    };
 
     const connect = () => {
       if (closedRef.current) return;
@@ -121,56 +174,72 @@ export function Interview({ onDone }: { onDone: () => void }) {
         );
         void checkForNewPersona(); // seeds the baseline
         window.setTimeout(() => {
-          if (!handedOffRef.current) sendUser(KICKOFF, { silent: true });
+          if (!handedOffRef.current) sendUser(INTERVIEW_KICKOFF, { silent: true });
         }, 800);
       });
 
-      ws.addEventListener('message', (ev) => {
-        if (typeof ev.data !== 'string') {
-          if (ev.data instanceof ArrayBuffer) {
-            ttsPlayer.push(ev.data);
-            setPhase((p) => (p === 'thinking' || p === 'handoff' ? 'speaking' : p));
-          }
-          return;
-        }
-        try {
-          const msg = JSON.parse(ev.data);
-          if (msg.action === 'tts_chunk_start') {
-            ttsPlayer.begin(Number(msg.sample_rate) || 48000);
-          } else if (msg.action === 'ai_response' && typeof msg.text === 'string') {
-            if (handedOffRef.current && newName) {
-              push({ who: 'other', text: msg.text, name: newName, ts: Date.now() });
-            } else {
-              push({ who: 'sulivan', text: msg.text, ts: Date.now() });
-            }
-          } else if (msg.action === 'ui_component') {
-            const comp = msg.component ?? msg;
-            if (comp?.type === 'choice_card') setCard(comp.props ?? null);
-          } else if (msg.action === 'speaking_complete') {
-            if (handedOffRef.current) {
-              setPhase('met');
-            } else {
-              setPhase('waiting');
-              void checkForNewPersona();
-            }
-          }
-        } catch {
-          /* not JSON */
-        }
-      });
-
-      ws.addEventListener('close', () => {
-        wsRef.current = null;
-        if (closedRef.current) return;
-        setPhase('waking');
-        retry = window.setTimeout(connect, 3000);
-      });
+      ws.addEventListener('message', onMessage);
+      ws.addEventListener('close', onClose);
     };
 
-    connect();
+    const o = opener?.current;
+    if (o?.ws && o.ws.readyState === WebSocket.OPEN) {
+      /* Adoption. Everything here is one synchronous block: the voice test's
+         listeners come off and ours go on with no await between them, so a
+         reply still streaming cannot drop a frame in the seam. */
+      const ws = o.ws;
+      o.ws = null;
+      o.detach?.();
+      o.detach = null;
+      wsRef.current = ws;
+      ws.addEventListener('message', onMessage);
+      ws.addEventListener('close', onClose);
+
+      /* Replay what Sulivan already composed behind the button. */
+      if (o.text) push({ who: 'sulivan', text: o.text, ts: Date.now() });
+      if (o.card) setCard(o.card);
+      const hadAudio = o.audio.length > 0;
+      let samples = 0;
+      if (hadAudio) {
+        ttsPlayer.begin(o.sampleRate);
+        for (const b of o.audio) {
+          samples += Math.floor(b.byteLength / 4);
+          ttsPlayer.push(b);
+        }
+        o.audio = [];
+      }
+      void checkForNewPersona(); // seeds the baseline
+      if (!o.started || o.failed) {
+        /* Prefetch never ran (they pressed the button mid-greeting) or its
+           turn errored; ask on the inherited session, where the greeting is
+           already history. */
+        sendUser(INTERVIEW_KICKOFF, { silent: true });
+      } else if (o.complete) {
+        /* The opener's speaking_complete was consumed during buffering, so
+           when there is audio the switch back to waiting runs on the clock:
+           the replayed frames were scheduled gaplessly starting now. */
+        if (hadAudio) {
+          setPhase('speaking');
+          playout = window.setTimeout(
+            () => setPhase((p) => (p === 'speaking' ? 'waiting' : p)),
+            Math.ceil((samples / o.sampleRate) * 1000),
+          );
+        } else {
+          setPhase('waiting');
+        }
+      } else {
+        /* Still streaming; the live frames arriving through onMessage will
+           carry the phase from here. */
+        setPhase('thinking');
+      }
+    } else {
+      connect();
+    }
+
     return () => {
       closedRef.current = true;
       if (retry) window.clearTimeout(retry);
+      if (playout) window.clearTimeout(playout);
       wsRef.current?.close();
       ttsPlayer.reset();
     };
