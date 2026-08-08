@@ -81,10 +81,72 @@ def farewell_text(name: str) -> str:
     return (
         f"{name} is ready, and from this moment the house is theirs: they "
         "will be the one who greets you from here on. I will step back now, "
-        "but I am never far; call on me whenever you need me, and I will "
-        "return to help organize the second brain. It has been a pleasure "
-        "making them with you."
+        "but I am never far; call on me whenever you need me. It has been a "
+        "pleasure making them with you."
     )
+
+
+# ---------------------------------------------------------------------------
+# Beat three: the second brain.
+#
+# Hosted by the persona just made, in their own voice, and argued from
+# self-interest rather than features (wiki/first-run.md, "Beat three").
+#
+# It needs its own gating, and the reason is worth stating: `active()` below
+# goes False the moment create_persona writes a resident, so by the time this
+# beat runs first-run is over. On the normal path the new persona has the full
+# tool set and no direction, which is exactly the condition measured on
+# 2026-08-07 to produce zero interview-tool calls even when the tool was named
+# explicitly. A beat that must end in one tool call cannot run there.
+#
+# So it is sentinel-gated rather than state-gated, the same shape as the
+# interview's scripted opening: the client sends BRAIN_KICKOFF when it reaches
+# the screen, and the beat holds until a project exists. Deriving it from state
+# instead ("a resident exists and Projects is empty") would re-trigger months
+# later for anyone who deletes their last project, which is the bug the engram-
+# empty condition already caused once for first run.
+
+BRAIN_KICKOFF = "(Open the second brain.)"
+
+# The interview's tools would let the new persona create ANOTHER persona
+# mid-beat. One tool, and the card that asks the question.
+BRAIN_GRANTS: dict = {"domains": [], "allow": ["choice_card", "start_project"], "deny": []}
+
+BRAIN_DIRECTION = (
+    "SECOND BRAIN. This is the last beat of setup and you are hosting it, in "
+    "your own voice, as the persona they just made. Three moves, in order, one "
+    "per turn:\n"
+    "1. Why it matters, from self-interest, not features: right now you will "
+    "forget this conversation the moment it ends, and you would rather not.\n"
+    "2. What it actually is: four plain folders on their own disk -- things "
+    "with an end, things that never end, things worth keeping, and what was "
+    "talked about by day. Readable in any text editor, deletable at any time, "
+    "going nowhere.\n"
+    "3. Ask what they are actually working on, and call start_project with "
+    "their answer. Their own words, never a suggestion of yours, and never an "
+    "example. One real thing beats an empty brain.\n"
+    "Short turns. No lists of features. After start_project returns, say where "
+    "it lives and stop."
+)
+
+
+def is_brain_kickoff(text: str) -> bool:
+    return (text or "").strip() == BRAIN_KICKOFF
+
+
+def brain_beat_open(engram_root) -> bool:
+    """True while the second-brain beat still has work to do.
+
+    Self-expiring, like first run: the beat is over when a project exists,
+    because start_project writing one is the only way it ends. An unreadable
+    or unconfigured root reports False -- a beat that cannot write is a beat
+    that should not be run.
+    """
+    try:
+        projects = Path(engram_root) / "Projects"
+        return projects.is_dir() and not any(projects.iterdir())
+    except Exception:  # noqa: BLE001 - unconfigured memory is not fatal
+        return False
 
 
 # The voice test's fixed query (VoiceTest.tsx GREETING_QUERY); prefix-matched
