@@ -548,6 +548,44 @@ class VoiceLoop:
                 )
                 reply_text = (reply_text + " " + follow_text).strip()
 
+        # Interview card guard (2026-08-08): the third shape of the same
+        # failure. A proper tool round renders the card; a call leaked into
+        # the speech channel is salvaged; and sometimes the model asks its
+        # question in clean prose and never reaches for the tool at all
+        # (live: "How should their voice sound?" with tools=[]). During
+        # first run every question owes the person choices, so a cardless
+        # question gets one forced tool round. The question is already
+        # spoken; the follow-up asks ONLY for the call and adds no speech.
+        if (
+            reply_text
+            and "?" in reply_text
+            and not telemetry.tools_invoked
+            and first_run.active(self.config.persona_dir)
+        ):
+            logger.warning(
+                "interview question with no card — forcing the call: %r",
+                reply_text[:80],
+            )
+            card_msgs = messages + [
+                ChatMessage(role="assistant", content=reply_text),
+                ChatMessage(
+                    role="user",
+                    content=(
+                        "[Your question is already spoken and heard. Call "
+                        "choice_card NOW for that exact question, with options "
+                        "composed from this conversation. Output ONLY the tool "
+                        "call; no prose.]"
+                    ),
+                ),
+            ]
+            with Timer(telemetry, "tool_round_trip_ms"):
+                await self._maybe_run_tools(
+                    card_msgs, opts, telemetry, session, emit, persona,
+                    decisions_out=turn_decisions,
+                )
+            if telemetry.tools_invoked:
+                logger.info("forced card round delivered: %s", telemetry.tools_invoked)
+
         # Diagnosis visibility: the spoken answer's head goes to the journal on
         # EVERY turn (2026-07-31 -- a promise spoken on a no-tool turn was only
         # findable via a TTS line; no-tool turns were invisible).
