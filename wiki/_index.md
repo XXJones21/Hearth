@@ -31,6 +31,7 @@ answers "what does a stranger install."
 | How does the backend run on a user's machine? | [`backend/native-runtime.md`](backend/native-runtime.md) |
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
+| How does a persona get a voice? | [`backend/voice-engine.md`](backend/voice-engine.md) |
 | How does someone install it on a Mac? | [`install-macos.md`](install-macos.md) |
 | How does an install become a newer one? | [`updates.md`](updates.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
