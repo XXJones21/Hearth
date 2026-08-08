@@ -59,6 +59,41 @@ _ANNOUNCE_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A tool call written into the TEXT channel: gemma's "call:name{json}" shape,
+# with or without its <|tool_call> marker. Used twice: to mute the TTS queue
+# the moment syntax appears mid-stream (the person should never hear JSON),
+# and to SALVAGE the call afterwards — the model that does this composed real
+# arguments, and honoring them beats apologizing for them.
+_TEXT_TOOL_CALL_RE = re.compile(r"call:([A-Za-z_]\w*)\s*\{")
+_SYNTAX_SENTENCE_RE = re.compile(r"<\|?tool_call|<tool_call\||call:[A-Za-z_]\w*\s*\{")
+
+
+def _balanced_json(text: str, start: int) -> str | None:
+    """The {...} object starting at `start`, honoring strings and escapes;
+    None when the braces never close (a truncated stream)."""
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
 
 class VoiceLoop:
     def __init__(
@@ -309,6 +344,12 @@ class VoiceLoop:
             segmenter = SentenceSegmenter()
             full_reply: list[str] = []
             first_token_seen = False
+            # Once tool syntax appears in a sentence, nothing after it is
+            # speech: the live 2026-08-07 turn spoke
+            # '<|tool_call>call:choice_card{"question":' aloud because the
+            # syntax guard only ran at end of stream. The full text still
+            # accumulates for the salvage pass; only the audio is muted.
+            muted = False
 
             queue: asyncio.Queue = asyncio.Queue()
             _DONE = object()
@@ -357,10 +398,20 @@ class VoiceLoop:
                                 )
                         full_reply.append(delta)
                         for sentence in segmenter.feed(delta):
-                            queue.put_nowait(sentence)
+                            if not muted and _SYNTAX_SENTENCE_RE.search(sentence):
+                                muted = True
+                                logger.warning(
+                                    "tool syntax reached the speech channel; muting TTS: %r",
+                                    sentence[:80],
+                                )
+                            if not muted:
+                                queue.put_nowait(sentence)
                     tail = segmenter.flush()
                     if tail:
-                        queue.put_nowait(tail)
+                        if not muted and _SYNTAX_SENTENCE_RE.search(tail):
+                            muted = True
+                        if not muted:
+                            queue.put_nowait(tail)
                 queue.put_nowait(_DONE)
                 spoken = await consumer
             except BaseException:
@@ -396,11 +447,36 @@ class VoiceLoop:
         syntax_leak = bool(reply_text) and (
             "<|tool_call" in reply_text or "<tool_call|" in reply_text
             or reply_text.strip().startswith("call:")
+            or _TEXT_TOOL_CALL_RE.search(reply_text) is not None
         )
         if syntax_leak:
-            logger.warning("final answer was raw tool syntax; treating as empty: %r",
-                           reply_text[:120])
-            reply_text = ""
+            # First, honor the call if it can be honored: the model composed
+            # real arguments in the wrong channel (live 2026-08-07, the
+            # temperament card), and running them beats apologizing for them.
+            salvaged = await self._salvage_text_tool_call(
+                reply_text, session, emit, persona, telemetry
+            )
+            # Prose before the first syntax marker was real speech and has
+            # already been heard; with the call honored it IS the answer.
+            cut = len(reply_text)
+            for mark in ("<|tool_call", "<tool_call|"):
+                idx = reply_text.find(mark)
+                if idx != -1:
+                    cut = min(cut, idx)
+            m_call = _TEXT_TOOL_CALL_RE.search(reply_text)
+            if m_call is not None:
+                cut = min(cut, m_call.start())
+            prose = reply_text[:cut].strip()
+            if salvaged and prose:
+                logger.warning(
+                    "tool syntax in final stream; call salvaged, prose kept: %r",
+                    prose[:120],
+                )
+                reply_text = prose
+            else:
+                logger.warning("final answer was raw tool syntax; treating as empty: %r",
+                               reply_text[:120])
+                reply_text = ""
 
         if not reply_text and (telemetry.tools_invoked or syntax_leak):
             logger.warning(
@@ -779,6 +855,59 @@ class VoiceLoop:
             )
             for d in augmented
         ], filler_holder["task"]
+
+    async def _salvage_text_tool_call(
+        self,
+        text: str,
+        session: Session,
+        emit: Emit,
+        persona,
+        telemetry: TurnTelemetry,
+    ) -> bool:
+        """A tool call written into the speech channel still means the tool.
+
+        Parses the first call:name{...} out of the streamed text; when the
+        turn's own registry knows the tool and the arguments parse, the call
+        runs and its cards emit exactly as a proper tool round would have.
+        Returns True only when a call actually executed. Never raises: a
+        salvage that fails leaves the empty-answer path to do its work."""
+        from ..tools import resolve_registry, tools_enabled
+        from ..tools.loop import parse_tool_args
+
+        try:
+            if not tools_enabled():
+                return False
+            m = _TEXT_TOOL_CALL_RE.search(text)
+            if m is None:
+                return False
+            raw = _balanced_json(text, m.end() - 1)
+            if raw is None:
+                return False
+            args = parse_tool_args(raw)
+            if not args:
+                return False
+            name = m.group(1)
+            registry = resolve_registry(
+                self._persona_tool_grants(persona), session.capabilities
+            )
+            if name not in registry.names():
+                return False
+            result = await registry.invoke(name, args)
+            if not result.ok:
+                logger.warning("salvaged %s ran but failed: %s", name, result.content[:120])
+                return False
+            telemetry.tools_invoked.append(name)
+            if session.capabilities.get("ui_render"):
+                from .composer import compose_for_result
+
+                for op in compose_for_result(name, result):
+                    with contextlib.suppress(Exception):
+                        await emit("ui_component", {"action": "ui_component", **op})
+            logger.info("salvaged text-channel tool call: %s", name)
+            return True
+        except Exception as exc:  # noqa: BLE001 - salvage is best-effort
+            logger.warning("text tool-call salvage failed: %s", exc)
+            return False
 
     async def _scripted_opening(self, session: Session, persona, emit: Emit) -> None:
         """The interview walkthrough: what a persona is, and the first
