@@ -116,6 +116,15 @@ class VoiceLoop:
         history with an explicit cut-off marker so the next turn's context (and
         the operator) knows the user heard an incomplete answer.
         """
+        # The interview's first beat is product copy, not a model turn: the
+        # client's kickoff sentinel gets the scripted walkthrough and the
+        # fixed first card, spoken in the persona voice with no LLM call.
+        # The model enters at the person's first answer, with this beat
+        # already sitting in history as its own words.
+        if first_run.is_kickoff(user_text) and first_run.active(self.config.persona_dir):
+            await self._scripted_opening(session, persona, emit)
+            return
+
         telemetry = TurnTelemetry(
             session_id=session.session_id,
             persona=persona.name,
@@ -770,6 +779,32 @@ class VoiceLoop:
             )
             for d in augmented
         ], filler_holder["task"]
+
+    async def _scripted_opening(self, session: Session, persona, emit: Emit) -> None:
+        """The interview walkthrough: what a persona is, and the first
+        question, with its card. Deterministic on purpose (2026-08-07): a
+        12B asked to open freely produced a different opener every run --
+        permission-asking, answering its own card, promising cards it never
+        rendered. The text lands in history as the assistant turn, so the
+        model picks up the conversation as if it had said it."""
+        text = first_run.OPENING_TEXT
+        await emit(
+            "thinking_message",
+            {"action": "thinking_message", "persona_name": persona.name},
+        )
+        await emit(
+            "ai_response",
+            {"action": "ai_response", "text": text, "persona_name": persona.name},
+        )
+        if session.capabilities.get("ui_render"):
+            await emit("ui_component", {"action": "ui_component", **first_run.OPENING_CARD})
+        # say() streams the TTS and closes with speaking_complete.
+        await self.say(session, persona, text, emit)
+        session.record_turn(
+            "(I am ready to make my persona.)",
+            text + " [The options are on a card on their screen; their answer comes next.]",
+        )
+        logger.info("first-run: scripted opening delivered")
 
     async def say(self, session: Session, persona, text: str, emit: Emit) -> None:
         """Speak `text` verbatim in the persona voice, with NO LLM turn. Used for

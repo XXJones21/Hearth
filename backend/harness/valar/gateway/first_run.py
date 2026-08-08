@@ -2,15 +2,25 @@
 
 The wiki's rule made concrete: the interview direction loads when the house
 is factory-fresh, which means every non-internal persona is one that SHIPPED
-(marked "shipped": true in its manifest) and the engram holds nothing yet.
-The moment create_persona writes a new resident, the next turn's detection
-fails and everything here expires on its own. No client flag to trust, no
-way to trigger it on a lived-in house.
+(marked "shipped": true in its manifest). The moment create_persona writes a
+new resident, the next turn's detection fails and everything here expires on
+its own. No client flag to trust. (An engram-empty condition used to be part
+of this and broke a reinstall over a lived-in root: the previous session's
+thoughts made a factory-fresh backend read as lived-in, and the interview
+ran with house tools and no direction. Residents are the signal; memory is
+not.)
 
 While first-run is active the default persona carries the direction appended
 to its system prompt and a tool set narrowed to the interview: the measured
 finding behind this (2026-08-07) is that seventeen tools and no direction
 meant the interview tools were never chosen, even named explicitly.
+
+The opening beat is scripted, not improvised. A 12B asked to open the
+interview freely produced a different opener every run: permission-asking,
+choosing its own first option for the person, promising cards it never
+rendered. The walkthrough is product copy; the model enters at the person's
+first answer. The client sends KICKOFF_SENTINEL and the voice loop speaks
+OPENING_TEXT verbatim with OPENING_CARD beside it, no LLM turn at all.
 """
 
 from __future__ import annotations
@@ -26,6 +36,41 @@ logger = logging.getLogger("valar.first_run")
 # The interview, and nothing else. Selection reliability is the whole point.
 INTERVIEW_GRANTS: dict = {"domains": [], "allow": ["choice_card", "create_persona"], "deny": []}
 
+# The client's stage direction for the interview's first beat. Matched
+# exactly by is_kickoff; the client constant lives in setup/opener.ts and
+# the two must stay identical.
+KICKOFF_SENTINEL = "(Open the interview.)"
+
+# The scripted walkthrough, spoken verbatim in Sulivan's voice. Same words
+# every install: this is the product introducing its central idea, and the
+# one question every persona starts from.
+OPENING_TEXT = (
+    "Let us make someone together. A persona is a companion of your own "
+    "design who will live here with you: their purpose, their temperament, "
+    "their voice, and their colour are all yours to choose. I will ask a "
+    "few questions as we go, and your own words always beat my "
+    "suggestions. First: what should this companion be for?"
+)
+
+OPENING_CARD: dict = {
+    "version": 1,
+    "type": "choice_card",
+    "props": {
+        "question": "What should this companion be for?",
+        "options": [
+            {"label": "A creative partner", "detail": "brainstorming, writing, ideas"},
+            {"label": "A knowledge specialist", "detail": "research and deep answers"},
+            {"label": "A personal coordinator", "detail": "plans, schedules, reminders"},
+            {"label": "A warm companion", "detail": "company and conversation"},
+        ],
+        "allow_free_text": True,
+    },
+}
+
+
+def is_kickoff(text: str) -> bool:
+    return (text or "").strip() == KICKOFF_SENTINEL
+
 _DIRECTION_PATH = Path(__file__).resolve().parents[1] / "data" / "first_run_direction.md"
 
 _cache: dict = {"at": 0.0, "active": False}
@@ -38,18 +83,6 @@ def direction_text() -> str:
     except OSError as exc:
         logger.warning("first-run direction missing (%s); interview runs bare", exc)
         return ""
-
-
-def _engram_empty() -> bool:
-    root = os.environ.get("HEARTH_ENGRAM", "").strip()
-    if not root:
-        return False
-    base = Path(root)
-    for sub in ("Projects", "Thoughts"):
-        d = base / sub
-        if d.is_dir() and any(d.iterdir()):
-            return False
-    return True
 
 
 def _all_personas_shipped(persona_dir: Path) -> bool:
@@ -84,6 +117,6 @@ def active(persona_dir: Path) -> bool:
     now = time.monotonic()
     if now - _cache["at"] < _CACHE_TTL_S:
         return _cache["active"]
-    state = _all_personas_shipped(persona_dir) and _engram_empty()
+    state = _all_personas_shipped(persona_dir)
     _cache.update(at=now, active=state)
     return state
