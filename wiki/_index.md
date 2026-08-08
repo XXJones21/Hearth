@@ -31,6 +31,7 @@ answers "what does a stranger install."
 | How does the backend run on a user's machine? | [`backend/native-runtime.md`](backend/native-runtime.md) |
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
+| How does someone install it on a Mac? | [`install-macos.md`](install-macos.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
 | How does the card library grow? | [`card-forge.md`](card-forge.md) |
 | What is in the Valinor Apple client, and what ships? | [`clients/apple-inventory.md`](clients/apple-inventory.md) |
@@ -51,12 +52,18 @@ documented in `backend/packaging-options.md`). The voice engine no longer
 blocks native: its torch stack resolves on native Windows and ships isolated
 in its own first-run environment. See `backend/native-runtime.md`.
 
+The install guide exists for macOS as of 2026-08-07, written from a real
+install on an 8 GB M2 Air rather than from the plan: see
+[`install-macos.md`](install-macos.md). The Windows guide is the same article
+for the other platform and waits on that machine's own run.
+
 Planned, in order:
 
-1. **Install guide.** What the ledger says has to happen, in the order a person
-   does it. Waits on the packaging route being chosen.
+1. **Install guide, Windows.** The macOS article is the shape; the numbers,
+   the Gatekeeper equivalent and the voice engine's CUDA build are what differ.
 2. **First-time user experience.** Meeting your first persona. Drafted in
-   `D:\Tools\Valinor\tasks\first-time-user.md`.
+   `D:\Tools\Valinor\tasks\first-time-user.md`; the interview itself is being
+   finished on Windows as of 2026-08-07.
 
 ## Conventions
 
