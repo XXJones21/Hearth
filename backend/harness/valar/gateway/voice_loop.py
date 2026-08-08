@@ -104,11 +104,16 @@ class VoiceLoop:
         # Any streamer with the say/stream surface. NeuTTS left with the
         # migration; remote OmniVoice is the shipped arrangement.
         tts: object,
+        # PersonaEngine, for the first-run handover: the commit turn switches
+        # the session's speaker to the persona it just created. Optional so
+        # headless proofs can run without one.
+        personas: object | None = None,
     ):
         self.config = config
         self.brain = brain
         self.memory = memory
         self.tts = tts
+        self.personas = personas
         self.assembler = ContextAssembler(config.context)
         # The House Ledger (SCX v2): day-first decision records. The gateway
         # is the single writer; persona_dir.parent is the repo root.
@@ -988,6 +993,7 @@ class VoiceLoop:
         # and the card fields are noise by contract.
         commit = data.get("commit")
         committed = False
+        new_persona_name = ""
         if isinstance(commit, dict) and str(commit.get("name") or "").strip():
             from ..tools.handlers.creation import create_persona as _create
 
@@ -997,8 +1003,13 @@ class VoiceLoop:
             )
             if result.ok:
                 committed = True
+                new_persona_name = str((result.data or {}).get("persona_created") or "")
                 telemetry.tools_invoked.append("create_persona")
                 logger.info("structured interview committed: %s", commit.get("name"))
+                # The handover is product copy, same as the opening: Sulivan's
+                # goodbye lands the same way every install, whatever goodbye
+                # the model composed.
+                speech = first_run.farewell_text(str(commit.get("name")).strip())
             else:
                 logger.warning("structured commit failed: %s", result.content[:160])
 
@@ -1025,6 +1036,35 @@ class VoiceLoop:
 
         await self.say(session, persona, speech, emit)
         session.record_turn(user_text, speech + card_note)
+
+        if committed and new_persona_name and self.personas is not None:
+            # The handover: the new persona owns the house from here. Fresh
+            # history so their first words come from their own prompt, not
+            # from five turns of Sulivan speaking (the subagent principle:
+            # a new speaker gets a new context). The interview itself is
+            # preserved in the ledger.
+            try:
+                switched = self.personas.switch(new_persona_name)
+                session.history.clear()
+                await emit(
+                    "persona_switched",
+                    {
+                        "action": "persona_switched",
+                        "persona_name": new_persona_name,
+                        "status": "success",
+                    },
+                )
+                await emit(
+                    "persona_config",
+                    {
+                        "action": "persona_config",
+                        "persona_name": new_persona_name,
+                        "config": switched.public_config(),
+                    },
+                )
+                logger.info("first-run handover: session now speaks as %s", new_persona_name)
+            except Exception as exc:  # noqa: BLE001 - a failed switch must not kill the turn
+                logger.warning("first-run handover failed (%s); Sulivan remains", exc)
 
         self.ledger.decision(
             session=session.session_id,

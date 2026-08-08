@@ -72,6 +72,21 @@ def is_kickoff(text: str) -> bool:
     return (text or "").strip() == KICKOFF_SENTINEL
 
 
+# Sulivan's goodbye, spoken verbatim on the commit turn in place of whatever
+# goodbye the model composed. Product copy, same rationale as OPENING_TEXT:
+# the handover is the emotional peak of first run and should land the same
+# way every install. After this is spoken the session switches to the new
+# persona, who speaks next.
+def farewell_text(name: str) -> str:
+    return (
+        f"{name} is ready, and from this moment the house is theirs: they "
+        "will be the one who greets you from here on. I will step back now, "
+        "but I am never far; call on me whenever you need me, and I will "
+        "return to help organize the second brain. It has been a pleasure "
+        "making them with you."
+    )
+
+
 # The voice test's fixed query (VoiceTest.tsx GREETING_QUERY); prefix-matched
 # so the greeting turn stays on the normal streaming path with the small
 # direction below, while every other first-run turn goes structured.

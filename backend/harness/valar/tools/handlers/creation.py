@@ -52,7 +52,9 @@ _SWATCHES = {
     "ember": "#E39A5B",
     "tide": "#5B9CC9",
     "fern": "#7BA85F",
-    "heather": "#9B72B8",
+    # Was "heather": a live run named the persona after the swatch the person
+    # tapped for the colour question. No swatch may double as a person's name.
+    "plum": "#9B72B8",
     "clay": "#C96B6B",
 }
 _DEFAULT_COLOUR = _SWATCHES["ember"]
