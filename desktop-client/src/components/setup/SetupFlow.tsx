@@ -31,6 +31,7 @@ import {
 import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
 import { Interview } from './Interview';
+import { freshOpener, type PrefetchedOpener } from './opener';
 import { VoiceTest } from './VoiceTest';
 
 type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'interview' | 'blocked';
@@ -64,6 +65,10 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
   const [sims, setSims] = useState<string[]>([]);
   const [sim, setSim] = useState<string | undefined>(undefined);
   const [connectNote, setConnectNote] = useState(false);
+  /* The interview opener the voice test prefetches behind "I heard him",
+     along with the live socket it belongs to. Owned here because it has to
+     outlive both screens to travel between them. */
+  const openerRef = useRef<PrefetchedOpener>(freshOpener());
 
   const run = useCallback(async (simulate?: string) => {
     setStep('scanning');
@@ -261,10 +266,14 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
       {step === 'voice-test' && (
         /* Hearing him is not the end anymore; it is the introduction to the
            interview, where they make someone together. */
-        <VoiceTest onHeard={() => setStep('interview')} voiceResident={plan?.coexist ?? true} />
+        <VoiceTest
+          onHeard={() => setStep('interview')}
+          voiceResident={plan?.coexist ?? true}
+          opener={openerRef}
+        />
       )}
 
-      {step === 'interview' && <Interview onDone={() => onExit(true)} />}
+      {step === 'interview' && <Interview onDone={() => onExit(true)} opener={openerRef} />}
       </div>
     </div>
   );

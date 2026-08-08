@@ -36,6 +36,31 @@ def _clean_option(raw: Any) -> dict | None:
     }
 
 
+def _coerce_options(raw: Any) -> list:
+    """Meet the model where it is. A list is the contract; a dict of
+    label-to-detail, a JSON string, or a delimited string all still mean
+    options, and a 9B under interview pressure produces all of them."""
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        return [{"label": k, "detail": str(v or "")} for k, v in raw.items()]
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("[") or text.startswith("{"):
+            try:
+                import json
+
+                return _coerce_options(json.loads(text))
+            except ValueError:
+                pass
+        for sep in ("\n", "|", ";"):
+            if sep in text:
+                return [part.strip() for part in text.split(sep) if part.strip()]
+        if text:
+            return [text]
+    return []
+
+
 def choice_card(
     question: str = "",
     options: Any = None,
@@ -43,19 +68,24 @@ def choice_card(
     **_: Any,
 ) -> ToolResult:
     q = str(question or "").strip()
-    raw = options if isinstance(options, list) else []
+    raw = _coerce_options(options)
     cleaned = [o for o in (_clean_option(x) for x in raw[:MAX_OPTIONS]) if o]
 
     if not q:
+        logger.warning("choice_card rejected: no question (options=%r)", options)
         return ToolResult(
             content="A choice card needs the question it is offering answers to.",
             ok=False,
         )
     if not cleaned:
+        logger.warning("choice_card rejected: no options (raw=%r)", options)
         return ToolResult(
             content=(
-                "No renderable options. Each needs a `label` (a few words) and "
-                "may carry a one-line `detail`."
+                "The card cannot render without options. Call choice_card again "
+                "with the SAME question plus 2 to 5 options you compose, exactly "
+                'like this: {"question": "' + (q[:80] or "Your question") + '", '
+                '"options": [{"label": "First choice", "detail": "what it means"}, '
+                '{"label": "Second choice", "detail": "what it means"}]}'
             ),
             ok=False,
         )

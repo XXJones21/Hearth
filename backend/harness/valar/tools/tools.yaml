@@ -420,7 +420,11 @@ tools:
       to answer cold and examples would help them think. Compose the options
       from what this conversation has already taught you; never a generic
       list. Their typed answer always outranks the choices. After calling
-      this, wait for their reply; do not answer for them.
+      this, wait for their reply; do not answer for them. ALWAYS send both
+      fields, e.g. {"question": "What are they for?", "options": [{"label":
+      "A calm planner", "detail": "keeps your days in order"}, {"label": "A
+      witty companion", "detail": "keeps you company"}]}. A call without
+      options renders nothing.
     handler: valar.tools.handlers.choice:choice_card
     domain: projects
     risk: read
@@ -484,7 +488,9 @@ tools:
             type: string
         colour:
           type: string
-          description: A hex colour like #5B7C99. It becomes their whole look.
+          description: >-
+            A hex colour like #5B7C99, or a swatch name (Ember, Tide, Fern,
+            Heather, Clay). It becomes their whole look.
       required: [name, description, system_prompt, temperament, colour]
 
   - name: forge_card

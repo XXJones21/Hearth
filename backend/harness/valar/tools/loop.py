@@ -34,6 +34,7 @@ contract and offers ``maybe_run_tools`` as the seam a future gateway change call
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 from typing import Any
@@ -41,6 +42,39 @@ from typing import Any
 from . import ToolRegistry, tools_enabled
 
 logger = logging.getLogger("valar.tools.loop")
+
+
+def parse_tool_args(raw_args: Any) -> dict[str, Any]:
+    """The model's arguments string into a dict, repairing what can be
+    repaired. Strict JSON first; then a fence-stripped retry; then a Python
+    literal (single quotes, trailing commas -- shapes a 12B actually emits).
+    An unparseable string logs itself before becoming {}: the live Pip
+    interview lost create_persona's evidence to a silent `except`, and a
+    failure nobody can see is a failure nobody can fix."""
+    if isinstance(raw_args, dict):
+        return raw_args
+    text = str(raw_args or "").strip()
+    if not text:
+        return {}
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    try:
+        parsed = json.loads(text)
+        return parsed if isinstance(parsed, dict) else {}
+    except ValueError:
+        pass
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, dict):
+            logger.warning("tool args were a Python literal, repaired: %.200r", text)
+            return parsed
+    except (ValueError, SyntaxError):
+        pass
+    logger.warning("unparseable tool args dropped: %.500r", raw_args)
+    return {}
 
 # Cap tool round-trips per turn so a model that loops on tool calls cannot stall a
 # voice turn. The reactive design is ONE round-trip; allow a small margin.
@@ -149,10 +183,10 @@ class ToolCallingLoop:
                 fn = call.get("function", {})
                 name = fn.get("name", "")
                 raw_args = fn.get("arguments") or "{}"
-                try:
-                    args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
-                except Exception:  # noqa: BLE001
-                    args = {}
+                # The raw string is the only record of what the model actually
+                # asked for; every handler-side mystery starts here.
+                logger.info("tool call %s args: %.300r", name, raw_args)
+                args = parse_tool_args(raw_args)
                 result = await self.registry.invoke(name, args)
                 if on_tool_result is not None:
                     try:
