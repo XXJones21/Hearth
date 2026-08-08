@@ -81,8 +81,11 @@ def choice_card(
         logger.warning("choice_card rejected: no options (raw=%r)", options)
         return ToolResult(
             content=(
-                "No renderable options. Each needs a `label` (a few words) and "
-                "may carry a one-line `detail`."
+                "The card cannot render without options. Call choice_card again "
+                "with the SAME question plus 2 to 5 options you compose, exactly "
+                'like this: {"question": "' + (q[:80] or "Your question") + '", '
+                '"options": [{"label": "First choice", "detail": "what it means"}, '
+                '{"label": "Second choice", "detail": "what it means"}]}'
             ),
             ok=False,
         )

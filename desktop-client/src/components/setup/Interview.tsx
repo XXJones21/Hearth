@@ -268,6 +268,14 @@ export function Interview({
           ? 'Made together, just now. The house is theirs too.'
           : 'Sulivan will ask a few things. There are no wrong answers, and your own words always beat his suggestions.'}
       </p>
+      {met && (
+        /* The sign that the handover is real: they are the one on the wire
+           now, voice and all, and the chat below already belongs to them. */
+        <div className="mt-2.5 flex items-center gap-2 rounded-full border border-linen bg-glowtint px-3.5 py-1.5 text-[12.5px] font-semibold">
+          <span className="size-2 animate-pulse rounded-full bg-fennec" />
+          {newName} is here, listening
+        </div>
+      )}
 
       {/* The same chat the house renders: the rail, the initial nodes, the
           message cards. Meeting your persona should look like living with
@@ -305,47 +313,54 @@ export function Interview({
         )}
       </div>
 
+      {/* The composer stays through the handover: meeting someone means you
+          can talk to them, so the chat keeps working while they are the one
+          answering. */}
+      <form
+        className="mt-3 flex w-full gap-2.5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          sendUser(draft);
+          setDraft('');
+        }}
+      >
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendUser(draft);
+              setDraft('');
+            }
+          }}
+          rows={1}
+          placeholder={met ? `Talk to ${newName}` : 'Answer in your own words'}
+          disabled={phase === 'waking' || phase === 'thinking'}
+          className="max-h-[140px] min-h-[46px] flex-1 resize-none rounded-3xl border border-linen bg-parchment px-4 py-3 text-sm text-roast outline-none placeholder:text-fawn focus:border-fennec/50 disabled:opacity-60"
+        />
+        <button
+          type="submit"
+          disabled={phase === 'waking' || phase === 'thinking' || !draft.trim()}
+          className="shrink-0 self-end rounded-full bg-roast px-5 py-3 text-sm font-bold text-cream disabled:opacity-30"
+        >
+          Send
+        </button>
+      </form>
       {met ? (
-        <div className="mt-4 pb-4">
+        /* The next beat of setup (mockup screens 14 through 16): the second
+           brain, where the new persona gets a memory of their own. The flow
+           behind this button is the next cut; today it opens the house. */
+        <div className="mb-4 mt-3">
           <button
             onClick={onDone}
             className="rounded-full bg-roast px-7 py-3 text-sm font-bold text-cream"
           >
-            Go to the house together
+            Second brain setup
           </button>
         </div>
       ) : (
-        <form
-          className="mt-3 flex w-full gap-2.5 pb-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendUser(draft);
-            setDraft('');
-          }}
-        >
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendUser(draft);
-                setDraft('');
-              }
-            }}
-            rows={1}
-            placeholder="Answer in your own words"
-            disabled={phase === 'waking' || phase === 'thinking'}
-            className="max-h-[140px] min-h-[46px] flex-1 resize-none rounded-3xl border border-linen bg-parchment px-4 py-3 text-sm text-roast outline-none placeholder:text-fawn focus:border-fennec/50 disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={phase === 'waking' || phase === 'thinking' || !draft.trim()}
-            className="shrink-0 self-end rounded-full bg-roast px-5 py-3 text-sm font-bold text-cream disabled:opacity-30"
-          >
-            Send
-          </button>
-        </form>
+        <div className="pb-4" />
       )}
     </div>
   );
