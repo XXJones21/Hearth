@@ -151,14 +151,21 @@ class VoiceLoop:
         history with an explicit cut-off marker so the next turn's context (and
         the operator) knows the user heard an incomplete answer.
         """
-        # The interview's first beat is product copy, not a model turn: the
-        # client's kickoff sentinel gets the scripted walkthrough and the
-        # fixed first card, spoken in the persona voice with no LLM call.
-        # The model enters at the person's first answer, with this beat
-        # already sitting in history as its own words.
-        if first_run.is_kickoff(user_text) and first_run.active(self.config.persona_dir):
-            await self._scripted_opening(session, persona, emit)
-            return
+        # First-run dispatch. The kickoff sentinel gets the scripted
+        # walkthrough (product copy, no LLM call). The voice-check greeting
+        # stays on the normal streaming path with a minimal direction. Every
+        # OTHER first-run turn is a structured interview turn: one grammar-
+        # constrained call whose JSON reply carries the speech, the card, and
+        # eventually the commit -- tool selection by a 12B was
+        # non-deterministic three different ways, and the schema replaces all
+        # three guards with a certainty.
+        impl = self._run_turn_impl
+        if first_run.active(self.config.persona_dir):
+            if first_run.is_kickoff(user_text):
+                await self._scripted_opening(session, persona, emit)
+                return
+            if not first_run.is_voice_check(user_text):
+                impl = self._structured_interview_turn
 
         telemetry = TurnTelemetry(
             session_id=session.session_id,
@@ -171,7 +178,7 @@ class VoiceLoop:
         # that died after first token.
         ctx: dict = {"stage": "start", "partial": False, "partial_text": ""}
         try:
-            await self._run_turn_impl(session, persona, user_text, emit, telemetry, ctx)
+            await impl(session, persona, user_text, emit, telemetry, ctx)
         except Exception as exc:  # noqa: BLE001 - typed emit, then re-raise
             telemetry.error_stage = str(ctx["stage"])
             telemetry.error_kind = self._classify_error(exc)
@@ -234,13 +241,12 @@ class VoiceLoop:
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
 
-        # First run: the default persona carries the interview direction and
-        # nothing else changes. Expires by itself when a persona is created.
+        # First run on the normal path is the voice-check greeting; it gets
+        # the minimal direction. The full interview direction (which describes
+        # the structured reply form) belongs to the structured turns only.
         system_prompt = persona.system_prompt
         if first_run.active(self.config.persona_dir):
-            direction = first_run.direction_text()
-            if direction:
-                system_prompt = system_prompt + "\n\n" + direction
+            system_prompt = system_prompt + "\n\n" + first_run.GREETING_DIRECTION
 
         messages = self.assembler.build(
             system_prompt=system_prompt,
@@ -893,6 +899,147 @@ class VoiceLoop:
             )
             for d in augmented
         ], filler_holder["task"]
+
+    async def _structured_interview_turn(
+        self,
+        session: Session,
+        persona: Persona,
+        user_text: str,
+        emit: Emit,
+        telemetry: TurnTelemetry,
+        ctx: dict,
+    ) -> None:
+        """One interview turn as structured output: a single grammar-
+        constrained brain call whose JSON carries the speech, the card, and
+        eventually the commit. Deterministic form, improvised content -- the
+        model cannot omit the card, cannot leak it into the voice, and cannot
+        double-call it, because the reply shape is enforced at the token
+        level. The parsing side stays tolerant anyway (the compose_view
+        discipline): a malformed field costs that field, never the turn."""
+        import json as _json
+
+        session.state = State.THINKING
+        await emit(
+            "thinking_message",
+            {"action": "thinking_message", "persona_name": persona.name},
+        )
+
+        ctx["stage"] = "tts"
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None,
+            self.tts.sync_persona_voice,
+            persona.voice_reference_audio,
+            persona.voice_reference_text,
+        )
+
+        chat_structured = getattr(self.brain, "chat_structured", None)
+        if chat_structured is None:
+            logger.warning("brain has no chat_structured; interview falls back to the normal path")
+            await self._run_turn_impl(session, persona, user_text, emit, telemetry, ctx)
+            return
+
+        ctx["stage"] = "context_assembly"
+        system_prompt = persona.system_prompt
+        direction = first_run.direction_text()
+        if direction:
+            system_prompt = system_prompt + "\n\n" + direction
+        messages = self.assembler.build(
+            system_prompt=system_prompt,
+            memory_block="",
+            history=session.history,
+            user_text=user_text,
+            telemetry=telemetry,
+            device_context=session.device_context,
+            tool_specs=[],
+        )
+
+        dm = persona.config.get("deep_model") if isinstance(persona.config, dict) else None
+        dm = dm if isinstance(dm, dict) else {}
+        bc = self.config.brain
+        opts = ChatOptions(
+            max_tokens=int(dm.get("max_tokens", bc.max_tokens)),
+            temperature=float(dm.get("temperature", bc.temperature)),
+            top_p=float(dm.get("top_p", bc.top_p)),
+            top_k=int(dm.get("top_k", bc.top_k)),
+            model=bc.model,
+            persona_name=persona.name,
+            model_path=resolve_model(dm),
+            enable_thinking=False,
+        )
+
+        ctx["stage"] = "brain_structured"
+        with Timer(telemetry, "brain_total_ms"):
+            raw = await chat_structured(messages, opts, first_run.INTERVIEW_SCHEMA, "interview_turn")
+
+        data: dict = {}
+        try:
+            parsed = _json.loads(raw)
+            if isinstance(parsed, dict):
+                data = parsed
+        except ValueError:
+            logger.warning("structured interview reply did not parse: %.300r", raw)
+
+        speech = str(data.get("speech") or "").strip()
+        if not speech:
+            speech = "Forgive me, I lost my words for a moment. Could you say that again?"
+
+        # The commit first: if the persona is ready, the speech is the goodbye
+        # and the card fields are noise by contract.
+        commit = data.get("commit")
+        committed = False
+        if isinstance(commit, dict) and str(commit.get("name") or "").strip():
+            from ..tools.handlers.creation import create_persona as _create
+
+            allowed = ("name", "description", "system_prompt", "temperament", "voice_design", "colour")
+            result = await loop.run_in_executor(
+                None, lambda: _create(**{k: commit[k] for k in allowed if k in commit})
+            )
+            if result.ok:
+                committed = True
+                telemetry.tools_invoked.append("create_persona")
+                logger.info("structured interview committed: %s", commit.get("name"))
+            else:
+                logger.warning("structured commit failed: %s", result.content[:160])
+
+        await emit(
+            "ai_response",
+            {"action": "ai_response", "text": speech, "persona_name": persona.name},
+        )
+
+        card_note = ""
+        question = str(data.get("question") or "").strip()
+        options = data.get("options") if isinstance(data.get("options"), list) else []
+        if not committed and question and options:
+            from ..tools.handlers.choice import choice_card as _choice
+
+            result = _choice(question=question, options=options)
+            if result.ok and session.capabilities.get("ui_render"):
+                card = result.data.get("ui_component")
+                if card:
+                    await emit("ui_component", {"action": "ui_component", **card})
+                    telemetry.tools_invoked.append("choice_card")
+                    card_note = " [The options are on a card on their screen.]"
+            elif not result.ok:
+                logger.warning("structured card rejected: %s", result.content[:120])
+
+        await self.say(session, persona, speech, emit)
+        session.record_turn(user_text, speech + card_note)
+
+        self.ledger.decision(
+            session=session.session_id,
+            persona=persona.name,
+            question=user_text,
+            decisions=[{"round": 1, "reasoning": "", "tools": list(telemetry.tools_invoked)}],
+            tools_invoked=list(telemetry.tools_invoked),
+            answer_head=speech,
+        )
+        logger.info(
+            "structured interview turn (tools=%s): %r",
+            telemetry.tools_invoked,
+            speech[:160],
+        )
+        telemetry.emit()
 
     async def _salvage_text_tool_call(
         self,

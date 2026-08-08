@@ -71,6 +71,75 @@ OPENING_CARD: dict = {
 def is_kickoff(text: str) -> bool:
     return (text or "").strip() == KICKOFF_SENTINEL
 
+
+# The voice test's fixed query (VoiceTest.tsx GREETING_QUERY); prefix-matched
+# so the greeting turn stays on the normal streaming path with the small
+# direction below, while every other first-run turn goes structured.
+VOICE_CHECK_PREFIX = "(I have just finished installing you"
+
+
+def is_voice_check(text: str) -> bool:
+    return (text or "").strip().startswith(VOICE_CHECK_PREFIX)
+
+
+# What the greeting turn needs and nothing more. The full interview direction
+# describes the structured reply form, which would contaminate a free-prose
+# greeting.
+GREETING_DIRECTION = (
+    "FIRST RUN. This machine was installed today and the message in "
+    "parentheses is the voice test: introduce yourself in two or three short "
+    "sentences and mention that if they can hear your voice, everything is "
+    "working. No questions, no tools, and not a word about personas."
+)
+
+
+# The structured interview turn: every reply is this object, enforced as a
+# grammar by llama-server. `speech` is spoken aloud; `question` + `options`
+# become the choice card; `commit` stays null until the persona is ready.
+INTERVIEW_SCHEMA: dict = {
+    "type": "object",
+    "properties": {
+        "speech": {"type": "string"},
+        "question": {"type": "string"},
+        "options": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                    "detail": {"type": "string"},
+                },
+                "required": ["label", "detail"],
+            },
+        },
+        "commit": {
+            "anyOf": [
+                {"type": "null"},
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "description": {"type": "string"},
+                        "system_prompt": {"type": "string"},
+                        "temperament": {"type": "string"},
+                        "voice_design": {"type": "array", "items": {"type": "string"}},
+                        "colour": {"type": "string"},
+                    },
+                    "required": [
+                        "name",
+                        "description",
+                        "system_prompt",
+                        "temperament",
+                        "voice_design",
+                        "colour",
+                    ],
+                },
+            ]
+        },
+    },
+    "required": ["speech", "question", "options", "commit"],
+}
+
 _DIRECTION_PATH = Path(__file__).resolve().parents[1] / "data" / "first_run_direction.md"
 
 _cache: dict = {"at": 0.0, "active": False}
