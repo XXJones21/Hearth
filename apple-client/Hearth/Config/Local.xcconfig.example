@@ -1,0 +1,11 @@
+// Local.xcconfig -- The template for Local.xcconfig. Copy it, do not edit it, and nothing else.
+//
+// This is the migration's version of the username class: a committed
+// DEVELOPMENT_TEAM builds on one Mac and fails everywhere else with a
+// provisioning error that does not explain itself. It is the only loud failure
+// in the whole definition-of-done table, which is the argument for keeping it
+// out of the project rather than in it.
+//
+// A second developer copies Local.xcconfig.example and puts their own team here.
+
+DEVELOPMENT_TEAM = YOUR_TEAM_ID

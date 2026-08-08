@@ -1,0 +1,47 @@
+// Shared.xcconfig
+//
+// Everything derived from the two variables Dev and Release each set once. The
+// point is that an identifier is spelled in exactly one place: the app group in
+// particular appears in two entitlements files and once more in Swift, and a
+// disagreement between any two of the three compiles, signs, installs and runs.
+// The widget reads an empty container and draws its fallback orb, which is
+// indistinguishable from a widget that is working and waiting.
+//
+// See wiki/clients/apple-implementation.md section 2.4 for why the identifier
+// family carries the product name where Valinor's does.
+
+#include? "Local.xcconfig"
+
+// ---- Identity -------------------------------------------------------------
+// HEARTH_ID_PREFIX and HEARTH_APP_GROUP come from Dev.xcconfig or
+// Release.xcconfig. Everything below is derived and should not be edited.
+
+HEARTH_BUNDLE_ID_IOS      = $(HEARTH_ID_PREFIX)
+HEARTH_BUNDLE_ID_WIDGETS  = $(HEARTH_ID_PREFIX).Widgets
+HEARTH_BUNDLE_ID_VISIONOS = $(HEARTH_ID_PREFIX)Vision
+
+// ---- Deployment floors ----------------------------------------------------
+// iOS 26.0 for reach: nothing in the iOS source needs 27. There is no Liquid
+// Glass adoption on iOS at all, and speech is classic SFSpeechRecognizer.
+//
+// visionOS 27.0 because the caustics rig calls SpotLightComponent.Projective-
+// Texture and SurroundingsLight, and the one headset this surface runs on is
+// ours. The rig is written behind `if #available(visionOS 27.0, *)` at two
+// sites, which are the only availability checks in the entire client.
+
+HEARTH_IOS_FLOOR      = 26.0
+HEARTH_VISIONOS_FLOOR = 27.0
+
+// ---- Server ---------------------------------------------------------------
+// 18700 is Hearth's client gateway. NOT 8700: the development machine runs
+// Valinor's stack there, and a Hearth build defaulting to it would connect --
+// to Valinor -- and come up wearing someone else's memory, journal and
+// personas. There is deliberately no default host, because a phone is never
+// the machine running the backend.
+
+HEARTH_DEFAULT_PORT = 18700
+
+// ---- Signing --------------------------------------------------------------
+// DEVELOPMENT_TEAM is NOT set here. It lives in Local.xcconfig, which is
+// gitignored, so a clone builds without editing the project and the signing
+// identity leaves source control.

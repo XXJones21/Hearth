@@ -1,0 +1,12 @@
+// Dev.xcconfig -- one variable, and the file exists so there is somewhere to
+// put a second if a TestFlight build ever needs separating from a local one.
+//
+// There is no release/development identifier split today. It existed on the
+// desktop because a daily-driver client and a release client share a machine.
+// Nothing here does: Valinor's Apple client is already a different identifier,
+// and one person with one phone does not need two installs of Hearth.
+
+#include "Shared.xcconfig"
+
+HEARTH_ID_PREFIX = com.joshuajones.Hearth
+HEARTH_APP_GROUP = group.com.joshuajones.Hearth

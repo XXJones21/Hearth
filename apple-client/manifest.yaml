@@ -136,7 +136,7 @@ components:
       part of a migration is how a migration becomes a rewrite.
 
   - name: bundled-persona
-    destination: Core/Resources/Personas/sulivan.json
+    destination: Core/Sources/HearthCore/Resources/Personas/sulivan.json
     area: 1
     target: core
     disposition: generated
@@ -967,7 +967,7 @@ counts:
   # places, not a conflict.
   generated:
     - Core/Package.swift
-    - Core/Resources/Personas/sulivan.json
+    - Core/Sources/HearthCore/Resources/Personas/sulivan.json
     - visionOS/HearthVisionApp.swift
     - visionOS/HearthVision.entitlements
     - Config/Shared.xcconfig
