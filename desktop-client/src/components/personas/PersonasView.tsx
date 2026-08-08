@@ -651,16 +651,12 @@ export function PersonasView() {
               <span className="rounded-full border border-[#DED5CA] bg-[#EDE7E0] px-2 py-[3px] text-[10px] font-semibold uppercase tracking-wide text-fawn">
                 Advanced
               </span>
-              The other two model tiers
+              What this persona runs on
             </summary>
             <dl className="mt-2 rounded-[14px] border border-linen bg-[#FCFAF6] px-4 py-3 font-mono text-[11.5px] leading-[1.9] text-fawn">
               <div className="flex gap-3">
-                <dt className="w-24">fast</dt>
-                <dd className="text-roast">{person.tiers.fast || '(none)'}</dd>
-              </div>
-              <div className="flex gap-3">
-                <dt className="w-24">escalation</dt>
-                <dd className="text-roast">{person.tiers.escalation || '(none)'}</dd>
+                <dt className="w-24">model</dt>
+                <dd className="text-roast">{person.model || '(the plan’s)'}</dd>
               </div>
               <div className="flex gap-3">
                 <dt className="w-24">context</dt>

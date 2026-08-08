@@ -35,7 +35,12 @@ export type PersonaRow = {
   model: string;
   temperature: number;
   n_ctx: number;
-  tiers: { fast: string; escalation: string };
+  /* No `tiers`. A persona once declared fast/deep/escalation models; the
+     product kept one. escalation_model was dropped rather than carried across
+     with a path nothing could resolve (see backend/manifest.yaml), and the
+     surface has never sent the field. It stayed in this type as required,
+     which is why nothing complained and why reading tiers.fast blanked the
+     whole app: a type that lies is worse than no type at all. */
 };
 
 export type PersonasSurface = {

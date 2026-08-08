@@ -7,6 +7,7 @@ import { PersonaStage } from './components/stage/PersonaStage';
 import { Rail } from './components/rail/Rail';
 import { AppsView } from './components/apps/AppsView';
 import { PersonasView } from './components/personas/PersonasView';
+import { ViewErrorBoundary } from './components/ViewErrorBoundary';
 import { SettingsView } from './components/settings/SettingsView';
 import { useHearthWebSocket } from './hooks/useHearthWebSocket';
 import { ttsPlayer } from './lib/audioPlayer';
@@ -134,11 +135,17 @@ export default function App() {
       <AppFrame>
         <PersonaStage config={personaConfig} onSwitch={switchPersona} />
         {activeView === 'journal' ? (
-          <LibraryView />
+          <ViewErrorBoundary label="The journal">
+            <LibraryView />
+          </ViewErrorBoundary>
         ) : activeView === 'settings' ? (
-          <SettingsView onReconnect={redial} />
+          <ViewErrorBoundary label="Settings">
+            <SettingsView onReconnect={redial} />
+          </ViewErrorBoundary>
         ) : activeView === 'personas' ? (
-          <PersonasView />
+          <ViewErrorBoundary label="Personas">
+            <PersonasView />
+          </ViewErrorBoundary>
         ) : activeView === 'apps' ? (
           <AppsView
             onAsk={(text) => {
