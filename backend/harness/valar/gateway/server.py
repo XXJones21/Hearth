@@ -62,16 +62,39 @@ def create_app(config: ValarConfig) -> FastAPI:
     # Browser clients (hearth-client dev on localhost:1420, packaged Tauri on
     # tauri://localhost) read /health, /mentat/state, and persona assets
     # cross-origin; without CORS headers those fetches fail silently in the
-    # webview while curl/PowerShell succeed. WS is not CORS-gated. Home-LAN
-    # trust boundary; tighten to an origin list with the tailnet work (M7).
+    # webview while curl/PowerShell succeed. WS is not CORS-gated.
+    #
+    # The origin list is now explicit. `*` was written for a home-LAN trust
+    # boundary that no longer holds once the bind can widen: with a wildcard,
+    # any page the user visits can issue requests to their house, and the
+    # browser attaches no token but the REQUEST still arrives -- which for a
+    # loopback-exempt gateway means a web page could reach the one caller class
+    # that skips authentication entirely. Native clients (the phone, curl) send
+    # no Origin and are unaffected by this list; it constrains browsers only.
     from fastapi.middleware.cors import CORSMiddleware
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "tauri://localhost",       # packaged desktop client
+            "http://localhost:1420",   # hearth-client dev server
+            "http://127.0.0.1:1420",
+        ],
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
+
+    # --- device pairing, and the gate in front of everything --------------
+    #
+    # Added LAST so it runs FIRST: Starlette applies middleware in reverse
+    # registration order, and an unpaired request must be refused before CORS
+    # or any route sees it.
+    from valar.gateway import pairing as pairing_api
+    from valar.gateway.auth import PairingAuthMiddleware
+
+    registry = pairing_api.DeviceRegistry()
+    pairing_api.register(app, registry)
+    app.add_middleware(PairingAuthMiddleware, registry=registry)
 
     # --- read-only Journal API (Selene's room in the Hearth client) ------
     from valar.gateway import journal as journal_api
