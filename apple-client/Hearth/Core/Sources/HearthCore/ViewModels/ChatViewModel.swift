@@ -11,93 +11,93 @@ import simd
 import UIKit
 import WidgetKit
 
-enum ConnectionStatus {
+public enum ConnectionStatus {
     case disconnected
     case connecting
     case connected
 }
 
 @MainActor
-class ChatViewModel: ObservableObject {
-    @Published var messages: [ChatMessage] = []
-    @Published var connectionStatus: ConnectionStatus = .disconnected {
+public class ChatViewModel: ObservableObject {
+    @Published public var messages: [ChatMessage] = []
+    @Published public var connectionStatus: ConnectionStatus = .disconnected {
         didSet { publishWidgetSnapshot(); tryStartPendingQuickTalk() }
     }
     /// Whether the server link is live. Starts optimistic (true) so the orb shows
     /// the normal LOADING look at launch; flips false only after an actual drop or
     /// a failed connect, which blacks the orb out until auto-reconnect revives it.
-    @Published var connectionAlive: Bool = true
-    @Published var isWaitingForResponse = false
-    @Published var currentPersonaName = "Sulivan"
-    @Published var thinkingText = ""
-    @Published var availablePersonas: [String] = []
-    @Published var selectedPersona: String = "Sulivan"
+    @Published public var connectionAlive: Bool = true
+    @Published public var isWaitingForResponse = false
+    @Published public var currentPersonaName = "Sulivan"
+    @Published public var thinkingText = ""
+    @Published public var availablePersonas: [String] = []
+    @Published public var selectedPersona: String = "Sulivan"
     /// The active persona's orb palette, data-driven from its server config.
     /// Warm HearthPalette fallback until the `persona_config` reply arrives.
-    @Published var personaPalette: PersonaPalette = .fallback
+    @Published public var personaPalette: PersonaPalette = .fallback
     /// Which renderer the active persona asks for. Sulivan stays on the 2D
     /// canvas; Selene and Sage mount RealityKit.
-    @Published var personaVisualization: PersonaVisualization = .fallback
+    @Published public var personaVisualization: PersonaVisualization = .fallback
 
     // Audio and state machine
-    @Published var hearthState: HearthState = .LOADING {
+    @Published public var hearthState: HearthState = .LOADING {
         didSet { publishWidgetSnapshot(); tryStartPendingQuickTalk() }
     }
-    @Published var isListening: Bool = false
-    @Published var liveTranscription: String = ""
+    @Published public var isListening: Bool = false
+    @Published public var liveTranscription: String = ""
 
     // Server state machine (Valar Phase B): THINKING sub-stage label
     // (transcribing / deciding / acting). Nil outside THINKING.
-    @Published var thinkingStage: String?
+    @Published public var thinkingStage: String?
     /// Tools executing this turn, from `pipeline_stage`. Drives the house status
     /// bar ("Ringing the trading desk…"); empty when nothing is running.
-    @Published var activeTools: [String] = []
+    @Published public var activeTools: [String] = []
     /// The FULL response so far, as it ARRIVES — what the visionOS transcript
     /// card reads.
-    @Published var liveTranscript: String = ""
+    @Published public var liveTranscript: String = ""
     /// The reply so far, in one growing block — the same shape the visionOS
     /// transcript card uses, so the two clients read alike. Sentences are
     /// appended when their audio is HEARD, not when it arrives, so the caption
     /// fills in step with the voice rather than racing ahead of it.
-    @Published var spokenSentence: String = ""
+    @Published public var spokenSentence: String = ""
     /// Highest TTS segment already appended, so a repeated callback cannot
     /// append the same sentence twice.
     private var captionSegment = -1
     // Smoothed TTS playback amplitude 0..1 (drives Sulivan's speaking waveform).
-    @Published var ttsAmplitude: Float = 0
+    @Published public var ttsAmplitude: Float = 0
     // Summary from the server's idle watchdog (session_ended).
-    @Published var sessionSummary: String?
+    @Published public var sessionSummary: String?
 
     // Generative UI cards driven by the Valar gateway's ui_component messages.
     // Owned here; HearthMainView observes it via viewModel.cardStore.
-    let cardStore = CardStore()
+    public let cardStore = CardStore()
     private var cardStoreObserver: AnyCancellable?
 
     // MARK: - visionOS immersive mode (caustics)
     // Whether the orb has switched from the volumetric window into the immersive
     // caustics space. Drives scene open/dismiss in SulivanVolumeView /
     // CausticsImmersiveView. Harmless on iOS.
-    @Published var isImmersiveActive = false
+    @Published public var isImmersiveActive = false
     /// 0..1 flourish progress while the pinch-and-hold builds toward the switch;
     /// mirrored onto RealityKitSceneManager.transitionProgress by the host.
-    @Published var transitionProgress: Float = 0
+    @Published public var transitionProgress: Float = 0
     /// The orb's transform captured in the `.immersiveSpace` coordinate frame at
     /// switch time, so the immersive scene can re-place it at the same physical
     /// spot. Set by the volume scene, consumed (and cleared) by the immersive scene.
-    var pendingOrbTransform: simd_float4x4?
+    public var pendingOrbTransform: simd_float4x4?
 
     /// Ask Sulivan to speak a short cue line (e.g. when switching modes) in her
     /// real persona voice via the server `say` intent. No-op off the WebSocket path.
     /// A cue does NOT open a listening turn when it finishes (unlike a normal reply).
-    func speakCue(_ text: String) {
+    public func speakCue(_ text: String) {
         cueInFlight = true
         webSocketClient?.sendSay(text)
     }
     private var cueInFlight = false
 
     // Settings and debug
-    @Published var showSettings: Bool = false
-    @Published var isDebugMode: Bool = false
+    @Published public var showSettings: Bool = false
+    @Published public var isDebugMode: Bool = false
 
     // WebSocket and audio
     private var webSocketClient: HearthWebSocketClient?
@@ -144,7 +144,7 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Init
 
-    init() {
+    public init() {
         // CardStore is a nested ObservableObject, so its changes do NOT reach
         // views observing this view model. Cards only ever appeared because a
         // turn also churns ttsAmplitude/hearthState and forced a redraw — a
@@ -421,7 +421,7 @@ class ChatViewModel: ObservableObject {
     /// address when it DIALS, so saving alone changes nothing -- the old
     /// client has to be torn down and rebuilt against the new origin. Called
     /// by the Connection section after the user edits the field.
-    func redial() async {
+    public func redial() async {
         cancelReconnect()
         webSocketClient?.disconnect()
         webSocketClient = nil
@@ -439,14 +439,14 @@ class ChatViewModel: ObservableObject {
 
     /// Probe `GET /health` without touching the live socket, for the Test
     /// button. Returns the round trip and what the server said about itself.
-    struct HealthProbe {
-        let latencyMs: Int
-        let brainReady: Bool
-        let brainBackend: String
-        let persona: String
+    public struct HealthProbe {
+        public let latencyMs: Int
+        public let brainReady: Bool
+        public let brainBackend: String
+        public let persona: String
     }
 
-    static func probeHealth() async -> HealthProbe? {
+    public static func probeHealth() async -> HealthProbe? {
         guard let url = ServerConfig.shared.url("/health") else { return nil }
         var request = URLRequest(url: url)
         request.timeoutInterval = 6
@@ -505,7 +505,7 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Audio / Listening
 
-    func toggleListening() {
+    public func toggleListening() {
         if hearthState == .LISTENING {
             stopListening()
             return
@@ -633,7 +633,7 @@ class ChatViewModel: ObservableObject {
 
     // MARK: - Text Messaging
 
-    func sendMessage(_ text: String) {
+    public func sendMessage(_ text: String) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         guard connectionStatus == .connected else {
             addSystemMessage("Connection not ready yet")
@@ -666,16 +666,16 @@ class ChatViewModel: ObservableObject {
         }
     }
 
-    func sendPing() {
+    public func sendPing() {
         _ = webSocketClient?.sendPing()
     }
 
-    func switchPersona(_ name: String) {
+    public func switchPersona(_ name: String) {
         guard name != selectedPersona else { return }
         webSocketClient?.sendSwitchPersona(name)
     }
 
-    func setDebugMode(_ enabled: Bool) {
+    public func setDebugMode(_ enabled: Bool) {
         isDebugMode = enabled
         if enabled {
             cancelReconnect()
@@ -788,7 +788,7 @@ class ChatViewModel: ObservableObject {
     /// The card this turn produced, surfaced on the persona stage while the turn
     /// is live. It is the same instance the feed holds — the stage is a spotlight
     /// on the newest card, not a second copy, and it releases when the turn ends.
-    var stageCard: UiComponentDescriptor? {
+    public var stageCard: UiComponentDescriptor? {
         switch hearthState {
         case .THINKING, .SPEAKING: return cardStore.cards.last
         default: return nil
@@ -815,7 +815,7 @@ class ChatViewModel: ObservableObject {
     /// The user tapped a past-conversation card in the `session_gallery`. Send the
     /// pick to the server (which resumes it per `mode`) and dismiss the gallery.
     /// Resume execution is server-side and deferred — see the Phase 5 handoff doc.
-    func selectSession(slug: String, mode: String) {
+    public func selectSession(slug: String, mode: String) {
         print("[Session] select slug=\(slug) mode=\(mode)")
         webSocketClient?.sendSessionResume(slug: slug, mode: mode)
         cardStore.dismissType(UiComponentDescriptor.typeSessionGallery)
@@ -833,7 +833,7 @@ class ChatViewModel: ObservableObject {
     /// shipped a stranger a week of somebody's actual work. Two obvious
     /// placeholders exercise the same layout -- one long summary, one short --
     /// without carrying anyone's history into the binary.
-    func debugShowSampleGallery() {
+    public func debugShowSampleGallery() {
         let payload: [String: Any] = [
             "type": UiComponentDescriptor.typeSessionGallery,
             "op": "upsert",
@@ -861,7 +861,7 @@ class ChatViewModel: ObservableObject {
 
     /// Publish the glanceable state to the App Group and refresh the widgets.
     /// No-op at runtime if the App Group isn't configured.
-    func publishWidgetSnapshot() {
+    public func publishWidgetSnapshot() {
         let snapshot = HearthSnapshot(
             personaName: currentPersonaName,
             connected: connectionStatus == .connected,
@@ -929,7 +929,7 @@ class ChatViewModel: ObservableObject {
 
     /// Called from the QuickTalk widget deep link. Starts a listening turn now
     /// if possible, else once we're connected and idle.
-    func handleQuickTalkDeepLink() {
+    public func handleQuickTalkDeepLink() {
         pendingQuickTalk = true
         tryStartPendingQuickTalk()
     }

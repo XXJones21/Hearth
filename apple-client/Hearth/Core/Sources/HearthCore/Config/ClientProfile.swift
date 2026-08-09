@@ -22,7 +22,7 @@
 
 import Foundation
 
-enum ClientCapability: String, CaseIterable {
+public enum ClientCapability: String, CaseIterable {
     /// Can browse the machine's own filesystem.
     case files
     /// Has window geometry worth remembering.
@@ -33,12 +33,12 @@ enum ClientCapability: String, CaseIterable {
     case devPane = "devpane"
 }
 
-enum ClientId: String {
+public enum ClientId: String {
     case desktop, ios, echo, quest
 }
 
-enum ClientProfile {
-    static let current: ClientId = .ios
+public enum ClientProfile {
+    public static let current: ClientId = .ios
 
     private static let table: [ClientId: Set<ClientCapability>] = [
         .desktop: [.files, .window, .inAppTheme, .devPane],
@@ -48,11 +48,11 @@ enum ClientProfile {
     ]
 
     /// Does this client carry the capability a row needs?
-    static func can(_ capability: ClientCapability) -> Bool {
+    public static func can(_ capability: ClientCapability) -> Bool {
         table[current, default: []].contains(capability)
     }
 
-    static var label: String {
+    public static var label: String {
         switch current {
         case .desktop: return "Hearth desktop"
         case .ios:     return "Hearth iOS"

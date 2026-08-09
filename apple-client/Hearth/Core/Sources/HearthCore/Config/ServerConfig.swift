@@ -82,8 +82,10 @@ public final class ServerConfig {
             guard !trimmed.isEmpty else {
                 serverHost = nil
                 serverPort = Self.defaultPort
+                NotificationCenter.default.post(name: .hearthServerConfigured, object: nil)
                 return
             }
+            defer { NotificationCenter.default.post(name: .hearthServerConfigured, object: nil) }
             // Strip a pasted scheme; people paste URLs.
             var value = trimmed
             for scheme in ["ws://", "wss://", "http://", "https://"] where value.hasPrefix(scheme) {
@@ -143,4 +145,14 @@ public final class ServerConfig {
     }
 
     private init() {}
+}
+
+public extension Notification.Name {
+    /// The house address changed -- named, or cleared.
+    ///
+    /// The root view branches on `isConfigured`, and SwiftUI cannot observe a
+    /// UserDefaults-backed singleton on its own. This is the redraw signal, and
+    /// it fires on the clear path too: forgetting a house has to send the phone
+    /// back to first run as surely as naming one takes it forward.
+    static let hearthServerConfigured = Notification.Name("hearth.serverConfigured")
 }

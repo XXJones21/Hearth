@@ -23,12 +23,12 @@ import Photos
 
 @MainActor
 @Observable
-final class ImageAsset {
+public final class ImageAsset {
     private(set) var image: Image?
     private(set) var uiImage: UIImage?
-    var saveResult: String?
+    public var saveResult: String?
 
-    func load(src: String) async {
+    public func load(src: String) async {
         guard uiImage == nil, let url = hearthAssetURL(src) else { return }
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
@@ -39,7 +39,7 @@ final class ImageAsset {
         image = Image(uiImage: loaded)
     }
 
-    func copyToPasteboard() {
+    public func copyToPasteboard() {
         guard let uiImage else { return }
         UIPasteboard.general.image = uiImage
         saveResult = "Copied"
@@ -47,7 +47,7 @@ final class ImageAsset {
 
     /// Add-only access, so the app asks for the narrowest permission that does
     /// the job and never gains the ability to read the operator's library.
-    func saveToPhotos() {
+    public func saveToPhotos() {
         guard let uiImage else { return }
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
@@ -70,12 +70,12 @@ final class ImageAsset {
 /// `addToPrompt` is passed in rather than assumed: the card can hand the
 /// picture back to the composer, and the viewer has no composer to hand it to.
 /// Nil hides the item entirely rather than showing a dead one.
-struct ImageActionsMenu: ViewModifier {
-    let asset: ImageAsset
-    let prompt: String
-    var addToPrompt: (() -> Void)?
+public struct ImageActionsMenu: ViewModifier {
+    public let asset: ImageAsset
+    public let prompt: String
+    public var addToPrompt: (() -> Void)?
 
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
         content.contextMenu {
             if let image = asset.image {
                 ShareLink(item: image,
@@ -100,7 +100,7 @@ struct ImageActionsMenu: ViewModifier {
     }
 }
 
-extension View {
+public extension View {
     func imageActions(_ asset: ImageAsset, prompt: String,
                       addToPrompt: (() -> Void)? = nil) -> some View {
         modifier(ImageActionsMenu(asset: asset, prompt: prompt, addToPrompt: addToPrompt))
@@ -109,10 +109,10 @@ extension View {
 
 /// A brief confirmation, because Save and Copy are otherwise silent and the
 /// operator has no way to tell whether the long press did anything.
-struct ImageActionToast: View {
-    let text: String
+public struct ImageActionToast: View {
+    public let text: String
 
-    var body: some View {
+    public var body: some View {
         Text(text)
             .font(.system(size: 12.5, weight: .medium))
             .foregroundStyle(.white)

@@ -13,30 +13,30 @@
 
 import Foundation
 
-struct PersonaVisualization: Equatable {
-    enum Kind: String {
+public struct PersonaVisualization: Equatable {
+    public enum Kind: String {
         /// Procedural orb (Sulivan). Rendered by PersonaCanvasView.
         case sphereParticle = "sphere_particle"
         /// Character model (Selene, soon Sage). Rendered by RealityKit.
         case glbAnimated = "glb_animated"
     }
 
-    var kind: Kind = .sphereParticle
+    public var kind: Kind = .sphereParticle
     /// State name -> Valar-relative USDZ path, e.g.
     /// "idle" -> "Selene/Assets/usdz/selene-idle.usdz".
-    var usdzClips: [String: String] = [:]
+    public var usdzClips: [String: String] = [:]
     /// Degrees, from the config, so a model authored facing away can be turned.
-    var rotationY: Double = 0
+    public var rotationY: Double = 0
 
-    static let fallback = PersonaVisualization()
+    public static let fallback = PersonaVisualization()
 
     /// A glb persona with no USDZ clips cannot be drawn by RealityKit, so the
     /// stage falls back to its 2D orb rather than showing an empty volume.
-    var canRenderModel: Bool {
+    public var canRenderModel: Bool {
         kind == .glbAnimated && usdzClips["idle"] != nil
     }
 
-    static func from(visualization: [String: Any]?, personaName: String) -> PersonaVisualization {
+    public static func from(visualization: [String: Any]?, personaName: String) -> PersonaVisualization {
         guard let visualization else { return .fallback }
         var out = PersonaVisualization()
 
@@ -75,7 +75,7 @@ struct PersonaVisualization: Equatable {
 
     /// Absolute URL for a state's clip: the bundle when the entry is a bare
     /// filename, otherwise the Valar origin like every other persona asset.
-    func clipURL(for state: String) -> URL? {
+    public func clipURL(for state: String) -> URL? {
         guard let path = usdzClips[state] else { return nil }
         if !path.contains("/") {
             return Bundle.main.url(forResource: (path as NSString).deletingPathExtension,
@@ -84,7 +84,7 @@ struct PersonaVisualization: Equatable {
         return ServerConfig.shared.url("/Persona/\(path)")
     }
 
-    var orderedStates: [String] {
+    public var orderedStates: [String] {
         ["idle", "listening", "thinking", "speaking"].filter { usdzClips[$0] != nil }
     }
 }

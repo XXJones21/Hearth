@@ -25,17 +25,17 @@
 
 import Foundation
 
-struct PersonaSurface: Decodable {
-    var personas: [Persona] = []
-    var models: [String] = []
-    var domains: [String] = []
-    var forms: [String] = []
+public struct PersonaSurface: Decodable {
+    public var personas: [Persona] = []
+    public var models: [String] = []
+    public var domains: [String] = []
+    public var forms: [String] = []
 
     private enum CodingKeys: String, CodingKey {
         case personas, models, domains, forms
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         personas = (try? c.decode([Persona].self, forKey: .personas)) ?? []
         models = (try? c.decode([String].self, forKey: .models)) ?? []
@@ -48,32 +48,32 @@ struct PersonaSurface: Decodable {
     /// cores like Liara that belong to an app rather than to the house. The
     /// desktop reveals them under developer mode; iOS has none, so they are
     /// simply not here, and no edit is ever sent for one.
-    var household: [Persona] {
+    public var household: [Persona] {
         personas.filter { !$0.isInternal }
     }
 
-    struct Persona: Decodable, Identifiable {
-        var key: String = ""
-        var name: String = ""
-        var description: String = ""
-        var classification: String = ""
-        var isInternal: Bool = false
-        var systemPrompt: String = ""
-        var voice: Voice = Voice()
-        var form: String = ""
-        var accent: String = ""
+    public struct Persona: Decodable, Identifiable {
+        public var key: String = ""
+        public var name: String = ""
+        public var description: String = ""
+        public var classification: String = ""
+        public var isInternal: Bool = false
+        public var systemPrompt: String = ""
+        public var voice: Voice = Voice()
+        public var form: String = ""
+        public var accent: String = ""
         /// nil when the persona has never had a palette of its own. Do not
         /// render an empty control; offer to seed the house colours.
-        var stateColors: [String: String]?
-        var domains: [String] = []
-        var deny: [String] = []
-        var reasoning: Bool = false
-        var rounds: Int = 0
-        var model: String = ""
-        var temperature: Double = 0
-        var visualizationType: String = ""
+        public var stateColors: [String: String]?
+        public var domains: [String] = []
+        public var deny: [String] = []
+        public var reasoning: Bool = false
+        public var rounds: Int = 0
+        public var model: String = ""
+        public var temperature: Double = 0
+        public var visualizationType: String = ""
 
-        var id: String { key.isEmpty ? name : key }
+        public var id: String { key.isEmpty ? name : key }
 
         /// A model-rendered persona draws no orb, so its state colours drive
         /// nothing. Gated on the RENDERER, never on the name -- Selene today,
@@ -83,9 +83,9 @@ struct PersonaSurface: Decodable {
         /// falls back to the orb (PersonaVisualization defaults to
         /// sphereParticle), so its colours do apply and it gets the seed
         /// offer. Treating "unknown" as "model" would hide a working control.
-        var usesModelAsset: Bool { visualizationType == "glb_animated" }
+        public var usesModelAsset: Bool { visualizationType == "glb_animated" }
 
-        var formLabel: String {
+        public var formLabel: String {
             switch form {
             case "non_corporeal": return "Non-corporeal"
             case "humanoid":      return "Humanoid"
@@ -104,7 +104,7 @@ struct PersonaSurface: Decodable {
             case type
         }
 
-        init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             key = (try? c.decode(String.self, forKey: .key)) ?? ""
             name = (try? c.decode(String.self, forKey: .name)) ?? ""
@@ -131,11 +131,11 @@ struct PersonaSurface: Decodable {
         }
     }
 
-    struct Voice: Decodable {
-        var referenceAudio: String = ""
-        var referenceText: String = ""
-        var voiceDescription: String = ""
-        var folder: String = ""
+    public struct Voice: Decodable {
+        public var referenceAudio: String = ""
+        public var referenceText: String = ""
+        public var voiceDescription: String = ""
+        public var folder: String = ""
 
         private enum CodingKeys: String, CodingKey {
             case folder
@@ -144,9 +144,9 @@ struct PersonaSurface: Decodable {
             case voiceDescription = "voice_description"
         }
 
-        init() {}
+        public init() {}
 
-        init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             referenceAudio = (try? c.decode(String.self, forKey: .referenceAudio)) ?? ""
             referenceText = (try? c.decode(String.self, forKey: .referenceText)) ?? ""
@@ -156,21 +156,21 @@ struct PersonaSurface: Decodable {
 
         /// The clip's own name; the folder it sits in belongs to another
         /// machine and is never shown as something to open.
-        var clipName: String {
+        public var clipName: String {
             (referenceAudio as NSString).lastPathComponent
         }
     }
 
     /// The four the house starts from, and what a persona with no palette is
     /// offered. Same hexes the warm defaults use everywhere else.
-    static let seedColors: [String: String] = [
+    public static let seedColors: [String: String] = [
         "idle": "#E39A5B", "listening": "#FFB84D",
         "thinking": "#D68C50", "speaking": "#C97F45",
     ]
 
-    static let stateOrder = ["idle", "listening", "thinking", "speaking"]
+    public static let stateOrder = ["idle", "listening", "thinking", "speaking"]
 
-    static func whenItAppears(_ state: String) -> String {
+    public static func whenItAppears(_ state: String) -> String {
         switch state {
         case "idle":      return "waiting"
         case "listening": return "you are speaking"
@@ -184,17 +184,18 @@ struct PersonaSurface: Decodable {
 // MARK: - Loading and saving
 
 @MainActor
-final class PersonaSurfaceLoader: ObservableObject {
-    @Published private(set) var surface: PersonaSurface?
-    @Published private(set) var isLoading = false
-    @Published private(set) var unavailable = false
+public final class PersonaSurfaceLoader: ObservableObject {
+    public init() {}
+    @Published public private(set) var surface: PersonaSurface?
+    @Published public private(set) var isLoading = false
+    @Published public private(set) var unavailable = false
     /// Set while the house is restarting after a successful apply.
-    @Published private(set) var isSaving = false
-    @Published private(set) var saveError: String?
+    @Published public private(set) var isSaving = false
+    @Published public private(set) var saveError: String?
     /// What the last apply actually wrote, so a no-op does not claim a save.
-    @Published private(set) var lastChanged: [String] = []
+    @Published public private(set) var lastChanged: [String] = []
 
-    func load() async {
+    public func load() async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
@@ -227,7 +228,7 @@ final class PersonaSurfaceLoader: ObservableObject {
     /// persona.json is read once at startup. The websocket dropping is the
     /// expected shape of a successful save, not a failure, so the only real
     /// error cases are a non-200 or a request that never lands at all.
-    func apply(persona: String, prompt: String?, colors: [String: String]?) async -> Bool {
+    public func apply(persona: String, prompt: String?, colors: [String: String]?) async -> Bool {
         guard !isSaving else { return false }
         var edit: [String: Any] = [:]
         if let prompt { edit["system_prompt"] = prompt }

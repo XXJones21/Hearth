@@ -12,10 +12,16 @@ import SwiftUI
 
 // MARK: - Registry
 
-struct DynamicComponent: View {
-    let descriptor: UiComponentDescriptor
+public struct DynamicComponent: View {
+    public let descriptor: UiComponentDescriptor
 
-    var body: some View {
+    /// Explicit because a public struct's MEMBERWISE init is internal, and this
+    /// registry is constructed from the app target.
+    public init(descriptor: UiComponentDescriptor) {
+        self.descriptor = descriptor
+    }
+
+    public var body: some View {
         switch descriptor.type {
         case UiComponentDescriptor.typeClock:
             ClockCard(descriptor: descriptor)
@@ -44,10 +50,10 @@ struct DynamicComponent: View {
 }
 
 /// Vertical stack of all live cards, used by the main screen's bottom zone.
-struct DynamicComponentStack: View {
-    let descriptors: [UiComponentDescriptor]
+public struct DynamicComponentStack: View {
+    public let descriptors: [UiComponentDescriptor]
 
-    var body: some View {
+    public var body: some View {
         VStack(spacing: 16) {
             ForEach(descriptors) { descriptor in
                 DynamicComponent(descriptor: descriptor)
@@ -61,12 +67,12 @@ struct DynamicComponentStack: View {
 /// Hearth card surface: white (fluff) fill, 1px linen border, 16pt radius, soft
 /// warm shadow. The single shell for every card type (mirrors the desktop's
 /// `rounded-2xl border-linen bg-fluff shadow-soft`).
-struct CardSurface<Content: View>: View {
-    @ViewBuilder var content: Content
+public struct CardSurface<Content: View>: View {
+    @ViewBuilder public var content: Content
 
     private let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
 
-    var body: some View {
+    public var body: some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
@@ -78,9 +84,9 @@ struct CardSurface<Content: View>: View {
 }
 
 /// Uppercase ember eyebrow (card titles / section headers), per the brand.
-struct CardEyebrow: View {
-    let text: String
-    var body: some View {
+public struct CardEyebrow: View {
+    public let text: String
+    public var body: some View {
         Text(text.uppercased())
             .font(.system(size: 11.5, weight: .bold))
             .tracking(0.8)
@@ -90,10 +96,10 @@ struct CardEyebrow: View {
 
 // MARK: - Clock
 
-struct ClockCard: View {
-    let descriptor: UiComponentDescriptor
+public struct ClockCard: View {
+    public let descriptor: UiComponentDescriptor
 
-    var body: some View {
+    public var body: some View {
         let time = descriptor.str("time")
         let date = descriptor.str("date")
         return CardSurface {
@@ -115,10 +121,10 @@ struct ClockCard: View {
 
 // MARK: - Weather
 
-struct WeatherCard: View {
-    let descriptor: UiComponentDescriptor
+public struct WeatherCard: View {
+    public let descriptor: UiComponentDescriptor
 
-    var body: some View {
+    public var body: some View {
         let temp = descriptor.str("temp")
         let condition = descriptor.str("condition")
         let location = descriptor.str("location")
@@ -161,8 +167,8 @@ struct WeatherCard: View {
 
 // MARK: - Timer
 
-struct TimerCard: View {
-    let descriptor: UiComponentDescriptor
+public struct TimerCard: View {
+    public let descriptor: UiComponentDescriptor
 
     private struct TimerRow: Identifiable {
         let id = UUID()
@@ -179,7 +185,7 @@ struct TimerCard: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         let rows = timers
         return CardSurface {
             VStack(alignment: .leading, spacing: 10) {
@@ -213,7 +219,7 @@ struct TimerCard: View {
     }
 
     /// m:ss under an hour, h:mm:ss above; "Done" once elapsed.
-    static func formatRemaining(_ remaining: TimeInterval) -> String {
+    public static func formatRemaining(_ remaining: TimeInterval) -> String {
         guard remaining > 0 else { return "Done" }
         let total = Int(remaining.rounded())
         let h = total / 3600
@@ -228,10 +234,10 @@ struct TimerCard: View {
 
 // MARK: - Brief text
 
-struct BriefTextCard: View {
-    let descriptor: UiComponentDescriptor
+public struct BriefTextCard: View {
+    public let descriptor: UiComponentDescriptor
 
-    var body: some View {
+    public var body: some View {
         let title = descriptor.str("title")
         let body = descriptor.str("body")
         return CardSurface {
@@ -249,11 +255,11 @@ struct BriefTextCard: View {
 
 // MARK: - Slideshow (placeholder until an on-device image loader is justified)
 
-struct SlideshowCard: View {
-    let descriptor: UiComponentDescriptor
+public struct SlideshowCard: View {
+    public let descriptor: UiComponentDescriptor
     @State private var index = 0
 
-    var body: some View {
+    public var body: some View {
         let images = descriptor.strList("images")
         let intervalMs = max(1000, descriptor.int("interval_ms", fallback: 6000))
         let interval = Double(intervalMs) / 1000.0
@@ -297,11 +303,11 @@ struct SlideshowCard: View {
 
 // MARK: - Captions (breathing glow conveys "live")
 
-struct CaptionsCard: View {
-    let descriptor: UiComponentDescriptor
+public struct CaptionsCard: View {
+    public let descriptor: UiComponentDescriptor
     @State private var glow = 0.10
 
-    var body: some View {
+    public var body: some View {
         let text = descriptor.str("text")
         return Group {
             if text.isEmpty {

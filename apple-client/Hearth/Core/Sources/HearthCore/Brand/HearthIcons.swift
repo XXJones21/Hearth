@@ -23,17 +23,20 @@ import SwiftUI
 
 /// Scales the 24-unit design grid onto whatever rect the shape is given.
 private struct Grid {
-    let rect: CGRect
-    var scale: CGFloat { min(rect.width, rect.height) / 24 }
-    func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+    public let rect: CGRect
+    public var scale: CGFloat { min(rect.width, rect.height) / 24 }
+    public func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
         CGPoint(x: rect.minX + x * scale, y: rect.minY + y * scale)
     }
-    func v(_ n: CGFloat) -> CGFloat { n * scale }
+    public func v(_ n: CGFloat) -> CGFloat { n * scale }
 }
 
 /// Journal. Desktop's IconBook: a cover, and the spine's inner rule.
-struct BookIcon: Shape {
-    func path(in rect: CGRect) -> Path {
+public struct BookIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
         let g = Grid(rect: rect)
         var path = Path()
 
@@ -55,8 +58,11 @@ struct BookIcon: Shape {
 }
 
 /// Persona. Desktop's IconPerson: head, and shoulders as a half circle.
-struct PersonIcon: Shape {
-    func path(in rect: CGRect) -> Path {
+public struct PersonIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
         let g = Grid(rect: rect)
         var path = Path()
         path.addEllipse(in: CGRect(x: g.p(12, 8).x - g.v(3.6),
@@ -72,8 +78,11 @@ struct PersonIcon: Shape {
 }
 
 /// Apps. Desktop's IconGrid: four rounded squares.
-struct GridIcon: Shape {
-    func path(in rect: CGRect) -> Path {
+public struct GridIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
         let g = Grid(rect: rect)
         var path = Path()
         for (x, y) in [(3.0, 3.0), (14.0, 3.0), (3.0, 14.0), (14.0, 14.0)] {
@@ -90,10 +99,13 @@ struct GridIcon: Shape {
 /// desktop's gear is a single path of relative arcs, and reproducing it by
 /// hand invites the kind of error nobody notices until it ships. Eight teeth
 /// around a hub reads identically at shelf size and is exact by construction.
-struct GearIcon: Shape {
+public struct GearIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
     private let teeth = 8
 
-    func path(in rect: CGRect) -> Path {
+    public func path(in rect: CGRect) -> Path {
         let g = Grid(rect: rect)
         let center = g.p(12, 12)
         var path = Path()
@@ -120,11 +132,17 @@ struct GearIcon: Shape {
 
 /// One shelf icon at the desktop's weight. `size` is the box; the stroke
 /// scales with it so a larger icon does not read as a thinner one.
-struct HearthIcon<S: Shape>: View {
-    let shape: S
-    var size: CGFloat = 19
+public struct HearthIcon<S: Shape>: View {
+    public let shape: S
+    public var size: CGFloat = 19
 
-    var body: some View {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init(shape: S, size: CGFloat = 19) {
+        self.shape = shape
+        self.size = size
+    }
+
+    public var body: some View {
         shape
             .stroke(style: StrokeStyle(lineWidth: size * (2.0 / 24.0),
                                        lineCap: .round, lineJoin: .round))

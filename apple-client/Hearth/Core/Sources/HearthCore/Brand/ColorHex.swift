@@ -16,7 +16,7 @@
 
 import SwiftUI
 
-extension Color {
+public extension Color {
     /// "#E39A5B" or "E39A5B". Returns nil rather than a default, so a
     /// malformed value from the server is visible instead of silently warm.
     init?(hex: String) {

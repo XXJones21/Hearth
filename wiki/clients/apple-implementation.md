@@ -46,8 +46,9 @@ Updated 2026-08-08. Branch `apple-client-migration`; rollback points are
 | 3 area 1, foundation | done | orb drawn from bundled JSON with nothing listening |
 | 3 area 2, transport and voice | done | live handshake on 18700 against the local stack |
 | 3 area 3, the turn and the cards | done | `HearthCore` and the iOS app both build clean, no warnings |
-| 3 area 4, the iOS shell and house surfaces | **next** | — |
-| 3 areas 5–6 | not started | — |
+| 3 area 4, the iOS shell and house surfaces | done | shell renders on a booted simulator; first-run and configured branches both proved |
+| 3 area 5, widgets | **next** | — |
+| 3 area 6, visualization and visionOS | not started | — |
 | 4, capabilities and signing | not started | App Group is the check that needs a device |
 | 5, first run on a real network | not started | the one check that cannot be faked locally |
 
@@ -94,6 +95,79 @@ Four more sites failed to compile for a reason worth keeping: area 1 made
 one of them now goes through `ServerConfig.url(_:)`, and `setupWebSocket` returns
 early when no house is configured rather than dialling a placeholder and
 spending the reconnect backoff on it.
+
+### What area 4 did by hand — and the correction it forced on area 3
+
+**The Mentat poll does exist.** Area 3 recorded that it did not, on a `grep -ci
+mentat` over `ChatViewModel` that honestly returned 0. The grep was right and
+the conclusion was wrong: the poll is in `HouseStatusBar` — a
+`MentatStatePoller` `@StateObject`, started in `onAppear`, appending a second
+status line — and the manifest simply filed the note against the wrong file. It
+is out now, along with four rows of the seventeen-entry tool table
+(`consult_liara`, `mentat_`, `wright`, `uefn_`). **A subtraction that cannot be
+found is filed against the wrong file more often than it is imaginary.**
+
+The rest of the by-hand list:
+
+| Site | What happened |
+| --- | --- |
+| `AppsView` | the Meta Ray-Ban row goes with MWDAT. It was also the example the file's ownership-split comment leaned on, so the comment was rewritten rather than left pointing at a row that no longer exists. |
+| `BottomInputBar` | the mic icon branched on `raysRegistered`; now it is just `mic.fill`. |
+| `CardLibraryView` | the fourth commissioned site, as the manifest predicted — plus its samples, which nest under `props.data`. |
+| `HearthMainView` | the 550pt layout argument kept, the dashboard's name dropped. |
+| `HearthSettingsView` | the comment explaining where the Ray-Ban rows *moved to* outlived the rows themselves. |
+
+### `ServerConfig.defaultHost` is gone, and that is a copy change
+
+Two Settings sites referenced it and neither was a compile detail. The address
+field used it as its placeholder, and the failure message offered to *"clear the
+field to restore 10.1.95.5"* — an offer to restore one person's LAN address on a
+stranger's phone. The placeholder is now a shape (`192.168.1.10`) and the
+message says **"clear the field to forget this house."**
+
+Removing a default is not finished when the code compiles. Anything that
+*described* the default is now lying.
+
+### The public pass, and what Swift actually charges for a module boundary
+
+Deferred from area 3 on the argument that it could not be compiler-driven until
+the shell existed. That was right, and the shell drove out about 230
+declarations across 20 files. Four costs, none of which are in the manifest:
+
+- **Every one of the 14 shell files needs `import HearthCore`.** In Valinor they
+  were one target and the boundary did not exist.
+- **A public struct's memberwise init is internal.** `DynamicComponent`,
+  `UiComponentDescriptor`, `PersonaModelView` and the five shelf icons all
+  compile fine as public types and then cannot be constructed from the app
+  target. Each needed an explicit `public init`.
+- **`@Published private(set) var` needs `public private(set)`,** and reads as
+  already-handled to any tool looking for a missing access modifier.
+- **`public` inside a `public extension` is redundant and warns.** Nine of them.
+
+The mechanical pass was scripted, and **the script's first version was wrong in
+a way worth recording**: it decided what to promote by indentation depth, which
+cannot tell a stored property at four spaces from a local `let` inside a
+top-level function at four spaces. It emitted `public let trimmed = ...` inside
+a function body — not valid Swift. Rewritten to walk brace depth and remember,
+per open scope, whether it is a type body. Indentation looks like structure and
+is not.
+
+### The synchronized group copies `Info.plist` as a resource
+
+`Multiple commands produce .../Hearth.app/Info.plist`, the moment area 4's
+plist landed. Exactly the `.gitkeep` failure from phase 2: a
+`PBXFileSystemSynchronizedRootGroup` sweeps in every file in the folder, and a
+target that also has `GENERATE_INFOPLIST_FILE = YES` then produces it twice.
+
+Setting `INFOPLIST_FILE` does **not** fix it — the resource copy is a separate
+mechanism. It needs a `PBXFileSystemSynchronizedBuildFileExceptionSet` with
+`Info.plist` in `membershipExceptions`, which the visionOS and Widget targets
+already had and the iOS target had never needed. Both are now set.
+
+`CODE_SIGN_ENTITLEMENTS` is deliberately still unset. `Hearth.entitlements`
+landed with the App Group reading `$(HEARTH_APP_GROUP)`, but wiring it belongs
+to phase 4, where a device can prove the capability rather than a simulator
+skipping the check.
 
 ### The gate has a blind spot for compound identifiers
 

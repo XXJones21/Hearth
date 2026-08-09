@@ -37,14 +37,21 @@
 import SwiftUI
 import RealityKit
 
-struct PersonaModelView: View {
-    let visualization: PersonaVisualization
-    let state: HearthState
+public struct PersonaModelView: View {
+    public let visualization: PersonaVisualization
+    public let state: HearthState
+
+    /// Explicit: a public struct's memberwise init is internal, and the iOS
+    /// main view mounts this whenever the persona asks for `glb_animated`.
+    public init(visualization: PersonaVisualization, state: HearthState) {
+        self.visualization = visualization
+        self.state = state
+    }
 
     @State private var loader = PersonaModelLoader()
     @State private var failed = false
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             RealityView { content in
                 let root = Entity()
@@ -69,7 +76,7 @@ struct PersonaModelView: View {
 /// Owns the entity, its animation library and the one-shot framing pass.
 @Observable
 @MainActor
-final class PersonaModelLoader {
+public final class PersonaModelLoader {
     private(set) var isLoaded = false
 
     private var model: Entity?
@@ -81,7 +88,7 @@ final class PersonaModelLoader {
     private var playback: AnimationPlaybackController?
     private var loopTask: Task<Void, Never>?
 
-    func load(visualization: PersonaVisualization, into root: Entity) async {
+    public func load(visualization: PersonaVisualization, into root: Entity) async {
         guard let idleURL = visualization.clipURL(for: "idle") else { return }
 
         // The idle file carries the mesh and skeleton; everything else is
@@ -160,7 +167,7 @@ final class PersonaModelLoader {
 
     /// Swap the playing clip. Falls back to idle for any state the persona did
     /// not ship, exactly as Quest's track map does.
-    func play(state: HearthState) {
+    public func play(state: HearthState) {
         guard let target = animationTarget else { return }
         let key = Self.animationKey(for: state)
         let resolved = animations[key] != nil ? key : "idle"
@@ -295,8 +302,8 @@ final class PersonaModelLoader {
 /// Persona models are tens of megabytes and change rarely, so they are fetched
 /// once and read from disk after that. A failed download leaves any cached copy
 /// in place -- an offline phone should still show Selene.
-actor PersonaAssetCache {
-    static let shared = PersonaAssetCache()
+public actor PersonaAssetCache {
+    public static let shared = PersonaAssetCache()
 
     private lazy var root: URL = {
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -305,7 +312,7 @@ actor PersonaAssetCache {
         return base
     }()
 
-    func localURL(for remote: URL) async throws -> URL {
+    public func localURL(for remote: URL) async throws -> URL {
         let name = remote.lastPathComponent
 
         // A bundled copy wins: it needs no network and no cache warm-up. This

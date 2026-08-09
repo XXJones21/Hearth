@@ -397,8 +397,10 @@ components:
       wrong in four places worth keeping (see apple-implementation.md, "What
       area 3 did by hand"):
 
-      - The "Mentat poll" does not exist. grep -ci mentat over the source
-        returns 0. Nothing was removed because nothing was there.
+      - The "Mentat poll" is not in this file. grep -ci mentat over
+        ChatViewModel returns 0. It is in HouseStatusBar (area 4), where it is
+        a MentatStatePoller @StateObject started in onAppear -- this note was
+        simply filed against the wrong file. Removed there, not here.
       - The six seeded journal fixtures were real and did carry real dates and
         summaries. Replaced with two obvious placeholders, not deleted, so the
         gallery layout stays testable without shipping a week of real work.
@@ -582,6 +584,17 @@ components:
           have four code sites and not three. :257 hardcodes two sample image
           paths under /Persona/Selene/Assets/, which resolve only where Selene's
           assets exist; replace with paths that resolve on any install.
+
+          LANDED 2026-08-08. The second instruction could not be followed as
+          written: Hearth ships NO persona imagery at pre-alpha --
+          backend/personas/Sulivan carries a voice directory and nothing else --
+          so there is no path that resolves on any install, and inventing one
+          only moves the 404. The sample names Sulivan instead, because Sulivan
+          is the one persona guaranteed to EXIST on every install; a house
+          without images for her shows the card's honest failure state, which is
+          the behaviour the drawing card was deliberately kept for. Revisit when
+          the asset question (section 2.5, and build-pipeline.md's licensing
+          question) is answered.
 
   - name: persona-surface
     source: Valinor/Views/Persona/

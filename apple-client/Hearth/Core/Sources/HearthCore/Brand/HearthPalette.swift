@@ -144,7 +144,7 @@ public enum HearthPalette {
     /// True when the app is rendering ember mode. Only for the rare case where
     /// a token cannot express the difference (a shadow opacity, a blend
     /// amount); prefer a dynamic token over asking this.
-    static var isEmber: Bool {
+    public static var isEmber: Bool {
         #if canImport(UIKit)
         return UITraitCollection.current.userInterfaceStyle == .dark
         #else
@@ -155,7 +155,7 @@ public enum HearthPalette {
     // MARK: - Persona attribution (timeline initial-circle nodes)
 
     /// Node/accent color for each speaker on the feed rail.
-    static func speaker(_ name: String) -> Color {
+    public static func speaker(_ name: String) -> Color {
         switch name.lowercased() {
         case "you", "user":   return linen
         case "sulivan":       return fennec
@@ -167,7 +167,7 @@ public enum HearthPalette {
 
     // MARK: - RealityKit / scene tokens (SIMD3<Float>, sRGB components 0...1)
 
-    enum Scene {
+    public enum Scene {
         static let cream  = simd(Hex.cream)
         static let fluff  = simd(Hex.fluff)
         static let fennec = simd(Hex.fennec)
@@ -214,7 +214,7 @@ public enum HearthPalette {
 
 // MARK: - Hearth view helpers
 
-extension View {
+public extension View {
     /// Hearth `shadow-soft`: a low, warm card shadow (0 2px 10px rgb(97,63,29)/0.07).
     /// Ember mode leans on it harder -- a 7% warm shadow is invisible against
     /// a dark surface, and the card edges are what separate the rooms.
@@ -224,7 +224,7 @@ extension View {
     }
 }
 
-extension Color {
+public extension Color {
     /// Linear blend toward `other` by `amount` (0...1), via UIColor components.
     /// Used for the persona node's lightened radial-gradient inner stop.
     func mixed(with other: Color, amount: Double) -> Color {

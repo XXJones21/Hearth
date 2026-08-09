@@ -49,12 +49,12 @@ func hearthAssetURL(_ src: String) -> URL? {
 /// the timeline a missing card should be silent (forward compatibility), but a
 /// card that DID render and whose picture failed is a different thing -- going
 /// blank there would read as "the persona sent an empty card".
-struct RemoteImage: View {
-    let src: String
-    var height: CGFloat = 160
-    var cornerRadius: CGFloat = 12
+public struct RemoteImage: View {
+    public let src: String
+    public var height: CGFloat = 160
+    public var cornerRadius: CGFloat = 12
 
-    var body: some View {
+    public var body: some View {
         Group {
             if let url = hearthAssetURL(src) {
                 AsyncImage(url: url, transaction: Transaction(animation: .easeIn(duration: 0.18))) { phase in

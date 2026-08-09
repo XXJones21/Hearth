@@ -18,52 +18,53 @@
 
 import Foundation
 
-struct SettingsSurface: Decodable {
-    var connections: [Connection] = []
-    var resolved: [Resolved] = []
-    var server: Server?
+public struct SettingsSurface: Decodable {
+    public var connections: [Connection] = []
+    public var resolved: [Resolved] = []
+    public var server: Server?
 
-    struct Connection: Decodable, Identifiable {
-        var key: String = ""
-        var name: String = ""
-        var role: String = ""
+    public struct Connection: Decodable, Identifiable {
+        public var key: String = ""
+        public var name: String = ""
+        public var role: String = ""
         /// "live" or "off".
-        var state: String = ""
+        public var state: String = ""
         /// Resolved URL when live; the missing env vars when not.
-        var detail: String = ""
+        public var detail: String = ""
 
-        var id: String { key.isEmpty ? name : key }
-        var isLive: Bool { state == "live" }
+        public var id: String { key.isEmpty ? name : key }
+        public var isLive: Bool { state == "live" }
     }
 
-    struct Resolved: Decodable {
-        var label: String = ""
-        var value: String = ""
+    public struct Resolved: Decodable {
+        public var label: String = ""
+        public var value: String = ""
         /// Non-empty when the running value differs from the code default.
-        var drift: String = ""
+        public var drift: String = ""
     }
 
-    struct Server: Decodable {
-        var version: String = ""
-        var port: Int = 0
-        var brain_backend: String = ""
+    public struct Server: Decodable {
+        public var version: String = ""
+        public var port: Int = 0
+        public var brain_backend: String = ""
     }
 
     /// The two rows the Memory section shows. The rest of `resolved` backs the
     /// developer pane, which iOS does not carry.
-    func resolvedValue(_ label: String) -> String? {
+    public func resolvedValue(_ label: String) -> String? {
         resolved.first { $0.label == label }?.value
     }
 }
 
 @MainActor
-final class SettingsSurfaceLoader: ObservableObject {
-    @Published private(set) var surface: SettingsSurface?
-    @Published private(set) var isLoading = false
+public final class SettingsSurfaceLoader: ObservableObject {
+    public init() {}
+    @Published public private(set) var surface: SettingsSurface?
+    @Published public private(set) var isLoading = false
     /// True when the server answered but has no such route (older Valar).
-    @Published private(set) var unavailable = false
+    @Published public private(set) var unavailable = false
 
-    func load() async {
+    public func load() async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }

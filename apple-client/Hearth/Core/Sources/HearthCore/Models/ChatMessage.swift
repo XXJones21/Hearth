@@ -7,20 +7,20 @@
 
 import Foundation
 
-enum MessageType {
+public enum MessageType {
     case user
     case ai
     case system
 }
 
-struct ChatMessage: Identifiable {
-    let id = UUID()
-    let text: String
-    let type: MessageType
-    let personaName: String?
-    let timestamp: Date
+public struct ChatMessage: Identifiable {
+    public let id = UUID()
+    public let text: String
+    public let type: MessageType
+    public let personaName: String?
+    public let timestamp: Date
     
-    init(text: String, type: MessageType, personaName: String? = nil) {
+    public init(text: String, type: MessageType, personaName: String? = nil) {
         self.text = text
         self.type = type
         self.personaName = personaName

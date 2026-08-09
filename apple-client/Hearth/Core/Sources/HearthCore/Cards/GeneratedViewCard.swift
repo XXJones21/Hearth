@@ -15,8 +15,8 @@
 
 import SwiftUI
 
-struct GeneratedViewCard: View {
-    let descriptor: UiComponentDescriptor
+public struct GeneratedViewCard: View {
+    public let descriptor: UiComponentDescriptor
 
     private static let maxSections = 12
     private static let maxStatsPerRow = 4
@@ -28,7 +28,7 @@ struct GeneratedViewCard: View {
         Array(descriptor.objList("sections").prefix(Self.maxSections))
     }
 
-    var body: some View {
+    public var body: some View {
         CardSurface {
             VStack(alignment: .leading, spacing: 12) {
                 if !title.isEmpty {
@@ -89,11 +89,11 @@ struct GeneratedViewCard: View {
 
 /// One labeled statistic. Hero mode renders the value large and centered.
 private struct StatBlock: View {
-    let label: String
-    let value: String
-    let hero: Bool
+    public let label: String
+    public let value: String
+    public let hero: Bool
 
-    var body: some View {
+    public var body: some View {
         VStack(alignment: hero ? .center : .leading, spacing: 2) {
             if !label.isEmpty {
                 Text(label)

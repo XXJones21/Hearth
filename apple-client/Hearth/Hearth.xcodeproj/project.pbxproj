@@ -62,11 +62,21 @@
 			);
 			target = DF8513DA3027B5E400F0D2D5 /* Hearth WidgetExtension */;
 		};
+		DFA4010030300001000A0001 /* Exceptions for "Hearth" folder in "Hearth" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = DF85138B30279D0300F0D2D5 /* Hearth */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		DF85138E30279D0300F0D2D5 /* Hearth */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				DFA4010030300001000A0001 /* Exceptions for "Hearth" folder in "Hearth" target */,
+			);
 			path = Hearth;
 			sourceTree = "<group>";
 		};
@@ -432,6 +442,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Hearth;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -475,6 +486,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Hearth;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

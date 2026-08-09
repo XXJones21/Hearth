@@ -18,9 +18,9 @@ import Foundation
 import Combine
 
 @MainActor
-final class CardStore: ObservableObject {
+public final class CardStore: ObservableObject {
     /// Card history, oldest first. Many instances per type are expected.
-    @Published private(set) var cards: [UiComponentDescriptor] = []
+    @Published public private(set) var cards: [UiComponentDescriptor] = []
 
     /// Matches the desktop's `slice(-40)`.
     private static let maxCards = 40
@@ -36,7 +36,7 @@ final class CardStore: ObservableObject {
 
     // MARK: - Apply a raw ui_component payload
 
-    func apply(_ raw: [String: Any]) {
+    public func apply(_ raw: [String: Any]) {
         let op = raw.optString("op", fallback: "upsert")
 
         switch op {
@@ -82,19 +82,19 @@ final class CardStore: ObservableObject {
         scheduleTtlIfNeeded(raw, id: descriptor.id, type: descriptor.type)
     }
 
-    func clearAll() {
+    public func clearAll() {
         cancelAllTtl()
         cards.removeAll()
     }
 
     /// Manually dismiss a single card instance (close button, gallery pick).
-    func dismiss(_ id: UiComponentDescriptor.ID) {
+    public func dismiss(_ id: UiComponentDescriptor.ID) {
         cancelTtl(for: id)
         cards.removeAll { $0.id == id }
     }
 
     /// Drop every instance of a type (the `clear` op, and singleton replacement).
-    func dismissType(_ type: String) {
+    public func dismissType(_ type: String) {
         for card in cards where card.type == type { cancelTtl(for: card.id) }
         cards.removeAll { $0.type == type }
     }

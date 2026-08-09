@@ -17,18 +17,18 @@
 
 import Foundation
 
-struct AppsSurface: Decodable {
-    var apps: [App] = []
-    var cards: [CardType] = []
-    var personas: [String] = []
-    var toolsEnabled: Bool = true
+public struct AppsSurface: Decodable {
+    public var apps: [App] = []
+    public var cards: [CardType] = []
+    public var personas: [String] = []
+    public var toolsEnabled: Bool = true
 
     private enum CodingKeys: String, CodingKey {
         case apps, cards, personas
         case toolsEnabled = "tools_enabled"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         apps = (try? c.decode([App].self, forKey: .apps)) ?? []
         cards = (try? c.decode([CardType].self, forKey: .cards)) ?? []
@@ -36,29 +36,29 @@ struct AppsSurface: Decodable {
         toolsEnabled = (try? c.decode(Bool.self, forKey: .toolsEnabled)) ?? true
     }
 
-    struct App: Decodable, Identifiable {
-        var key: String = ""
-        var name: String = ""
+    public struct App: Decodable, Identifiable {
+        public var key: String = ""
+        public var name: String = ""
         /// core | cli | local | mcp
-        var kind: String = ""
-        var tagline: String = ""
-        var transport: String = ""
-        var tools: [String] = []
+        public var kind: String = ""
+        public var tagline: String = ""
+        public var transport: String = ""
+        public var tools: [String] = []
         /// Tools beyond the ten the server sends.
-        var more: Int = 0
-        var cards: [String] = []
+        public var more: Int = 0
+        public var cards: [String] = []
         /// Personas granted the domains this app covers.
-        var who: [String] = []
+        public var who: [String] = []
         /// active | setup | available
-        var state: String = ""
+        public var state: String = ""
         /// read | write | control
-        var risk: String = ""
+        public var risk: String = ""
         /// Env vars the app is waiting on, when `state` is setup.
-        var needs: [String] = []
+        public var needs: [String] = []
         /// Hearth core, which is always on.
-        var locked: Bool = false
+        public var locked: Bool = false
 
-        var id: String { key.isEmpty ? name : key }
+        public var id: String { key.isEmpty ? name : key }
 
         // Decoded field by field, each falling back to its default. The
         // synthesized conformance fails the WHOLE payload on one type
@@ -71,7 +71,7 @@ struct AppsSurface: Decodable {
             case cards, who, state, risk, needs, locked
         }
 
-        init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             key = (try? c.decode(String.self, forKey: .key)) ?? ""
             name = (try? c.decode(String.self, forKey: .name)) ?? ""
@@ -88,7 +88,7 @@ struct AppsSurface: Decodable {
             locked = (try? c.decode(Bool.self, forKey: .locked)) ?? false
         }
 
-        var kindLabel: String {
+        public var kindLabel: String {
             switch kind {
             case "core":  return "built in"
             case "cli":   return "CLI"
@@ -99,23 +99,23 @@ struct AppsSurface: Decodable {
         }
     }
 
-    struct CardType: Decodable, Identifiable {
-        var type: String = ""
-        var purpose: String = ""
+    public struct CardType: Decodable, Identifiable {
+        public var type: String = ""
+        public var purpose: String = ""
         /// A human-readable contract, e.g. "time:string, date:string". Prose
         /// from the catalog, NOT a list -- it is shown, never parsed.
-        var dataFields: String = ""
+        public var dataFields: String = ""
         /// builtin | forged | scaffold
-        var state: String = ""
+        public var state: String = ""
 
-        var id: String { type }
+        public var id: String { type }
 
         private enum CodingKeys: String, CodingKey {
             case type, purpose, state
             case dataFields = "data_fields"
         }
 
-        init(from decoder: Decoder) throws {
+        public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             type = (try? c.decode(String.self, forKey: .type)) ?? ""
             purpose = (try? c.decode(String.self, forKey: .purpose)) ?? ""
@@ -123,7 +123,7 @@ struct AppsSurface: Decodable {
             state = (try? c.decode(String.self, forKey: .state)) ?? ""
         }
 
-        var stateLabel: String {
+        public var stateLabel: String {
             switch state {
             case "builtin":  return "built in"
             case "forged":   return "made in this house"
@@ -135,21 +135,22 @@ struct AppsSurface: Decodable {
 
     /// The three groups the list renders, in order. A state the server invents
     /// later lands in `other` rather than vanishing.
-    static let groupOrder = ["active", "setup", "available"]
+    public static let groupOrder = ["active", "setup", "available"]
 
-    func apps(inState state: String) -> [App] {
+    public func apps(inState state: String) -> [App] {
         apps.filter { $0.state == state }
     }
 }
 
 @MainActor
-final class AppsSurfaceLoader: ObservableObject {
-    @Published private(set) var surface: AppsSurface?
-    @Published private(set) var isLoading = false
+public final class AppsSurfaceLoader: ObservableObject {
+    public init() {}
+    @Published public private(set) var surface: AppsSurface?
+    @Published public private(set) var isLoading = false
     /// True when the server answered but has no such route (older Valar).
-    @Published private(set) var unavailable = false
+    @Published public private(set) var unavailable = false
 
-    func load() async {
+    public func load() async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }

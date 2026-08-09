@@ -18,9 +18,9 @@
 
 import SwiftUI
 
-struct ImageViewer: View {
-    let src: String
-    let prompt: String
+public struct ImageViewer: View {
+    public let src: String
+    public let prompt: String
     @Environment(\.dismiss) private var dismiss
 
     @State private var asset = ImageAsset()
@@ -31,7 +31,7 @@ struct ImageViewer: View {
     @State private var committedOffset: CGSize = .zero
     @State private var showChrome = true
 
-    var body: some View {
+    public var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 

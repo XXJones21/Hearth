@@ -17,28 +17,28 @@ import Foundation
 // MARK: - Wire shapes
 
 /// One entry inside a shelf book: title, date, synopsis (Valar's `t`/`d`/`s`).
-struct JournalEntry: Decodable, Identifiable {
-    let title: String
-    let date: String
-    let synopsis: String
-    var persona: String = "Sulivan"
+public struct JournalEntry: Decodable, Identifiable {
+    public let title: String
+    public let date: String
+    public let synopsis: String
+    public var persona: String = "Sulivan"
 
-    var id: String { "\(date)-\(title)" }
+    public var id: String { "\(date)-\(title)" }
 
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case title = "t"
         case date = "d"
         case synopsis = "s"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         title = (try? c.decode(String.self, forKey: .title)) ?? "Untitled"
         date = (try? c.decode(String.self, forKey: .date)) ?? ""
         synopsis = (try? c.decode(String.self, forKey: .synopsis)) ?? ""
     }
 
-    init(title: String, date: String, synopsis: String, persona: String) {
+    public init(title: String, date: String, synopsis: String, persona: String) {
         self.title = title
         self.date = date
         self.synopsis = synopsis
@@ -46,21 +46,21 @@ struct JournalEntry: Decodable, Identifiable {
     }
 }
 
-struct JournalBook: Decodable, Identifiable {
-    let title: String
-    let pages: Int
-    let summary: String
-    var entries: [JournalEntry] = []
+public struct JournalBook: Decodable, Identifiable {
+    public let title: String
+    public let pages: Int
+    public let summary: String
+    public var entries: [JournalEntry] = []
     /// Which room of the library this book stands in.
-    var shelf: Shelf = .project
+    public var shelf: Shelf = .project
 
-    var id: String { "\(shelf.rawValue)-\(title)" }
+    public var id: String { "\(shelf.rawValue)-\(title)" }
 
-    enum Shelf: String { case heart, life, project, seedling }
+    public enum Shelf: String { case heart, life, project, seedling }
 
-    enum CodingKeys: String, CodingKey { case title, pages, summary, entries }
+    public enum CodingKeys: String, CodingKey { case title, pages, summary, entries }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         title = (try? c.decode(String.self, forKey: .title)) ?? "Untitled"
         pages = (try? c.decode(Int.self, forKey: .pages)) ?? 0
@@ -68,7 +68,7 @@ struct JournalBook: Decodable, Identifiable {
         entries = (try? c.decode([JournalEntry].self, forKey: .entries)) ?? []
     }
 
-    init(title: String, pages: Int, summary: String, entries: [JournalEntry], shelf: Shelf) {
+    public init(title: String, pages: Int, summary: String, entries: [JournalEntry], shelf: Shelf) {
         self.title = title
         self.pages = pages
         self.summary = summary
@@ -78,50 +78,51 @@ struct JournalBook: Decodable, Identifiable {
 
     /// Seedlings are the one-page projects; they stand under glass rather than
     /// cluttering the Forge shelf (tasks/journal-library-map.md).
-    var isSeedling: Bool { pages <= 1 }
+    public var isSeedling: Bool { pages <= 1 }
 }
 
 private struct ShelfResponse: Decodable {
-    var projects: [JournalBook] = []
-    var life: [JournalBook] = []
+    public var projects: [JournalBook] = []
+    public var life: [JournalBook] = []
 }
 
 private struct SessionsResponse: Decodable {
-    struct Session: Decodable {
-        var title: String = ""
-        var date: String = ""
-        var persona: String = ""
-        var summary: String = ""
+    public struct Session: Decodable {
+        public var title: String = ""
+        public var date: String = ""
+        public var persona: String = ""
+        public var summary: String = ""
     }
-    var sessions: [Session] = []
+    public var sessions: [Session] = []
 }
 
 private struct ReviewsResponse: Decodable {
-    struct Review: Decodable {
-        var date: String = ""
-        var body: String = ""
+    public struct Review: Decodable {
+        public var date: String = ""
+        public var body: String = ""
     }
-    var reviews: [Review] = []
+    public var reviews: [Review] = []
 }
 
 private struct FactsResponse: Decodable {
-    var body: String = ""
+    public var body: String = ""
 }
 
 // MARK: - The library
 
 @MainActor
-final class JournalLibrary: ObservableObject {
-    @Published private(set) var heart: [JournalBook] = []
-    @Published private(set) var life: [JournalBook] = []
-    @Published private(set) var projects: [JournalBook] = []
-    @Published private(set) var seedlings: [JournalBook] = []
-    @Published private(set) var isLoading = false
-    @Published private(set) var loadError: String?
+public final class JournalLibrary: ObservableObject {
+    public init() {}
+    @Published public private(set) var heart: [JournalBook] = []
+    @Published public private(set) var life: [JournalBook] = []
+    @Published public private(set) var projects: [JournalBook] = []
+    @Published public private(set) var seedlings: [JournalBook] = []
+    @Published public private(set) var isLoading = false
+    @Published public private(set) var loadError: String?
 
-    var isEmpty: Bool { heart.isEmpty && life.isEmpty && projects.isEmpty && seedlings.isEmpty }
+    public var isEmpty: Bool { heart.isEmpty && life.isEmpty && projects.isEmpty && seedlings.isEmpty }
 
-    func load() async {
+    public func load() async {
         guard !isLoading else { return }
         isLoading = true
         loadError = nil

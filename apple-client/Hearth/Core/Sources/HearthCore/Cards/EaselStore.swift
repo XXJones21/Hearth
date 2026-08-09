@@ -32,10 +32,10 @@
 import Foundation
 
 @MainActor
-final class EaselStore: ObservableObject {
-    static let shared = EaselStore()
+public final class EaselStore: ObservableObject {
+    public static let shared = EaselStore()
 
-    struct Outcome {
+    public struct Outcome {
         var status: String
         var src: String
         var note: String
@@ -46,13 +46,13 @@ final class EaselStore: ObservableObject {
     /// Settled and in-flight outcomes by job. Small and bounded: the server
     /// draws one at a time, so this holds one entry per drawing the session
     /// has seen rather than anything that grows with the transcript.
-    @Published private(set) var outcomes: [String: Outcome] = [:]
+    @Published public private(set) var outcomes: [String: Outcome] = [:]
 
     /// True while a drawing is still on the easel. The stage reads this so the
     /// persona does not drop to idle the moment the turn ends: the house IS
     /// still working, and showing it at rest while a render runs is what made
     /// "I'll let you know when it's done" look like a broken promise.
-    @Published private(set) var isDrawing = false
+    @Published public private(set) var isDrawing = false
 
     private var pollTask: Task<Void, Never>?
     /// Jobs already settled. Kept separately so a late poll cannot reopen one.
@@ -69,13 +69,13 @@ final class EaselStore: ObservableObject {
 
     private init() {}
 
-    func outcome(for jobID: String) -> Outcome? {
+    public func outcome(for jobID: String) -> Outcome? {
         outcomes[jobID]
     }
 
     /// Start watching a job, if it is not already settled and not already
     /// being watched. Safe to call from every card's `onAppear`.
-    func watch(jobID: String) {
+    public func watch(jobID: String) {
         guard !jobID.isEmpty, !settled.contains(jobID) else { return }
         watchers += 1
         if let known = outcomes[jobID] {
@@ -94,7 +94,7 @@ final class EaselStore: ObservableObject {
     /// Stop watching from one card. The render continues on the server
     /// regardless, so cancelling is free -- there is nothing to lose and
     /// nothing to resume.
-    func stop() {
+    public func stop() {
         watchers = max(0, watchers - 1)
         guard watchers == 0 else { return }
         pollTask?.cancel()

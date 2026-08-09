@@ -18,8 +18,8 @@
 
 import SwiftUI
 
-struct ImageCard: View {
-    let descriptor: UiComponentDescriptor
+public struct ImageCard: View {
+    public let descriptor: UiComponentDescriptor
     @ObservedObject private var easel = EaselStore.shared
 
     /// The frame's height is fixed rather than derived from an aspect ratio,
@@ -45,7 +45,7 @@ struct ImageCard: View {
         )
     }
 
-    var body: some View {
+    public var body: some View {
         CardSurface {
             VStack(alignment: .leading, spacing: 9) {
                 header
@@ -146,7 +146,7 @@ struct ImageCard: View {
 private struct BlankCanvas: View {
     @State private var shift: CGFloat = -1
 
-    var body: some View {
+    public var body: some View {
         GeometryReader { geo in
             HearthPalette.parchment
                 .overlay(
@@ -172,7 +172,7 @@ private struct BlankCanvas: View {
 private struct PulsingDot: View {
     @State private var faded = false
 
-    var body: some View {
+    public var body: some View {
         Circle()
             .fill(HearthPalette.honey)
             .frame(width: 6, height: 6)
