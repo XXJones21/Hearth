@@ -1,0 +1,1026 @@
+# The Apple client manifest.
+#
+# The boundary in machine-readable form: every file in Valinor's Apple client,
+# where it lands here, which area lands it, which target owns it, and what
+# happened to it on the way. Written before anything is copied, so the copy is a
+# script rather than seventy-nine judgment calls.
+#
+# Four readers depend on this file:
+#   - tools/apple-scrub.py, which iterates it to copy and rewrite
+#   - tools/sync-report.py --manifest, which asks Valinor what has changed
+#   - the `git ls-files apple-client | wc -l` gate, which counts against it
+#   - a reviewer, deciding whether the right files moved
+#
+# `disposition` is one of:
+#   verbatim   copied byte for byte, no edit of any kind
+#   edits      copied, then changed by the scrub's substitution tables or by a
+#              named subtraction. Every `edits` row says what changed.
+#   generated  does not exist in Valinor; authored here
+#   excluded   deliberately did not cross; see the `excluded` section
+#
+# `target` is one of: core | ios | visionos | widgets
+#   core is the local Swift package HearthCore, which all three targets depend
+#   on. That is what replaces Valinor's membershipExceptions mechanism, and it
+#   is why sharing a new type here is a `public` keyword rather than a
+#   project-file edit.
+#
+# See wiki/clients/apple-implementation.md for the reasoning behind every
+# decision encoded below. This file is the decisions; that file is the argument.
+
+version: 1
+
+source:
+  repo: Valinor
+  path: /Users/jones/Valinor
+  root: Apple Client/Valinor/
+  # NOT hearth-journal, which the inventory and migration plan both name. Every
+  # candidate branch is 0 commits ahead of this one over Apple Client/, and
+  # hearth-journal is behind it by the drawing card.
+  branch: hearth-ios
+  commit: 9235cd0
+  tag: rc-pre-apple-move
+  surveyed_on: 2026-08-08
+
+destination:
+  root: apple-client/Hearth/
+
+# The strings that must agree with themselves across two or three files, and
+# every disagreement is silent. The scrub reads its substitutions from here and
+# never from constants in the script.
+identity:
+  bundle_id_ios:      com.joshuajones.Hearth
+  bundle_id_widgets:  com.joshuajones.Hearth.Widgets  # must be prefixed by its host
+  bundle_id_visionos: com.joshuajones.HearthVision
+  app_group:          group.com.joshuajones.Hearth    # one group, both platforms
+  url_scheme:         hearth
+  default_port:       18700
+  # Deliberately empty. A phone is never the machine running the backend, so
+  # neither 127.0.0.1 nor a LAN literal is honest. Unset is a distinct state and
+  # the app in that state does not dial: it renders the bundled Sulivan and
+  # shows the connection field.
+  default_host:       ""
+  development_team_var: DEVELOPMENT_TEAM   # lives in Local.xcconfig, gitignored
+
+# Applied to every crossing file. Type and filename rename in the same pass:
+# Swift does not require them to match, which is exactly why a half-done rename
+# survives review.
+renames:
+  types:
+    ValinorApp:              HearthApp
+    ValinorMainView:         HearthMainView
+    ValinorState:            HearthState
+    ValinorWebSocketClient:  HearthWebSocketClient
+    ValinorWidgetsExtension: Hearth WidgetExtension   # the target's real name
+    ValinorWidgetProvider:   HearthWidgetProvider
+    ValinorWidgetsBundle:    HearthWidgetsBundle
+    ValinorWidgets:          Hearth Widget            # the folder's real name
+    ValinorSnapshot:         HearthSnapshot
+    ValinorProvider:         HearthProvider
+    ValinorEntry:            HearthEntry
+    SulivanWidget:           PersonaWidget
+    AudioInputManager:       AudioSessionManager
+  # UserDefaults keys. Renaming is correct for a product that has never shipped
+  # and strands nothing; after release it would need a migration.
+  defaults_keys:
+    valinor_server_ip:       hearth.serverHost
+    valinor_server_port:     hearth.serverPort
+    valinor_last_persona:    hearth.lastPersona
+    valinor_inference_mode:  DROP        # goes with OnDevice/
+    valinor.snapshot.v1:     hearth.snapshot.v1
+  # Widget kind strings are one-way: changing one after release orphans every
+  # placed widget. Identifiers, not persona names.
+  widget_kinds:
+    Sulivan:                 hearth.persona
+    QuickTalk:               hearth.quicktalk
+
+# What the scrub must NOT touch.
+do_not_rewrite:
+  # Already correct. A find-and-replace pass over the word Hearth corrupts them.
+  already_hearth:
+    - Shared/HearthPalette.swift
+    - Shared/HearthIcons.swift
+    - Shared/PersonaOrb.swift
+    - Shared/PersonaPalette.swift
+  # The wire vocabulary is a protocol, not a brand. A rename sweep would happily
+  # change these strings and break the server's handling.
+  protocol_constants:
+    - 'platform: "ios"'
+    - 'platform: "visionos"'
+    - 'stt: "local"'
+    - 'stt_engine: "apple_speech"'
+    - ui_render
+    - device_context
+  # Hand-made on the Mac. A re-scrub must never write over them, which is the
+  # boundary that makes re-scrubbing safe for everything else.
+  generated_layer:
+    - Hearth.xcodeproj/
+    - "*/Info.plist"
+    - "*.entitlements"
+    - "*.xcconfig"
+
+# ---------------------------------------------------------------------------
+# Area 1 -- Foundation, and first run
+#
+# First because it has no dependencies, and first because it is the only area
+# whose result a person can judge by looking. At the end of area 1 the app
+# launches with nothing listening on any port and draws Sulivan from a persona
+# file inside the bundle.
+# ---------------------------------------------------------------------------
+components:
+  - name: core-package
+    destination: Core/Package.swift
+    area: 1
+    target: core
+    disposition: generated
+    note: >-
+      The local package manifest. platforms: iOS 26.0, visionOS 27.0 -- stated
+      once here rather than restated across build configurations. Swift 6
+      language mode for this package only; the app targets stay on Swift 5 until
+      the audio path has been audited, because adopting strict concurrency
+      across an AVAudioEngine tap, a player node and a recogniser callback as
+      part of a migration is how a migration becomes a rewrite.
+
+  - name: bundled-persona
+    destination: Core/Sources/HearthCore/Resources/Personas/sulivan.json
+    area: 1
+    target: core
+    disposition: generated
+    from: backend/personas/Sulivan/sulivan.json
+    note: >-
+      NET NEW, and the item most likely to be quietly deferred because it looks
+      like a port. The Apple client has never bundled a persona: it asks the
+      server with get_persona_config and falls back to constants in
+      PersonaPalette, so a phone with nothing to talk to shows a palette-default
+      orb rather than Sulivan. Decoded by the same PersonaVisualization decoder
+      that handles the wire payload, so the fallback reads from the file instead
+      of restating its numbers in Swift. This is the whole of the first-run
+      claim.
+
+  - name: server-config
+    source: Valinor/ServerConfig.swift
+    destination: Core/Sources/HearthCore/Config/ServerConfig.swift
+    area: 1
+    target: core
+    lines: 92
+    disposition: edits
+    note: >-
+      defaultPort 8700 -> 18700. defaultHost "10.1.95.5" -> unset, and clearing
+      the field must no longer restore a build-time default. Everything else
+      about the parser carries across unchanged and was paid for in bugs: strip
+      a pasted scheme, split on the rightmost colon only when what follows is a
+      real port so an IPv6 literal survives, let a bare hostname imply the
+      default port so a tailnet name pastes in cleanly.
+
+  - name: models-wire
+    source: Valinor/Models/
+    destination: Core/Sources/HearthCore/Models/
+    area: 1
+    target: core
+    kind: directory
+    disposition: edits
+    files:
+      - {from: ChatMessage.swift, to: ChatMessage.swift, lines: 30, disposition: edits}
+      - from: ClientInfo.swift
+        to: ClientInfo.swift
+        lines: 142
+        disposition: edits
+        note: "client_info payload keys are protocol constants and do not rename"
+      - {from: ServerMessage.swift, to: ServerMessage.swift, lines: 152, disposition: edits}
+      - from: ValinorState.swift
+        to: HearthState.swift
+        lines: 17
+        disposition: edits
+        note: "referenced across ~12 files including the widgets; rename type and file together"
+      - {from: SettingsSurface.swift, to: SettingsSurface.swift, lines: 92, disposition: edits}
+      - {from: AppsSurface.swift, to: AppsSurface.swift, lines: 178, disposition: edits}
+      - from: PersonaSurface.swift
+        to: PersonaSurface.swift
+        lines: 296
+        disposition: edits
+        note: >-
+          Filters internal personas by the server's `internal` flag rather than
+          by name, which is the right design and needs no change. Its comments
+          name Liara, Mentat, Wright and Sage as examples; those are comments,
+          not coupling, and the scrub deletes the sentences rather than the
+          logic.
+      - from: JournalModels.swift
+        to: JournalModels.swift
+        lines: 252
+        disposition: edits
+        note: >-
+          Strip the seeded keeper summaries for the three living volumes, which
+          bake persona "Selene" in as content. Development fixtures that render
+          as product.
+      - {from: MentatState.swift, to: null, lines: 99, disposition: excluded}
+
+  - name: brand
+    source: Valinor/Shared/
+    destination: Core/Sources/HearthCore/Brand/
+    area: 1
+    target: core
+    kind: directory
+    disposition: verbatim
+    files:
+      - {from: ColorHex.swift, to: ColorHex.swift, lines: 54, disposition: edits}
+      - from: HearthPalette.swift
+        to: HearthPalette.swift
+        lines: 237
+        disposition: edits
+        note: >-
+          Already correct. Writes each token once as a hex literal and decodes
+          it into both a SwiftUI Color and a SIMD3<Float>, so the flat and
+          RealityKit renderers cannot drift. Only the access modifiers change.
+      - from: HearthIcons.swift
+        to: HearthIcons.swift
+        lines: 133
+        disposition: edits
+        note: "the desktop's icons.tsx redrawn as SwiftUI shapes on the same 24-unit grid"
+
+  - name: persona
+    source: Valinor/Shared/
+    destination: Core/Sources/HearthCore/Persona/
+    area: 1
+    target: core
+    kind: directory
+    disposition: edits
+    files:
+      - {from: PersonaOrb.swift, to: PersonaOrb.swift, lines: 231, disposition: edits}
+      - from: PersonaPalette.swift
+        to: PersonaPalette.swift
+        lines: 103
+        disposition: edits
+        note: >-
+          `fallback` is currently a set of warm constants written in Swift -- a
+          second copy of the numbers in sulivan.json in a different language,
+          free to drift. It reads from the bundled file instead.
+      - from: PersonaVisualization.swift
+        to: PersonaVisualization.swift
+        lines: 90
+        disposition: edits
+        note: >-
+          The renderer switch is properly data-driven: it decodes
+          visualization.type and nothing anywhere says "if Selene". Preserve
+          exactly.
+
+  - name: client-profile
+    source: Valinor/Shared/ClientProfile.swift
+    destination: Core/Sources/HearthCore/Config/ClientProfile.swift
+    area: 1
+    target: core
+    lines: 63
+    disposition: edits
+    note: "the Swift mirror of clientProfile.ts; already knows four clients by table"
+
+  - name: widget-bridge
+    source: Valinor/Shared/SharedSnapshot.swift
+    destination: Core/Sources/HearthCore/Widgets/SharedSnapshot.swift
+    area: 1
+    target: core
+    lines: 78
+    disposition: edits
+    note: >-
+      appGroupID is a hand-typed literal today, and it is one of three copies of
+      a string whose disagreement compiles, signs, installs and runs -- the
+      widget reads an empty container and draws its fallback orb, which is
+      indistinguishable from a widget that is working and waiting. Generated
+      into the build from $(HEARTH_APP_GROUP) so the count of hand-maintained
+      copies is one. The snapshot key renames to hearth.snapshot.v1.
+
+  - name: ios-app-entry
+    source: Valinor/ValinorApp.swift
+    destination: Hearth/HearthApp.swift
+    area: 1
+    target: ios
+    lines: 96
+    disposition: edits
+    note: >-
+      Splits. The visionOS scenes behind `#if os(visionOS)` become
+      visionOS/HearthVisionApp.swift in area 6, and this keeps the iOS scene
+      only. The Wearables.configure() call in init goes with MWDAT, and
+      handleOpenURL loses the interception it only needed because MWDAT owned
+      the same URL scheme -- it now handles hearth://talk and nothing else.
+      Debug prefix [ValinorApp] -> [HearthApp].
+
+  - name: ios-assets
+    source: Valinor/Assets.xcassets/
+    destination: Hearth/Assets.xcassets/
+    area: 1
+    target: ios
+    kind: directory
+    disposition: verbatim
+    note: >-
+      Crosses as a directory. Contains only Contents.json: AppIcon has three
+      declared 1024px slots with no image files and AccentColor is an empty
+      colorset. App icons are a known open item, not a migration one, and the
+      desktop client is in the same state.
+
+# ---------------------------------------------------------------------------
+# Area 2 -- Transport and voice
+#
+# The shared protocol layer. Second because everything above it needs the wire
+# types and nothing in it needs a view. The two clients' agreement lives here,
+# so it lands before anything that could disagree with it.
+# ---------------------------------------------------------------------------
+  - name: transport
+    source: Valinor/ValinorWebSocketClient.swift
+    destination: Core/Sources/HearthCore/Transport/HearthWebSocketClient.swift
+    area: 2
+    target: core
+    lines: 660
+    disposition: edits
+    note: >-
+      The protocol is the product; rename only, plus the "Valinor" fallback for
+      an unnamed reply, which currently attributes it to "Valinor". One
+      URLSessionWebSocketTask, receive loop started before client_info, 5s
+      handshake timeout, exponential backoff to a 30s ceiling, binary frames
+      over 1MB rejected rather than closing the socket. None of that changes.
+
+  - name: stt
+    source: Valinor/SpeechRecognitionManager.swift
+    destination: Core/Sources/HearthCore/Audio/SpeechRecognitionManager.swift
+    area: 2
+    target: core
+    lines: 192
+    disposition: edits
+    note: >-
+      On-device STT is a product claim, not a convenience:
+      requiresOnDeviceRecognition = true, partial results, a 1.5s silence timer
+      to finalise what the recogniser will not, errors 203 and 216 swallowed. No
+      audio leaves the phone.
+
+  - name: tts-stream
+    source: Valinor/TTSStreamPlayer.swift
+    destination: Core/Sources/HearthCore/Audio/TTSStreamPlayer.swift
+    area: 2
+    target: core
+    lines: 255
+    disposition: edits
+    note: >-
+      float32 LE mono PCM onto an AVAudioPlayerNode that never stops between
+      sentences, end of playback detected with a 50ms silent sentinel buffer,
+      and the frame-offset marks that make captions follow what is heard rather
+      than what has arrived. Debug prefix [TTS] kept.
+
+  - name: audio-session
+    source: Valinor/AudioInputManager.swift
+    destination: Core/Sources/HearthCore/Audio/AudioSessionManager.swift
+    area: 2
+    target: core
+    lines: 234
+    disposition: edits
+    note: >-
+      Only the session config survives. configureForGlasses(_:) owns the
+      AVAudioSession category and mode and is called from three places, so it is
+      load-bearing and is renamed to something honest now that the glasses are
+      out. The 48kHz-to-16kHz capture and upload path does not cross:
+      startStreaming() has no caller anywhere in the tree. The file is renamed
+      because after the subtraction it no longer manages audio input.
+
+# ---------------------------------------------------------------------------
+# Area 3 -- The turn and the cards
+#
+# These land together because ChatViewModel owns CardStore as a nested
+# observable and the card views read the view model back. Splitting them
+# produces an area that cannot compile, and an area that cannot compile is an
+# area whose gate does not run. The largest single landing and the one to watch.
+# ---------------------------------------------------------------------------
+  - name: chat-view-model
+    source: Valinor/ViewModels/ChatViewModel.swift
+    destination: Core/Sources/HearthCore/ViewModels/ChatViewModel.swift
+    area: 3
+    target: core
+    lines: 1386
+    disposition: edits
+    note: >-
+      The state machine, and the hub every later area attaches to. LANDED
+      2026-08-08; this note is now a record rather than a forecast, and it was
+      wrong in four places worth keeping (see apple-implementation.md, "What
+      area 3 did by hand"):
+
+      - The "Mentat poll" is not in this file. grep -ci mentat over
+        ChatViewModel returns 0. It is in HouseStatusBar (area 4), where it is
+        a MentatStatePoller @StateObject started in onAppear -- this note was
+        simply filed against the wrong file. Removed there, not here.
+      - The six seeded journal fixtures were real and did carry real dates and
+        summaries. Replaced with two obvious placeholders, not deleted, so the
+        gallery layout stays testable without shipping a week of real work.
+      - The TTSAudioPlayer fallback is five sites, not two: also the
+        onSpeakingComplete branch, onAudioResponseReceived, and
+        handleAudioResponse. currentResponseUsedPCM went with them.
+      - The MWDAT lifecycle is 50 references and two whole MARK: sections, and
+        removing it changes the initializer's shape: init(wearables:) -> init().
+
+      One subtraction was missing from this note entirely: on-device inference
+      is on the excluded list, so InferenceRouter, LocalModelManager,
+      OnDeviceInferenceEngine and PersonaStore all had to come out of here too
+      -- setupLocalMode, runLocalInference, toggleInferenceMode, and two mode
+      branches. PersonaStore's one live use, remembering the last persona, is
+      now a UserDefaults key rather than an excluded file dragged across to
+      carry a single preference.
+
+      The scrub's blanket rule is word-anchored, so it renames the TYPE
+      ValinorState and leaves the PROPERTY valinorState alone: 32 survivors,
+      the most-referenced name in the file. Renamed to hearthState by hand.
+
+  - name: cards
+    source: Valinor/Views/Dynamic/
+    destination: Core/Sources/HearthCore/Cards/
+    area: 3
+    target: core
+    kind: directory
+    disposition: edits
+    files:
+      - from: CardStore.swift
+        to: CardStore.swift
+        lines: 136
+        disposition: edits
+        note: "upsert, clear and clear_all plus per-instance TTL, appending a new instance per upsert and capping at 40"
+      - from: UiComponentDescriptor.swift
+        to: UiComponentDescriptor.swift
+        lines: 164
+        disposition: edits
+        note: >-
+          The tolerant decoder: unknown keys ignored, numbers accepted as int,
+          double or string, only a missing type or an unknown version fatal.
+          Drop the two commissioned type constants at :41 and :42. Their absence
+          is silent and correct precisely because the decoder is tolerant.
+          Note there are TWO commissioned types, not one: the cards row below
+          names choam_portfolio_dashboard and misses ticker_insight_card sitting
+          on the next line. Both are gone, and DynamicComponent dispatched both.
+      - from: DynamicComponent.swift
+        to: DynamicComponent.swift
+        lines: 334
+        disposition: edits
+        note: >-
+          the registry; drop the commissioned dispatches -- BOTH of them.
+          ChoamPortfolioDashboardCard at :39-40 and TickerInsightCard at :41-42.
+          A server still sending either now falls through to EmptyView, which is
+          the tolerant-descriptor behaviour rather than a gap.
+      - {from: GeneratedViewCard.swift, to: GeneratedViewCard.swift, lines: 111, disposition: edits}
+      - from: RemoteImage.swift
+        to: RemoteImage.swift
+        lines: 107
+        disposition: edits
+        note: "shared by the slideshow and the drawing card; stays either way"
+      - {from: ImageCard.swift, to: ImageCard.swift, lines: 186, disposition: edits}
+      - {from: EaselStore.swift, to: EaselStore.swift, lines: 165, disposition: edits}
+      - {from: ImageViewer.swift, to: ImageViewer.swift, lines: 159, disposition: edits}
+      - {from: ImageActions.swift, to: ImageActions.swift, lines: 124, disposition: edits}
+      - {from: CommissionedCards.swift, to: null, lines: 235, disposition: excluded}
+    note: >-
+      The drawing card (ImageCard, EaselStore, ImageViewer, ImageActions) is IN.
+      It is on the tip, was device-tested, and reaches ComfyUI through the
+      gateway origin like everything else, so if the backend decision goes the
+      other way the card renders nothing -- which is the tolerant-descriptor
+      behaviour and is correct. Excluding it now would be a client answer to a
+      backend question.
+
+  - name: persona-model-view
+    source: Valinor/Visualization/PersonaModelView.swift
+    destination: Core/Sources/HearthCore/Persona/PersonaModelView.swift
+    area: 3
+    target: core
+    lines: 335
+    disposition: edits
+    note: >-
+      The glb_animated renderer, called from the iOS main view and reachable
+      from visionOS, so it is core rather than app. It should log once at debug
+      level when no bundled model is found for the named persona: Selene's USDZ
+      set is not bundled at pre-alpha, and the orb fallback must be a stated
+      design rather than a silent one.
+
+# ---------------------------------------------------------------------------
+# Area 4 -- The iOS shell and the house surfaces
+#
+# At the end of this area the iOS app is complete against a running backend, and
+# it is the natural place to hold a real conversation before adding surfaces
+# that only some devices have.
+# ---------------------------------------------------------------------------
+  - name: ios-shell
+    source: Valinor/Views/
+    destination: Hearth/Views/
+    area: 4
+    target: ios
+    kind: directory
+    disposition: edits
+    files:
+      - from: ValinorMainView.swift
+        to: HearthMainView.swift
+        lines: 283
+        disposition: edits
+        note: >-
+          The unified portrait stage: persona on top, this turn's card in the
+          middle, caption below, transcript expanding to 55% when opened. The
+          layout comment at :158 uses the CHOAM dashboard's 550pt height to
+          justify the stacked stage -- keep the reasoning, lose the name.
+      - from: HouseShelf.swift
+        to: HouseShelf.swift
+        lines: 233
+        disposition: edits
+        note: "the 268pt right-hand drawer with the four destinations"
+      - from: HouseStatusBar.swift
+        to: HouseStatusBar.swift
+        lines: 122
+        disposition: edits
+        note: >-
+          Two subtractions. The Mentat poll line, and four rows of the
+          seventeen-entry tool label table at :79-95: consult_liara ("Ringing
+          the trading desk"), wright, uefn_ and mentat_. The table is data, so it
+          is a four-line deletion -- but it has to actually happen or Hearth
+          users will occasionally be told the house is ringing a trading desk.
+      - {from: BottomInputBar.swift, to: BottomInputBar.swift, lines: 193, disposition: edits}
+      - from: PersonaCanvasView.swift
+        to: PersonaCanvasView.swift
+        lines: 49
+        disposition: edits
+        note: "the live orb host; called from the main view at :181"
+      - {from: ChatView.swift, to: null, lines: 432, disposition: excluded}
+      - {from: MessageBubble.swift, to: null, lines: 95, disposition: excluded}
+      - {from: VisualizationChatView.swift, to: null, lines: 242, disposition: excluded}
+
+  - name: timeline
+    source: Valinor/Views/Timeline/TimelineFeed.swift
+    destination: Hearth/Views/Timeline/TimelineFeed.swift
+    area: 4
+    target: ios
+    lines: 283
+    disposition: edits
+    note: "the interleaved transcript feed; transcript history is the card model. One 'Sulivan' fallback."
+
+  - name: settings-surface
+    source: Valinor/Views/Settings/HearthSettingsView.swift
+    destination: Hearth/Views/Settings/HearthSettingsView.swift
+    area: 4
+    target: ios
+    lines: 402
+    disposition: edits
+    note: >-
+      Connection is the section that matters most on a phone, and its behaviour
+      carries across unchanged because it was reasoned once already: Apply means
+      redial, because the socket only reads the address when it dials; Test
+      probes what is typed and then rolls back, so a bad address cannot take the
+      live connection down before Apply commits it.
+
+  - name: apps-surface
+    source: Valinor/Views/Apps/
+    destination: Hearth/Views/Apps/
+    area: 4
+    target: ios
+    kind: directory
+    disposition: edits
+    files:
+      - from: AppsView.swift
+        to: AppsView.swift
+        lines: 748
+        disposition: edits
+        note: "the honest answer to 'what can this thing do'; loses the Ray-Ban row with MWDAT"
+      - from: CardLibraryView.swift
+        to: CardLibraryView.swift
+        lines: 268
+        disposition: edits
+        note: >-
+          TWO subtractions, and the first is a site the inventory missed. :242
+          dispatches on typeChoamPortfolioDashboard, so the commissioned cards
+          have four code sites and not three. :257 hardcodes two sample image
+          paths under /Persona/Selene/Assets/, which resolve only where Selene's
+          assets exist; replace with paths that resolve on any install.
+
+          LANDED 2026-08-08. The second instruction could not be followed as
+          written: Hearth ships NO persona imagery at pre-alpha --
+          backend/personas/Sulivan carries a voice directory and nothing else --
+          so there is no path that resolves on any install, and inventing one
+          only moves the 404. The sample names Sulivan instead, because Sulivan
+          is the one persona guaranteed to EXIST on every install; a house
+          without images for her shows the card's honest failure state, which is
+          the behaviour the drawing card was deliberately kept for. Revisit when
+          the asset question (section 2.5, and build-pipeline.md's licensing
+          question) is answered.
+
+  - name: persona-surface
+    source: Valinor/Views/Persona/
+    destination: Hearth/Views/Persona/
+    area: 4
+    target: ios
+    kind: directory
+    disposition: edits
+    files:
+      - {from: PersonaView.swift,       to: PersonaView.swift,       lines: 469, disposition: edits}
+      - {from: PersonaComponents.swift, to: PersonaComponents.swift, lines: 320, disposition: edits}
+
+  - name: journal
+    source: Valinor/Views/Journal/
+    destination: Hearth/Views/Journal/
+    area: 4
+    target: ios
+    kind: directory
+    disposition: edits
+    files:
+      - {from: JournalView.swift,      to: JournalView.swift,      lines: 446, disposition: edits}
+      - {from: JournalBookView.swift,  to: JournalBookView.swift,  lines: 179, disposition: edits}
+      - {from: JournalEntryView.swift, to: JournalEntryView.swift, lines: 173, disposition: edits}
+    note: "Selene's Library, merged 2026-08-03. If memory ships, and it is the reason Selene ships."
+
+  - name: ios-plist
+    source: Valinor/Info.plist
+    destination: Hearth/Info.plist
+    area: 4
+    target: ios
+    lines: 95
+    disposition: edits
+    note: >-
+      Every usage string names the product to the person granting the
+      permission, so all of them say Hearth. CFBundleURLSchemes valinor ->
+      hearth. Six MWDAT keys come out: the MWDAT dictionary with its empty
+      ClientToken and MetaAppID and its AppLinkURLScheme,
+      NSBluetoothAlwaysUsageDescription, UIBackgroundModes for
+      bluetooth-peripheral and external-accessory,
+      UISupportedExternalAccessoryProtocols for com.meta.ar.wearable, and
+      LSApplicationQueriesSchemes for fb-viewapp. NSMicrophoneUsageDescription
+      and NSMotionUsageDescription are set here AND in build settings; keep one.
+
+  - name: ios-entitlements
+    source: Valinor/Valinor.entitlements
+    destination: Hearth/Hearth.entitlements
+    area: 4
+    target: ios
+    lines: 12
+    disposition: edits
+    note: "app group reads $(HEARTH_APP_GROUP), never a literal"
+
+# ---------------------------------------------------------------------------
+# Area 5 -- Widgets
+#
+# Fifth because the widget target's dependency runs the other way: it needs
+# types out of the shared layer, and those have to exist and carry their final
+# names first. Under the package shape that is a product dependency rather than
+# a membership list, so a rename here is a compile error rather than a file
+# silently dropping out of a target.
+# ---------------------------------------------------------------------------
+  - name: widgets
+    source: ValinorWidgets/
+    destination: Hearth Widget/
+    area: 5
+    target: widgets
+    kind: directory
+    disposition: edits
+    files:
+      - from: SulivanWidget.swift
+        to: PersonaWidget.swift
+        lines: 183
+        disposition: edits
+        note: >-
+          The persona in every size with a card carousel at medium and large.
+          kind "Sulivan" -> "hearth.persona": a widget kind is an identifier, not
+          a persona name, and changing one after release orphans every placed
+          widget. widgetURL valinor://talk -> hearth://talk.
+      - from: QuickTalkWidget.swift
+        to: QuickTalkWidget.swift
+        lines: 46
+        disposition: edits
+        note: "the small orb with 'Tap to talk'; same kind and URL changes"
+      - from: ValinorWidgetProvider.swift
+        to: HearthWidgetProvider.swift
+        lines: 79
+        disposition: edits
+        note: "near-black 0.06,0.06,0.10 background -> HearthPalette"
+      - {from: ValinorWidgetsBundle.swift, to: HearthWidgetsBundle.swift, lines: 19, disposition: edits}
+      - from: PulsingPersonaOrb.swift
+        to: PulsingPersonaOrb.swift
+        lines: 44
+        disposition: edits
+        note: "the timeline-alternation approximation of motion"
+    note: >-
+      The widgets are the one surface where the old brand is still visible:
+      Color(red: 0.47, green: 0.43, blue: 0.78) appears in three places and none
+      of it comes from HearthPalette. The orb inside already renders warm
+      because it goes through the palette fallback.
+
+  - name: widgets-assets
+    source: ValinorWidgets/Assets.xcassets/
+    destination: Hearth Widget/Assets.xcassets/
+    area: 5
+    target: widgets
+    kind: directory
+    disposition: verbatim
+
+  - name: widgets-plist
+    source: ValinorWidgets/Info.plist
+    destination: Hearth Widget/Info.plist
+    area: 5
+    target: widgets
+    lines: 11
+    disposition: edits
+    note: >-
+      Consumed through INFOPLIST_FILE and must not ALSO be copied as a resource.
+      In Valinor this is what the membershipExceptions entry is for; a target
+      that omits the exception ships a duplicate and Xcode warns about it in a
+      way that is easy to scroll past.
+
+  - name: widgets-entitlements
+    source: ValinorWidgetsExtension.entitlements
+    destination: Hearth Widget/HearthWidgets.entitlements
+    area: 5
+    target: widgets
+    lines: 10
+    disposition: edits
+    note: "the second of three copies of the app group; reads $(HEARTH_APP_GROUP)"
+
+# ---------------------------------------------------------------------------
+# Area 6 -- Visualization and visionOS
+#
+# Last, because it is the only area needing a second device to verify. What
+# crosses is what has been validated on device; the immersive caustics mode has
+# not been, and is the whole of the excluded set here.
+# ---------------------------------------------------------------------------
+  - name: visionos-app-entry
+    destination: Hearth Vision/HearthVisionApp.swift
+    area: 6
+    target: visionos
+    disposition: generated
+    from: Valinor/ValinorApp.swift
+    note: >-
+      The visionOS scenes currently behind `#if os(visionOS)` in ValinorApp,
+      lifted into their own target's entry point. This is where the topology
+      change pays: the guards go away because the target boundary does the same
+      job, and RealityKitSceneManager stays hoisted here so the same orb entity
+      can reparent between scenes.
+
+  - name: reality-kit-scene
+    source: Valinor/Visualization/RealityKitSceneManager.swift
+    destination: Hearth Vision/RealityKitSceneManager.swift
+    area: 6
+    target: visionos
+    lines: 611
+    disposition: edits
+    note: >-
+      The renderer. Loses the immersive mode switch and the bloom changes that
+      belong to the caustics work; keeps the volumetric path, which is
+      device-validated.
+
+  - name: visionos-views
+    source: Valinor/VisionOS/
+    destination: Hearth Vision/Views/
+    area: 6
+    target: visionos
+    kind: directory
+    disposition: edits
+    files:
+      - from: SulivanVolumeView.swift
+        to: PersonaVolumeView.swift
+        lines: 231
+        disposition: edits
+        note: "hosts the volumetric window; scene ids sulivan-volume -> hearth.persona-volume"
+      - from: CardOrbitLayout.swift
+        to: CardOrbitLayout.swift
+        lines: 46
+        disposition: edits
+        note: "places cards around the orb; device-validated 2026-06-12"
+      - {from: LiveTranscriptCardView.swift, to: LiveTranscriptCardView.swift, lines: 61, disposition: edits}
+      - {from: SessionGalleryView.swift, to: SessionGalleryView.swift, lines: 108, disposition: edits}
+      - {from: CausticsImmersiveView.swift, to: null, lines: 423, disposition: excluded}
+
+  - name: visionos-plist
+    source: Info-visionOS.plist
+    destination: Hearth Vision/Info.plist
+    area: 6
+    target: visionos
+    lines: 62
+    disposition: edits
+    note: >-
+      An ordinary per-target Info.plist now, not a per-SDK override. That is the
+      point of the second target: INFOPLIST_FILE being per-SDK is how
+      NSWorldSensingUsageDescription came to be missing from one build and
+      present in the other, and ARKit hard-crashes on the authorization request
+      when it is absent. Diff this against iOS/Info.plist deliberately.
+
+  - name: visionos-entitlements
+    destination: Hearth Vision/HearthVision.entitlements
+    area: 6
+    target: visionos
+    disposition: generated
+    note: "the third copy of the app group; reads $(HEARTH_APP_GROUP)"
+
+# ---------------------------------------------------------------------------
+# Not an area: the project layer
+#
+# Hand-made, and the reason `generated` exists as a disposition. A re-scrub must
+# never write over these, which is what makes re-scrubbing safe for every Swift
+# file above.
+# ---------------------------------------------------------------------------
+  - name: xcconfig
+    destination: ./
+    area: 0
+    disposition: generated
+    files:
+      - {to: Shared.xcconfig,  note: "everything derived from HEARTH_ID_PREFIX and HEARTH_APP_GROUP"}
+      - {to: Dev.xcconfig,     note: "one variable"}
+      - {to: Release.xcconfig, note: "one variable"}
+      - {to: Local.xcconfig,   note: "DEVELOPMENT_TEAM only. GITIGNORED. AS9PH6XDN4 lives here and nowhere else."}
+
+  - name: shared-scheme
+    destination: Hearth.xcodeproj/xcshareddata/xcschemes/
+    area: 0
+    disposition: generated
+    note: >-
+      Valinor's schemes are marked shared in the per-user management file and
+      exist on disk since 2026-06-08, but were never added to the repository, so
+      a fresh clone gets whatever Xcode autocreates. Three schemes here, and
+      they are committed.
+
+# ---------------------------------------------------------------------------
+# Excluded, with the reason and the return route.
+#
+# Every one of these needs a written disposition BEFORE phase 3, because
+# "decide later" during an area landing turns into "copied because it was
+# adjacent". Nothing returns by bulk re-import; each returns on a feature branch
+# against the clean project, with a stated verification gate.
+# ---------------------------------------------------------------------------
+excluded:
+  - name: on-device-inference
+    source: Valinor/OnDevice/
+    lines: 734
+    files: [InferenceRouter.swift, LocalModelManager.swift, OnDeviceInferenceEngine.swift, PersonaStore.swift]
+    why: >-
+      Dormant and unlinked. mlx-swift-lm appears in the project's
+      packageReferences and in NO target's packageProductDependencies, so
+      nothing links it; OnDeviceInferenceEngine guards its entire body on
+      `#if canImport(MLX)`, which is false, and compiles to a stub that reports
+      itself unavailable. Dropping the package reference removes fourteen
+      transitive pins and costs nothing that runs today. Conceptually redundant
+      too: the product's thesis is that inference runs on the user's own
+      machine, which for an Apple client means the house, not the phone.
+    hazard: >-
+      LocalModelManager:150 builds http://<ip>:8766/ for GGUF downloads. Port
+      8766 is the asset surface, internal only, and has answered nothing in the
+      live path since June. PersonaStore had the identical bug and was fixed.
+      It is dead code that greps as live configuration. If it ever crosses, it
+      crosses with the port already gone.
+    returns_when: >-
+      there is a reason for a phone to infer locally that "the house is
+      unreachable" does not already answer better
+
+  - name: mwdat
+    source: Valinor/Compat/WearablesShim.swift
+    lines: 118
+    also: [3 SPM products, 6 Info.plist keys, the Apps page row, the shared URL scheme]
+    why: >-
+      The camera is wired and decodes frames at 1fps but processFrame stops
+      short of forwarding them; what works is registration and HFP audio, which
+      is a Bluetooth headset story the OS already tells. ClientToken and
+      MetaAppID are empty strings in the repository, so the integration is not
+      configured today -- configuration that exists only on the machine it was
+      configured on. And it is expensive at the permission layer: two background
+      modes and a Bluetooth prompt a tester meets before receiving any value.
+      The shim is deleted rather than ported, because two app targets make it
+      unnecessary by construction.
+    touches: [AudioInputManager.swift, ValinorApp.swift, ViewModels/ChatViewModel.swift]
+    returns_when: >-
+      the camera path forwards frames, and a Meta app registration is something
+      the product can reasonably ask a user for. It returns as an iOS-app-only
+      target dependency behind a protocol declared in HearthCore, never as a
+      dependency of the shared layer.
+
+  - name: immersive-caustics
+    source: [Valinor/VisionOS/CausticsImmersiveView.swift, Valinor/Visualization/CausticsTexture.swift, Valinor/Visualization/Caustics.metal]
+    lines: 677
+    why: >-
+      Unverified code, and the migration's value is a clean starting point.
+      Pushed from a Windows session with no Vision Pro attached; five later
+      commits read as a Mac session iterating on device, so it was worked on
+      with hardware, but nothing in the repository states it passed. Treat it as
+      built and iterated but not signed off.
+    note: >-
+      The toolchain no longer blocks it -- Xcode 27 and the visionOS 27 SDK are
+      installed, and XROS_DEPLOYMENT_TARGET is 27.0 for exactly this reason. The
+      rig is written behind `if #available(visionOS 27.0, *)` at two sites,
+      which are the only availability checks in the entire client.
+    returns_when: >-
+      a session builds and runs it on the device. First check on the way back:
+      Caustics appears in the built product's default.metallib. A missing Metal
+      function fails at runtime with a shader that does not load, not at build
+      time.
+
+  - name: mentat-surface
+    source: Valinor/Models/MentatState.swift
+    lines: 99
+    why: >-
+      Polls GET /mentat/state every five seconds from HouseStatusBar, which is
+      on the main screen. Mentat's run registry is `no` in the backend catalog:
+      22 absolute paths, every run personal project work. The poller is quiet on
+      failure, so in Hearth it would poll a 404 forever and show nothing.
+      Harmless and pointless.
+    returns_when: "the component catalog moves the Mentat surface into Hearth, which it will not"
+
+  - name: commissioned-cards
+    source: Valinor/Views/Dynamic/CommissionedCards.swift
+    lines: 235
+    why: >-
+      choam_portfolio_dashboard and ticker_insight_card, two of nine card types,
+      commissioned for the trading dashboard and already ruled out of Hearth by
+      the component catalog. Absent from the desktop extraction too.
+    sites: >-
+      FOUR, not three as the inventory records: the renderers here, the type
+      constants at UiComponentDescriptor.swift:41-42, the registry dispatch at
+      DynamicComponent.swift:39-40, and CardLibraryView.swift:242. A fifth is a
+      layout comment at ValinorMainView.swift:158, which keeps its reasoning and
+      loses the name.
+    returns_when: "same as the Mentat surface"
+
+  - name: classic-chat
+    source: [Valinor/Views/ChatView.swift, Valinor/Views/MessageBubble.swift, Valinor/ContentView.swift]
+    lines: 555
+    why: >-
+      ChatView is the superseded transcript, reachable only through ContentView
+      behind @AppStorage("useClassicChatUI") with nothing in the UI to flip it --
+      the switch went with the old Settings page, deleted on purpose in 917ff9d.
+      MessageBubble is referenced from exactly one place, ChatView:174, so it is
+      not shared and goes with it; the inventory records it as "used by both",
+      which is wrong. ContentView is 28 lines that choose between the classic
+      view and the main view, so with ChatView gone it collapses to nothing and
+      HearthApp hosts HearthMainView directly.
+    returns_when: "never; it is superseded, not deferred"
+
+  - name: dead-visualization
+    source: [Valinor/Views/VisualizationChatView.swift, Valinor/Visualization/VisualizationView.swift, Valinor/Visualization/DeviceMotionTracker.swift]
+    lines: 402
+    why: >-
+      VisualizationChatView is referenced nowhere in the tree. VisualizationView
+      is used only by it, and DeviceMotionTracker only by VisualizationView. A
+      three-file chain hanging off nothing.
+    returns_when: "never"
+
+  - name: tts-blob-player
+    source: Valinor/TTSAudioPlayer.swift
+    lines: 139
+    why: >-
+      Plays whole audio blobs through AVAudioPlayer and is still called from
+      handleAudioResponse, so it is a live fallback for a non-streaming server
+      rather than dead code -- which is why excluding it is an edit to
+      ChatViewModel and not just a deletion. Hearth serves one TTS engine and
+      one format.
+    returns_when: "a Hearth backend serves non-streaming audio, which the native runtime does not"
+
+  - name: audio-capture-path
+    source: Valinor/AudioInputManager.swift
+    symbols: [startStreaming, processAudioBuffer]
+    why: >-
+      A 48kHz-to-16kHz capture and upload path that nothing calls.
+      startStreaming() has no caller anywhere. Server-side Whisper is not the
+      phone's path: STT is on-device and that is a product claim.
+    returns_when: "never; the file's session config crosses without it"
+
+  - name: mlx-package
+    source: Package.resolved
+    why: >-
+      mlx-swift-lm tracked on `main` with no version pin, pulling fourteen
+      transitive pins (mlx-swift, swift-transformers, swift-huggingface,
+      swift-jinja, yyjson, NIO, swift-crypto and the rest) for a path that links
+      into nothing. The clean project keeps ZERO third-party packages:
+      URLSessionWebSocketTask, AVAudioEngine, SFSpeechRecognizer, Canvas,
+      WidgetKit and RealityKit are all first party.
+    policy: >-
+      Dependencies attach to targets, never to the project. A project-level
+      reference costs every build and can link nothing at all, silently, for as
+      long as nobody looks. That is what happened here.
+
+# ---------------------------------------------------------------------------
+# Counts, for the `git ls-files apple-client | wc -l` gate.
+# ---------------------------------------------------------------------------
+counts:
+  source_tree:
+    swift: 73
+    metal: 1
+    plist: 3
+    entitlements: 2
+    total: 79
+  crossing:
+    swift: 57
+    plist: 3
+    entitlements: 2
+    total: 62
+  excluded:
+    swift: 16
+    metal: 1
+    total: 17
+  # 62 + 17 = 79, and AudioInputManager.swift is the file that makes those two
+  # numbers add up rather than 62 + 18. It appears twice on purpose: the session
+  # config crosses as `edits` and the capture path is `excluded` by symbol. It
+  # is counted as crossing, because the file does. Six other files appear twice
+  # as well -- once in their area's file list and once in the excluded section
+  # that carries the full reason -- and those are the same verdict stated in two
+  # places, not a conflict.
+  generated:
+    - Core/Package.swift
+    - Core/Sources/HearthCore/Resources/Personas/sulivan.json
+    - visionOS/HearthVisionApp.swift
+    - visionOS/HearthVision.entitlements
+    - Shared.xcconfig
+    - Dev.xcconfig
+    - Release.xcconfig
+    - 3 shared schemes
+  note: >-
+    Asset catalogs cross as directories and their Contents.json files are not
+    counted individually here. Run the gate after EVERY area, not once at the
+    end: this repository's .gitignore has already swallowed a Swift source
+    directory once, and a build passing locally while every clone is broken went
+    undetected for a week the last time it happened.

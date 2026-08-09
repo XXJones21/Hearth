@@ -44,20 +44,35 @@ def source_paths(manifest: dict) -> list[str]:
     Components with disposition `generated` have no source and are skipped;
     excluded entries are included deliberately, because a change to something
     we chose not to ship is worth seeing even though it will not be ported.
+
+    Two manifests are in play and they spell things differently. The backend's
+    writes repository-relative paths and names per-file entries `source`. The
+    Apple one factors the common prefix out into `source.root` and names
+    per-file entries `from`, because a flat list of 79 paths that all begin
+    `Apple Client/Valinor/Valinor/` is a worse document. Both are read here, and
+    a path that already starts with the root is not given a second one.
     """
+    root = ((manifest.get("source") or {}).get("root") or "").rstrip("/")
     paths: set[str] = set()
 
-    def add(value) -> None:
-        if isinstance(value, str) and value and value != "null":
-            paths.add(value.rstrip("/"))
+    def add(value, prefix: str = "") -> None:
+        if not isinstance(value, str) or not value or value == "null":
+            return
+        path = f"{prefix.rstrip('/')}/{value}" if prefix else value
+        if root and not path.startswith(f"{root}/"):
+            path = f"{root}/{path}"
+        paths.add(path.rstrip("/"))
 
     for component in manifest.get("components") or []:
-        add(component.get("source"))
+        base = component.get("source")
+        add(base)
         for entry in component.get("files") or []:
             if isinstance(entry, dict):
-                add(entry.get("source"))
+                add(entry.get("source") or entry.get("from"), base or "")
     for entry in manifest.get("excluded") or []:
-        add(entry.get("source"))
+        value = entry.get("source")
+        for one in [value] if isinstance(value, str) else (value or []):
+            add(one)
     return sorted(paths)
 
 
@@ -78,6 +93,11 @@ def main() -> int:
     ap.add_argument("--valinor")
     ap.add_argument("--since")
     ap.add_argument("--quiet", action="store_true")
+    ap.add_argument(
+        "--manifest",
+        help="the manifest to read. Default: backend/manifest.yaml. "
+        "The Apple migration passes apple-client/manifest.yaml.",
+    )
     args = ap.parse_args()
 
     try:
@@ -85,9 +105,20 @@ def main() -> int:
     except ImportError:
         raise SystemExit("this needs pyyaml: pip install pyyaml") from None
 
-    manifest = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    manifest_path = Path(args.manifest) if args.manifest else MANIFEST
+    if not manifest_path.is_absolute():
+        manifest_path = REPO / manifest_path
+    if not manifest_path.exists():
+        raise SystemExit(f"no manifest at {manifest_path}")
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    # source.path is the manifest's own answer to "where is Valinor", which the
+    # backend manifest predates. It comes after the flag and the environment and
+    # before the historical Windows default.
     valinor = Path(
-        args.valinor or os.environ.get("VALINOR_REPO") or "D:/Tools/Valinor"
+        args.valinor
+        or os.environ.get("VALINOR_REPO")
+        or (manifest.get("source") or {}).get("path")
+        or "D:/Tools/Valinor"
     ).expanduser()
     if not (valinor / ".git").exists():
         raise SystemExit(f"no git repository at {valinor}; pass --valinor")

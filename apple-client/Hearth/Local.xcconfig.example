@@ -1,0 +1,39 @@
+// Local.xcconfig.example -- the template for Local.xcconfig.
+//
+// Copy it to Local.xcconfig and edit the copy. Local.xcconfig is gitignored;
+// this file is not, so nothing you put HERE stays private.
+//
+//     cp Local.xcconfig.example Local.xcconfig
+//
+// A committed DEVELOPMENT_TEAM builds on one Mac and fails everywhere else
+// with a provisioning error that does not explain itself, which is why the
+// signing identity lives outside the project.
+//
+// This file is included LAST by Dev.xcconfig and Release.xcconfig, so anything
+// set here overrides the committed defaults.
+
+// ---- Required -------------------------------------------------------------
+// Your Apple Developer Team ID. Xcode > Settings > Accounts, or the membership
+// page at developer.apple.com. A free personal Apple ID has one too.
+
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+
+// ---- Optional: build under your own identifiers ---------------------------
+// Uncomment and change the prefix if `com.joshuajones.Hearth` is not yours to
+// sign -- which it is not, unless you are Joshua. A bundle identifier already
+// registered to another team cannot be claimed by yours, and the failure reads
+// as a provisioning problem rather than a naming one.
+//
+// Change the prefix ONLY. The three bundle identifiers derive from it:
+//
+//     <prefix>            the iOS app
+//     <prefix>.Widgets    the widget extension
+//     <prefix>Vision      the visionOS app
+//
+// HEARTH_ID_PREFIX = com.yourname.Hearth
+// HEARTH_APP_GROUP = group.com.yourname.Hearth
+//
+// The app group is a separate line because it is a separate capability, and on
+// a FREE personal team it is not available at all. That is fine today -- the
+// project does not sign entitlements yet -- but it is the reason the widgets
+// will not work on a free account when they land.

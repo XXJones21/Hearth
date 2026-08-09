@@ -12,9 +12,30 @@ desktop-client/node_modules/
 .env
 .env.local
 
-# Model weights and anything downloaded at install time.
-models/
+# Model weights and anything downloaded at install time. ANCHORED, and it has to
+# stay that way: an unanchored `models/` matches at every depth, and because
+# macOS sets core.ignorecase=true it matches `Models/` too -- which is a Swift
+# source directory in apple-client. The bare pattern silently swallowed the
+# entire wire-type layer: builds pass on the machine that wrote them and every
+# clone fails to compile. Weights live under HEARTH_ROOT, which is backend/ in a
+# checkout, so that is where the rule points.
+/backend/models/
 *.gguf
+
+# Xcode. Nothing in this repository needed these until apple-client existed.
+# They apply repo-wide on purpose: apple-client sits in this working directory
+# even on branches that do not track it, so without them a DESKTOP commit
+# sweeps up Xcode user state and the signing config -- which is how four such
+# files reached a merge on 2026-08-08.
+# Note what is NOT here: Package.resolved. The pinned revisions are the ones
+# that build, and for a zero-dependency project it is a short file that usefully
+# documents the absence.
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+DerivedData/
+.swiftpm/
+apple-client/**/Local.xcconfig
 
 # Python
 __pycache__/
@@ -40,17 +61,6 @@ desktop-client/src-tauri/resources/tts-server.exe
 desktop-client/src-tauri/resources/omnivoice-tts
 desktop-client/src-tauri/resources/omnivoice-tts.exe
 
-# Xcode. The apple-client tree lives on its own branch, but its user state and
-# local signing config are physically present in this working directory, so
-# without these rules a desktop commit sweeps them in -- which is how four of
-# them reached a merge on 2026-08-08.
-xcuserdata/
-*.xcuserstate
-*.xcuserdatad
-DerivedData/
-.swiftpm/
-apple-client/**/Local.xcconfig
-
 # The voice engine's pinned upstream checkout, cloned and patched by
 # scripts/build_omnivoice.sh. Reproducible from the pin plus vendor/omnivoice,
 # so the tree itself is build output.
@@ -67,3 +77,4 @@ Thumbs.db
 
 # Icon workbench: build artifacts stay local.
 design/icons/node_modules/
+apple-client/**/.build/
