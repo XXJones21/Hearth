@@ -19,14 +19,156 @@ structure. It puts the first thing into it.
 from __future__ import annotations
 
 import logging
+import os
 import re
 from datetime import date
 from pathlib import Path
 
-from ...config.settings import hearth_engram
+from ...config.settings import hearth_engram, hearth_home
 from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.second_brain")
+
+# The four quarters every brain has; also the shape test for an import.
+_BRAIN_FOLDERS = ("Projects", "Areas", "Thoughts", "Resources")
+
+# Written to hearth_home() when setup finishes without a first project (a
+# decline, or an import that brought its own history). first_run.brain_beat_open
+# reads it, so "consider this complete" actually completes something now.
+COMPLETE_MARKER = "second-brain-complete"
+
+
+def _mark_complete(note: str) -> None:
+    try:
+        marker = hearth_home() / COMPLETE_MARKER
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(f"{note}\n{date.today().isoformat()}\n", encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 - the beat still closes via Projects
+        logger.warning("second brain: could not write the complete marker (%s)", exc)
+
+
+def _rewrite_hearth_env(root: str) -> bool:
+    """Point HEARTH_ENGRAM at `root` in hearth.env, so restarts keep the
+    bridge. The file lives beside home/: <install>/config/hearth.env."""
+    home = (os.environ.get("HEARTH_HOME") or "").strip()
+    if not home:
+        return False
+    env_path = Path(home).parent / "config" / "hearth.env"
+    try:
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return False
+    out, seen = [], False
+    for ln in lines:
+        if ln.startswith("HEARTH_ENGRAM="):
+            out.append(f"HEARTH_ENGRAM={root}")
+            seen = True
+        else:
+            out.append(ln)
+    if not seen:
+        out.append(f"HEARTH_ENGRAM={root}")
+    try:
+        env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    except OSError:
+        return False
+    return True
+
+
+def import_brain(path: str = "", **_: object) -> ToolResult:
+    """Bridge the house to a second brain the person already has.
+
+    Born from a hallucination (2026-08-08): told about an existing Engram,
+    the persona announced "consider the bridge built" having built nothing.
+    This is the real bridge: HEARTH_ENGRAM repointed for the running process
+    and in hearth.env for every later launch, so the memory layer, the
+    Journal, and the MCP mount (which all read that one variable) follow.
+
+    The anti-adoption law holds: the path must be explicit and absolute, and
+    it must already look like a brain. A house must never guess at whose
+    memory it is opening.
+    """
+    raw = str(path or "").strip().strip('"').strip("'")
+    if not raw:
+        return ToolResult(
+            ok=False,
+            content="I need the exact folder path of the existing brain before anything can be connected.",
+        )
+    target = Path(raw.replace("\\", "/")).expanduser()
+    if not target.is_absolute():
+        return ToolResult(
+            ok=False,
+            content=(
+                "I need the full path, from the drive letter or root down, "
+                "so the house never guesses at whose memory it is opening."
+            ),
+        )
+    if not target.is_dir():
+        return ToolResult(
+            ok=False,
+            content=f"There is no folder at {target}. Nothing was changed.",
+        )
+    present = [f for f in _BRAIN_FOLDERS if (target / f).is_dir()]
+    if not present:
+        return ToolResult(
+            ok=False,
+            content=(
+                f"{target} does not look like a brain: none of Projects, Areas, "
+                "Thoughts or Resources live inside it. Nothing was changed."
+            ),
+        )
+
+    root = str(target).replace("\\", "/")
+    os.environ["HEARTH_ENGRAM"] = root
+    persisted = _rewrite_hearth_env(root)
+    # The missing quarters, same as a fresh install provisions them.
+    for name in _BRAIN_FOLDERS:
+        try:
+            (target / name).mkdir(exist_ok=True)
+        except OSError:
+            pass
+    _mark_complete(f"imported {root}")
+    try:
+        from ...memory.routines import ensure_first_routine
+
+        ensure_first_routine(target)
+    except Exception as exc:  # noqa: BLE001 - the bridge is the commit; the routine is a rider
+        logger.warning("import_brain: routine rider skipped (%s)", exc)
+
+    entries = sum(
+        1 for f in _BRAIN_FOLDERS if (target / f).is_dir() for _ in (target / f).iterdir()
+    )
+    logger.info(
+        "second brain: imported %s (%s present, %d entries, env %s)",
+        root, ", ".join(present), entries, "persisted" if persisted else "NOT persisted",
+    )
+    return ToolResult(
+        ok=True,
+        content=(
+            f"The bridge is real now: this house reads and writes the memory at "
+            f"{root}, which already holds {entries} entr"
+            + ("y" if entries == 1 else "ies")
+            + ". Tell them plainly it is connected, and that everything the house "
+            "learns lands there from now on."
+        ),
+        data={"brain_imported": root, "entries": entries},
+    )
+
+
+def complete_brain_setup(**_: object) -> ToolResult:
+    """The beat's legitimate exit: they declined a first project, or said they
+    are done. Before this existed, "consider this complete" completed nothing
+    and the person was locked in front of a disabled button."""
+    _mark_complete("finished without a first project")
+    logger.info("second brain: setup marked complete without a project")
+    return ToolResult(
+        ok=True,
+        content=(
+            "Setup is complete and the house is theirs. Say a short goodbye to "
+            "the setup, and let them know the memory stands ready whenever "
+            "something worth keeping comes along."
+        ),
+        data={"brain_setup_complete": True},
+    )
 
 # A directory name, not a title. The title keeps its capitals and spaces inside
 # the file; the folder has to survive every filesystem the product ships on.

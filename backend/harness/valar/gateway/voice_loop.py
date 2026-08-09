@@ -936,6 +936,22 @@ class VoiceLoop:
                         "created": bool(data.get("created")),
                     },
                 )
+            # The beat's other two exits: an imported brain or a plain
+            # decline. Same contract as project_started -- the SCREEN is told
+            # the beat closed, because silence is also what failure looks
+            # like. An import re-emits brain_info so the chips and the path
+            # follow the bridge.
+            if name in ("import_brain", "complete_brain_setup") and getattr(result, "ok", False):
+                data = getattr(result, "data", {}) or {}
+                await emit(
+                    "brain_setup_complete",
+                    {
+                        "action": "brain_setup_complete",
+                        "imported": data.get("brain_imported"),
+                    },
+                )
+                if name == "import_brain":
+                    await self._emit_brain_info(emit)
             if not ui_enabled:
                 return
             for op in compose_for_result(name, result):

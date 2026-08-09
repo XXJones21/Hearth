@@ -105,6 +105,11 @@ export function SecondBrain({ onDone }: { onDone: () => void }) {
               ? (msg.folders as { name: string; entries: number }[])
               : [],
           });
+        } else if (msg.action === 'brain_setup_complete') {
+          /* The beat's other exits: an imported brain (the server re-emits
+             brain_info behind this, so the chips and path follow the
+             bridge) or a plain decline. Either way the door opens. */
+          doneRef.current = true;
         } else if (msg.action === 'project_started') {
           /* The beat closed. The server says so rather than the screen
              inferring it, because "they stopped talking" is also what a
