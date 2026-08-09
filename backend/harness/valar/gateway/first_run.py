@@ -82,7 +82,8 @@ def farewell_text(name: str) -> str:
         f"{name} is ready, and from this moment the house is theirs: they "
         "will be the one who greets you from here on. I will step back now, "
         "but I am never far; call on me whenever you need me. It has been a "
-        "pleasure making them with you."
+        "pleasure making them with you. Give us a moment while their voice "
+        "wakes, and then they will speak for themselves."
     )
 
 
@@ -109,8 +110,12 @@ def farewell_text(name: str) -> str:
 BRAIN_KICKOFF = "(Open the second brain.)"
 
 # The interview's tools would let the new persona create ANOTHER persona
-# mid-beat. One tool, and the card that asks the question.
-BRAIN_GRANTS: dict = {"domains": [], "allow": ["choice_card", "start_project"], "deny": []}
+# mid-beat. The beat's own verbs, and the card that asks the question.
+BRAIN_GRANTS: dict = {
+    "domains": [],
+    "allow": ["choice_card", "start_project", "import_brain", "complete_brain_setup"],
+    "deny": [],
+}
 
 BRAIN_DIRECTION = (
     "SECOND BRAIN. This is the last beat of setup and you are hosting it, in "
@@ -125,8 +130,14 @@ BRAIN_DIRECTION = (
     "3. Ask what they are actually working on, and call start_project with "
     "their answer. Their own words, never a suggestion of yours, and never an "
     "example. One real thing beats an empty brain.\n"
-    "Short turns. No lists of features. After start_project returns, say where "
-    "it lives, pass along anything its result asks you to mention, and stop."
+    "Two other doors out of this beat. If they say they ALREADY HAVE a second "
+    "brain, ask for its exact folder path and call import_brain with it; "
+    "nothing is connected until that tool returns ok, and you NEVER claim a "
+    "sync, a bridge, or a connection the tool did not confirm. If they "
+    "decline or say they are done, call complete_brain_setup and let them go "
+    "warmly.\n"
+    "Short turns. No lists of features. After a tool returns, say where things "
+    "stand, pass along anything its result asks you to mention, and stop."
 )
 
 
@@ -137,11 +148,19 @@ def is_brain_kickoff(text: str) -> bool:
 def brain_beat_open(engram_root) -> bool:
     """True while the second-brain beat still has work to do.
 
-    Self-expiring, like first run: the beat is over when a project exists,
-    because start_project writing one is the only way it ends. An unreadable
-    or unconfigured root reports False -- a beat that cannot write is a beat
-    that should not be run.
+    Self-expiring, like first run. Three ways it ends, each a real event on
+    disk: start_project writes the first project, import_brain bridges an
+    existing tree (and writes the complete marker), or complete_brain_setup
+    records a decline. An unreadable or unconfigured root reports False --
+    a beat that cannot write is a beat that should not be run.
     """
+    try:
+        from ..config.settings import hearth_home
+
+        if (hearth_home() / "second-brain-complete").exists():
+            return False
+    except Exception:  # noqa: BLE001 - no home dir means no marker, not no beat
+        pass
     try:
         projects = Path(engram_root) / "Projects"
         return projects.is_dir() and not any(projects.iterdir())

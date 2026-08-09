@@ -470,6 +470,40 @@ tools:
             framing, not a summary of the feature.
       required: [name]
 
+  - name: import_brain
+    description: >-
+      Bridge the house to a second brain the person ALREADY has. Call it only
+      with the exact folder path they gave you, never one you guessed or
+      remembered. Until this returns ok, no connection of any kind exists,
+      and you must not claim one.
+    handler: valar.tools.handlers.second_brain:import_brain
+    domain: projects
+    risk: write
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: >-
+            The full path they gave, exactly as they gave it (for example
+            D:/Tools/Valinor/Engram). Absolute paths only.
+      required: [path]
+
+  - name: complete_brain_setup
+    description: >-
+      Finish second-brain setup without a first project, when the person
+      declines or says they are done. Closes the setup and frees them to go
+      to the house. Takes nothing.
+    handler: valar.tools.handlers.second_brain:complete_brain_setup
+    domain: projects
+    risk: write
+    speak: ""
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
   - name: create_persona
     description: >-
       Create a new persona from what the conversation taught you. Call this

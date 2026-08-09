@@ -210,21 +210,19 @@ tiers:
   - id: 3
     label: Large
     model: Gemma 4 26B A4B
-    repo: unsloth/gemma-4-26B-A4B-it-GGUF
-    file: gemma-4-26B-A4B-it-UD-Q3_K_M.gguf
-    quant: UD-Q3_K_M
-    bytes: 12728497888 # 11.85 GiB, server content-length
-    sha256: 811882f6df81c8ea204a5d382f196d6bd601245091786912d4c70df41cdfa052
+    # The QAT build (2026-08-08): quality held at four bits the way the 12B
+    # tier's QAT does, and the only quant the repo ships. On cards below the
+    # model's fully-resident floor the installer writes HEARTH_LLAMA_CPU_MOE
+    # (config_gen.rs): experts stream from system RAM by design, where the
+    # non-QAT Q3 spilled by accident and ground at 0.3 tok/s on a 16 GB card.
+    repo: unsloth/gemma-4-26B-A4B-it-qat-GGUF
+    file: gemma-4-26B-A4B-it-qat-UD-Q4_K_XL.gguf
+    quant: UD-Q4_K_XL
+    bytes: 14249047104 # 13.27 GiB, HF lfs size
+    sha256: a7c5bc715f5ff8e99a3e8901ce7d2b42b402c669bf24f7c5250747633d0f5891
     max_ctx: 65536
     kv_bytes_per_token: 49152
     note: >-
       A mixture-of-experts model: far more total knowledge, with only a slice of
-      it active per token. Wants a large card.
-    # NOTE: this "fallback" is LARGER than the preferred build, which inverts
-    # the smaller-fallback contract best_fit assumes. Kept as recorded; worth
-    # a deliberate decision rather than a drive-by edit.
-    fallback:
-      file: gemma-4-26B-A4B-it-UD-Q4_K_S.gguf
-      quant: UD-Q4_K_S
-      bytes: 16487610080 # 15.36 GiB, server content-length
-      sha256: 675de4b188a3072c9da8260fe2eddfdb7d03b16f615b6619021989d929a51b2b
+      it active per token. On a 16 GB card its experts run from system RAM.
+    fallback: null

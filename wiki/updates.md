@@ -7,7 +7,7 @@ related:
   - install-macos.md
   - _index.md
 sources:
-  - docs/macos-status.md
+  - wiki/raw/macos-status.md
 ---
 
 # Updating an Install
@@ -159,5 +159,6 @@ that this and the macOS run have overtaken:
 - *"Does the Mac get the same voice engine on day one?"* Answered on
   2026-08-07, and not as expected: the torch build has no MPS path at all, so
   it runs on the CPU at about 7.6x realtime. The Mac ships omnivoice.cpp on
-  Metal instead, which clears realtime. See `docs/macos-status.md`.
+  Metal instead, which clears realtime. The measurements are staged in this
+  article's sources.
 - *"Who signs the macOS build?"* Still open, and now blocking more than it was.

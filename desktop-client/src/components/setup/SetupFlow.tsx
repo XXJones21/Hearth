@@ -322,6 +322,13 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         <SecondBrain onDone={() => onExit(true)} />
       )}
       </div>
+      {/* The orb column pushes the content's center right of the card's; a
+          mirror spacer on wide windows puts the title and the chat back on
+          the card's true centerline. Below xl the width is better spent on
+          the chat than on symmetry. */}
+      {conversational && (
+        <div aria-hidden="true" className="hidden w-[210px] shrink-0 xl:block" />
+      )}
     </div>
   );
 }

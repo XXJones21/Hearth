@@ -105,6 +105,11 @@ export function SecondBrain({ onDone }: { onDone: () => void }) {
               ? (msg.folders as { name: string; entries: number }[])
               : [],
           });
+        } else if (msg.action === 'brain_setup_complete') {
+          /* The beat's other exits: an imported brain (the server re-emits
+             brain_info behind this, so the chips and path follow the
+             bridge) or a plain decline. Either way the door opens. */
+          doneRef.current = true;
         } else if (msg.action === 'project_started') {
           /* The beat closed. The server says so rather than the screen
              inferring it, because "they stopped talking" is also what a
@@ -193,7 +198,7 @@ export function SecondBrain({ onDone }: { onDone: () => void }) {
   const done = phase === 'done' || Boolean(project);
 
   return (
-    <div className="mt-2 flex min-h-0 w-full max-w-[680px] flex-1 flex-col items-center">
+    <div className="mt-2 flex min-h-0 w-full max-w-[740px] flex-1 flex-col items-center">
       <h1 className="text-[24px] font-bold tracking-tight">A memory of their own.</h1>
       <p className="mt-1.5 max-w-[52ch] text-center text-[14px] leading-relaxed text-fawn">
         {done
