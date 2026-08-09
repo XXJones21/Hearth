@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Btn, IconFolder, Row, Section, Segmented, Toggle } from './controls';
+import { PairedDevices } from './PairedDevices';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { can } from '../../lib/clientProfile';
 import { defaultAddressLabel } from '../../lib/config';
@@ -252,6 +253,12 @@ export function SettingsView({ onReconnect }: Props) {
               label="Reconnect automatically"
             />
           </Row>
+
+          {/* Which OTHER devices may reach this house. The gateway faces the
+              LAN so a phone can be a client; this is where that permission is
+              granted and taken back. This computer is exempt by being on the
+              machine, so it never appears in the list. */}
+          <PairedDevices />
         </Section>
 
         {/* ---------------- Appearance ---------------- */}
