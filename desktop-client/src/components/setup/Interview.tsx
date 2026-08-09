@@ -319,7 +319,7 @@ export function Interview({
   const met = phase === 'met' && newName;
 
   return (
-    <div className="mt-2 flex min-h-0 w-full max-w-[680px] flex-1 flex-col items-center">
+    <div className="mt-2 flex min-h-0 w-full max-w-[740px] flex-1 flex-col items-center">
       <h1 className="text-[24px] font-bold tracking-tight">
         {met ? `Meet ${newName}.` : "Let's make someone."}
       </h1>
