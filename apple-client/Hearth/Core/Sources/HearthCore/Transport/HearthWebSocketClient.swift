@@ -89,8 +89,14 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
         
         let configuration = URLSessionConfiguration.default
         urlSession = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-        
-        webSocketTask = urlSession?.webSocketTask(with: url)
+
+        // A URLRequest rather than a bare URL, so the device token can ride on
+        // the handshake. The house exempts loopback and refuses everything else
+        // without a token, and a phone is never loopback -- an unpaired socket
+        // is closed with 1008 before any message is exchanged.
+        var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
+        webSocketTask = urlSession?.webSocketTask(with: request)
         webSocketTask?.resume()
         
         // Start receiving messages BEFORE sending client_info (critical for catching ack)

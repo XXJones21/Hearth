@@ -239,6 +239,7 @@ public final class JournalLibrary: ObservableObject {
     private static func get<T: Decodable>(_ path: String) async -> T? {
         guard let url = ServerConfig.shared.url(path) else { return nil }
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 12
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

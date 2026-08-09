@@ -40,7 +40,7 @@ func hearthAssetURL(_ src: String) -> URL? {
     guard let encoded = path.addingPercentEncoding(
         withAllowedCharacters: .urlPathAllowed.union(CharacterSet(charactersIn: "?&=#"))
     ) else { return nil }
-    return ServerConfig.shared.url(encoded)
+    return ServerConfig.shared.assetURL(encoded)
 }
 
 /// A card image: resolved, loaded, and honest when it fails.

@@ -160,6 +160,7 @@ public final class AppsSurfaceLoader: ObservableObject {
             return
         }
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 8
         do {
             let (data, response) = try await URLSession.shared.data(for: request)

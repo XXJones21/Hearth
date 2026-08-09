@@ -140,8 +140,12 @@ class TTSStreamPlayer {
             guard let src = rawPtr.bindMemory(to: Float.self).baseAddress,
                   let dst = buffer.floatChannelData?[0]
             else { return }
-            // Use assign instead of update to safely copy to uninitialized memory
-            dst.assign(from: src, count: frameCount)
+            // `update(from:count:)` is the current spelling of what used to be
+            // `assign(from:count:)`. Same operation, same semantics for the
+            // AVAudioPCMBuffer's already-allocated channel storage; the old
+            // name is deprecated, and the comment it carried claimed a
+            // distinction between the two that never existed.
+            dst.update(from: src, count: frameCount)
         }
 
         playerNode.scheduleBuffer(buffer)

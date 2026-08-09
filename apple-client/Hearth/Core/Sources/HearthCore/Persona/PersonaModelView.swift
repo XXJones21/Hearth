@@ -329,6 +329,7 @@ public actor PersonaAssetCache {
             return destination
         }
         var request = URLRequest(url: remote)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 60
         let (temp, response) = try await URLSession.shared.download(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {

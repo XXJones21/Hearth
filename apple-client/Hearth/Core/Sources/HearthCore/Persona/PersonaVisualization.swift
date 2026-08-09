@@ -81,7 +81,7 @@ public struct PersonaVisualization: Equatable {
             return Bundle.main.url(forResource: (path as NSString).deletingPathExtension,
                                    withExtension: "usdz")
         }
-        return ServerConfig.shared.url("/Persona/\(path)")
+        return ServerConfig.shared.assetURL("/Persona/\(path)")
     }
 
     public var orderedStates: [String] {

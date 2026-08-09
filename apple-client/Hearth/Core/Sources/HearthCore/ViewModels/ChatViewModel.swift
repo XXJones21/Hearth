@@ -478,6 +478,7 @@ public class ChatViewModel: ObservableObject {
     public static func probeHealth() async -> HealthProbe? {
         guard let url = ServerConfig.shared.url("/health") else { return nil }
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 6
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let started = Date()

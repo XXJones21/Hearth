@@ -205,6 +205,7 @@ public final class PersonaSurfaceLoader: ObservableObject {
             return
         }
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 8
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -242,6 +243,7 @@ public final class PersonaSurfaceLoader: ObservableObject {
         defer { isSaving = false }
 
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 20
@@ -284,6 +286,7 @@ public final class PersonaSurfaceLoader: ObservableObject {
 
         while Date() < deadline {
             var request = URLRequest(url: url)
+            ServerConfig.shared.authorize(&request)
             request.timeoutInterval = 3
             request.cachePolicy = .reloadIgnoringLocalCacheData
             if let (_, response) = try? await URLSession.shared.data(for: request),

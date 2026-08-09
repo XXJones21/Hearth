@@ -15,6 +15,7 @@ public final class ServerConfig {
 
     private let serverHostKey = "hearth.serverHost"
     private let serverPortKey = "hearth.serverPort"
+    private let deviceTokenKey = "hearth.deviceToken"
 
     /// 18700 is Hearth's client gateway, and the port is the whole default.
     ///
@@ -63,9 +64,39 @@ public final class ServerConfig {
         set { UserDefaults.standard.set(newValue, forKey: serverPortKey) }
     }
 
+    /// The device token this phone was given when it paired, or nil.
+    ///
+    /// A house exempts loopback and requires a token from everything else, so
+    /// a phone always needs one -- a phone is never the machine running the
+    /// backend. It is stored beside the address rather than in the Keychain
+    /// for now, which is a deliberate pre-alpha shortcut and not a decision:
+    /// UserDefaults is readable from a backup, and the Keychain is where this
+    /// belongs before anyone who is not us installs it.
+    public var deviceToken: String? {
+        get {
+            guard let saved = UserDefaults.standard.string(forKey: deviceTokenKey),
+                  !saved.isEmpty else { return nil }
+            return saved
+        }
+        set {
+            let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let trimmed, !trimmed.isEmpty {
+                UserDefaults.standard.set(trimmed, forKey: deviceTokenKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: deviceTokenKey)
+            }
+        }
+    }
+
     /// True when someone has told this client where the house is. The socket
     /// must not dial while this is false.
     public var isConfigured: Bool { serverHost != nil }
+
+    /// True when this phone has both an address AND a way in. The distinction
+    /// matters to first run: knowing where the house is and being allowed
+    /// through its door are two different states, and a client that conflates
+    /// them shows "connecting" forever instead of "you need to pair".
+    public var isPaired: Bool { deviceToken != nil }
 
     /// What the Connection field shows and accepts: `host` or `host:port`.
     ///
@@ -142,6 +173,49 @@ public final class ServerConfig {
     public func url(_ path: String) -> URL? {
         guard let origin = httpOrigin else { return nil }
         return URL(string: origin + path)
+    }
+
+    /// A request against the house, carrying the device token.
+    ///
+    /// Every HTTP call in the client goes through this rather than building a
+    /// URLRequest of its own, for the same reason every URL goes through
+    /// `url(_:)`: so "does this carry credentials" is answered by grep instead
+    /// of by auditing each call site. A site that forgets the header does not
+    /// fail loudly -- it gets a 401 and reports the house unreachable, which
+    /// looks exactly like a network problem.
+    public func request(_ path: String, timeout: TimeInterval = 8) -> URLRequest? {
+        guard let url = url(path) else { return nil }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        authorize(&request)
+        return request
+    }
+
+    /// Attach the token, if there is one. Separate so the WebSocket handshake
+    /// can use it too -- URLSessionWebSocketTask takes a URLRequest, which is
+    /// the only reason a header is possible there at all.
+    public func authorize(_ request: inout URLRequest) {
+        guard let token = deviceToken else { return }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    }
+
+    /// An asset URL with the token in the QUERY STRING, for the one case that
+    /// cannot send a header: `AsyncImage` takes a URL, not a URLRequest, so a
+    /// card's picture and a persona's clip have no other way to authenticate.
+    ///
+    /// Second choice, and only used where it is the only choice -- a query
+    /// string lands in server logs where a header does not. It exists because
+    /// the alternative is every image in the client 401ing the moment a house
+    /// is reached from off its own machine.
+    public func assetURL(_ path: String) -> URL? {
+        guard let base = url(path) else { return nil }
+        guard let token = deviceToken else { return base }
+        var components = URLComponents(url: base, resolvingAgainstBaseURL: false)
+        var items = components?.queryItems ?? []
+        items.append(URLQueryItem(name: "token", value: token))
+        components?.queryItems = items
+        return components?.url ?? base
     }
 
     private init() {}

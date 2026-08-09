@@ -31,6 +31,7 @@ public final class ImageAsset {
     public func load(src: String) async {
         guard uiImage == nil, let url = hearthAssetURL(src) else { return }
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 20
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,

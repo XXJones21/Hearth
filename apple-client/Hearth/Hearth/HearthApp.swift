@@ -25,16 +25,21 @@ struct HearthApp: App {
     /// SwiftUI rebuilt the body.
     @StateObject private var viewModel = ChatViewModel()
 
-    /// Mirrors ServerConfig so saving an address swaps the root view without a
-    /// relaunch. ServerConfig is the store of record; this is the redraw
-    /// trigger, which is why FirstRunView sets it rather than toggling a flag
-    /// of its own.
-    @State private var configured = ServerConfig.shared.isConfigured
+    /// Mirrors ServerConfig so saving an address or pairing swaps the root view
+    /// without a relaunch. ServerConfig is the store of record; this is the
+    /// redraw trigger, which is why FirstRunView sets it rather than toggling a
+    /// flag of its own.
+    ///
+    /// PAIRED, not merely configured. A phone is never the machine running the
+    /// backend, so it is never exempt from the house's gate -- an address with
+    /// no token gets a socket closed with 1008 and an orb that sits at
+    /// "connecting" forever. First run owns the screen until both halves exist.
+    @State private var ready = ServerConfig.shared.isConfigured && ServerConfig.shared.isPaired
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if configured {
+                if ready {
                     HearthMainView(viewModel: viewModel)
                 } else {
                     FirstRunView()
@@ -42,9 +47,15 @@ struct HearthApp: App {
             }
             .onOpenURL { handleOpenURL($0) }
             .onReceive(NotificationCenter.default.publisher(for: .hearthServerConfigured)) { _ in
-                configured = ServerConfig.shared.isConfigured
+                ready = ServerConfig.shared.isConfigured && ServerConfig.shared.isPaired
+                // Only once BOTH halves exist. This notification also fires on
+                // the address step, when there is still no token -- dialling
+                // then earns a socket closed with 1008 and a reconnect loop
+                // running behind the pairing screen the person is still using.
+                guard ready else { return }
                 // The view model was built before an address existed, so its
-                // socket was never dialled. Now there is somewhere to dial.
+                // socket was never dialled. Now there is somewhere to dial and
+                // a token to dial it with.
                 Task { await viewModel.redial() }
             }
         }

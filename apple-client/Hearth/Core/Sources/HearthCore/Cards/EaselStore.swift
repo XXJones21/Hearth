@@ -152,6 +152,7 @@ public final class EaselStore: ObservableObject {
     private func fetchState() async -> State? {
         guard let url = ServerConfig.shared.url("/imagery/state") else { return nil }
         var request = URLRequest(url: url)
+        ServerConfig.shared.authorize(&request)
         request.timeoutInterval = 8
         request.cachePolicy = .reloadIgnoringLocalCacheData
         guard let (data, response) = try? await URLSession.shared.data(for: request),
