@@ -7,8 +7,8 @@ related:
   - backend/native-runtime.md
   - _index.md
 sources:
-  - docs/macos-status.md
-  - docs/m1-air-runbook.md
+  - wiki/raw/macos-status.md
+  - wiki/raw/m1-air-runbook.md
 ---
 
 # Installing on macOS

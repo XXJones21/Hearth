@@ -8,8 +8,8 @@ related:
   - ../backend/native-runtime.md
 sources:
   - wiki/install-macos.md
-  - docs/macos-status.md
-  - docs/m1-air-runbook.md
+  - wiki/raw/macos-status.md
+  - wiki/raw/m1-air-runbook.md
   - wiki/backend/native-runtime.md
   - wiki/updates.md
   - wiki/_index.md

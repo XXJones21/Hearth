@@ -3,13 +3,13 @@ title: Hearth on iOS
 status: draft
 last_reviewed: 2026-08-08
 related:
-  - ../clients/apple-client.md
-  - ../clients/apple-project-architecture.md
   - ../first-run.md
+  - windows.md
+  - macos.md
 sources:
-  - wiki/clients/apple-client.md
-  - wiki/clients/apple-project-architecture.md
-  - wiki/clients/apple-implementation.md
+  - wiki/raw/apple-client.md
+  - wiki/raw/apple-project-architecture.md
+  - wiki/raw/apple-implementation.md
   - backend/harness/valar/gateway/pairing.py
   - backend/harness/valar/gateway/auth.py
   - wiki/_index.md
