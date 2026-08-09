@@ -507,6 +507,14 @@ def create_app(config: ValarConfig) -> FastAPI:
 
         asyncio.create_task(_warm())
 
+        # The first routine's clock (Selene's daily review). The tray keeps
+        # the house alive, so the gateway's own loop is the daily scheduler:
+        # a half-hour tick that does nothing unless a past day has unreviewed
+        # diaries AND the plain-text routine record still stands.
+        from ..memory.daily_review import daily_review_loop
+
+        asyncio.create_task(daily_review_loop())
+
         # STT keep-warm (2026-06-06): the one-shot boot warm is not enough on
         # the shared GPU — WDDM pages Whisper out after idle minutes and the
         # next utterance pays 13-31s inline. A periodic tick keeps it resident;
