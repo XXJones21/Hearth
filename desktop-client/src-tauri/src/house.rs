@@ -340,14 +340,43 @@ fn persona_voices(backend: &Path) -> Vec<(String, PathBuf, PathBuf)> {
     out
 }
 
+/// The voice engine's args, refreshed at every (re)spawn: the startup list
+/// only knew the personas that existed when the house rose, and the whole
+/// point of reloading the engine (house_reload_voice) is a persona made five
+/// minutes in. Everything except the --voice pairs passes through untouched.
+fn refresh_voice_args(spec: &Spec) -> Vec<String> {
+    let mut kept = Vec::new();
+    let mut it = spec.args.iter();
+    while let Some(a) = it.next() {
+        if a == "--voice" {
+            let _ = it.next();
+        } else {
+            kept.push(a.clone());
+        }
+    }
+    for (name, clip, text) in persona_voices(&spec.cwd) {
+        let rel = |p: &Path| {
+            p.strip_prefix(&spec.cwd).map(slash).unwrap_or_else(|_| slash(p))
+        };
+        kept.push("--voice".into());
+        kept.push(format!("{}:{}:{}", name, rel(&clip), rel(&text)));
+    }
+    kept
+}
+
 fn spawn(spec: &Spec, logs_dir: &Path) -> std::io::Result<Child> {
     let log = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(logs_dir.join(format!("{}.log", spec.name)))?;
     let err = log.try_clone()?;
+    let args = if spec.name == "voice-engine" {
+        refresh_voice_args(spec)
+    } else {
+        spec.args.clone()
+    };
     let mut cmd = Command::new(&spec.program);
-    cmd.args(&spec.args)
+    cmd.args(&args)
         .current_dir(&spec.cwd)
         .envs(&spec.env)
         .stdout(Stdio::from(log))
@@ -593,4 +622,25 @@ pub fn house_stop(state: tauri::State<'_, HouseState>) {
 #[tauri::command]
 pub fn house_status(state: tauri::State<'_, HouseState>) -> HouseStatus {
     status(&state)
+}
+
+/// Bounce the voice engine so it wakes with every persona that exists NOW.
+/// The engine loads its named voices at startup, so a persona made after the
+/// house rose has a designed clip on disk the running engine has never heard
+/// of. Killing the child is the whole implementation: the monitor thread
+/// respawns it, and spawn() rescans the personas for the --voice list. The
+/// caller (the interview's handover) gates the new persona's first words on
+/// /voice/ready coming back.
+#[tauri::command]
+pub fn house_reload_voice(state: tauri::State<'_, HouseState>) -> bool {
+    let guard = state.lock().unwrap();
+    let Some(house) = guard.as_ref() else {
+        return false;
+    };
+    let mut list = house.children.lock().unwrap();
+    if let Some(entry) = list.iter_mut().find(|m| m.name == "voice-engine") {
+        let _ = entry.child.kill();
+        return true;
+    }
+    false
 }

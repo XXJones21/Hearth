@@ -82,7 +82,8 @@ def farewell_text(name: str) -> str:
         f"{name} is ready, and from this moment the house is theirs: they "
         "will be the one who greets you from here on. I will step back now, "
         "but I am never far; call on me whenever you need me. It has been a "
-        "pleasure making them with you."
+        "pleasure making them with you. Give us a moment while their voice "
+        "wakes, and then they will speak for themselves."
     )
 
 

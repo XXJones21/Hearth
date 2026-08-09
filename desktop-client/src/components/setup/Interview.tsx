@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { getHttpOrigin, getWsUrl } from '../../lib/config';
 import { saveSettings } from '../../lib/settings';
@@ -75,7 +76,14 @@ export function Interview({
 
   /* The handover, from either signal: the server's persona_switched after the
      commit turn (primary), or the health poll below (fallback). Idempotent;
-     the guard makes the second arrival a no-op. */
+     the guard makes the second arrival a no-op.
+
+     The voice engine loads its named voices at startup, so the persona made
+     ten seconds ago has a designed clip the running engine has never heard
+     of. The handover therefore bounces the engine (house_reload_voice; the
+     monitor respawns it with a fresh persona scan) and gates the first hello
+     on /voice/ready coming back, so their first words arrive in THEIR voice.
+     Sulivan's farewell already told the person the voice is waking. */
   const beginHandoff = useCallback(
     (name: string) => {
       if (handedOffRef.current || !name) return;
@@ -85,10 +93,30 @@ export function Interview({
       setPhase('handoff');
       /* Harmless when the server already switched; the fallback path needs it. */
       wsRef.current?.send(JSON.stringify({ action: 'switch_persona', persona_name: name }));
-      /* A beat for the switch to settle, then the first hello. */
-      window.setTimeout(() => {
+      void (async () => {
+        try {
+          await invoke<boolean>('house_reload_voice');
+        } catch {
+          /* No Tauri (dev browser) or no house: proceed on the old voice
+             rather than never speaking. */
+        }
+        /* A beat for the kill to land, then wait for the engine to answer
+           again. Capped: a voice that never wakes must not hold the meeting
+           hostage, and the say path degrades to silence, not an error. */
+        const deadline = Date.now() + 90_000;
+        await new Promise((r) => window.setTimeout(r, 2000));
+        while (Date.now() < deadline) {
+          try {
+            const res = await fetch(`${getHttpOrigin()}/voice/ready`, { cache: 'no-store' });
+            const body = (await res.json()) as { ready?: boolean };
+            if (body.ready) break;
+          } catch {
+            /* gateway briefly busy; keep waiting */
+          }
+          await new Promise((r) => window.setTimeout(r, 1500));
+        }
         sendUser(MEET_KICKOFF, { silent: true });
-      }, 1200);
+      })();
     },
     [sendUser],
   );

@@ -37,6 +37,7 @@ pub fn run() {
       house::house_start,
       house::house_stop,
       house::house_status,
+      house::house_reload_voice,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
