@@ -187,24 +187,61 @@ def _voice_models() -> tuple[Path, Path] | None:
 def _design_voice(text: str, attributes: list[str]) -> bytes | None:
     """Design the persona's reference clip from instruct attributes.
 
-    Design once, clone always: this runs exactly ONCE per persona, and what it
-    returns becomes the reference every later sentence is cloned from. So the
-    runtime never depends on design support and this can afford to be a
-    subprocess.
+    Two engines, one preference order. The cpp CLI (omnivoice-tts --instruct)
+    is first: on machines that ship the cpp engine the streaming server
+    cannot design (its /v1/audio/speech validates `voice` against startup
+    names), and the service /design does not exist there at all. Where the
+    CLI is not built (Windows today), the torch voice service still runs and
+    its /design endpoint works -- the path every made persona used before the
+    cpp migration -- so it stays as the fallback rather than the platform
+    losing designed voices entirely (live regression 2026-08-08: a persona
+    with voice_ref=none spoke in Sulivan's clone).
 
-    It IS a subprocess, and that is the correction. The old implementation
-    POSTed to the voice service's /design, which only the torch engine
-    implements; on omnivoice.cpp it raised AttributeError and returned a 500,
-    and the persona was created voiceless -- then spoke in whoever's voice the
-    streamer happened to hold. tts-server cannot help either: its
-    /v1/audio/speech validates `voice` against the names loaded at ITS startup,
-    so instruct attributes have no way through. The engine could do it the whole
-    time; only the CLI reaches that path.
-
-    Returns WAV bytes, or None when design is unavailable -- which stays a
-    normal state rather than an error, because a house with no voice engine
-    still makes personas.
+    Returns WAV bytes, or None when neither engine can design -- a normal
+    state, because a house with no voice engine still makes personas.
     """
+    wav = _design_via_cli(text, attributes)
+    if wav is not None:
+        return wav
+    return _design_via_service(text, attributes)
+
+
+def _design_via_service(text: str, attributes: list[str]) -> bytes | None:
+    """POST /design on the torch voice service (the pre-cpp path). None when
+    the service is absent or cannot design (the cpp tts bridge has no such
+    endpoint)."""
+    import urllib.request
+
+    url = os.environ.get("HEARTH_TTS_SERVICE_URL", "ws://127.0.0.1:18702/tts")
+    base = url.replace("ws://", "http://").replace("wss://", "https://")
+    if base.endswith("/tts"):
+        base = base[: -len("/tts")]
+    req = urllib.request.Request(
+        f"{base}/design",
+        data=json.dumps({"text": text, "attributes": attributes}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        # Voice design is a full synthesis pass; a cold engine adds a load.
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            if resp.status == 200:
+                logger.info(
+                    "voice design (service) produced a clip for '%s'",
+                    ", ".join(attributes),
+                )
+                return resp.read()
+            logger.warning("voice design (service) HTTP %s", resp.status)
+    except Exception as exc:  # noqa: BLE001 - unavailable is a normal state
+        logger.info("voice design (service) unavailable: %s", exc)
+    return None
+
+
+def _design_via_cli(text: str, attributes: list[str]) -> bytes | None:
+    """The cpp engine's design path (omnivoice-tts --instruct), a one-shot
+    subprocess. Design once, clone always: what this returns becomes the
+    reference every later sentence is cloned from, so the runtime never
+    depends on design support and this can afford to be a subprocess."""
     binary = _design_binary()
     models = _voice_models()
     if not binary or not models:
