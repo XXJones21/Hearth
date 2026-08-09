@@ -91,11 +91,12 @@ voice:
   #
   # macOS runs omnivoice.cpp because the torch build has no MPS path at all:
   # it selects cuda-or-cpu, lands on the processor, and synthesises at about
-  # 7.6x realtime, which is not a voice. Windows and Linux keep the torch
-  # engine and its 2.2 GiB reserve until the C++ one is measured on CUDA.
-  # Moving a platform is a one-line change here, made deliberately, after
-  # someone has run it.
-  cpp_platforms: [macos]
+  # 7.6x realtime, which is not a voice. Windows measured the C++ engine on
+  # CUDA 2026-08-08 (RTF 0.05 vs torch 0.07, first audio 0.53s vs 0.67s,
+  # ~20s cold start vs a minutes-long torch prime, tags and arpabet
+  # confirmed performing by ear) and moved. Linux keeps torch until someone
+  # runs the same measurement there.
+  cpp_platforms: [macos, windows]
 
   # Where the torch engine's weights come from. Whole-repository snapshot into
   # the Hugging Face cache; no file list, because it fetches all of it.
