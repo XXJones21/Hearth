@@ -99,7 +99,10 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line(String::new());
     line("# Ports: Hearth's own block".into());
     line(format!("HEARTH_PORT={}", d::PORT_GATEWAY));
-    line("HEARTH_HOST=127.0.0.1".into());
+    // The gateway alone faces the LAN, so phones and headsets on the same
+    // network can be clients (the Valinor arrangement). Everything behind
+    // it (llama, supervisor, TTS) stays loopback: one front door.
+    line("HEARTH_HOST=0.0.0.0".into());
     line(format!("HEARTH_LLAMA_PORT={}", d::PORT_LLAMA));
     line("HEARTH_LLAMA_HOST=127.0.0.1".into());
     line(format!("HEARTH_RUST_WS_PORT={}", d::PORT_SUPERVISOR_WS));
