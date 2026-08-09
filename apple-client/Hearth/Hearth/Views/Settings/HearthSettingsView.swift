@@ -200,9 +200,13 @@ private struct ConnectionSection: View {
                 // which made a hostname literally untypeable.
                 // Placeholder, not a default. Valinor shipped a hardcoded house
                 // address here and this field offered to restore it; Hearth has
-                // no house until the person names one, so the hint shows the
-                // SHAPE of an answer instead of somebody else's machine.
-                TextField("192.168.1.10", text: $address)
+                // no house until the person names one.
+                //
+                // The same words as first run, and deliberately NOT an example
+                // address: a plausible-looking literal in the source is exactly
+                // what the RFC1918 gate hunts, and it was right to stop the one
+                // that was here first.
+                TextField("hostname or IP", text: $address)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundStyle(HearthPalette.roast)
                     .textInputAutocapitalization(.never)

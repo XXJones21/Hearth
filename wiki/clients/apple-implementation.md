@@ -169,6 +169,52 @@ landed with the App Group reading `$(HEARTH_APP_GROUP)`, but wiring it belongs
 to phase 4, where a device can prove the capability rather than a simulator
 skipping the check.
 
+### The gate was blind to untracked files, which is when it mattered most
+
+`tools/apple-gates.sh` read `git ls-files`, which lists **tracked** files only.
+So an area lands a dozen brand-new files, the gate runs before they are staged,
+and it reports `ok` because it cannot see them — blind in exactly the situation
+it exists for.
+
+Area 4 shipped an RFC1918 literal through that hole. The Settings placeholder
+that replaced `ServerConfig.defaultHost` was written as `192.168.1.10`, the gate
+was run and passed at 52 files, and the violation only surfaced later when the
+files happened to be staged and the count jumped to 68. Sixteen files had never
+been looked at.
+
+Fixed by reading `git ls-files --cached --others --exclude-standard`, so
+untracked files are checked and `.gitignore` still wins — `Local.xcconfig` and
+its team ID stay out, and the DEVELOPMENT_TEAM gate still passes.
+
+The placeholder is now `"hostname or IP"`, the same words first run uses. A
+plausible-looking address literal in the source is precisely what that gate
+hunts, and it was right about mine.
+
+### `DEVELOPMENT_TEAM = ""` at project level, and why only one target noticed
+
+The first device build failed three ways, and two were symptoms. `HEARTH_*`
+variables resolved for all three targets while `DEVELOPMENT_TEAM` resolved for
+the iOS app **only**:
+
+```
+Hearth                  DEVELOPMENT_TEAM = AS9PH6XDN4
+Hearth WidgetExtension  (empty)
+Hearth Vision           (empty)
+```
+
+Not a missing value — an override. Removing the team in Xcode's UI writes
+`DEVELOPMENT_TEAM = "";` into the **project-level** build configurations, which
+beats the xcconfig for any target without its own base configuration. The iOS
+app has `Dev.xcconfig`/`Release.xcconfig` as its base config and escaped;
+`Hearth Vision` and `Hearth WidgetExtension` have none and inherited the empty
+string.
+
+Two lines deleted, and all three targets resolve the team again. Worth knowing
+because the design intent — team lives only in the gitignored `Local.xcconfig`
+— was intact the whole time and being silently overridden, and because the
+existing gate greps for the team *literal*, so an empty-string override passes
+it cleanly.
+
 ### The gate has a blind spot for compound identifiers
 
 Worth its own heading, because it nearly cost a silent landing. The scrub's

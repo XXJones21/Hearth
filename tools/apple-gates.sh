@@ -16,12 +16,20 @@ cd "$(dirname "$0")/.." || exit 1
 fail=0
 
 # `mapfile` is bash 4; macOS ships bash 3.2 as /bin/bash. Read NUL-delimited.
+#
+# TRACKED **AND UNTRACKED**, with --exclude-standard so .gitignore still wins.
+# `git ls-files` alone lists only tracked files, which made the gate blind in
+# exactly the situation it exists for: an area lands a dozen brand-new files,
+# the gate is run before staging, and it reports ok because it cannot see them.
+# Area 4 shipped an RFC1918 literal through that hole and was caught only once
+# the files happened to be staged. A gate that passes by not looking is worse
+# than no gate -- the same reason this loop is NUL-delimited.
 FILES=()
 while IFS= read -r -d '' f; do
     if [[ $f == *.swift || $f == *.plist || $f == *.entitlements || $f == *.xcconfig ]]; then
         FILES+=("$f")
     fi
-done < <(git ls-files -z apple-client)
+done < <(git ls-files -z --cached --others --exclude-standard apple-client)
 
 check() {
     local label=$1 pattern=$2 out="" hit
