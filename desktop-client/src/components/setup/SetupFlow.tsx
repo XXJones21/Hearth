@@ -30,6 +30,7 @@ import {
 } from '../../lib/probe';
 import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
+import { useAppStore } from '../../store/appStore';
 import { Interview } from './Interview';
 import { SecondBrain } from './SecondBrain';
 import { freshOpener, type PrefetchedOpener } from './opener';
@@ -68,6 +69,8 @@ type BlockedKind = 'no-probe' | 'scan-failed' | 'refused';
    into an empty house that dials a backend which does not exist. */
 export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) {
   const [step, setStep] = useState<Step>('welcome');
+  /* Set by the interview's handover (persona_config); null until then. */
+  const livePersonaConfig = useAppStore((s) => s.personaConfig);
   const [blockedKind, setBlockedKind] = useState<BlockedKind>('scan-failed');
   const [machine, setMachine] = useState<Machine | null>(null);
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -184,18 +187,36 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
     }
   };
 
+  /* The conversational steps run the mockup's Option C: the orb lives in a
+     left column beside the chat instead of a top band that costs a third of
+     the height. The install steps keep the centered band; they are short and
+     the orb IS their content. The canvas follows the store's persona config
+     so the handover recolours the orb itself, not just the accent channel. */
+  const conversational =
+    step === 'voice-test' || step === 'interview' || step === 'second-brain';
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex h-1/4 min-h-[150px] shrink-0 items-center justify-center pt-6">
-        <div className="h-full w-[220px]">
+    <div
+      className={`flex min-h-0 min-w-0 flex-1 ${conversational ? 'flex-row items-stretch' : 'flex-col'}`}
+    >
+      <div
+        className={
+          conversational
+            ? 'flex w-[210px] shrink-0 flex-col items-center justify-center border-r border-linen pl-4 pr-2'
+            : 'flex h-1/4 min-h-[150px] shrink-0 items-center justify-center pt-6'
+        }
+      >
+        <div className={conversational ? 'h-[180px] w-[180px]' : 'h-full w-[220px]'}>
           <OrbGlow>
             <Suspense fallback={null}>
-              <PersonaCanvas config={SULIVAN} />
+              <PersonaCanvas config={livePersonaConfig ?? SULIVAN} />
             </Suspense>
           </OrbGlow>
         </div>
       </div>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto px-14 pb-10 pt-2 text-center max-lg:px-6">
+      <div
+        className={`flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto ${conversational ? 'px-8 pb-8 pt-3' : 'px-14 pb-10 pt-2'} text-center max-lg:px-6`}
+      >
       <DevBar
         sims={sims}
         active={sim}
