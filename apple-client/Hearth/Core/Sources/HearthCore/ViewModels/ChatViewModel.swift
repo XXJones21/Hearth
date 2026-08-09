@@ -160,6 +160,7 @@ public class ChatViewModel: ObservableObject {
         // inference runs on the user's own machine, which for a phone is the
         // house rather than the phone.
         setupWebSocket()
+        dial()
     }
 
     // MARK: - Audio / Speech Setup
@@ -399,6 +400,25 @@ public class ChatViewModel: ObservableObject {
             print("Fast response received: quality=\(qualityScore), escalation=\(escalationTriggered)")
         }
 
+    }
+
+    /// Dial the client `setupWebSocket` just built.
+    ///
+    /// Separate from the building, and that separation is the fix for a real
+    /// defect: `setupWebSocket` used to end by dialling, and `redial()` calls
+    /// `setupWebSocket()` and then dials again. Two overlapping `connect()`
+    /// calls on one client means the second overwrites the first's
+    /// `connectionContinuation`, so the first is never resumed -- the
+    /// "SWIFT TASK CONTINUATION MISUSE: connect() leaked its continuation"
+    /// in the first device log -- and both handshakes ack, so the house is
+    /// asked for its persona list twice.
+    ///
+    /// It only showed on a real first run because that is the path that goes
+    /// through `redial()`: launching with an address already saved dials once.
+    private func dial() {
+        // No client means no house was configured, so there is nothing to dial
+        // and nothing to report failing.
+        guard webSocketClient != nil else { return }
         Task { @MainActor in
             connectionStatus = .connecting
             hearthState = .LOADING
@@ -430,8 +450,17 @@ public class ChatViewModel: ObservableObject {
         addSystemMessage("Connecting to \(ServerConfig.shared.address)...")
 
         setupWebSocket()
-        let ok = await webSocketClient?.connect() ?? false
-        if !ok {
+        // Dialled here and NOT via dial(), because this caller wants the
+        // result. Exactly one of the two paths connects; see dial().
+        guard let client = webSocketClient else {
+            // The address was cleared rather than changed. Forgetting a house
+            // is not a failed connection, and must not start a reconnect loop
+            // against nothing.
+            connectionStatus = .disconnected
+            hearthState = .IDLE
+            return
+        }
+        if !(await client.connect()) {
             connectionStatus = .disconnected
             scheduleReconnect()
         }

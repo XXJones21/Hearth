@@ -109,8 +109,19 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
             // Wait for client_info_ack with timeout (5 seconds)
             let connected = await withTaskCancellationHandler {
                 await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+                    // Overlapping connect() calls used to orphan the earlier
+                    // continuation here, and an orphaned continuation is never
+                    // resumed -- the awaiting task waits forever and the
+                    // runtime logs SWIFT TASK CONTINUATION MISUSE. The caller
+                    // that produced it is fixed (ChatViewModel.dial), but the
+                    // failure is silent and permanent, so retire the old one
+                    // rather than trust every future caller.
+                    if let stale = connectionContinuation {
+                        connectionContinuation = nil
+                        stale.resume(returning: false)
+                    }
                     connectionContinuation = continuation
-                    
+
                     // Set timeout
                     Task {
                         try? await Task.sleep(nanoseconds: 5_000_000_000) // 5 seconds
