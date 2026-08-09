@@ -96,6 +96,84 @@ Two symptoms, worth telling apart:
 `curl http://<host>:18700/health` is the fastest way to know which. A live
 house answers with its backend, its readiness and its persona list.
 
+## Pairing
+
+A phone reaching a house across the network has to prove it is allowed to.
+Until 2026-08-08 the gateway had **no authentication at all**, which was
+correct while the only client was the desktop app on loopback and wrong the
+moment anything else could reach it — the routes are not read-only.
+`/personas/apply` rewrites a system prompt, `/apps/apply` rewrites `tools.yaml`
+and restarts the server, `/journal/*` hands over the conversation history.
+
+**Loopback is exempt, and that is the whole design.** A request from
+`127.0.0.1` came from the machine running the backend, where the desktop client
+already has filesystem access to everything the gateway could hand it. Anything
+arriving from elsewhere must present a device token.
+
+Two things follow, and both are the point:
+
+- **Existing installs are unaffected.** They bind `127.0.0.1`, so every request
+  is loopback, so every request is exempt.
+- **There is no toggle to forget.** Widening the bind means traffic arrives
+  from somewhere else, which means it must authenticate. The safe configuration
+  is not the one you have to know about.
+
+### How a phone gets in
+
+1. The house shows a six-digit code. Five minutes, single use.
+2. The phone posts it to `/pair` with a device name.
+3. The house returns a long random token and stores only its SHA-256.
+4. The phone sends that token on every later request —
+   `Authorization: Bearer <token>`, or `?token=` where a header cannot be set.
+
+Tokens are per-device and do not expire. A companion you must re-pair with
+every thirty days is a companion you stop using, and revocation already covers
+what expiry is for: losing a phone costs one revocation rather than a rotation
+that logs out everything.
+
+### What pairing deliberately is not
+
+**Not OAuth.** OAuth is delegated authorization — it exists so you can grant a
+third party access to data you hold at a second party. It presumes an identity
+provider. A house has neither: the phone and the house belong to the same
+person. An external IdP contradicts *nothing is sent anywhere* and fails
+offline; an internal one only moves the bootstrap problem, since you would
+still need a first credential to authenticate to it.
+
+**Not a substitute for the network layer.** Tailscale is the plan for reaching
+a house from outside the home, and it composes with this rather than replacing
+it: pairing is transport-independent, and it fails *closed* if the tunnel is
+off, where a network-only answer fails open for anything already on the tailnet.
+
+### Management routes are loopback-only
+
+`/pair/open`, `/pair/close`, `/pair/devices` and `/pair/revoke` are refused
+from off the machine **even with a valid token**. A stolen phone is by
+definition paired; without that rule it could pair its thief's phone and revoke
+the owner's devices.
+
+That rule existed as a comment claiming the gate already covered it before it
+existed as a check. It did not — the gate refuses the *unpaired*. A security
+property that lives in a comment is not a security property.
+
+### Still to do on the desktop side
+
+**The backend is built and tested; the desktop client has no UI for it yet.**
+That is the gap between "pairing exists" and "an alpha user can pair a phone":
+
+- A **Pair a device** panel in desktop Settings that calls `POST /pair/open`
+  and shows the returned code with its countdown.
+- A **device list** from `GET /pair/devices` — name, when paired, last seen —
+  with a revoke action per row.
+- The **`HEARTH_HOST` toggle**, off by default: "allow other devices on this
+  network." Every install currently writes `HEARTH_HOST=127.0.0.1`
+  (`desktop-client/src-tauri/src/config_gen.rs`), so no phone can reach a house
+  until this exists.
+
+The toggle must land **with** the pairing UI and never before it. A switch that
+opens the bind while the house has no way to show a pairing code is a switch
+that serves an unauthenticated gateway to somebody's network.
+
 ## What a turn actually does
 
 Measured on an iPhone 14 Pro Max against a Windows house, 2026-08-08:
@@ -184,6 +262,10 @@ appears to is the failure this whole migration was organised against.
   crosses the app-group boundary — the widget snapshot — does not yet.
 - **Performance tags are not sounded.** The house strips them before synthesis;
   see [`../backend/voice-engine.md`](../backend/voice-engine.md).
+- **The client cannot pair yet.** The house can issue tokens; the phone has no
+  screen to enter a code and does not yet send a token. Until both halves land,
+  a phone reaches a house only because that house is still unauthenticated at
+  the bind it is using.
 
 ## What did not come across from Valinor
 
