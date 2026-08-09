@@ -95,6 +95,35 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     if let Some(arch) = cuda_arch {
         line(format!("HEARTH_CUDA_ARCH={}", arch));
     }
+    // A mixture-of-experts pick on a card that cannot hold it fully resident
+    // runs its experts from system RAM (llama's --n-cpu-moe): only the active
+    // slice streams per token, so CPU-resident experts are a design where
+    // spilled dense weights are an accident. The accident was measured
+    // 2026-08-08: the 26B ground at 0.3 tok/s spilled on a 16 GB card, and
+    // 26 GB is unsloth's own fully-resident floor for it. Written here so the
+    // lever survives every reinstall; a hand-added env line does not.
+    let vram_bytes = record
+        .get("machine")
+        .and_then(|m| m.get("gpu"))
+        .and_then(|g| g.get("vram_bytes"))
+        .and_then(|v| v.as_u64());
+    if let (Some(file), Some(vram)) = (model_file, vram_bytes) {
+        if file.contains("A4B") && vram < 26_000_000_000 {
+            line("HEARTH_LLAMA_CPU_MOE=99".into());
+        }
+    }
+    // Readiness must scale with what the disk has to deliver: the 300s
+    // default was tuned when models were 7 GB, and a cold 12-14 GB read at
+    // this machine class's ~47 MB/s spends four-plus minutes before llama
+    // can say hello (measured 2026-08-08; the window expired around a load
+    // that was still succeeding). Budget a conservative 25 MB/s plus startup
+    // slack, floored at the old default.
+    if let Some(file) = model_file {
+        if let Ok(meta) = std::fs::metadata(weights_dir.join(file)) {
+            let secs = 300u64.max(meta.len() / (25 * 1024 * 1024) + 120);
+            line(format!("HEARTH_LLAMA_HEALTH_TIMEOUT_S={}", secs));
+        }
+    }
     line(format!("HEARTH_COEXIST={}", if coexist { 1 } else { 0 }));
     line(String::new());
     line("# Ports: Hearth's own block".into());
