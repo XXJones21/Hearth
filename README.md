@@ -11,15 +11,19 @@ it to be rough.
 ## What is here
 
 ```
-desktop-client/     The app. Tauri v2, React, TypeScript.
+desktop-client/     The app. Tauri v2, React, TypeScript. Supervises the backend.
+backend/            The harness: gateway, personas, tools, memory, voice.
 crates/
   hearth-probe/     Looks at a machine and decides what Hearth it can run.
+apple-client/       The iOS app.
+vendor/             Voice engine sources built during packaging.
+scripts/            Builds the backend tarball the installer bundles.
 wiki/               How it works, and why it is built this way.
 ```
 
-The backend is not in this repository yet. Today the client talks to a server
-running elsewhere on the same machine or on the local network. Packaging that
-server is the work in progress, and the plan for it is in the wiki.
+The client bundles the backend and supervises it as a tree of native
+processes. No WSL, no container. An installed house runs a model server, a
+gateway, and a voice engine, all started and watched by the app.
 
 ## Running the client
 
@@ -29,9 +33,8 @@ npm install
 npm run tauri dev
 ```
 
-It will start and fail to connect, because it looks for a Hearth server on
-`127.0.0.1:8700` and there is not one. That failure is correct. Settings then
-Connection takes an address.
+For the full loop, including how backend changes reach the bundle, start at
+[`wiki/developing.md`](wiki/developing.md).
 
 ## The probe
 
@@ -53,10 +56,9 @@ still resolves.
 
 Start at [`wiki/_index.md`](wiki/_index.md).
 
-The two articles worth reading first are the
-[component catalog](wiki/backend/component-catalog.md), which is what the
-backend is actually made of, and [first run](wiki/first-run.md), which is what
-a person meets.
+The two articles worth reading first are
+[first run](wiki/first-run.md), which is what a person meets, and
+[developing](wiki/developing.md), which is how you build and change it.
 
 ## A note on history
 
