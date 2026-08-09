@@ -25,6 +25,17 @@ SUP="$REPO/backend/supervisor/target/release/$SUP_NAME"
 
 [ -f "$SUP" ] || { echo "build the supervisor first: cargo build --release in backend/supervisor" >&2; exit 1; }
 
+# A binary older than its sources is last week's supervisor wearing today's
+# bundle. This exact staleness shipped an installer whose supervisor did not
+# know HEARTH_DEEP_MODEL_FILE, and every install that planned a non-12B tier
+# died at boot (2026-08-08). Copy-shipped artifacts get a freshness gate.
+NEWEST_SRC="$(find "$REPO/backend/supervisor/src" -name '*.rs' -newer "$SUP" -print -quit)"
+if [ -n "$NEWEST_SRC" ]; then
+  echo "supervisor binary is OLDER than $NEWEST_SRC" >&2
+  echo "rebuild it first: cargo build --release in backend/supervisor" >&2
+  exit 1
+fi
+
 # The voice engine, built by scripts/build_omnivoice.sh into this same
 # resources directory, so it is already in place and only needs checking.
 # Absent is a warning rather than an error: house.rs treats the voice as
