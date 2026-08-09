@@ -36,6 +36,7 @@ answers "what does a stranger install."
 | How does an install become a newer one? | [`updates.md`](updates.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |
 | How does the card library grow? | [`card-forge.md`](card-forge.md) |
+| What is Hearth on an iPhone? | [`clients/apple-client.md`](clients/apple-client.md) |
 | What is in the Valinor Apple client, and what ships? | [`clients/apple-inventory.md`](clients/apple-inventory.md) |
 | What does the clean Apple project look like? | [`clients/apple-project-architecture.md`](clients/apple-project-architecture.md) |
 | How does the Apple migration actually run? | [`clients/apple-migration-plan.md`](clients/apple-migration-plan.md) |
@@ -43,8 +44,10 @@ answers "what does a stranger install."
 
 ## Status
 
-Early. Six articles. Four are about the backend, because packaging is the gate
-everything else waits behind, and two describe what the person actually meets.
+Early. Fifteen articles: six on the backend, because packaging is the gate
+everything else waits behind; four on what the person actually meets; and five
+on the Apple client, four of which are the migration that produced it and one
+of which describes the client itself.
 
 The packaging question is DECIDED as of 2026-08-06: the backend runs native
 on both platforms, no WSL, no container. Containers were ruled out first (no
@@ -59,6 +62,12 @@ The install guide exists for macOS as of 2026-08-07, written from a real
 install on an 8 GB M2 Air rather than from the plan: see
 [`install-macos.md`](install-macos.md). The Windows guide is the same article
 for the other platform and waits on that machine's own run.
+
+The Apple client held its first real conversation on 2026-08-08: an iPhone
+against a Windows house, speech recognised on the phone, the reply streamed back
+as PCM, and a weather card drawn in the timeline. Areas 1 through 4 of the
+migration are landed; widgets and visionOS are not. See
+[`clients/apple-client.md`](clients/apple-client.md).
 
 Planned, in order:
 
