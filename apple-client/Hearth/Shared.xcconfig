@@ -10,11 +10,16 @@
 // See wiki/clients/apple-implementation.md section 2.4 for why the identifier
 // family carries the product name where Valinor's does.
 
-#include? "Local.xcconfig"
+// Local.xcconfig is included at the END of Dev/Release, not here. An xcconfig
+// resolves later assignments over earlier ones, so a Local included at the top
+// of this file is overwritten by Dev's own HEARTH_ID_PREFIX -- which makes it
+// impossible for a second developer to build under their own identifiers, the
+// exact thing Local.xcconfig exists for.
 
 // ---- Identity -------------------------------------------------------------
 // HEARTH_ID_PREFIX and HEARTH_APP_GROUP come from Dev.xcconfig or
-// Release.xcconfig. Everything below is derived and should not be edited.
+// Release.xcconfig, or from a Local.xcconfig that overrides them. Everything
+// below is derived and should not be edited.
 
 HEARTH_BUNDLE_ID_IOS      = $(HEARTH_ID_PREFIX)
 HEARTH_BUNDLE_ID_WIDGETS  = $(HEARTH_ID_PREFIX).Widgets

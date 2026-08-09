@@ -10,3 +10,8 @@
 
 HEARTH_ID_PREFIX = com.joshuajones.Hearth
 HEARTH_APP_GROUP = group.com.joshuajones.Hearth
+
+// Last, deliberately: a Local.xcconfig can override anything above it. That is
+// how a second developer builds under their own team and their own identifier
+// prefix without editing a committed file.
+#include? "Local.xcconfig"
