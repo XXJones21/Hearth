@@ -125,34 +125,18 @@ class OmniVoiceCppStreamer:
 
     # --- synthesis ----------------------------------------------------------
 
-    # The performance tags every made persona is told about in its system
-    # prompt (creation.py _VOICE_TAG_NOTE). The torch engine sounds them. This
-    # one does NOT: it registers seven OmniVoice specials -- denoise, lang,
-    # instruct and text start/end -- and the tags are not among them, so BPE
-    # tokenizes them as ordinary text and the persona READS them. A live first
-    # run on 2026-08-08 had a newly made persona open with "[confirmation-en]
-    # G'day", which is the first thing its owner ever heard it say.
-    #
-    # Stripping is the honest half of a promise this engine cannot keep. The
-    # prompt keeps the tags -- they are correct on the other engine and this
-    # code is where the difference actually lives -- and the listener gets the
-    # sentence without the stage direction read out. Sounding them properly
-    # needs the tags registered as specials upstream, the same patch shape as
-    # vendor/omnivoice/patches/0001.
-    _PERFORMANCE_TAGS = re.compile(
-        r"\[(?:laughter|sigh|confirmation-en|question-(?:en|ah|oh|ei|yi)"
-        r"|surprise-(?:ah|oh|wa|yo)|dissatisfaction-hnn)\]",
-        re.IGNORECASE,
-    )
-
-    @classmethod
-    def _strip_performance_tags(cls, text: str) -> str:
-        """Remove tags this engine would read aloud, and tidy the seam."""
-        out = cls._PERFORMANCE_TAGS.sub("", text)
-        # A tag that opened a sentence leaves a leading space before the first
-        # word; one mid-sentence leaves a double space.
-        out = re.sub(r"\s{2,}", " ", out).strip()
-        return out
+    # Performance tags ([laughter], arpabet brackets) pass through WHOLE. A
+    # strip lived here briefly on the theory that the tags are not registered
+    # specials, so BPE tokenizes them as text and the persona reads them --
+    # and a macOS first run seemed to confirm it. A controlled listening test
+    # (2026-08-08, Windows CUDA, Q8_0 weights: baseline vs tagged vs
+    # tag-alone WAVs, judged by ear) showed the opposite: the model performs
+    # them from the plain BPE sequence, no special tokens needed -- [laughter]
+    # laughs, [B EY1 S] steers pronunciation. The macOS report likely heard a
+    # different failure (its design path was broken at the time). If a tag is
+    # ever read aloud again, test THAT tag in isolation before re-adding any
+    # strip: the display side already hides tags from the eyes (voice_loop
+    # sanitize_display_text), and the ears are the only judge that counts.
 
     async def stream_sentence(self, text: str) -> AsyncIterator[bytes]:
         """Synthesize one sentence, yielding float32 PCM as the engine produces it.
@@ -161,10 +145,13 @@ class OmniVoiceCppStreamer:
         each chunk straight on, so the first audio leaves for the client
         without waiting for the last.
         """
-        spoken = self._strip_performance_tags(text)
+        # Tags pass through whole: the strip that used to live here assumed
+        # this engine reads stage directions aloud, and a listening test
+        # (2026-08-08, Windows CUDA, Q8_0 weights) proved it PERFORMS them --
+        # [laughter] laughs, arpabet brackets steer pronunciation. A sentence
+        # that is nothing but a tag is a performance too, so it goes through.
+        spoken = text.strip()
         if not spoken:
-            # The sentence was nothing but tags. Saying the empty string would
-            # cost a round trip to hear silence.
             return
         payload = json.dumps(
             {"model": "omnivoice", "input": spoken, "voice": self._voice or "", "response_format": "pcm"}

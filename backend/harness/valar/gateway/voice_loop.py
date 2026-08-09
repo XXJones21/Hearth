@@ -66,7 +66,33 @@ _ANNOUNCE_RE = re.compile(
 # and to SALVAGE the call afterwards — the model that does this composed real
 # arguments, and honoring them beats apologizing for them.
 _TEXT_TOOL_CALL_RE = re.compile(r"call:([A-Za-z_]\w*)\s*\{")
-_SYNTAX_SENTENCE_RE = re.compile(r"<\|?tool_call|<tool_call\||call:[A-Za-z_]\w*\s*\{")
+_SYNTAX_SENTENCE_RE = re.compile(
+    r"<\|?tool_call|<tool_call\||call:[A-Za-z_]\w*\s*\{|\[call:"
+)
+
+# The voice performs these; the eyes should not read them. Every text-channel
+# emission is stripped of them while the TTS request keeps them -- the exact
+# split the tags exist for. Mirrors the vocabulary create_persona teaches and
+# OmniVoice's supported set.
+_NONVERBAL_TAG_RE = re.compile(
+    r"\[(?:laughter|sigh|confirmation-en|question-(?:en|ah|oh|ei|yi)"
+    r"|surprise-(?:ah|oh|wa|yo)|dissatisfaction-hnn)\]"
+)
+# A tool call written as prose in brackets ('[call: start_project(input="")]',
+# live 2026-08-08). Invented argument names, usually empty: not salvageable,
+# so it is erased from the text channel and never spoken (the syntax regex
+# above mutes it from the TTS queue).
+_PSEUDO_CALL_RE = re.compile(r"\[call:\s*[A-Za-z_]\w*\s*\([^)\]]*\)\s*\]")
+
+
+def sanitize_display_text(text: str) -> str:
+    """The text channel's version of a reply: performed tags and pseudo-call
+    brackets removed, whitespace tidied. TTS input never passes through this."""
+    out = _NONVERBAL_TAG_RE.sub("", text)
+    out = _PSEUDO_CALL_RE.sub("", out)
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()
 
 
 def _balanced_json(text: str, start: int) -> str | None:
@@ -182,6 +208,10 @@ class VoiceLoop:
             # the new resident ended it -- so this is the normal path with a
             # direction and two tools, held open until a project exists.
             self._brain_beat = True
+            # The screen's furniture (mockup 14): the real root and folder
+            # counts, rendered by the client beside the beat rather than
+            # spoken. Product data the model never has to get right.
+            await self._emit_brain_info(emit)
 
         telemetry = TurnTelemetry(
             session_id=session.session_id,
@@ -632,7 +662,7 @@ class VoiceLoop:
             "ai_response",
             {
                 "action": "ai_response",
-                "text": reply_text,
+                "text": sanitize_display_text(reply_text),
                 "persona_name": persona.name,
                 "model_used": result.model_used,
             },
@@ -671,6 +701,26 @@ class VoiceLoop:
         cfg = persona.config if isinstance(persona.config, dict) else {}
         grants = cfg.get("tool_grants")
         return grants if isinstance(grants, dict) else None
+
+    async def _emit_brain_info(self, emit: Emit) -> None:
+        """The second-brain screen's furniture: where the memory lives and
+        what is in it, from disk. Emitted once when the beat opens. Best
+        effort: an unconfigured root just means the screen shows no path."""
+        try:
+            root = hearth_engram()
+        except Exception:  # noqa: BLE001 - unconfigured memory is not fatal
+            return
+        folders = []
+        for name in ("Projects", "Areas", "Thoughts", "Resources"):
+            d = root / name
+            entries = 0
+            if d.is_dir():
+                entries = sum(1 for _ in d.iterdir())
+            folders.append({"name": name, "entries": entries})
+        await emit(
+            "brain_info",
+            {"action": "brain_info", "root": str(root), "folders": folders},
+        )
 
     def _in_brain_beat(self) -> bool:
         """True while the second-brain beat is open.
@@ -1067,7 +1117,11 @@ class VoiceLoop:
 
         await emit(
             "ai_response",
-            {"action": "ai_response", "text": speech, "persona_name": persona.name},
+            {
+                "action": "ai_response",
+                "text": sanitize_display_text(speech),
+                "persona_name": persona.name,
+            },
         )
 
         card_note = ""
@@ -1231,7 +1285,12 @@ class VoiceLoop:
         session.state = State.SPEAKING
         await emit(
             "tts_chunk_start",
-            {"action": "tts_chunk_start", "seg_idx": 0, "sample_rate": sr, "text": text},
+            {
+                "action": "tts_chunk_start",
+                "seg_idx": 0,
+                "sample_rate": sr,
+                "text": sanitize_display_text(text),
+            },
         )
         try:
             async for pcm in self.tts.stream_sentence(text):
@@ -1267,7 +1326,7 @@ class VoiceLoop:
                 "action": "tts_chunk_start",
                 "seg_idx": seg_idx,
                 "sample_rate": sr,
-                "text": sentence,
+                "text": sanitize_display_text(sentence),
             },
         )
         with Timer(telemetry, "tts_total_ms", accumulate=True):  # summed across sentences

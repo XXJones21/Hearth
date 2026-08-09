@@ -103,8 +103,28 @@ def start_project(name: str = "", note: str = "", **_: object) -> ToolResult:
         )
 
     logger.info("second brain: first project created at Projects/%s", slug)
+
+    # The first routine rides the same commit: the one moment the person
+    # already understands what the brain is, so the one sentence of
+    # explanation lands. The record is the switch (routines.py).
+    routine_note = ""
+    try:
+        from ...memory.routines import ensure_first_routine
+
+        if ensure_first_routine(root):
+            routine_note = (
+                " The house's first routine is recorded as well. Tell them, in "
+                "one sentence of your own: each day Selene, the house's "
+                "librarian, will review what was talked about and keep this "
+                "project up to date, and that standing habit is called a "
+                "routine, kept in Areas/routines.md for them to change or "
+                "remove."
+            )
+    except Exception as exc:  # noqa: BLE001 - the project is the commit; the routine is a rider
+        logger.warning("start_project: first routine not recorded (%s)", exc)
+
     return ToolResult(
         ok=True,
-        content=f"{title} now has a place in your memory.",
+        content=f"{title} now has a place in your memory.{routine_note}",
         data={"project": slug, "title": title, "created": True},
     )

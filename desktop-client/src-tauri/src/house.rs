@@ -255,8 +255,16 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
             args.push(steps.clone());
         }
         for (name, clip, text) in persona_voices(&backend) {
+            // The triplet splits on ':', which a Windows drive letter breaks
+            // (sulivan:D:/clip parses as clip "D" and the engine dies with
+            // "cannot read reference audio D", found live 2026-08-08). The
+            // engine runs with cwd = backend, so paths relative to it carry
+            // no drive colon on any platform.
+            let rel = |p: &Path| {
+                p.strip_prefix(&backend).map(slash).unwrap_or_else(|_| slash(p))
+            };
             args.push("--voice".into());
-            args.push(format!("{}:{}:{}", name, slash(&clip), slash(&text)));
+            args.push(format!("{}:{}:{}", name, rel(&clip), rel(&text)));
         }
         specs.push(Spec {
             name: "voice-engine",

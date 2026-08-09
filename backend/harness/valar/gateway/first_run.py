@@ -126,7 +126,7 @@ BRAIN_DIRECTION = (
     "their answer. Their own words, never a suggestion of yours, and never an "
     "example. One real thing beats an empty brain.\n"
     "Short turns. No lists of features. After start_project returns, say where "
-    "it lives and stop."
+    "it lives, pass along anything its result asks you to mention, and stop."
 )
 
 
