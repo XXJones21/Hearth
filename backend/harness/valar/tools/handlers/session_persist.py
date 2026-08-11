@@ -31,17 +31,22 @@ logger = logging.getLogger("valar.tools.session_persist")
 
 async def persist_session(args: dict) -> ToolResult:
     """args: {session_id: str, persona: str, history: [{role, content}],
-    summary: {title, summary, ...}}. Writes the Engram diary entry (3+ user-turn
-    threshold applies there) and the continuity note. Never raises."""
+    summary: {title, summary, ...}, write_continuity?: bool}. Writes the Engram
+    diary entry (3+ user-turn threshold applies there) and optionally the
+    continuity note. Continuity is skipped for an explicit client new_session
+    so the next turn does not reopen with "Previous session: ...". Never raises."""
     session_id = str(args.get("session_id") or "unknown")
     persona = str(args.get("persona") or "unknown")
     history = args.get("history") or []
     summary = args.get("summary") or {}
     summary_text = str(summary.get("summary") or "").strip()
     title = str(summary.get("title") or "").strip()
+    want_continuity = bool(args.get("write_continuity", True))
 
     # 2) Continuity note first -- it must survive even if the diary write fails.
-    continuity_ok = bool(summary_text) and write_continuity(persona, summary_text, title)
+    continuity_ok = False
+    if want_continuity and summary_text:
+        continuity_ok = write_continuity(persona, summary_text, title)
 
     # 1) Engram Thoughts diary via the shared brain_sync writer.
     saved: dict = {"saved": False, "reason": "brain_sync_unavailable"}

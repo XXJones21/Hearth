@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 
 from ..brain import BrainProvider, BrainStreamResult, ChatMessage, ChatOptions
 from ..config import ValarConfig
@@ -124,38 +125,64 @@ async def end_session(
     brain: BrainProvider,
     config: ValarConfig,
     emit,
+    *,
+    reason: str = "idle",
 ) -> None:
-    """Persist + announce + reset one idle session. Never raises."""
+    """Persist + announce + reset one session. Never raises.
+
+    ``reason`` is ``idle`` for the watchdog and ``client`` for an explicit
+    ``new_session`` request from the desktop (or any) client. Empty history
+    skips summarize/persist so a fresh New Session click stays instant.
+    """
     turns = len(session.history)
-    logger.info("ending idle session %s (%d turns)", session.session_id, turns)
+    logger.info(
+        "ending session %s (%d turns, reason=%s)", session.session_id, turns, reason
+    )
 
-    summary = await summarize_session(session, persona, brain, config)
+    summary: dict = {"title": "", "summary": ""}
+    if turns:
+        summary = await summarize_session(session, persona, brain, config)
 
-    history_dicts: list[dict] = []
-    for turn in session.history:
-        if turn.user:
-            history_dicts.append({"role": "user", "content": turn.user})
-        if turn.assistant:
-            history_dicts.append({"role": "assistant", "content": turn.assistant})
+        history_dicts: list[dict] = []
+        for turn in session.history:
+            if turn.user:
+                history_dicts.append({"role": "user", "content": turn.user})
+            if turn.assistant:
+                history_dicts.append({"role": "assistant", "content": turn.assistant})
 
-    try:
-        from ..tools.handlers.session_persist import persist_session
+        try:
+            from ..tools.handlers.session_persist import persist_session
 
-        await persist_session(
-            {
-                "session_id": session.session_id,
-                "persona": persona.name,
-                "history": history_dicts,
-                "summary": summary,
-            }
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("session persist failed: %s", exc)
+            await persist_session(
+                {
+                    "session_id": session.session_id,
+                    "persona": persona.name,
+                    "history": history_dicts,
+                    "summary": summary,
+                    # Explicit New session must not seed the next SCX with
+                    # "Previous session: ..." or the wipe is only cosmetic.
+                    "write_continuity": reason != "client",
+                }
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("session persist failed: %s", exc)
 
-    # Fresh start: the cleared history is what makes the next turn a new session.
+    # Fresh start: cleared history + a new id so ledger/telemetry do not glue
+    # the next turns onto the ended session.
     session.history.clear()
+    session.session_id = str(uuid.uuid4())
     session.touch()
     session.state = State.IDLE
+
+    if reason == "client":
+        # Drop any prior continuity so New session is a real wipe, not a
+        # history clear that still surfaces "Previous session: ..." in SCX.
+        try:
+            from ..memory.continuity import clear_continuity
+
+            clear_continuity()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("clear continuity failed: %s", exc)
 
     try:
         # Composer-managed card lifetime (Phase C): a session end clears the
@@ -170,8 +197,9 @@ async def end_session(
             "session_ended",
             {
                 "action": "session_ended",
-                "reason": "idle",
+                "reason": reason,
                 "summary": summary.get("summary", ""),
+                "session_id": session.session_id,
             },
         )
     except Exception as exc:  # noqa: BLE001 - client may be gone; the persist stands

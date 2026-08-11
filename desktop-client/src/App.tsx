@@ -30,7 +30,7 @@ export default function App() {
     !loadSettings().setupComplete ||
       (typeof window !== 'undefined' && window.location.hash === '#setup'),
   );
-  const { sendTextQuery, switchPersona, reconnect, disconnect } =
+  const { sendTextQuery, switchPersona, startNewSession, resumeSession, reconnect, disconnect } =
     useHearthWebSocket(!showSetup);
 
   /* The settings flag is only a cache. The truth is the install record on
@@ -156,7 +156,11 @@ export default function App() {
         ) : (
           <Feed onSend={send} />
         )}
-        <Rail />
+        <Rail
+          onNewSession={startNewSession}
+          onResumeSession={resumeSession}
+          sessionBusy={isWaitingForResponse}
+        />
       </AppFrame>
       )}
     </div>

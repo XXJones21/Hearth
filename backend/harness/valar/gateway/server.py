@@ -31,7 +31,7 @@ from ..persona import PersonaEngine, PersonaNotFound
 from ..voice import EnergyVAD, SttUnavailable, WhisperSTT
 from .session import Session, State
 from .easel_watch import easel_watchdog
-from .session_end import idle_watchdog
+from .session_end import end_session, idle_watchdog
 from .voice_loop import VoiceLoop
 from ..models import resolve as resolve_model
 
@@ -712,6 +712,86 @@ async def _handle_command(raw: str, session, personas, voice_loop, emit) -> None
             logger.info("reset_vad: cancelled in-flight turn task")
         session.reset_audio()
         session.state = State.IDLE
+
+    elif action == "new_session":
+        # Desktop (and any client) request: end the current conversation on
+        # this socket without disconnecting. Reuses the idle-watchdog path so
+        # persist + card clear + session_ended stay one contract.
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("new_session: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+
+    elif action == "resume_session":
+        # Seed a fresh session_id with a Journal chatlog (Slice 3). Validate
+        # the slug *before* ending the live chat so a bad Resume cannot wipe
+        # an active conversation.
+        from .session_resume import load_journal_turns
+
+        slug = (cmd.get("slug") or "").strip()
+        turns = load_journal_turns(slug)
+        if turns is None:
+            await emit(
+                "error",
+                {
+                    "action": "error",
+                    "message": f"resume_session: no transcript for {slug!r}",
+                },
+            )
+            return
+        if not turns:
+            await emit(
+                "error",
+                {
+                    "action": "error",
+                    "message": f"resume_session: empty transcript for {slug!r}",
+                },
+            )
+            return
+
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("resume_session: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+        session.history = list(turns)
+        session.touch()
+        await emit(
+            "session_resumed",
+            {
+                "action": "session_resumed",
+                "slug": slug,
+                "session_id": session.session_id,
+                "turns": [
+                    {"user": t.user, "assistant": t.assistant} for t in turns
+                ],
+            },
+        )
+        logger.info(
+            "resume_session: seeded %s with %d turns from %s",
+            session.session_id,
+            len(turns),
+            slug,
+        )
 
     elif action == "say":
         # Speak a short cue verbatim in the persona voice, no LLM turn (e.g. the
