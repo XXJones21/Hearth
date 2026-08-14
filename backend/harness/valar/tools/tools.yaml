@@ -147,11 +147,14 @@ tools:
       Read the text of a local file the operator named by path. Use when they
       point at a resume, note, HTML page, PDF, or similar and ask you to review
       or summarize it. Prefer this over asking them to paste. Paths must sit
-      under the house's allowed folders (Career, Engram, Hearth).
+      under the house's allowed folders, or a folder the operator approved on
+      the permission card. If they name a directory, call list_dir first, then
+      read_file on each file you need.
       For deep Engram questions without a path, prefer recall / consult_memory.
     handler: valar.tools.handlers.files:read_file
     domain: files
     risk: read
+    speak: Let me read that file.
     parameters:
       type: object
       properties:
@@ -165,6 +168,56 @@ tools:
           type: integer
           description: Max characters to return (default 12000, cap 20000).
       required: [path]
+
+  - name: list_dir
+    description: >-
+      List the files and subfolders in a local directory the operator named.
+      Use when they point at a folder and ask what is in it, or when you need
+      the names before calling read_file. If the folder is outside the house's
+      allowed roots, a permission card is shown; after they approve, call
+      list_dir again. Do not invent filenames.
+    handler: valar.tools.handlers.files:list_dir
+    domain: files
+    risk: read
+    speak: Let me see what's in that folder.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute Windows or WSL path of the directory.
+      required: [path]
+
+  - name: write_file
+    description: >-
+      Draft a NEW file beside an existing source the operator named. Pass only
+      source + short instructions (what to change). Do NOT pass the draft body:
+      the harness re-reads the source and writes the file. HTML/PDF sources
+      save as *-draft.md. Text sources keep their type. Never claim a draft was
+      saved unless this tool returns "Wrote draft:". After success, speak only
+      the path from the tool result.
+    handler: valar.tools.handlers.files:write_file
+    domain: files
+    risk: write
+    speak: Let me draft something up.
+    parameters:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Absolute Windows or WSL path of the existing file to draft from.
+        instructions:
+          type: string
+          description: >-
+            Short revision brief (max ~2000 chars). Example: "Reframe for Forward
+            Deployed Engineer; emphasize production AI systems; keep contact block."
+        dest_name:
+          type: string
+          description: >-
+            Optional filename only (same folder). HTML/PDF sources require .md;
+            other sources keep the source extension. Omit to auto-name
+            <stem>-draft.<ext>.
+      required: [source, instructions]
 
   - name: remember
     description: >-

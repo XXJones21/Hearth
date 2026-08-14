@@ -78,3 +78,7 @@ Thumbs.db
 # Icon workbench: build artifacts stay local.
 design/icons/node_modules/
 apple-client/**/.build/
+
+# Folder grants written by the permission card. Whose machine holds which
+# folders is the operator's business, not the product's.
+backend/harness/valar/tools/file_grants.yaml

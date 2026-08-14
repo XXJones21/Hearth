@@ -23,11 +23,12 @@ from pathlib import Path
 import httpx
 import yaml
 
+from ...config.settings import HearthConfigError, hearth_engram
 from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.files")
 
-_REPO_ROOT = Path(__file__).resolve().parents[4]
+_HEARTH_ROOT = Path(__file__).resolve().parents[5]
 _ROOTS_FILE = Path(__file__).resolve().parents[1] / "file_roots.yaml"
 _GRANTS_FILE = Path(__file__).resolve().parents[1] / "file_grants.yaml"
 
@@ -207,14 +208,7 @@ def _load_roots() -> list[tuple[str, Path]]:
         data = yaml.safe_load(_ROOTS_FILE.read_text(encoding="utf-8")) or {}
     except Exception as exc:  # noqa: BLE001 -- degrade to built-in defaults
         logger.warning("file_roots.yaml unreadable (%s); using built-in defaults", exc)
-        data = {
-            "roots": [
-                {"name": "career", "path": "D:/Tools/Career"},
-                {"name": "engram", "path": "D:/Tools/personalAI/Engram"},
-                {"name": "valinor", "path": str(_REPO_ROOT)},
-                {"name": "sessions", "path": str(_REPO_ROOT / "sessions")},
-            ]
-        }
+        data = {"roots": [{"name": "hearth", "path": str(_HEARTH_ROOT)}]}
     for entry in data.get("roots") or []:
         name = str(entry.get("name") or "").strip()
         path_s = str(entry.get("path") or "").strip()
@@ -232,21 +226,18 @@ def _load_roots() -> list[tuple[str, Path]]:
     for name, p in _load_grants():
         if not any(r == p for _, r in roots):
             roots.append((name, p))
-    # Engram junction inside the repo is often the live path even when the
-    # personalAI absolute path is listed; add it when present.
-    for candidate in (
-        _REPO_ROOT / "Engram",
-        Path("D:/Tools/personalAI/Engram"),
-        Path("/mnt/d/Tools/personalAI/Engram"),
-    ):
-        try:
-            if (candidate / "Thoughts").is_dir():
-                resolved = candidate.resolve()
-                if not any(r == resolved for _, r in roots):
-                    roots.append(("engram", resolved))
-                break
-        except OSError:
-            continue
+    # The memory tree is always readable, wherever the operator put it. Asked
+    # of the configuration rather than searched for: a candidate list is how a
+    # fresh install silently adopts whichever brain happens to be on the
+    # machine, which is the one thing a file allow-list must never do.
+    try:
+        engram = hearth_engram().resolve()
+        if engram.is_dir() and not any(r == engram for _, r in roots):
+            roots.append(("engram", engram))
+    except HearthConfigError as exc:
+        logger.info("no memory tree configured for file reads: %s", exc)
+    except Exception as exc:  # noqa: BLE001 -- roots are additive
+        logger.warning("memory tree root unavailable: %s", exc)
     return roots
 
 

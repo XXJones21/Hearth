@@ -60,8 +60,24 @@ from `chatlog.md`, and the feed rehydrates so the next message continues
 that thread without reusing the archived session id.
 
 **Local files.** When the operator names a path under an allow-listed root
-(Career, Engram, Hearth), Sulivan can call `read_file` to open markdown,
-text, HTML, or PDF contents instead of asking them to paste.
+(the roots in `file_roots.yaml`, plus the configured memory tree), Sulivan can
+call `read_file` to open markdown, text, HTML, or PDF contents instead of
+asking them to paste. `list_dir` names what is in a folder one level deep,
+capped at 200 entries, so the persona reads real filenames rather than
+guessing at them. `write_file` drafts a new file beside a source it was
+pointed at: the persona passes the source path and a short brief of what to
+change, never the draft body, and the harness writes `<name>-draft.md` for
+HTML and PDF sources or the same type for text. The source is never
+overwritten, and a path is only ever spoken when the tool reports writing one.
+
+**Folders outside the roots** are not refused, and they are not silently
+opened either. The turn stops and a permission card asks the operator to
+approve or deny that exact path. The house stays quiet while the card waits,
+up to five minutes; Approve records the grant in `file_grants.yaml` beside the
+handler and the parked tool call runs again on the spot, so the answer arrives
+in the conversation that asked for it rather than in the next one. Deny ends
+that call and nothing is remembered. Grants are per-machine and are not
+committed.
 
 ## What the installer gives you
 

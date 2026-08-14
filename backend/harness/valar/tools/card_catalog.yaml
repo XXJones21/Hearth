@@ -60,6 +60,15 @@ cards:
       card; NOT suited to charts, meters, or dense financial/tabular data.
     data_fields: "template:string, title:string, sections:list"
     builtin: true
+  - type: permission_card
+    purpose: >-
+      Ask the operator to approve or deny access to a local folder outside the
+      curated file_roots.yaml allow-list. Approve writes a grant to
+      file_grants.yaml and the parked turn resumes on the same tool call, so
+      the answer arrives in the conversation that asked for it.
+    data_fields: "request_id:string, path:string, action:read|list|write, status:pending|granted|denied"
+    data_source: list_dir
+    builtin: true
   - type: choice_card
     purpose: >-
       A question with a handful of persona-authored options the operator can
