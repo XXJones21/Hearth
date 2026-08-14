@@ -54,6 +54,28 @@ on a worker thread for exactly this reason: as a synchronous call it blocked
 the UI thread through the model load, and Windows marked the window Not
 Responding on first run.
 
+**Settings > On disk > Journal and memory** is where the memory tree lives, and
+it is the one row on that surface that changes something rather than opening a
+folder. Connect points the house at a folder: one that already holds a brain
+(any of Projects, Areas, Thoughts, Resources) is adopted as it is, and one that
+is completely empty is provisioned into a new brain. A folder with unrelated
+things in it is refused, because writing four folders into someone's Documents
+is not a small mistake. Remove unplugs the tree without deleting a file of it,
+which leaves the house in the same state it has before anyone answers the
+question: the Journal reports no tree and memory recall returns nothing.
+
+Both actions end the live chat, since a session opened against the old tree
+would file its diary and its continuity note there after the move. The change
+applies immediately and survives restarts, because `HEARTH_ENGRAM` is read per
+call rather than once at start, and it is written back to `hearth.env`. This is
+the same `link_brain` the conversational `import_brain` calls during first run,
+so there is one rule about whose memory a house may open, not two.
+
+Pointing two houses at one tree is what makes a shared brain possible and is
+also how two houses come to write the same day. Continuity notes do not collide
+(each house writes its own file) and diaries are per-slug, but the nightly
+review runs in every house that has one.
+
 **Settings > The house** has Start, Stop, and **Restart**. Restart is start
 again, since starting stops whatever this client is already supervising, and
 it exists so a backend change does not cost a relaunch. It drops the socket,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Btn, IconFolder, Row, Section, Segmented, Toggle } from './controls';
 import { PairedDevices } from './PairedDevices';
 import { ttsPlayer } from '../../lib/audioPlayer';
@@ -16,7 +17,13 @@ import {
   SETTINGS_EVENT,
   type Settings,
 } from '../../lib/settings';
-import { fetchSurface, probeHealth, type SettingsSurface } from '../../lib/settingsApi';
+import {
+  clearEngram,
+  fetchSurface,
+  probeHealth,
+  setEngram,
+  type SettingsSurface,
+} from '../../lib/settingsApi';
 import { useAppStore } from '../../store/appStore';
 
 type Props = {
@@ -24,15 +31,21 @@ type Props = {
   onReconnect: () => void;
   /** bounce the local house behind the waking overlay, then redial */
   onRestartHouse?: () => Promise<void>;
+  /** end the live chat: moving the memory tree leaves it writing to the old one */
+  onNewSession?: () => void;
 };
 
-export function SettingsView({ onReconnect, onRestartHouse }: Props) {
+export function SettingsView({ onReconnect, onRestartHouse, onNewSession }: Props) {
   const [s, setS] = useState<Settings>(loadSettings);
   const [surface, setSurface] = useState<SettingsSurface | null>(null);
   const [health, setHealth] = useState<{ ok: boolean; ms: number; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const [note, setNote] = useState('');
   const [history, setHistory] = useState(historyKeys);
+  const [engramDraft, setEngramDraft] = useState('');
+  const [engramBusy, setEngramBusy] = useState(false);
+  const [editingEngram, setEditingEngram] = useState(false);
+  const engram = surface?.engram;
 
   const personas = useAppStore((st) => st.personas);
   const connection = useAppStore((st) => st.connection);
@@ -50,8 +63,10 @@ export function SettingsView({ onReconnect, onRestartHouse }: Props) {
     window.setTimeout(() => setNote((n) => (n === msg ? '' : n)), 2600);
   };
 
+  const refreshSurface = () => fetchSurface().then(setSurface);
+
   useEffect(() => {
-    void fetchSurface().then(setSurface);
+    void refreshSurface();
     void runTest();
     const sync = () => setS(loadSettings());
     window.addEventListener(SETTINGS_EVENT, sync);
@@ -123,6 +138,60 @@ export function SettingsView({ onReconnect, onRestartHouse }: Props) {
     } finally {
       setHouseBusy(false);
       houseStatus().then(setHouse).catch(() => undefined);
+    }
+  }
+
+  /* Moving the memory tree is not a preference, so it does not save on every
+     keystroke: the box holds a draft until Connect. Both branches end the live
+     chat, because a session started against the old tree would file its diary
+     and its continuity note there after the move. */
+  async function applyEngram(next: string) {
+    const path = next.trim();
+    if (!path || engramBusy) return;
+    setEngramBusy(true);
+    const r = await setEngram(path);
+    setEngramBusy(false);
+    if (!r.ok) {
+      flash(r.error || 'That folder was not accepted.');
+      return;
+    }
+    onNewSession?.();
+    flash(
+      r.created
+        ? `Started a new brain at ${toHostPath(path)}`
+        : `Connected to ${toHostPath(path)}`,
+    );
+    setEngramDraft('');
+    setEditingEngram(false);
+    void refreshSurface();
+    useAppStore.getState().bumpSessionsTick();
+  }
+
+  async function removeEngram() {
+    if (engramBusy) return;
+    setEngramBusy(true);
+    const r = await clearEngram();
+    setEngramBusy(false);
+    if (!r.ok) {
+      flash(r.error || 'The memory tree could not be disconnected.');
+      return;
+    }
+    onNewSession?.();
+    flash('Disconnected. Nothing was deleted.');
+    void refreshSurface();
+    useAppStore.getState().bumpSessionsTick();
+  }
+
+  async function browseForEngram() {
+    try {
+      const picked = await openDialog({
+        directory: true,
+        defaultPath: engram?.path || undefined,
+        title: 'Where your journal and memory live',
+      });
+      if (typeof picked === 'string' && picked) setEngramDraft(picked);
+    } catch {
+      /* no dialog on this platform; the text box still works */
     }
   }
 
@@ -455,13 +524,98 @@ export function SettingsView({ onReconnect, onRestartHouse }: Props) {
         </Section>
 
         {/* ---------------- On disk ---------------- */}
-        {surface && surface.folders.length > 0 && (
+        {surface && (
           <Section
             label="On disk"
             sub="where the house keeps its things, on the machine running Hearth"
             needs="files"
           >
-            {surface.folders.map((f) => (
+            {/* Memory is the one folder the operator chooses. It sits above the
+                rest because it is the only row here that changes anything, and
+                because a house pointed at the wrong tree looks like a house
+                that has forgotten everything. */}
+            <Row
+              label="Journal and memory"
+              hint={
+                engram?.connected
+                  ? `${toHostPath(engram.path)} · Selene writes here: session pages, project notes, the nightly ledger${
+                      engram.exists
+                        ? engram.entries
+                          ? `. ${engram.entries} item${engram.entries === 1 ? '' : 's'}`
+                          : '. Empty so far'
+                        : '. That folder is not on this machine'
+                    }`
+                  : 'Not connected. Point Hearth at a folder you already keep notes in, or at an empty one to start a brain there. Nothing is read until you do.'
+              }
+            >
+              {/* Connected is the resting state and gets the quiet controls;
+                  the path box only appears once someone means to move it. */}
+              {engram?.connected && !editingEngram ? (
+                <>
+                  {can('files') && (
+                    <Btn
+                      disabled={!engram.exists}
+                      onClick={async () => {
+                        const err = await revealFolder(engram.path);
+                        flash(err ? err : `Opened ${toHostPath(engram.path)}`);
+                      }}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <IconFolder className="h-3.5 w-3.5 text-ember" /> Open folder
+                      </span>
+                    </Btn>
+                  )}
+                  <Btn
+                    onClick={() => {
+                      setEngramDraft(engram.path);
+                      setEditingEngram(true);
+                    }}
+                  >
+                    Change
+                  </Btn>
+                  <Btn tone="warn" onClick={() => void removeEngram()} disabled={engramBusy}>
+                    Remove
+                  </Btn>
+                </>
+              ) : (
+                <>
+                  <input
+                    value={engramDraft}
+                    onChange={(e) => setEngramDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void applyEngram(engramDraft);
+                    }}
+                    placeholder="D:\Notes\Brain"
+                    spellCheck={false}
+                    aria-label="Journal and memory folder"
+                    className="w-52 rounded-[10px] border border-linen bg-parchment px-3 py-2 text-[13px] text-roast placeholder:text-fawn focus:border-fennec focus:bg-fluff focus:outline-none"
+                  />
+                  <Btn onClick={() => void browseForEngram()} disabled={engramBusy}>
+                    Browse
+                  </Btn>
+                  <Btn
+                    onClick={() => void applyEngram(engramDraft)}
+                    disabled={engramBusy || !engramDraft.trim()}
+                  >
+                    {engramBusy ? 'Working' : 'Connect'}
+                  </Btn>
+                  {editingEngram && (
+                    <Btn
+                      onClick={() => {
+                        setEditingEngram(false);
+                        setEngramDraft('');
+                      }}
+                    >
+                      Cancel
+                    </Btn>
+                  )}
+                </>
+              )}
+            </Row>
+
+            {surface.folders
+              .filter((f) => f.key !== 'journal')
+              .map((f) => (
               <Row
                 key={f.key}
                 label={f.name}

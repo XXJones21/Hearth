@@ -217,7 +217,11 @@ export default function App() {
           </ViewErrorBoundary>
         ) : activeView === 'settings' ? (
           <ViewErrorBoundary label="Settings">
-            <SettingsView onReconnect={redial} onRestartHouse={restartHouse} />
+            <SettingsView
+              onReconnect={redial}
+              onRestartHouse={restartHouse}
+              onNewSession={startNewSession}
+            />
           </ViewErrorBoundary>
         ) : activeView === 'personas' ? (
           <ViewErrorBoundary label="Personas">

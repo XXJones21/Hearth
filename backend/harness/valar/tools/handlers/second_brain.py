@@ -74,6 +74,117 @@ def _rewrite_hearth_env(root: str) -> bool:
     return True
 
 
+def link_brain(path: str, *, allow_new: bool = False) -> dict:
+    """Point this house at a memory tree, or refuse and say why.
+
+    The one implementation of the bridge. `import_brain` is the conversational
+    caller and Settings is the deliberate one; they must not drift, because the
+    rule they share is the product's only defence against a house adopting a
+    stranger's memory and presenting it as the new owner's.
+
+    A tree qualifies when it already carries one of the four quarters. With
+    `allow_new`, a COMPLETELY EMPTY directory also qualifies and is provisioned
+    the way a fresh install would be: someone choosing a folder in Settings may
+    reasonably mean "start a brain here", while a conversation naming a path
+    never does. A directory with other things in it is refused either way,
+    because writing four folders into someone's Documents is not a small
+    mistake.
+
+    Returns a dict rather than a ToolResult so the HTTP surface does not have
+    to parse prose written for a persona to speak.
+    """
+    raw = str(path or "").strip().strip('"').strip("'")
+    if not raw:
+        return {"ok": False, "error": "No path given. Nothing was changed."}
+    target = Path(raw.replace("\\", "/")).expanduser()
+    if not target.is_absolute():
+        return {
+            "ok": False,
+            "error": (
+                "That path is not absolute. Give the full path, from the drive "
+                "letter or root down, so the house never guesses at whose "
+                "memory it is opening."
+            ),
+        }
+    if not target.is_dir():
+        return {"ok": False, "error": f"There is no folder at {target}. Nothing was changed."}
+
+    present = [f for f in _BRAIN_FOLDERS if (target / f).is_dir()]
+    created = False
+    if not present:
+        empty = False
+        try:
+            empty = not any(target.iterdir())
+        except OSError as exc:
+            return {"ok": False, "error": f"{target} could not be read ({exc})."}
+        if not (allow_new and empty):
+            return {
+                "ok": False,
+                "error": (
+                    f"{target} does not look like a brain: none of Projects, "
+                    "Areas, Thoughts or Resources live inside it, and it is not "
+                    "empty. Nothing was changed."
+                ),
+            }
+        created = True
+
+    root = str(target).replace("\\", "/")
+    os.environ["HEARTH_ENGRAM"] = root
+    persisted = _rewrite_hearth_env(root)
+    # The missing quarters, same as a fresh install provisions them.
+    for name in _BRAIN_FOLDERS:
+        try:
+            (target / name).mkdir(exist_ok=True)
+        except OSError:
+            pass
+    _mark_complete(f"{'started' if created else 'imported'} {root}")
+    try:
+        from ...memory.routines import ensure_first_routine
+
+        ensure_first_routine(target)
+    except Exception as exc:  # noqa: BLE001 - the bridge is the commit; the routine is a rider
+        logger.warning("link_brain: routine rider skipped (%s)", exc)
+
+    entries = sum(
+        1 for f in _BRAIN_FOLDERS if (target / f).is_dir() for _ in (target / f).iterdir()
+    )
+    logger.info(
+        "second brain: linked %s (%s, %d entries, env %s)",
+        root,
+        "new tree" if created else ", ".join(present),
+        entries,
+        "persisted" if persisted else "NOT persisted",
+    )
+    return {
+        "ok": True,
+        "path": root,
+        "entries": entries,
+        "created": created,
+        "persisted": persisted,
+    }
+
+
+def unlink_brain() -> dict:
+    """Disconnect the memory tree without deleting a single file of it.
+
+    HEARTH_ENGRAM goes empty in the running process and in hearth.env, which
+    is the same state a machine is in before anyone answers the question. The
+    Journal reports no tree, memory recall degrades to nothing, and the house
+    keeps working. The tree itself is untouched: this is unplugging, not
+    erasing, and a Settings row that could destroy a decade of notes would be
+    a different kind of control entirely.
+    """
+    previous = (os.environ.get("HEARTH_ENGRAM") or "").strip()
+    os.environ["HEARTH_ENGRAM"] = ""
+    persisted = _rewrite_hearth_env("")
+    logger.info(
+        "second brain: unlinked %s (env %s)",
+        previous or "(none)",
+        "persisted" if persisted else "NOT persisted",
+    )
+    return {"ok": True, "path": "", "previous": previous, "persisted": persisted}
+
+
 def import_brain(path: str = "", **_: object) -> ToolResult:
     """Bridge the house to a second brain the person already has.
 
@@ -87,60 +198,19 @@ def import_brain(path: str = "", **_: object) -> ToolResult:
     it must already look like a brain. A house must never guess at whose
     memory it is opening.
     """
-    raw = str(path or "").strip().strip('"').strip("'")
-    if not raw:
+    if not str(path or "").strip():
         return ToolResult(
             ok=False,
             content="I need the exact folder path of the existing brain before anything can be connected.",
         )
-    target = Path(raw.replace("\\", "/")).expanduser()
-    if not target.is_absolute():
-        return ToolResult(
-            ok=False,
-            content=(
-                "I need the full path, from the drive letter or root down, "
-                "so the house never guesses at whose memory it is opening."
-            ),
-        )
-    if not target.is_dir():
-        return ToolResult(
-            ok=False,
-            content=f"There is no folder at {target}. Nothing was changed.",
-        )
-    present = [f for f in _BRAIN_FOLDERS if (target / f).is_dir()]
-    if not present:
-        return ToolResult(
-            ok=False,
-            content=(
-                f"{target} does not look like a brain: none of Projects, Areas, "
-                "Thoughts or Resources live inside it. Nothing was changed."
-            ),
-        )
+    # allow_new stays False here: a conversation naming a path means "the brain
+    # I already have", never "make one where I pointed".
+    result = link_brain(str(path), allow_new=False)
+    if not result.get("ok"):
+        return ToolResult(ok=False, content=str(result.get("error") or "Nothing was changed."))
 
-    root = str(target).replace("\\", "/")
-    os.environ["HEARTH_ENGRAM"] = root
-    persisted = _rewrite_hearth_env(root)
-    # The missing quarters, same as a fresh install provisions them.
-    for name in _BRAIN_FOLDERS:
-        try:
-            (target / name).mkdir(exist_ok=True)
-        except OSError:
-            pass
-    _mark_complete(f"imported {root}")
-    try:
-        from ...memory.routines import ensure_first_routine
-
-        ensure_first_routine(target)
-    except Exception as exc:  # noqa: BLE001 - the bridge is the commit; the routine is a rider
-        logger.warning("import_brain: routine rider skipped (%s)", exc)
-
-    entries = sum(
-        1 for f in _BRAIN_FOLDERS if (target / f).is_dir() for _ in (target / f).iterdir()
-    )
-    logger.info(
-        "second brain: imported %s (%s present, %d entries, env %s)",
-        root, ", ".join(present), entries, "persisted" if persisted else "NOT persisted",
-    )
+    root = str(result["path"])
+    entries = int(result.get("entries") or 0)
     return ToolResult(
         ok=True,
         content=(
