@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AppFrame } from './components/shell/AppFrame';
+import { HouseBootScreen } from './components/shell/HouseBootScreen';
 import { SetupFlow } from './components/setup/SetupFlow';
 import { Feed } from './components/feed/Feed';
 import { LibraryView } from './components/journal/LibraryView';
@@ -11,6 +12,7 @@ import { ViewErrorBoundary } from './components/ViewErrorBoundary';
 import { SettingsView } from './components/settings/SettingsView';
 import { useHearthWebSocket } from './hooks/useHearthWebSocket';
 import { ttsPlayer } from './lib/audioPlayer';
+import { waitForServer } from './lib/appsApi';
 import { applyPersonaTheme } from './lib/personaTheme';
 import { houseStart } from './lib/house';
 import { hasProbe, installRoot, installState } from './lib/probe';
@@ -30,8 +32,67 @@ export default function App() {
     !loadSettings().setupComplete ||
       (typeof window !== 'undefined' && window.location.hash === '#setup'),
   );
-  const { sendTextQuery, switchPersona, startNewSession, resumeSession, reconnect, disconnect } =
-    useHearthWebSocket(!showSetup);
+  const {
+    sendTextQuery,
+    switchPersona,
+    startNewSession,
+    resumeSession,
+    startTopicSession,
+    reconnect,
+    disconnect,
+  } = useHearthWebSocket(!showSetup);
+  /* The house takes as long as its model does. Rather than an empty frame that
+     looks broken, the window says what it is waiting for, and says so out of
+     the way of the work: the Tauri command is async now, so this overlay keeps
+     animating while llama-server loads. */
+  const [houseBoot, setHouseBoot] = useState<'off' | 'on' | 'failed'>('off');
+  const [bootDetail, setBootDetail] = useState(
+    'Starting the house. The model can take a minute.',
+  );
+  const [bootError, setBootError] = useState('');
+
+  /* Bring the house up behind the overlay and hold it until /health answers.
+     Used by first boot, by Try again, and by Settings > Restart, because all
+     three are the same wait wearing different labels. */
+  const wakeHouse = async (root: string, detail: string) => {
+    setHouseBoot('on');
+    setBootError('');
+    setBootDetail(detail);
+    try {
+      await houseStart(root);
+      const up = await waitForServer(300000);
+      if (!up) throw new Error('The house did not answer on its port.');
+      setHouseBoot('off');
+    } catch (err) {
+      setBootError(err instanceof Error ? err.message : String(err));
+      setHouseBoot('failed');
+      throw err;
+    }
+  };
+
+  const restartHouse = async () => {
+    const s = loadSettings();
+    if (!s.installRoot) return;
+    disconnect();
+    await wakeHouse(s.installRoot, 'Restarting the house. The model can take a minute.');
+    window.setTimeout(reconnect, 120);
+    useAppStore.getState().bumpSessionsTick();
+  };
+
+  const retryHouseBoot = () => {
+    const s = loadSettings();
+    if (!s.installRoot) {
+      setHouseBoot('off');
+      return;
+    }
+    void wakeHouse(s.installRoot, 'Starting the house. The model can take a minute.')
+      .then(() => {
+        window.setTimeout(reconnect, 120);
+      })
+      .catch(() => {
+        /* wakeHouse already put the reason on the overlay */
+      });
+  };
 
   /* The settings flag is only a cache. The truth is the install record on
      disk, so boot revalidates: a deleted or gutted install folder routes back
@@ -50,9 +111,11 @@ export default function App() {
           return;
         }
         const root = s.installRoot || (await installRoot());
-        houseStart(root).catch((e) => {
-          console.error('house did not start:', e);
-        });
+        void wakeHouse(root, 'Starting the house. The model can take a minute.').catch(
+          (e) => {
+            console.error('house did not start:', e);
+          },
+        );
       })
       .catch(() => {
         /* the probe failing is not evidence the install is gone */
@@ -106,7 +169,18 @@ export default function App() {
   };
 
   return (
-    <div className="hearth-field flex h-full min-h-0 items-stretch overflow-hidden p-6">
+    <div className="hearth-field relative flex h-full min-h-0 items-stretch overflow-hidden p-6">
+      {houseBoot !== 'off' && (
+        <HouseBootScreen
+          detail={bootDetail}
+          error={houseBoot === 'failed' ? bootError : undefined}
+          onRetry={retryHouseBoot}
+          onOpenSettings={() => {
+            setHouseBoot('off');
+            useAppStore.getState().setActiveView('settings');
+          }}
+        />
+      )}
       {showSetup ? (
         /* One centred column. During first run there is no persona to stand on
            a stage and no house to put a rail beside, so the frame is a single
@@ -122,7 +196,10 @@ export default function App() {
               if (installed) {
                 const s = saveSettings({ setupComplete: true });
                 if (s.installRoot) {
-                  houseStart(s.installRoot).catch((e) => {
+                  void wakeHouse(
+                    s.installRoot,
+                    'Starting the house. The model can take a minute.',
+                  ).catch((e) => {
                     console.error('house did not start:', e);
                   });
                 }
@@ -140,7 +217,7 @@ export default function App() {
           </ViewErrorBoundary>
         ) : activeView === 'settings' ? (
           <ViewErrorBoundary label="Settings">
-            <SettingsView onReconnect={redial} />
+            <SettingsView onReconnect={redial} onRestartHouse={restartHouse} />
           </ViewErrorBoundary>
         ) : activeView === 'personas' ? (
           <ViewErrorBoundary label="Personas">
@@ -159,6 +236,7 @@ export default function App() {
         <Rail
           onNewSession={startNewSession}
           onResumeSession={resumeSession}
+          onStartTopicSession={startTopicSession}
           sessionBusy={isWaitingForResponse}
         />
       </AppFrame>

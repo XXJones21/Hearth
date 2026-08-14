@@ -16,12 +16,14 @@ const TABS: { id: TabId; label: string }[] = [
 type Props = {
   onNewSession?: () => void;
   onResumeSession?: (slug: string) => void;
+  onStartTopicSession?: (name: string) => void;
   sessionBusy?: boolean;
 };
 
 export function Rail({
   onNewSession,
   onResumeSession,
+  onStartTopicSession,
   sessionBusy = false,
 }: Props) {
   const [tab, setTab] = useState<TabId>('sessions');
@@ -64,11 +66,12 @@ export function Rail({
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="rail-scroll min-h-0 flex-1 overflow-y-auto">
         {tab === 'sessions' && (
           <SessionsTab
             onNewSession={onNewSession}
             onResumeSession={onResumeSession}
+            onStartTopicSession={onStartTopicSession}
             busy={sessionBusy}
           />
         )}

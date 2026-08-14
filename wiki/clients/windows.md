@@ -45,19 +45,48 @@ Closing the client window does not stop Hearth. It minimizes to the tray, and
 the backend keeps running, because an always-on companion cannot depend on a
 window staying open. Quit is the explicit stop.
 
+**Waking takes as long as the model takes.** While the house comes up, the
+window holds a waking overlay that says what it is waiting for, and it stays
+up until `/health` answers rather than until the command returns. If the house
+never answers, the overlay says so and offers Try again and Settings instead
+of leaving an empty frame that looks like a broken app. The start command runs
+on a worker thread for exactly this reason: as a synchronous call it blocked
+the UI thread through the model load, and Windows marked the window Not
+Responding on first run.
+
+**Settings > The house** has Start, Stop, and **Restart**. Restart is start
+again, since starting stops whatever this client is already supervising, and
+it exists so a backend change does not cost a relaunch. It drops the socket,
+raises the same waking overlay, and redials when the house answers.
+
 To clear the live conversation without quitting, use **New session** on the
 right-rail Sessions tab (or the + button under it). That sends a `new_session`
 WebSocket action: the house ends the current chat on the same socket, clears
 the feed, and the next message starts fresh. Idle timeout does the same end
 path automatically after the configured quiet window.
 
-**Earlier conversations** on the same Sessions tab list Journal diaries the
-house already filed (`GET /journal/sessions`). Click one to read its summary
-and transcript in the rail; **Open Journal** jumps to the full library.
-**Resume** (when a transcript exists) sends `resume_session` with that
-diary slug: the house ends the current chat, seeds a fresh `session_id`
-from `chatlog.md`, and the feed rehydrates so the next message continues
-that thread without reusing the archived session id.
+**Earlier conversations** on the same Sessions tab list what the house filed
+(`GET /journal/sessions`): a full diary, or just a `chatlog.md` for a chat too
+short to earn one. Rows are one line each, grouped under their date, and a
+chat the house never titled shows the first thing the operator said instead of
+the words "Voice session" forty times over. Click a row to read the summary,
+decisions, open questions, and transcript in the rail; **Open Journal** jumps
+to the full library. **Resume** (when a transcript exists) sends
+`resume_session` with that diary slug: the house ends the current chat, seeds
+a fresh `session_id` from `chatlog.md`, and the feed rehydrates so the next
+message continues that thread without reusing the archived session id.
+
+**Sessions from journal**, the collapsed shelf under that list, is the other
+direction: it starts a NEW chat that already knows its subject.
+`start_topic_session` names a project or a life root, and the house opens the
+session with that Engram topic hint so recall reads those pages first. It is
+not a resume and there is no transcript to rehydrate; the live topic is shown
+at the top of the tab until the session ends.
+
+**Desktop sessions do not end on the idle timer.** A chat left open overnight
+is still there in the morning, because a window that stays open is not the
+same signal as a voice surface going quiet. The other clients still persist
+after idle, and **New session** still ends and files a chat on any of them.
 
 **Local files.** When the operator names a path under an allow-listed root
 (the roots in `file_roots.yaml`, plus the configured memory tree), Sulivan can

@@ -22,9 +22,11 @@ import { useAppStore } from '../../store/appStore';
 type Props = {
   /** drop the socket and dial the current address again */
   onReconnect: () => void;
+  /** bounce the local house behind the waking overlay, then redial */
+  onRestartHouse?: () => Promise<void>;
 };
 
-export function SettingsView({ onReconnect }: Props) {
+export function SettingsView({ onReconnect, onRestartHouse }: Props) {
   const [s, setS] = useState<Settings>(loadSettings);
   const [surface, setSurface] = useState<SettingsSurface | null>(null);
   const [health, setHealth] = useState<{ ok: boolean; ms: number; text: string } | null>(null);
@@ -99,6 +101,25 @@ export function SettingsView({ onReconnect }: Props) {
       }
     } catch (e) {
       flash(String(e));
+    } finally {
+      setHouseBusy(false);
+      houseStatus().then(setHouse).catch(() => undefined);
+    }
+  }
+
+  /* Restart is start again: the Rust side stops what it supervises before it
+     spawns anything. The reason it lives up here rather than in toggleHouse is
+     the overlay, which App owns: a bounce takes as long as a cold boot and the
+     window has to say so. */
+  async function restartHouse() {
+    if (!onRestartHouse || houseBusy || !localHouse) return;
+    setHouseBusy(true);
+    try {
+      await onRestartHouse();
+      window.setTimeout(() => void runTest(), 900);
+      flash('The house restarted');
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e));
     } finally {
       setHouseBusy(false);
       houseStatus().then(setHouse).catch(() => undefined);
@@ -198,6 +219,12 @@ export function SettingsView({ onReconnect }: Props) {
               </Btn>
               <Btn onClick={() => toggleHouse(false)} disabled={houseBusy || !house?.running}>
                 Stop
+              </Btn>
+              <Btn
+                onClick={() => void restartHouse()}
+                disabled={houseBusy || !onRestartHouse}
+              >
+                Restart
               </Btn>
             </Row>
           )}

@@ -102,6 +102,9 @@ type AppState = {
   /** bump when a session ends so the Sessions rail reloads diaries */
   sessionsTick: number;
   bumpSessionsTick: () => void;
+  /** Engram topic for the live chat (project or life-root name), or null */
+  liveTopic: string | null;
+  setLiveTopic: (n: string | null) => void;
   setVisualState: (v: VisualizerState) => void;
   setInputFocused: (f: boolean) => void;
   clearAgentEvents: () => void;
@@ -169,6 +172,8 @@ export const useAppStore = create<AppState>((set) => ({
   connectionEvent: false,
   uiCards: [],
   sessionsTick: 0,
+  liveTopic: null,
+  setLiveTopic: (n) => set({ liveTopic: n }),
   applyUiComponentOp: (op) =>
     set((s) => {
       const now = Date.now();

@@ -245,6 +245,7 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
       s.setActiveTools([]);
       s.setVisualState('idle');
       s.setServerState({ state: 'idle', stage: String(data.reason || 'ended') });
+      s.setLiveTopic(null);
       s.bumpSessionsTick();
       break;
     }
@@ -266,6 +267,17 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
       s.replaceMessages(msgs);
       s.setRuntimeStatus('Resumed session');
       s.setServerState({ state: 'idle', stage: 'resumed' });
+      s.setVisualState('idle');
+      break;
+    }
+    case 'topic_session': {
+      // A fresh chat that already knows what it is about: the house opened it
+      // with an Engram topic hint, so recall reads that project or life root
+      // first. Not a resume; there is no transcript to rehydrate.
+      const name = String((data as { name?: string }).name || '').trim();
+      s.setLiveTopic(name || null);
+      s.setRuntimeStatus(name ? `Session for ${name}` : 'New session');
+      s.setServerState({ state: 'idle', stage: 'topic' });
       s.setVisualState('idle');
       break;
     }
@@ -480,6 +492,20 @@ export function useHearthWebSocket(enabled = true) {
     [setRuntimeStatus]
   );
 
+  const startTopicSession = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+      if (useAppStore.getState().isWaitingForResponse) return;
+      setRuntimeStatus(`Starting session for ${trimmed}`);
+      wsRef.current.send(
+        JSON.stringify({ action: 'start_topic_session', name: trimmed })
+      );
+    },
+    [setRuntimeStatus]
+  );
+
   useEffect(() => {
     if (!enabled) return;
     connect();
@@ -499,6 +525,7 @@ export function useHearthWebSocket(enabled = true) {
     switchPersona,
     startNewSession,
     resumeSession,
+    startTopicSession,
     reconnect: connect,
     disconnect,
     connectionEvent,

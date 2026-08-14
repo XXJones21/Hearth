@@ -9,6 +9,7 @@ import {
   fetchShelf,
   type ShelfBook,
 } from '../../lib/journal';
+import { useAppStore } from '../../store/appStore';
 
 /* Selene's Library -- the Journal surface. Four rooms per her floor plan:
    the Heart (living volumes), the Curator's Alcove (life), the Active
@@ -20,6 +21,7 @@ const PERSONA_DOT: Record<string, string> = {
 };
 
 export function LibraryView() {
+  const sessionsTick = useAppStore((s) => s.sessionsTick);
   const [heart, setHeart] = useState<LibraryBook[]>([]);
   const [shelf, setShelf] = useState<{ projects: ShelfBook[]; life: ShelfBook[] }>({
     projects: [],
@@ -75,7 +77,10 @@ export function LibraryView() {
         ]);
       },
     );
-  }, []);
+    /* Refetch when a session ends or a topic chat starts. The library used to
+       load once on mount, so the diary written two minutes ago was missing
+       from a shelf the operator was already looking at. */
+  }, [sessionsTick]);
 
   const { forge, seedlings, life } = useMemo(() => {
     const match = (b: ShelfBook) =>

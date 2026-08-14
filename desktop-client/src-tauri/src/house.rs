@@ -18,7 +18,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -108,7 +108,17 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
             config_path.display()
         ));
     }
-    let file = parse_env_file(&config_path);
+    let mut file = parse_env_file(&config_path);
+    // Optional overlay: keys win over hearth.env so a supervisor can point
+    // this house at another household without rewriting the product file.
+    if let Ok(overlay) = std::env::var("HEARTH_ENV_OVERLAY") {
+        let overlay_path = PathBuf::from(&overlay);
+        if overlay_path.is_file() {
+            for (k, v) in parse_env_file(&overlay_path) {
+                file.insert(k, v);
+            }
+        }
+    }
     let require = |key: &str| -> Result<String, String> {
         file.get(key).cloned().ok_or_else(|| {
             format!("{} is missing {}; re-render the configuration", config_path.display(), key)
@@ -255,16 +265,14 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
             args.push(steps.clone());
         }
         for (name, clip, text) in persona_voices(&backend) {
-            // The triplet splits on ':', which a Windows drive letter breaks
-            // (sulivan:D:/clip parses as clip "D" and the engine dies with
-            // "cannot read reference audio D", found live 2026-08-08). The
-            // engine runs with cwd = backend, so paths relative to it carry
-            // no drive colon on any platform.
-            let rel = |p: &Path| {
-                p.strip_prefix(&backend).map(slash).unwrap_or_else(|_| slash(p))
-            };
+            let _ = (clip, text);
+            // Relative to cwd=backend so a junction target that canonicalizes
+            // onto D:\Tools\... does not put a drive-letter colon in --voice.
+            let lower = name.to_lowercase();
             args.push("--voice".into());
-            args.push(format!("{}:{}:{}", name, rel(&clip), rel(&text)));
+            args.push(format!(
+                "{lower}:personas/{name}/voice/{lower}_voice_reference.wav:personas/{name}/voice/{lower}_voice_reference.txt"
+            ));
         }
         specs.push(Spec {
             name: "voice-engine",
@@ -355,11 +363,12 @@ fn refresh_voice_args(spec: &Spec) -> Vec<String> {
         }
     }
     for (name, clip, text) in persona_voices(&spec.cwd) {
-        let rel = |p: &Path| {
-            p.strip_prefix(&spec.cwd).map(slash).unwrap_or_else(|_| slash(p))
-        };
+        let _ = (clip, text);
+        let lower = name.to_lowercase();
         kept.push("--voice".into());
-        kept.push(format!("{}:{}:{}", name, rel(&clip), rel(&text)));
+        kept.push(format!(
+            "{lower}:personas/{name}/voice/{lower}_voice_reference.wav:personas/{name}/voice/{lower}_voice_reference.txt"
+        ));
     }
     kept
 }
@@ -605,13 +614,25 @@ pub fn status(state: &HouseState) -> HouseStatus {
         .unwrap_or_default()
 }
 
+/// Bring the house up, or bounce it: `start` stops whatever this instance is
+/// already supervising before it spawns anything, so a second call IS the
+/// restart and the client needs no separate command for it.
+///
+/// Async, and the work goes to a blocking worker. As a sync command this ran
+/// on the UI thread through a process spawn and a health gate that waits on
+/// llama-server loading a model, which is tens of seconds with the window
+/// unable to paint: Windows marks it Not Responding and the operator is told
+/// their new app has hung on first run. The boot overlay can only animate if
+/// this thread is free.
 #[tauri::command]
-pub fn house_start(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, HouseState>,
-    root: String,
-) -> Result<(), String> {
-    start(app, &state, PathBuf::from(root))
+pub async fn house_start(app: tauri::AppHandle, root: String) -> Result<(), String> {
+    let worker = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker.state::<HouseState>();
+        start(worker.clone(), &state, PathBuf::from(root))
+    })
+    .await
+    .map_err(|e| format!("house start worker failed: {e}"))?
 }
 
 #[tauri::command]

@@ -6,6 +6,7 @@ import { ChoiceCard } from './ChoiceCard';
 import { ClockCard } from './ClockCard';
 import { GeneratedViewCard } from './GeneratedViewCard';
 import { ImageCard } from './ImageCard';
+import { PermissionCard } from './PermissionCard';
 import { SlideshowCard } from './SlideshowCard';
 import { TerminalCard } from './TerminalCard';
 import { TimerCard } from './TimerCard';
@@ -27,6 +28,7 @@ export const CARD_REGISTRY: Record<string, FC<CardProps>> = {
   captions: CaptionsCard,
   terminal_card: TerminalCard,
   image_card: ImageCard,
+  permission_card: PermissionCard,
   generated_view: GeneratedViewCard,
   choice_card: ChoiceCard,
   // FORGE:REGISTER -- commissioned cards land above this line.
