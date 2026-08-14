@@ -56,6 +56,19 @@ def write_continuity(persona: str, summary: str, title: str = "") -> bool:
         return False
 
 
+def clear_continuity() -> bool:
+    """Drop the continuity note. Used by an explicit client new_session so the
+    next turn does not reopen with the session that was just dismissed."""
+    try:
+        path = continuity_path()
+        if path.is_file():
+            path.unlink()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("could not clear continuity note: %s", exc)
+        return False
+
+
 def read_continuity() -> dict | None:
     """The latest continuity note, or None when absent/stale/unreadable."""
     try:

@@ -22,6 +22,12 @@ from typing import AsyncIterator
 
 import httpx
 
+from .prompt_dialect import PromptDialect, dialect_from_model, wire_dialect
+from .prompt_format import (
+    Gemma4SpeechFilter,
+    parse_gemma4_completion,
+    render_prompt,
+)
 from .provider import (
     BrainProvider,
     BrainStreamResult,
@@ -67,6 +73,39 @@ class RustBrainProvider:
     def _chat_url(self) -> str:
         return f"{self.base_url}/chat/completions"
 
+    def _completions_url(self) -> str:
+        return f"{self.base_url}/completions"
+
+    def _resolved_dialect(self, opts: ChatOptions) -> PromptDialect:
+        dialect = getattr(opts, "prompt_dialect", None) or PromptDialect.OPENAI
+        if dialect is PromptDialect.OPENAI and (opts.model_path or ""):
+            dialect = dialect_from_model(opts.model_path)
+        return dialect
+
+    def _wire_dialect(self, opts: ChatOptions) -> PromptDialect:
+        return wire_dialect(self._resolved_dialect(opts))
+
+    def _completion_payload(
+        self,
+        prompt: str,
+        opts: ChatOptions,
+        *,
+        stream: bool,
+        stop: list[str],
+    ) -> dict:
+        payload: dict = {
+            "prompt": prompt,
+            "max_tokens": opts.max_tokens,
+            "temperature": opts.temperature,
+            "top_p": opts.top_p,
+            "top_k": opts.top_k,
+            "stream": stream,
+            "stop": stop,
+        }
+        if opts.model:
+            payload["model"] = opts.model
+        return payload
+
     def _msg_to_dict(self, m: ChatMessage) -> dict:
         """Serialize one ChatMessage to the OpenAI wire shape. Tool fields are
         emitted ONLY when present so a message without them is byte-identical to
@@ -107,32 +146,85 @@ class RustBrainProvider:
     ) -> dict:
         """Tool-aware, NON-streaming brain call (the flag-gated tool round-trip).
 
-        POSTs the same sampling as the streaming path but with stream=false,
-        tools=[...] and tool_choice="auto", and returns the assistant message's
-        {content, tool_calls} so the caller (ToolCallingLoop) can run any tools
-        and then make the existing streaming final-answer call. Validated against
-        gemma-4-E4B via llama-server :8080 (finish_reason="tool_calls")."""
+        OpenAI dialect: POST /chat/completions with tools=[...] and tool_choice=auto.
+        Gemma 4 dialect: render native turns/declarations and POST /completions so
+        llama-server does not re-wrap the prompt. Returns OpenAI-shaped
+        {content, tool_calls, reasoning} in both cases."""
+        if self._wire_dialect(opts) is PromptDialect.GEMMA4:
+            return await self._chat_tools_gemma4(messages, opts, tools)
         payload = self._build_payload(messages, opts)
         payload["stream"] = False
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
+        obj = await self._post_json(self._chat_url(), payload, what="tools")
+        choices = obj.get("choices") or []
+        if not choices:
+            return {"content": "", "tool_calls": [], "reasoning": ""}
+        choice = choices[0]
+        message = choice.get("message") or {}
+        content = message.get("content") or ""
+        tool_calls = message.get("tool_calls") or []
+        reasoning = message.get("reasoning_content") or ""
+        logger.info(
+            "brain tools: finish=%s calls=%d content=%d reasoning=%d head=%r",
+            choice.get("finish_reason"),
+            len(tool_calls),
+            len(content),
+            len(reasoning),
+            (content or reasoning)[:120],
+        )
+        return {
+            "content": content,
+            "tool_calls": tool_calls,
+            "reasoning": reasoning,
+        }
+
+    async def _chat_tools_gemma4(
+        self,
+        messages: list[ChatMessage],
+        opts: ChatOptions,
+        tools: list[dict],
+    ) -> dict:
+        rendered = render_prompt(
+            messages,
+            dialect=PromptDialect.GEMMA4,
+            tools=tools,
+            enable_thinking=bool(opts.enable_thinking),
+        )
+        payload = self._completion_payload(
+            rendered.prompt, opts, stream=False, stop=rendered.stop
+        )
+        obj = await self._post_json(self._completions_url(), payload, what="tools")
+        text = _completion_text(obj)
+        parsed = parse_gemma4_completion(text)
+        logger.info(
+            "brain tools: finish=%s calls=%d content=%d reasoning=%d head=%r dialect=gemma4",
+            (obj.get("choices") or [{}])[0].get("finish_reason") if obj.get("choices") else "",
+            len(parsed["tool_calls"]),
+            len(parsed["content"]),
+            len(parsed["reasoning"]),
+            (parsed["content"] or parsed["reasoning"] or text)[:120],
+        )
+        return parsed
+
+    async def _post_json(self, url: str, payload: dict, *, what: str) -> dict:
         obj: dict = {}
         last_exc: Exception | None = None
         for attempt in range(1 + _CONNECT_RETRIES):
             if attempt:
                 delay = _CONNECT_BACKOFF_S[attempt - 1]
                 logger.warning(
-                    "brain (tools) connect failed (%s); retry %d/%d in %.0fs",
-                    last_exc, attempt, _CONNECT_RETRIES, delay,
+                    "brain (%s) connect failed (%s); retry %d/%d in %.0fs",
+                    what, last_exc, attempt, _CONNECT_RETRIES, delay,
                 )
                 await _retry_sleep(delay)
             try:
                 async with self._client() as client:
-                    resp = await client.post(self._chat_url(), json=payload)
+                    resp = await client.post(url, json=payload)
                     if resp.status_code != 200:
                         body = resp.text
                         raise BrainError(
-                            f"brain (tools) returned {resp.status_code}: {body[:500]}"
+                            f"brain ({what}) returned {resp.status_code}: {body[:500]}"
                         )
                     obj = resp.json()
                 break
@@ -140,19 +232,9 @@ class RustBrainProvider:
                 last_exc = exc
         else:
             raise BrainError(
-                f"brain (tools) unreachable after {1 + _CONNECT_RETRIES} attempts: {last_exc}"
+                f"brain ({what}) unreachable after {1 + _CONNECT_RETRIES} attempts: {last_exc}"
             ) from last_exc
-        choices = obj.get("choices") or []
-        if not choices:
-            return {"content": "", "tool_calls": [], "reasoning": ""}
-        message = choices[0].get("message") or {}
-        return {
-            "content": message.get("content") or "",
-            "tool_calls": message.get("tool_calls") or [],
-            # llama-server surfaces parsed thinking here when reasoning is on
-            # (--reasoning auto + a thinking-enabled request). Empty otherwise.
-            "reasoning": message.get("reasoning_content") or "",
-        }
+        return obj
 
     async def chat_structured(
         self,
@@ -176,31 +258,7 @@ class RustBrainProvider:
             "type": "json_schema",
             "json_schema": {"name": name, "schema": schema, "strict": True},
         }
-        obj: dict = {}
-        last_exc: Exception | None = None
-        for attempt in range(1 + _CONNECT_RETRIES):
-            if attempt:
-                delay = _CONNECT_BACKOFF_S[attempt - 1]
-                logger.warning(
-                    "brain (structured) connect failed (%s); retry %d/%d in %.0fs",
-                    last_exc, attempt, _CONNECT_RETRIES, delay,
-                )
-                await _retry_sleep(delay)
-            try:
-                async with self._client() as client:
-                    resp = await client.post(self._chat_url(), json=payload)
-                    if resp.status_code != 200:
-                        raise BrainError(
-                            f"brain (structured) returned {resp.status_code}: {resp.text[:500]}"
-                        )
-                    obj = resp.json()
-                break
-            except _CONNECT_ERRORS as exc:
-                last_exc = exc
-        else:
-            raise BrainError(
-                f"brain (structured) unreachable after {1 + _CONNECT_RETRIES} attempts: {last_exc}"
-            ) from last_exc
+        obj = await self._post_json(self._chat_url(), payload, what="structured")
         choices = obj.get("choices") or []
         if not choices:
             return ""
@@ -213,7 +271,43 @@ class RustBrainProvider:
         opts: ChatOptions,
         result: BrainStreamResult,
     ) -> AsyncIterator[str]:
+        if self._wire_dialect(opts) is PromptDialect.GEMMA4:
+            async for delta in self._chat_gemma4(messages, opts, result):
+                yield delta
+            return
         payload = self._build_payload(messages, opts)
+        async for delta in self._stream_sse(self._chat_url(), payload, result):
+            yield delta
+
+    async def _chat_gemma4(
+        self,
+        messages: list[ChatMessage],
+        opts: ChatOptions,
+        result: BrainStreamResult,
+    ) -> AsyncIterator[str]:
+        rendered = render_prompt(
+            messages,
+            dialect=PromptDialect.GEMMA4,
+            tools=opts.tools,
+            enable_thinking=bool(opts.enable_thinking),
+        )
+        payload = self._completion_payload(
+            rendered.prompt, opts, stream=True, stop=rendered.stop
+        )
+        speech = Gemma4SpeechFilter()
+        async for raw in self._stream_sse(self._completions_url(), payload, result):
+            for piece in speech.feed(raw):
+                yield piece
+        leftover = speech.flush()
+        if leftover:
+            yield leftover
+
+    async def _stream_sse(
+        self,
+        url: str,
+        payload: dict,
+        result: BrainStreamResult,
+    ) -> AsyncIterator[str]:
         yielded = False
         last_exc: Exception | None = None
         for attempt in range(1 + _CONNECT_RETRIES):
@@ -226,9 +320,7 @@ class RustBrainProvider:
                 await _retry_sleep(delay)
             try:
                 async with self._client() as client:
-                    async with client.stream(
-                        "POST", self._chat_url(), json=payload
-                    ) as resp:
+                    async with client.stream("POST", url, json=payload) as resp:
                         if resp.status_code != 200:
                             body = (await resp.aread()).decode("utf-8", "replace")
                             raise BrainError(
@@ -242,9 +334,6 @@ class RustBrainProvider:
                         return
             except _CONNECT_ERRORS as exc:
                 if yielded:
-                    # Connect-class errors cannot occur on an open stream, but
-                    # the guard makes the contract explicit: NEVER retry once a
-                    # token has been yielded (audio may already be spoken).
                     raise
                 last_exc = exc
         raise BrainError(
@@ -301,10 +390,30 @@ def _parse_sse_line(line: str, result: BrainStreamResult) -> str | None:
     if not isinstance(choices, list) or not choices:
         return None
     choice = choices[0]
-    # Streaming shape: choices[].delta.content ; non-streaming fallback: message.content
+    # Chat stream: choices[].delta.content. Completions stream: choices[].text.
     delta = choice.get("delta") or {}
     content = delta.get("content")
+    if content is None:
+        content = delta.get("text")
+    if content is None:
+        content = choice.get("text")
     if content is None:
         message = choice.get("message") or {}
         content = message.get("content")
     return content or None
+
+
+def _completion_text(obj: dict) -> str:
+    """Pull generated text out of a /v1/completions (or native /completion) body."""
+    choices = obj.get("choices") or []
+    if choices:
+        choice = choices[0] or {}
+        text = choice.get("text")
+        if text:
+            return str(text)
+        message = choice.get("message") or {}
+        if message.get("content"):
+            return str(message["content"])
+    if obj.get("content"):
+        return str(obj["content"])
+    return ""

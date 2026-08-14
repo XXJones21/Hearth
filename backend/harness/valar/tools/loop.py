@@ -27,7 +27,7 @@ Integration note (why this is not wired yet): the current ``BrainProvider.chat``
 streams plain text deltas and has no ``tools=`` parameter or ``tool_calls`` parse
 path. Wiring this requires (a) a non-streaming (or tool-aware) brain call that
 surfaces ``tool_calls`` and (b) a ``ChatOptions.tools`` field. Both are additive
-to the brain seam and must land behind ``HEARTH_TOOLS_ENABLED`` with the voice path
+to the brain seam and must land behind ``VALAR_TOOLS_ENABLED`` with the voice path
 defaulting to today's tool-free behavior. Until then this module documents the
 contract and offers ``maybe_run_tools`` as the seam a future gateway change calls.
 """
@@ -75,6 +75,7 @@ def parse_tool_args(raw_args: Any) -> dict[str, Any]:
         pass
     logger.warning("unparseable tool args dropped: %.500r", raw_args)
     return {}
+
 
 # Cap tool round-trips per turn so a model that loops on tool calls cannot stall a
 # voice turn. The reactive design is ONE round-trip; allow a small margin.
@@ -193,6 +194,13 @@ class ToolCallingLoop:
                         await on_tool_result(name, result)
                     except Exception as exc:  # noqa: BLE001 - emits never break tools
                         logger.warning("on_tool_result callback failed: %s", exc)
+                if (result.data or {}).get("await_permission"):
+                    result = await _resume_after_permission(self.registry, name, args, result)
+                    if result.ok and on_tool_result is not None:
+                        try:
+                            await on_tool_result(name, result)
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning("on_tool_result callback failed: %s", exc)
                 # Phase 1c: a failed tool must be structurally legible. Before
                 # this, ok=False was dropped here and the model read the error
                 # string as if it were data (and could present it as an answer).
@@ -223,6 +231,28 @@ class ToolCallingLoop:
                 "spoken language using the results above. Do not call any more tools.]"
             )
         return messages
+
+
+async def _resume_after_permission(registry, name: str, args: dict, pending) -> Any:
+    """Hold the turn on a permission card, then retry the same call if granted."""
+    from .handlers.files import wait_for_decision
+    from .spec import ToolResult
+
+    request_id = str((pending.data or {}).get("request_id") or "")
+    logger.info("tool loop waiting on permission id=%s tool=%s", request_id, name)
+    decision = await wait_for_decision(request_id)
+    if decision == "granted":
+        logger.info("permission granted; retrying %s", name)
+        return await registry.invoke(name, args)
+    reason = (
+        "The operator denied access to that folder."
+        if decision == "denied"
+        else "The permission request timed out before anyone approved it."
+    )
+    return ToolResult(
+        content=reason + " Do not invent file contents.",
+        ok=False,
+    )
 
 
 async def maybe_run_tools(

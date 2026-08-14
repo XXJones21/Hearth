@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Callable
 
 from ..config import BrainConfig
+from .prompt_dialect import PromptDialect
 from .provider import (
     BrainProvider,
     BrainStreamResult,
@@ -56,5 +57,6 @@ __all__ = [
     "BrainUsage",
     "ChatMessage",
     "ChatOptions",
+    "PromptDialect",
     "build_brain",
 ]

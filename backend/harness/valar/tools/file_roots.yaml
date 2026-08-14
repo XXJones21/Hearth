@@ -1,0 +1,15 @@
+# Operator-curated roots for read_file. Widening access is an edit here,
+# never something a conversation can do. Paths may be Windows or WSL form;
+# the handler normalizes both.
+#
+# Parity: when you add a root, mention it in wiki/architecture/harness/tool-catalog.md.
+
+roots:
+  - name: career
+    path: D:/Tools/Career
+  - name: engram
+    path: D:/Tools/personalAI/Engram
+  - name: valinor
+    path: D:/Tools/Valinor
+  - name: sessions
+    path: D:/Tools/Valinor/sessions

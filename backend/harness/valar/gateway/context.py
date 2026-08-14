@@ -19,6 +19,8 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ..brain import ChatMessage
+from ..brain.prompt_dialect import PromptDialect
+from ..brain.prompt_format import RenderedPrompt, render_prompt
 from ..config import ContextBudget
 from ..telemetry import TurnTelemetry
 
@@ -136,6 +138,25 @@ def _render_tool_priming(specs: list | None) -> str:
 class ContextAssembler:
     def __init__(self, budget: ContextBudget):
         self.budget = budget
+        self.dialect = PromptDialect.OPENAI
+
+    def set_dialect(self, dialect: PromptDialect) -> None:
+        self.dialect = dialect or PromptDialect.OPENAI
+
+    def render(
+        self,
+        messages: list,
+        *,
+        tools: list | None = None,
+        enable_thinking: bool = False,
+    ) -> RenderedPrompt:
+        """Format the ChatMessage IR for the dialect set when the model loaded."""
+        return render_prompt(
+            messages,
+            dialect=self.dialect,
+            tools=tools,
+            enable_thinking=enable_thinking,
+        )
 
     def build(
         self,

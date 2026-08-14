@@ -89,6 +89,27 @@ _CORE = {
 _MCP_CONFIG = Path(__file__).resolve().parents[2] / "valar" / "tools" / "mcp_servers.json"
 
 
+def _tools_yaml() -> Path:
+    configured = (os.environ.get("HEARTH_TOOLS_YAML") or "").strip()
+    return Path(configured) if configured else Path(__file__).resolve().parents[1] / "tools" / "tools.yaml"
+
+
+def _card_catalog() -> Path:
+    configured = (os.environ.get("HEARTH_CARD_CATALOG") or "").strip()
+    return Path(configured) if configured else Path(__file__).resolve().parents[1] / "tools" / "card_catalog.yaml"
+
+
+def _load_card_catalog() -> list[dict]:
+    try:
+        import yaml  # type: ignore
+
+        data = yaml.safe_load(_card_catalog().read_text(encoding="utf-8")) or {}
+        return list(data.get("cards") or [])
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("card catalog unreadable: %s", exc)
+        return []
+
+
 def _all_specs() -> dict:
     """Every tool in the registry, enabled or not. The registry drops disabled
     entries, so read the YAML directly to show what the house COULD do."""
@@ -96,7 +117,7 @@ def _all_specs() -> dict:
         import yaml  # type: ignore
 
         doc = yaml.safe_load(
-            (Path(__file__).resolve().parents[1] / "tools" / "tools.yaml").read_text(
+            _tools_yaml().read_text(
                 encoding="utf-8"
             )
         ) or {}
@@ -134,10 +155,8 @@ def _persona_grants(persona_dir: Path) -> dict[str, list[str]]:
 
 def _cards_by_source() -> dict[str, list[str]]:
     """tool name -> card types it feeds."""
-    from ..tools.handlers.forge import _load_catalog  # noqa: PLC0415
-
     out: dict[str, list[str]] = {}
-    for entry in _load_catalog():
+    for entry in _load_card_catalog():
         src = str(entry.get("data_source") or "")
         if src:
             out.setdefault(src, []).append(str(entry.get("type")))
@@ -174,7 +193,7 @@ def _discovered() -> list[dict]:
 
 def _build(config: ValarConfig) -> dict:
     from ..tools import tools_enabled  # noqa: PLC0415
-    from ..tools.handlers.forge import _load_catalog, card_status  # noqa: PLC0415
+    from ..tools.handlers.forge import card_status  # noqa: PLC0415
 
     specs = _all_specs()
     grants = _persona_grants(config.persona_dir)
@@ -247,7 +266,7 @@ def _build(config: ValarConfig) -> dict:
             if e.get("builtin")
             else ("forged" if card_status(e) == "built" else "scaffold"),
         }
-        for e in _load_catalog()
+        for e in _load_card_catalog()
     ]
 
     return {
@@ -284,7 +303,7 @@ def register(app: FastAPI, config: ValarConfig) -> None:
 # comment in it.
 # ---------------------------------------------------------------------------
 
-_TOOLS_YAML = Path(__file__).resolve().parents[1] / "tools" / "tools.yaml"
+_TOOLS_YAML = _tools_yaml()
 
 
 def _app_tools(specs: dict) -> dict[str, list[str]]:

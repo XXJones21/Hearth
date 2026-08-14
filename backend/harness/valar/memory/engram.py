@@ -48,29 +48,44 @@ class EngramMemory:
 
         Pulls operator facts always (they are small, always-relevant) plus, when
         a query matches stored facts or a project hint is given, the relevant
-        project context. Bounded by memory_token_budget (see assembler trim).
+        project or life-root context. Bounded by memory_token_budget (see assembler trim).
         """
-        if not self._ensure_imported():
+        imported = self._ensure_imported()
+        if not imported and not project_hint:
             return ""
         bs = self._brain_sync
         parts: list[str] = []
-        try:
-            facts = bs.load_operator_facts()  # type: ignore[union-attr]
-            if facts:
-                parts.append(facts)
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("operator facts recall failed: %s", exc)
-        try:
-            matched = bs.search_operator_facts(query)  # type: ignore[union-attr]
-            if matched:
-                parts.append("Relevant facts:\n" + "\n".join(f"- {m}" for m in matched))
-        except Exception as exc:  # noqa: BLE001
-            logger.debug("fact search failed: %s", exc)
-        if project_hint:
+        if imported and bs is not None:
+            try:
+                facts = bs.load_operator_facts()  # type: ignore[union-attr]
+                if facts:
+                    parts.append(facts)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("operator facts recall failed: %s", exc)
+            try:
+                matched = bs.search_operator_facts(query)  # type: ignore[union-attr]
+                if matched:
+                    parts.append("Relevant facts:\n" + "\n".join(f"- {m}" for m in matched))
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("fact search failed: %s", exc)
+        got_topic = False
+        if project_hint and imported and bs is not None:
             try:
                 ctx = bs.load_engram_context(project_hint)  # type: ignore[union-attr]
                 if ctx:
                     parts.append(ctx)
+                    got_topic = True
             except Exception as exc:  # noqa: BLE001
                 logger.debug("project context recall failed: %s", exc)
+        if project_hint and not got_topic:
+            try:
+                from .topic import load_topic_context, resolve_engram_root
+
+                root = resolve_engram_root(self.repo_root)
+                if root is not None:
+                    ctx = load_topic_context(root, project_hint)
+                    if ctx:
+                        parts.append(f"Topic notes ({project_hint}):\n{ctx}")
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("topic context recall failed: %s", exc)
         return "\n\n".join(p for p in parts if p).strip()

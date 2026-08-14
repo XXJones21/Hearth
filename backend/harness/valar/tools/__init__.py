@@ -29,8 +29,13 @@ from .spec import ToolResult, ToolSpec
 
 logger = logging.getLogger("valar.tools")
 
-# Default registry config path: alongside this package.
-DEFAULT_TOOLS_YAML = Path(__file__).resolve().parent / "tools.yaml"
+def _default_tools_yaml() -> Path:
+    configured = (os.environ.get("HEARTH_TOOLS_YAML") or "").strip()
+    return Path(configured) if configured else Path(__file__).resolve().parent / "tools.yaml"
+
+
+# Default registry config path: HEARTH_TOOLS_YAML, else alongside this package.
+DEFAULT_TOOLS_YAML = _default_tools_yaml()
 
 
 def tools_enabled() -> bool:

@@ -27,6 +27,7 @@ from typing import AsyncIterator
 
 import websockets
 
+from .prompt_dialect import PromptDialect, dialect_from_model
 from .provider import BrainStreamResult, ChatMessage, ChatOptions
 from .rust_provider import BrainError, RustBrainProvider
 
@@ -57,6 +58,7 @@ class RouterBrainProvider:
         # until the first routed turn — the first turn for any class pays the swap
         # (a no-op if that class is already resident).
         self._loaded_model_path = ""
+        self.prompt_dialect = PromptDialect.OPENAI
         # Serialize swaps so two concurrent turns can't switch the model out from
         # under each other.
         self._swap_lock = asyncio.Lock()
@@ -156,6 +158,8 @@ class RouterBrainProvider:
         # Nothing to route on (e.g. a caller that didn't set persona/model) — just
         # stream against whatever is resident.
         if not persona_name or not model_path:
+            if self._loaded_model_path:
+                self._stamp_dialect(self._loaded_model_path, opts)
             return
         # Learn the idle (daily) model path from idle-persona turns so the watchdog
         # can distinguish "heavy" (loaded != idle) from "already on the daily model".
@@ -163,6 +167,7 @@ class RouterBrainProvider:
             self._idle_model_path = model_path
         async with self._swap_lock:
             if model_path == self._loaded_model_path:
+                self._stamp_dialect(model_path, opts)
                 return  # already resident (same model class) — no swap needed
             logger.info(
                 "router: model class change (%s -> %s); switch_persona %s",
@@ -172,6 +177,15 @@ class RouterBrainProvider:
             )
             await self._switch_persona(persona_name)
             self._loaded_model_path = model_path
+            self._stamp_dialect(model_path, opts)
+
+    def _stamp_dialect(self, model_path: str, opts: ChatOptions) -> None:
+        """Record the resident GGUF's prompt dialect on the router and this turn."""
+        dialect = dialect_from_model(model_path)
+        if dialect != self.prompt_dialect:
+            logger.info("router: prompt dialect %s for %s", dialect.value, model_path)
+        self.prompt_dialect = dialect
+        opts.prompt_dialect = dialect
 
     # --- idle watchdog -------------------------------------------------------
 
@@ -223,6 +237,14 @@ class RouterBrainProvider:
                         try:
                             await self._switch_persona(self._idle_persona)
                             self._loaded_model_path = self._idle_model_path
+                            self.prompt_dialect = dialect_from_model(
+                                self._idle_model_path
+                            )
+                            logger.info(
+                                "router: prompt dialect %s for %s",
+                                self.prompt_dialect.value,
+                                self._idle_model_path,
+                            )
                         except BrainError as exc:
                             logger.warning(
                                 "router idle watchdog swap failed (will retry): %s", exc

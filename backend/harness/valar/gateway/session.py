@@ -56,6 +56,9 @@ class Session:
     # in-band `reset_vad` can now CANCEL the turn instead of queueing behind it,
     # and a disconnect cancels it instead of letting it emit into a dead socket.
     turn_task: object | None = None
+    # Engram topic for this chat (project or life-root name). Passed into
+    # memory.recall so every turn loads that claude.md. Cleared on session end.
+    topic_hint: str | None = None
 
     def record_turn(self, user: str, assistant: str) -> None:
         self.history.append(Turn(user=user, assistant=assistant))
