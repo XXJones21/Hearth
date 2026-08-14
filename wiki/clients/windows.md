@@ -45,6 +45,24 @@ Closing the client window does not stop Hearth. It minimizes to the tray, and
 the backend keeps running, because an always-on companion cannot depend on a
 window staying open. Quit is the explicit stop.
 
+To clear the live conversation without quitting, use **New session** on the
+right-rail Sessions tab (or the + button under it). That sends a `new_session`
+WebSocket action: the house ends the current chat on the same socket, clears
+the feed, and the next message starts fresh. Idle timeout does the same end
+path automatically after the configured quiet window.
+
+**Earlier conversations** on the same Sessions tab list Journal diaries the
+house already filed (`GET /journal/sessions`). Click one to read its summary
+and transcript in the rail; **Open Journal** jumps to the full library.
+**Resume** (when a transcript exists) sends `resume_session` with that
+diary slug: the house ends the current chat, seeds a fresh `session_id`
+from `chatlog.md`, and the feed rehydrates so the next message continues
+that thread without reusing the archived session id.
+
+**Local files.** When the operator names a path under an allow-listed root
+(Career, Engram, Hearth), Sulivan can call `read_file` to open markdown,
+text, HTML, or PDF contents instead of asking them to paste.
+
 ## What the installer gives you
 
 The client is the installer. You download one app, and the first run

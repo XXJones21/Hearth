@@ -230,6 +230,45 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
       s.setVisualState('idle');
       break;
     }
+    case 'session_ended': {
+      // Idle watchdog or an explicit new_session: wipe the transcript and
+      // cards so the next turn has a clean frame. Server already cleared its
+      // history; without this the feed kept prior turns after New session.
+      // resume_session also emits this first, then session_resumed repaints.
+      pendingSpokenText = null;
+      ttsPlayer.reset();
+      s.resetMessages();
+      s.clearAgentEvents();
+      s.clearAssistantDraft();
+      s.setWaitingForResponse(false);
+      s.setRuntimeStatus('New session');
+      s.setActiveTools([]);
+      s.setVisualState('idle');
+      s.setServerState({ state: 'idle', stage: String(data.reason || 'ended') });
+      s.bumpSessionsTick();
+      break;
+    }
+    case 'session_resumed': {
+      // After session_ended wipe: rehydrate feed from the Journal chatlog the
+      // house just seeded into session.history.
+      const turns = Array.isArray(
+        (data as { turns?: Array<{ user?: string; assistant?: string }> }).turns
+      )
+        ? (data as { turns: Array<{ user?: string; assistant?: string }> }).turns
+        : [];
+      const msgs: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+      for (const t of turns) {
+        const user = String(t.user || '').trim();
+        const assistant = String(t.assistant || '').trim();
+        if (user) msgs.push({ role: 'user', text: user });
+        if (assistant) msgs.push({ role: 'assistant', text: assistant });
+      }
+      s.replaceMessages(msgs);
+      s.setRuntimeStatus('Resumed session');
+      s.setServerState({ state: 'idle', stage: 'resumed' });
+      s.setVisualState('idle');
+      break;
+    }
     case 'execute_artifacts': {
       s.pushMessage({
         role: 'assistant',
@@ -420,6 +459,27 @@ export function useHearthWebSocket(enabled = true) {
     }
   }, []);
 
+  const startNewSession = useCallback(() => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+    if (useAppStore.getState().isWaitingForResponse) return;
+    setRuntimeStatus('Starting new session');
+    wsRef.current.send(JSON.stringify({ action: 'new_session' }));
+  }, [setRuntimeStatus]);
+
+  const resumeSession = useCallback(
+    (slug: string) => {
+      const trimmed = slug.trim();
+      if (!trimmed) return;
+      if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+      if (useAppStore.getState().isWaitingForResponse) return;
+      setRuntimeStatus('Resuming session');
+      wsRef.current.send(
+        JSON.stringify({ action: 'resume_session', slug: trimmed })
+      );
+    },
+    [setRuntimeStatus]
+  );
+
   useEffect(() => {
     if (!enabled) return;
     connect();
@@ -437,6 +497,8 @@ export function useHearthWebSocket(enabled = true) {
   return {
     sendTextQuery,
     switchPersona,
+    startNewSession,
+    resumeSession,
     reconnect: connect,
     disconnect,
     connectionEvent,

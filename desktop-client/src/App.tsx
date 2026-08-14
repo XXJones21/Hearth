@@ -30,7 +30,7 @@ export default function App() {
     !loadSettings().setupComplete ||
       (typeof window !== 'undefined' && window.location.hash === '#setup'),
   );
-  const { sendTextQuery, switchPersona, reconnect, disconnect } =
+  const { sendTextQuery, switchPersona, startNewSession, resumeSession, reconnect, disconnect } =
     useHearthWebSocket(!showSetup);
 
   /* The settings flag is only a cache. The truth is the install record on
@@ -106,12 +106,12 @@ export default function App() {
   };
 
   return (
-    <div className="hearth-field flex h-full min-h-screen items-center justify-center overflow-hidden p-6">
+    <div className="hearth-field flex h-full min-h-0 items-stretch overflow-hidden p-6">
       {showSetup ? (
         /* One centred column. During first run there is no persona to stand on
            a stage and no house to put a rail beside, so the frame is a single
            surface. This matches hearth-setup-flow.html. */
-        <div className="relative z-[1] flex h-full max-h-[min(860px,calc(100vh_-_3rem))] w-full max-w-[900px] flex-col overflow-hidden rounded-[26px] bg-fluff shadow-frame">
+        <div className="relative z-[1] mx-auto flex h-full min-h-0 w-full max-w-[900px] flex-col overflow-hidden rounded-[26px] bg-fluff shadow-frame">
           <SetupFlow
             onExit={(installed) => {
               /* Only a completed install marks setup complete. Closing out of
@@ -156,7 +156,11 @@ export default function App() {
         ) : (
           <Feed onSend={send} />
         )}
-        <Rail />
+        <Rail
+          onNewSession={startNewSession}
+          onResumeSession={resumeSession}
+          sessionBusy={isWaitingForResponse}
+        />
       </AppFrame>
       )}
     </div>

@@ -97,6 +97,11 @@ type AppState = {
   pushMessage: (m: Omit<ChatMessage, 'id' | 'ts'>) => void;
   /** drop the in-memory transcript (Settings > clear history) */
   resetMessages: () => void;
+  /** replace the feed (resume_session rehydrate) */
+  replaceMessages: (msgs: Omit<ChatMessage, 'id' | 'ts'>[]) => void;
+  /** bump when a session ends so the Sessions rail reloads diaries */
+  sessionsTick: number;
+  bumpSessionsTick: () => void;
   setVisualState: (v: VisualizerState) => void;
   setInputFocused: (f: boolean) => void;
   clearAgentEvents: () => void;
@@ -163,6 +168,7 @@ export const useAppStore = create<AppState>((set) => ({
   agentEvents: [],
   connectionEvent: false,
   uiCards: [],
+  sessionsTick: 0,
   applyUiComponentOp: (op) =>
     set((s) => {
       const now = Date.now();
@@ -220,7 +226,28 @@ export const useAppStore = create<AppState>((set) => ({
       persistMessages(next, s.currentPersonaName);
       return { messages: next };
     }),
-  resetMessages: () => set({ messages: [], activeAssistantDraft: '' }),
+  resetMessages: () =>
+    set((s) => {
+      persistMessages([], s.currentPersonaName);
+      return { messages: [], activeAssistantDraft: '', uiCards: [], activeTools: [] };
+    }),
+  replaceMessages: (msgs) =>
+    set((s) => {
+      const base = Date.now();
+      const next: ChatMessage[] = msgs.map((m, i) => ({
+        ...m,
+        id: rid(),
+        ts: base + i,
+      }));
+      persistMessages(next, s.currentPersonaName);
+      return {
+        messages: next,
+        activeAssistantDraft: '',
+        uiCards: [],
+        activeTools: [],
+      };
+    }),
+  bumpSessionsTick: () => set((s) => ({ sessionsTick: s.sessionsTick + 1 })),
   setVisualState: (v) => set({ visualState: v }),
   setInputFocused: (f) => set({ inputFocused: f }),
   setActiveView: (v) => set({ activeView: v }),
