@@ -37,6 +37,14 @@ from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.gateway")
 
+# Live conversations, keyed by connection, each with a callable that files it.
+# The registry exists so something OTHER than the socket can end a session:
+# the desktop client stops this whole process when the operator quits, and the
+# socket's own teardown loses that race. /sessions/flush is the door it knocks
+# on first. Entries are added on connect and removed on disconnect, so an idle
+# house holds an empty dict.
+_LIVE_SESSIONS: dict[str, object] = {}
+
 # Telegram/OpenAI "profile" -> Valar persona, for the HTTP /v1/chat/completions
 # shim that lets the single pipeline also serve text gateways (Telegram, etc.).
 # Mirrors the retired Hermes sidecar's map; unknown profiles fall through to a
@@ -190,6 +198,28 @@ def create_app(config: ValarConfig) -> FastAPI:
                 )
         except Exception:  # noqa: BLE001 - not reachable IS the answer
             return JSONResponse({"ready": False, "service": ""})
+
+    @app.post("/sessions/flush")
+    async def sessions_flush() -> JSONResponse:
+        """File every live conversation, now, before something kills us.
+
+        The desktop client calls this on its way to stopping the house. Quit
+        used to be a race the transcript lost: the socket closed, the server
+        began writing a summary, and the process was killed mid-call. This
+        gives the client something to WAIT for, and the writes it triggers
+        make no model call at all, so the wait is milliseconds rather than the
+        length of a generation.
+        """
+        flushers = list(_LIVE_SESSIONS.values())
+        filed = 0
+        for flush in flushers:
+            try:
+                if await flush():  # type: ignore[operator]
+                    filed += 1
+            except Exception as exc:  # noqa: BLE001 - shutdown must not raise
+                logger.warning("flush failed: %s", exc)
+        logger.info("sessions flushed: %d of %d live", filed, len(flushers))
+        return JSONResponse({"ok": True, "flushed": filed, "live": len(flushers)})
 
     config.assets_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/assets", StaticFiles(directory=str(config.assets_dir)), name="assets")
@@ -442,7 +472,27 @@ def create_app(config: ValarConfig) -> FastAPI:
         await websocket.accept()
         session = Session(session_id=str(uuid.uuid4()))
         vad = EnergyVAD(sample_rate=config.voice.input_sample_rate)
+        conn_key = str(uuid.uuid4())
         logger.info("WS connect session=%s", session.session_id)
+
+        async def _flush_this_session() -> bool:
+            """File this conversation without a model call. Idempotent: the
+            history is cleared by end_session, so a second flush is a no-op."""
+            if not session.history:
+                return False
+            await end_session(
+                session,
+                personas.current(),
+                voice_loop.brain,
+                voice_loop.config,
+                emit,
+                reason="shutdown",
+                fast=True,
+            )
+            return True
+
+        _LIVE_SESSIONS[conn_key] = _flush_this_session
+
 
         async def emit(kind: str, payload: object) -> None:
             if isinstance(payload, (bytes, bytearray)):
@@ -485,6 +535,7 @@ def create_app(config: ValarConfig) -> FastAPI:
             except Exception:
                 pass
         finally:
+            _LIVE_SESSIONS.pop(conn_key, None)
             watchdog.cancel()
             easel.cancel()
             # Cancel any in-flight turn task so it stops emitting into the dead

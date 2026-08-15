@@ -142,20 +142,41 @@ async def end_session(
     emit,
     *,
     reason: str = "idle",
+    fast: bool = False,
 ) -> None:
     """Persist + announce + reset one session. Never raises.
 
     ``reason`` is ``idle`` for the watchdog and ``client`` for an explicit
     ``new_session`` request from the desktop (or any) client. Empty history
     skips summarize/persist so a fresh New Session click stays instant.
+
+    ``fast`` skips the summarising brain call and titles the session from its
+    first line instead. It exists for shutdown: the client stops the house
+    seconds after asking for this, and a model call in that window is a race
+    the transcript loses. A chatlog nobody summarised is worth immeasurably
+    more than a summary nobody got to write.
     """
     turns = len(session.history)
     logger.info(
-        "ending session %s (%d turns, reason=%s)", session.session_id, turns, reason
+        "ending session %s (%d turns, reason=%s%s)",
+        session.session_id,
+        turns,
+        reason,
+        ", fast" if fast else "",
     )
 
     summary: dict = {"title": "", "summary": ""}
-    if turns:
+    if turns and fast:
+        # Truthy dict on purpose: save_session_to_engram runs its own LLM
+        # extraction when the summary is empty, which is the call being
+        # avoided.
+        first = ""
+        for turn in session.history:
+            if getattr(turn, "user", "") and str(turn.user).strip():
+                first = str(turn.user).strip()
+                break
+        summary = {"title": (first[:60] or "Conversation"), "summary": ""}
+    elif turns:
         summary = await summarize_session(session, persona, brain, config)
 
         history_dicts: list[dict] = []

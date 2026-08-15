@@ -65,8 +65,51 @@ pub struct House {
     stopping: Arc<AtomicBool>,
     children: Arc<Mutex<Vec<Managed>>>,
     status: Arc<Mutex<HouseStatus>>,
+    /// The gateway's port, kept so stop() can ask it to file the live
+    /// conversation before the tree is killed.
+    gateway_port: Option<u16>,
     #[cfg(windows)]
     _job: Arc<win32job::Job>,
+}
+
+/// Ask the house to write down whatever conversation is open, and wait for it.
+///
+/// Quit stops the backend within milliseconds of the socket closing, so the
+/// server's own teardown never finished: it began summarising and was killed
+/// mid-call. This is the handshake that fixes it. The endpoint makes no model
+/// call, so the normal answer arrives in well under a second; the timeout is
+/// only here so a wedged house cannot hold the app open.
+///
+/// Hand-rolled rather than pulling in an HTTP client: it is one loopback POST
+/// with no body, and a dependency for that would be a poor trade.
+fn flush_sessions(port: u16) {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+
+    let addr = format!("127.0.0.1:{port}");
+    let deadline = Duration::from_secs(5);
+    let Ok(mut stream) = TcpStream::connect(&addr) else {
+        return; // nothing listening; nothing to flush
+    };
+    let _ = stream.set_read_timeout(Some(deadline));
+    let _ = stream.set_write_timeout(Some(deadline));
+    let req = format!(
+        "POST /sessions/flush HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\
+         Content-Length: 0\r\nConnection: close\r\n\r\n"
+    );
+    if stream.write_all(req.as_bytes()).is_err() {
+        return;
+    }
+    // Reading to the end is the point: returning early would put us back in
+    // the race this exists to end.
+    let mut buf = Vec::new();
+    let _ = stream.read_to_end(&mut buf);
+    let head = String::from_utf8_lossy(&buf);
+    let ok = head.starts_with("HTTP/1.1 200");
+    log::info!(
+        "house flush: {}",
+        if ok { "sessions filed" } else { "no answer" }
+    );
 }
 
 pub type HouseState = Mutex<Option<House>>;
@@ -453,6 +496,12 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
     stop(state);
 
     let (specs, logs_dir) = build_specs(&root)?;
+    // The gateway is the one child with a conversation in it, so its port is
+    // the one stop() has to knock on before killing anything.
+    let gateway_port = specs
+        .iter()
+        .find(|s| s.name == "harness")
+        .and_then(|s| s.health_port);
     let stopping = Arc::new(AtomicBool::new(false));
     let children: Arc<Mutex<Vec<Managed>>> = Arc::new(Mutex::new(Vec::new()));
     let status = Arc::new(Mutex::new(HouseStatus {
@@ -584,6 +633,7 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
         stopping,
         children,
         status,
+        gateway_port,
         #[cfg(windows)]
         _job: job.clone(),
     };
@@ -594,6 +644,12 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
 pub fn stop(state: &HouseState) {
     let mut guard = state.lock().unwrap();
     if let Some(house) = guard.take() {
+        // Ask before killing. The conversation lives in the gateway's memory
+        // and is written only when a session ends, so a kill with no warning
+        // is how a day of talking disappears.
+        if let Some(port) = house.gateway_port {
+            flush_sessions(port);
+        }
         house.stopping.store(true, Ordering::SeqCst);
         let mut children = house.children.lock().unwrap();
         for managed in children.iter_mut() {

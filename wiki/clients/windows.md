@@ -45,6 +45,15 @@ Closing the client window does not stop Hearth. It minimizes to the tray, and
 the backend keeps running, because an always-on companion cannot depend on a
 window staying open. Quit is the explicit stop.
 
+**Quit files the conversation first.** A conversation lives in the gateway's
+memory and is written to the journal only when the session ends, so stopping
+the backend without warning is how a day of talking disappears. Quit, Stop, and
+Restart all knock on `POST /sessions/flush` and wait for the answer before
+anything is killed. That write makes no model call: it saves the transcript and
+titles it from the first line, because a chatlog nobody summarised is worth
+immeasurably more than a summary nobody got to write. A session also files
+itself when its socket closes on its own, which covers a crash or a redial.
+
 **Waking takes as long as the model takes.** While the house comes up, the
 window holds a waking overlay that says what it is waiting for, and it stays
 up until `/health` answers rather than until the command returns. If the house
