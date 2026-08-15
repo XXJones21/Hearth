@@ -1,12 +1,14 @@
 ---
 title: The second brain
 status: draft
-last_reviewed: 2026-08-08
+last_reviewed: 2026-08-15
 related:
   - ../first-run.md
+  - ../clients/windows.md
   - personas.md
 sources:
   - backend/harness/valar/gateway/first_run.py
+  - backend/harness/valar/gateway/settings_api.py
   - backend/harness/valar/tools/handlers/second_brain.py
   - backend/harness/valar/memory/routines.py
   - backend/harness/valar/memory/daily_review.py
@@ -100,12 +102,11 @@ already there.
 
 ## Already have a second brain?
 
-If you tell your persona you already have one, they will ask for its exact
-folder path and hand it to the `import_brain` tool. Hearth never guesses at
-whose memory it is opening: the path has to be absolute, from the drive
-letter or root down, and the folder has to already contain at least one of
-Projects, Areas, Thoughts, or Resources. Point it at anything else and
-nothing changes.
+Say so during setup and your persona will ask for its exact folder path and
+hand it to the `import_brain` tool. Hearth never guesses at whose memory it
+is opening: the path has to be absolute, from the drive letter or root down,
+and the folder has to already contain at least one of Projects, Areas,
+Thoughts, or Resources. Point it at anything else and nothing changes.
 
 Once it checks out, Hearth repoints `HEARTH_ENGRAM` at that folder, both for
 the running session and in `hearth.env` for every future launch, creates
@@ -113,6 +114,60 @@ whichever of the four folders are missing, and starts reading and writing
 there instead. Your persona is told, plainly, only once the tool has
 actually confirmed the bridge; nothing is announced as connected before
 that.
+
+## Changing your mind later
+
+Setup is not the only chance to answer. **Settings > On disk > Journal and
+memory** shows where memory currently lives and gives you three things to do
+about it: **Open folder**, **Change**, and **Remove**.
+
+Both doors run the same code. `import_brain` and the Settings row call one
+`link_brain`, because the rule they enforce is the product's only defence
+against a house quietly adopting a stranger's notes, and a rule with two
+copies is a rule that drifts. One difference is deliberate:
+
+- A **conversation** naming a path always means the brain you already have,
+  so a folder that is not brain-shaped is refused.
+- **Settings** also accepts a folder that is completely empty, and starts a
+  new brain there. Picking an empty folder in a file dialog is a reasonable
+  way to say "put it here"; a sentence never is.
+
+A folder with unrelated things in it is refused on both paths. Writing four
+folders into your Documents is not a small mistake.
+
+Changing the folder ends the conversation you are in. A session opened
+against the old tree would file its diary and its continuity note there
+after the move, which is how a conversation goes missing from the memory it
+belongs to.
+
+## Removing it
+
+**Remove** unplugs the tree. It does not delete anything: `HEARTH_ENGRAM`
+goes empty in the running house and in `hearth.env`, and every file stays
+exactly where it is. That leaves Hearth in the state it is in before anyone
+answers the question at all: the Journal reports no tree, recall returns
+nothing, and the house keeps working. Point it somewhere again whenever you
+like.
+
+A button that could destroy years of notes would be a different kind of
+control, and it is not this one.
+
+## Shared brains
+
+Because the folder is a plain path, two installs can point at the same tree:
+a desktop and a laptop over a synced folder, or two houses on one machine.
+That is a supported thing to set up rather than a trick.
+
+What that means in practice:
+
+- Continuity notes do not collide. Each house writes its own file.
+- Diaries are per session and carry a timestamp in the name, so two houses
+  filing at the same moment is the only collision case.
+- The nightly review runs in every house that has one. Two houses reviewing
+  the same day will write that day twice.
+
+Sync conflicts are your sync tool's business. Hearth writes plain files and
+does not lock them.
 
 ## Saying no
 

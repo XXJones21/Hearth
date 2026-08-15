@@ -74,7 +74,9 @@ so there is one rule about whose memory a house may open, not two.
 Pointing two houses at one tree is what makes a shared brain possible and is
 also how two houses come to write the same day. Continuity notes do not collide
 (each house writes its own file) and diaries are per-slug, but the nightly
-review runs in every house that has one.
+review runs in every house that has one. See
+[the second brain](../features/second-brain.md) for what the tree is and what
+lives inside it.
 
 **Settings > The house** has Start, Stop, and **Restart**. Restart is start
 again, since starting stops whatever this client is already supervising, and
