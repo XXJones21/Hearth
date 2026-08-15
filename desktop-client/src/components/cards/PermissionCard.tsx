@@ -38,15 +38,28 @@ export function PermissionCard({ props }: CardProps) {
 
   const action = p.action || 'read';
   const pending = status === 'pending';
+  /* A create request is a different question. "Allow access to D:\Recipes for
+     create" reads as consent to open something that is not there; what is
+     actually being asked is whether to make it. */
+  const creating = action === 'create';
 
   return (
     <div className="max-w-[520px] rounded-2xl border border-linen bg-fluff px-4 py-3 shadow-soft">
       <div className="text-[11.5px] font-bold uppercase tracking-wider text-ember">
-        Folder access
+        {creating ? 'New folder' : 'Folder access'}
       </div>
       <p className="mt-1.5 text-[14px] leading-relaxed text-roast">
-        Allow access to <span className="font-medium">{p.path || 'this folder'}</span>
-        {action ? ` for ${action}` : ''}?
+        {creating ? (
+          <>
+            Create <span className="font-medium">{p.path || 'this folder'}</span> and
+            let Hearth write there?
+          </>
+        ) : (
+          <>
+            Allow access to <span className="font-medium">{p.path || 'this folder'}</span>
+            {action ? ` for ${action}` : ''}?
+          </>
+        )}
       </p>
       <p className="mt-1 text-[12px] text-fawn">
         This grant stays on this house until you remove it from file_grants.yaml.

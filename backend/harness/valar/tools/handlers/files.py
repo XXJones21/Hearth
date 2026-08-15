@@ -123,16 +123,27 @@ async def _generate_draft_body(
     base = cfg.base_url.rstrip("/")
     url = f"{base}/chat/completions"
     fmt = "Markdown" if dest_suffix in _MD_DRAFT_SUFFIXES else f"{dest_suffix.lstrip('.')} text"
-    system = (
-        "You revise documents for the operator. Output ONLY the full revised "
-        f"document as {fmt}. No preamble, no closing remarks, no HTML tags, "
-        "no <!DOCTYPE>, no <style> blocks. If the source was HTML, rewrite it "
-        "as clean Markdown."
-    )
-    user = (
-        f"INSTRUCTIONS:\n{instructions}\n\n"
-        f"SOURCE:\n{source_text[:_SOURCE_CONTEXT_CHARS]}\n"
-    )
+    # No source means authoring rather than revising: same generation seam, same
+    # rule that the body never travels through tool-call JSON.
+    if source_text.strip():
+        system = (
+            "You revise documents for the operator. Output ONLY the full revised "
+            f"document as {fmt}. No preamble, no closing remarks, no HTML tags, "
+            "no <!DOCTYPE>, no <style> blocks. If the source was HTML, rewrite it "
+            "as clean Markdown."
+        )
+        user = (
+            f"INSTRUCTIONS:\n{instructions}\n\n"
+            f"SOURCE:\n{source_text[:_SOURCE_CONTEXT_CHARS]}\n"
+        )
+    else:
+        system = (
+            "You write documents for the operator. Output ONLY the finished "
+            f"document as {fmt}. No preamble, no closing remarks, no HTML tags, "
+            "no <!DOCTYPE>, no <style> blocks. Give it a title heading and a "
+            "sensible structure for what was asked."
+        )
+        user = f"WRITE THIS DOCUMENT:\n{instructions}\n"
     payload: dict = {
         "stream": False,
         "max_tokens": max(_DRAFT_MAX_TOKENS, cfg.max_tokens or 0),
@@ -317,16 +328,38 @@ def decide(request_id: str, approve: bool) -> dict:
         _resolve_waiter(req, "denied")
         return {"ok": True, "status": "denied", "path": req.get("display")}
     raw = str(req.get("path") or "")
+
+    def _fail(message: str) -> dict:
+        """The operator said yes and it could not be done.
+
+        Recorded as `failed`, never as `denied`. They are not the same event
+        and the model must not be handed the wrong one: told "denied" after an
+        approval, it apologises for a permission problem that does not exist
+        while the real reason goes unsaid (live 2026-08-15).
+        """
+        req["status"] = "failed"
+        req["error"] = message
+        logger.info("file permission failed id=%s: %s", request_id, message)
+        _resolve_waiter(req, "failed")
+        return {"ok": False, "status": "failed", "error": message}
+
     try:
         target = _to_posix_path(raw).resolve()
     except Exception as exc:  # noqa: BLE001
-        req["status"] = "denied"
-        _resolve_waiter(req, "denied")
-        return {"ok": False, "error": f"Could not resolve that path: {exc}"}
+        return _fail(f"Could not resolve that path: {exc}")
+    # A create grant is the one case where the path is SUPPOSED to be absent.
+    # Approving it makes the folder, here, before the grant is recorded: a
+    # grant is reloaded as a root and roots that do not exist are dropped, so a
+    # grant for a folder nobody created would be forgotten the instant it was
+    # given, and the retry would raise the same card again.
     if not target.exists():
-        req["status"] = "denied"
-        _resolve_waiter(req, "denied")
-        return {"ok": False, "error": f"Nothing exists at {_display_path(target)}."}
+        if str(req.get("action") or "") != "create":
+            return _fail(f"Nothing exists at {_display_path(target)}.")
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:  # noqa: BLE001
+            return _fail(f"Could not create {_display_path(target)}: {exc}")
+        logger.info("file permission created folder id=%s path=%s", request_id, target)
     name = re.sub(r"[^a-z0-9]+", "-", target.name.lower()).strip("-") or "grant"
     grants = []
     if _GRANTS_FILE.exists():
@@ -386,6 +419,13 @@ def _resolve_waiter(req: dict, status: str) -> None:
         loop.call_soon_threadsafe(_set)
     else:
         _set()
+
+
+def decision_error(request_id: str) -> str:
+    """Why an approved request could not be honoured, for the tool loop to
+    report instead of guessing at a reason."""
+    req = _PENDING.get(request_id) or {}
+    return str(req.get("error") or "")
 
 
 async def wait_for_decision(request_id: str, timeout: float = _PERMISSION_WAIT_S) -> str:
@@ -562,12 +602,18 @@ def read_file(args: dict) -> ToolResult:
     except Exception as exc:  # noqa: BLE001
         return ToolResult.error(f"Could not resolve that path: {exc}")
 
+    # Existence before permission, same rule as list_dir: a file that is not
+    # there is a plain fact, not something to ask consent about.
+    if not candidate.exists():
+        return ToolResult.error(
+            f"No file at {_display_path(candidate)}. It does not exist; this is "
+            "not a permission problem."
+        )
+
     root_name = _under_root(candidate, roots)
     if root_name is None:
         return _permission_result(candidate, "read")
 
-    if not candidate.exists():
-        return ToolResult.error(f"No file at {_display_path(candidate)}.")
     if not candidate.is_file():
         return ToolResult.error(
             f"{_display_path(candidate)} is a directory. Call list_dir on it, "
@@ -774,6 +820,118 @@ async def write_file(args: dict) -> ToolResult:
     )
 
 
+async def new_file(args: dict) -> ToolResult:
+    """Write a NEW document at a path the operator named.
+
+    The other half of write_file, which only ever drafts beside something that
+    already exists. Asked for "a recipe in a new folder at D:/Recipes", the
+    house had no tool that could do it and went looking with list_dir instead
+    (live 2026-08-15), which is how a missing capability comes back as a
+    permission complaint.
+
+    Same contract as write_file: the model passes a destination and short
+    instructions, never a body. The harness writes what the brain composes.
+    """
+    raw_path = str((args or {}).get("path") or "").strip()
+    instructions = str((args or {}).get("instructions") or "").strip()
+
+    if not raw_path:
+        return ToolResult.error("new_file needs a path for the new document.")
+    if (args or {}).get("content") not in (None, ""):
+        return ToolResult.error(
+            "Do not pass content. Pass short instructions only; the harness "
+            "writes the body (tool-call JSON cannot carry full documents)."
+        )
+    if not instructions:
+        return ToolResult.error(
+            "new_file needs short instructions describing what to write."
+        )
+    if len(instructions) > _MAX_INSTRUCTIONS_CHARS:
+        return ToolResult.error(
+            f"instructions too long ({len(instructions)} chars; "
+            f"cap {_MAX_INSTRUCTIONS_CHARS})."
+        )
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error(
+            "No writable file roots are configured. Ask the operator to check file_roots.yaml."
+        )
+
+    try:
+        dest = _to_posix_path(raw_path).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that path: {exc}")
+
+    # A path with no extension is a filename the model forgot to finish, not a
+    # folder to write into. Markdown is the house default.
+    if not dest.suffix:
+        dest = dest.with_suffix(".md")
+    suffix = dest.suffix.lower()
+    if suffix not in _WRITABLE_SUFFIXES:
+        kinds = ", ".join(sorted({s.lstrip('.') for s in _WRITABLE_SUFFIXES}))
+        return ToolResult.error(
+            f"Cannot write type '{suffix}'. Supported: {kinds}."
+        )
+    if dest.exists():
+        return ToolResult.error(
+            f"{_display_path(dest)} already exists. Use write_file to revise it, "
+            "or pick another name."
+        )
+
+    parent = dest.parent
+    if _under_root(parent, roots) is None:
+        # Outside the allow-list. Which question to ask depends on whether the
+        # folder is there: consent to open it, or consent to create it.
+        return _permission_result(parent, "write" if parent.is_dir() else "create")
+
+    if not parent.is_dir():
+        try:
+            parent.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:  # noqa: BLE001
+            return ToolResult.error(
+                f"Could not create {_display_path(parent)}: {exc}"
+            )
+        logger.info("new_file created folder %s", parent)
+
+    try:
+        content = await _generate_draft_body("", instructions, suffix)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("new_file generate failed dest=%s: %s", dest, exc)
+        return ToolResult.error(f"Could not write that document: {exc}")
+
+    try:
+        dest.write_text(content, encoding="utf-8", newline="\n")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("new_file failed %s: %s", dest, exc)
+        return ToolResult.error(f"Could not write {_display_path(dest)}: {exc}")
+
+    out_type = suffix.lstrip(".") or "text"
+    root_name = _under_root(dest, roots) or ""
+    logger.info(
+        "new_file ok root=%s type=%s chars=%s dest=%s", root_name, out_type, len(content), dest
+    )
+    shown = _display_path(dest)
+    return ToolResult(
+        content=(
+            f"Wrote file: {shown}\n"
+            f"Type: {out_type}\n"
+            f"Root: {root_name}\n"
+            f"Chars: {len(content)}\n"
+            "Speak only a short confirmation naming this path. "
+            "Never speak the body back. "
+            "Do not invent a path -- only this one was written."
+        ),
+        data={
+            "path": shown,
+            "root": root_name,
+            "type": out_type,
+            "chars": len(content),
+            "created": True,
+        },
+    )
+
+
 def list_dir(args: dict) -> ToolResult:
     """List files and subfolders in an operator-named directory."""
     raw_path = str((args or {}).get("path") or "").strip()
@@ -791,11 +949,20 @@ def list_dir(args: dict) -> ToolResult:
     except Exception as exc:  # noqa: BLE001
         return ToolResult.error(f"Could not resolve that path: {exc}")
 
+    # Existence first, permission second. A folder that is not there is not a
+    # consent question, and asking one produces the worst possible exchange:
+    # the operator approves, the approval cannot be honoured, and the model is
+    # told it was refused (live 2026-08-15, "D:/Recipes").
+    if not candidate.exists():
+        return ToolResult.error(
+            f"Nothing at {_display_path(candidate)}. The folder does not exist; "
+            "this is not a permission problem. Say so plainly, and offer to "
+            "create it if that is what they meant."
+        )
+
     if _under_root(candidate, roots) is None:
         return _permission_result(candidate, "list")
 
-    if not candidate.exists():
-        return ToolResult.error(f"Nothing at {_display_path(candidate)}.")
     if candidate.is_file():
         return ToolResult.error(
             f"{_display_path(candidate)} is a file. Call read_file on it."

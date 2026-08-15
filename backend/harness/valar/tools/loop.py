@@ -235,7 +235,7 @@ class ToolCallingLoop:
 
 async def _resume_after_permission(registry, name: str, args: dict, pending) -> Any:
     """Hold the turn on a permission card, then retry the same call if granted."""
-    from .handlers.files import wait_for_decision
+    from .handlers.files import decision_error, wait_for_decision
     from .spec import ToolResult
 
     request_id = str((pending.data or {}).get("request_id") or "")
@@ -244,6 +244,19 @@ async def _resume_after_permission(registry, name: str, args: dict, pending) -> 
     if decision == "granted":
         logger.info("permission granted; retrying %s", name)
         return await registry.invoke(name, args)
+    if decision == "failed":
+        # They approved and it still could not be done. Report what actually
+        # happened; a model told "denied" here blames a permission problem
+        # that the operator just solved.
+        detail = decision_error(request_id) or "The folder could not be opened."
+        return ToolResult(
+            content=(
+                f"Access was approved, but it could not be used: {detail} "
+                "This is NOT a permission problem. Say what actually went wrong "
+                "and do not invent file contents."
+            ),
+            ok=False,
+        )
     reason = (
         "The operator denied access to that folder."
         if decision == "denied"

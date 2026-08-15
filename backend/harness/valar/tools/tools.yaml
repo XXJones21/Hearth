@@ -188,6 +188,35 @@ tools:
           description: Absolute Windows or WSL path of the directory.
       required: [path]
 
+  - name: new_file
+    description: >-
+      Write a NEW document at a path the operator named: a note, a recipe, a
+      list, a plan. Use when they ask you to write something down that does
+      not exist yet. Pass the destination path and SHORT instructions saying
+      what to write; the harness composes the document. Do NOT pass the body.
+      Markdown unless they ask otherwise. If the folder does not exist yet, a
+      permission card asks the operator before it is created. To revise a file
+      that already exists, use write_file instead.
+    handler: valar.tools.handlers.files:new_file
+    domain: files
+    risk: write
+    speak: Let me write that up.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: >-
+            Absolute path for the new file, including the filename. Example:
+            "D:/Recipes/pumpkin-pie.md". A missing extension becomes .md.
+        instructions:
+          type: string
+          description: >-
+            Short brief of what the document should contain (max ~2000 chars).
+            Example: "A pumpkin pie recipe: ingredients list, then numbered
+            steps, then baking time and temperature."
+      required: [path, instructions]
+
   - name: write_file
     description: >-
       Draft a NEW file beside an existing source the operator named. Pass only
