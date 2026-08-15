@@ -38,6 +38,14 @@ _GRANTS_FILE = Path(__file__).resolve().parents[1] / "file_grants.yaml"
 _PENDING: dict[str, dict] = {}
 _PERMISSION_WAIT_S = 300.0
 _LIST_DIR_CAP = 200
+# search_files walks the roots, so it needs its own brakes: a cap on matches
+# returned, on files opened, and on how much of any one file is scanned. A
+# memory tree with ten thousand notes must not turn one question into a
+# minute of disk.
+_SEARCH_HIT_CAP = 40
+_SEARCH_FILE_CAP = 4_000
+_SEARCH_SCAN_CHARS = 200_000
+_APPEND_MAX_CHARS = 4_000
 
 _DEFAULT_MAX_CHARS = 12_000
 _HARD_MAX_CHARS = 20_000
@@ -817,6 +825,209 @@ async def write_file(args: dict) -> ToolResult:
             "type": out_type,
             "chars": len(content),
         },
+    )
+
+
+def search_files(args: dict) -> ToolResult:
+    """Find which files under the allowed roots contain a phrase.
+
+    read_file needs an exact path, which means the operator has to know where
+    a thing lives before they can ask about it. This is the tool that answers
+    "where did I write that down".
+
+    Deliberately not a permission surface: it only ever walks roots that are
+    already allowed, so there is nothing here to consent to. A path outside
+    them is simply not searched.
+    """
+    query = str((args or {}).get("query") or "").strip()
+    if not query:
+        return ToolResult.error("search_files needs a query.")
+    if len(query) < 2:
+        return ToolResult.error("Search for at least two characters.")
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error(
+            "No readable file roots are configured. Ask the operator to check file_roots.yaml."
+        )
+
+    scope = str((args or {}).get("root") or "").strip().lower()
+    if scope:
+        roots = [(n, p) for n, p in roots if n.lower() == scope]
+        if not roots:
+            return ToolResult.error(
+                f"No root named '{scope}'. Call list_dir on a path, or search everything."
+            )
+
+    needle = query.lower()
+    hits: list[dict] = []
+    scanned = 0
+    truncated = False
+    exhausted: list[str] = []
+    for root_name, root in roots:
+        # The budget is PER ROOT. Shared, the first root walked eats it: a
+        # source checkout with thousands of files would exhaust the scan
+        # before a small notes folder later in the list was ever opened, and
+        # the answer would be a confident "nothing matches" about folders
+        # nobody looked in.
+        root_scanned = 0
+        for path in root.rglob("*"):
+            if len(hits) >= _SEARCH_HIT_CAP:
+                truncated = True
+                break
+            if root_scanned >= _SEARCH_FILE_CAP:
+                truncated = True
+                exhausted.append(root_name)
+                break
+            if not path.is_file() or path.suffix.lower() not in _TEXT_SUFFIXES:
+                continue
+            # Bytecode, dependency trees, and version control are not the
+            # operator's notes and drown anything that is.
+            if any(
+                part in {"__pycache__", "node_modules", ".git", ".venv", "venv"}
+                for part in path.parts
+            ):
+                continue
+            scanned += 1
+            root_scanned += 1
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")[:_SEARCH_SCAN_CHARS]
+            except OSError:
+                continue
+            low = text.lower()
+            at = low.find(needle)
+            if at < 0:
+                continue
+            line_no = text.count("\n", 0, at) + 1
+            start = max(0, at - 60)
+            snippet = text[start : at + len(query) + 90].replace("\n", " ").strip()
+            hits.append(
+                {
+                    "path": _display_path(path),
+                    "root": root_name,
+                    "line": line_no,
+                    "snippet": snippet,
+                }
+            )
+        if len(hits) >= _SEARCH_HIT_CAP:
+            break
+
+    searched = ", ".join(n for n, _ in roots)
+    if not hits:
+        # An incomplete search that reports absence is worse than no tool at
+        # all: the model states it plainly and the operator believes it. Say
+        # which it was.
+        if truncated:
+            where = ", ".join(exhausted) or searched
+            return ToolResult(
+                content=(
+                    f"No match for \"{query}\" yet, but the search was cut short in: "
+                    f"{where}. {scanned} files were scanned. This is NOT proof it is "
+                    "absent. Say the search was incomplete and offer to narrow it to "
+                    "one folder with the root argument."
+                ),
+                data={
+                    "query": query,
+                    "hits": [],
+                    "scanned": scanned,
+                    "truncated": True,
+                    "incomplete_roots": exhausted,
+                },
+            )
+        return ToolResult(
+            content=(
+                f"No file under the allowed folders contains \"{query}\". "
+                f"Searched {scanned} file"
+                + ("" if scanned == 1 else "s")
+                + f" across: {searched}. Say so plainly rather than guessing at a path."
+            ),
+            data={"query": query, "hits": [], "scanned": scanned, "truncated": False},
+        )
+
+    lines = [f"Search: {query}", f"Matches: {len(hits)} in {scanned} files scanned"]
+    for h in hits:
+        lines.append(f"- {h['path']}:{h['line']}  {h['snippet'][:160]}")
+    if truncated:
+        lines.append(
+            "(search stopped early"
+            + (f"; not fully scanned: {', '.join(exhausted)}" if exhausted else "")
+            + ". There may be more; do not call this a complete list.)"
+        )
+    lines.append("Call read_file on the full path of whichever file you need.")
+    logger.info("search_files q=%r hits=%d scanned=%d", query, len(hits), scanned)
+    return ToolResult(
+        content="\n".join(lines),
+        data={"query": query, "hits": hits, "scanned": scanned, "truncated": truncated},
+    )
+
+
+def append_file(args: dict) -> ToolResult:
+    """Add lines to the end of an existing file.
+
+    write_file regenerates a whole document, which is the wrong shape for
+    "add eggs to my grocery list": it costs a brain call, it rewrites text
+    nobody asked to change, and it can quietly lose what was already there.
+    This one carries its text directly, because a line is not a document and
+    the reason bodies are banned from tool-call JSON does not apply to it.
+    """
+    raw_path = str((args or {}).get("path") or "").strip()
+    text = str((args or {}).get("text") or "")
+    if not raw_path:
+        return ToolResult.error("append_file needs a path.")
+    if not text.strip():
+        return ToolResult.error("append_file needs text to add.")
+    if len(text) > _APPEND_MAX_CHARS:
+        return ToolResult.error(
+            f"text too long ({len(text)} chars; cap {_APPEND_MAX_CHARS}). "
+            "Use write_file to rewrite a whole document."
+        )
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error(
+            "No writable file roots are configured. Ask the operator to check file_roots.yaml."
+        )
+
+    try:
+        target = _to_posix_path(raw_path).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that path: {exc}")
+
+    if not target.exists():
+        return ToolResult.error(
+            f"No file at {_display_path(target)}. It does not exist; use new_file "
+            "to create it."
+        )
+
+    if _under_root(target, roots) is None:
+        return _permission_result(target, "write")
+
+    if not target.is_file():
+        return ToolResult.error(f"{_display_path(target)} is a folder, not a file.")
+    if target.suffix.lower() not in _WRITABLE_SUFFIXES:
+        return ToolResult.error(f"Cannot append to type '{target.suffix}'.")
+
+    body = text.rstrip("\n")
+    try:
+        existing = target.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        return ToolResult.error(f"Could not read {_display_path(target)}: {exc}")
+    prefix = "" if (not existing or existing.endswith("\n")) else "\n"
+    try:
+        with target.open("a", encoding="utf-8", newline="\n") as fh:
+            fh.write(prefix + body + "\n")
+    except OSError as exc:
+        return ToolResult.error(f"Could not write {_display_path(target)}: {exc}")
+
+    shown = _display_path(target)
+    logger.info("append_file ok chars=%d path=%s", len(body), target)
+    return ToolResult(
+        content=(
+            f"Appended to: {shown}\n"
+            f"Added: {len(body)} characters\n"
+            "Confirm briefly. Do not read the file back unless asked."
+        ),
+        data={"path": shown, "chars": len(body)},
     )
 
 

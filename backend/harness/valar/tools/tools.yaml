@@ -188,6 +188,53 @@ tools:
           description: Absolute Windows or WSL path of the directory.
       required: [path]
 
+  - name: search_files
+    description: >-
+      Find which local files contain a word or phrase, when the operator asks
+      where something is written down and does NOT give a path. Returns paths
+      with a line number and a snippet; call read_file on whichever one you
+      need. Searches only the house's allowed folders. Use this instead of
+      guessing a filename or asking them where they put it.
+    handler: valar.tools.handlers.files:search_files
+    domain: files
+    risk: read
+    speak: Let me find that.
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The word or phrase to look for. At least two characters.
+        root:
+          type: string
+          description: >-
+            Optional root name to narrow the search (for example "career" or
+            "engram"). Omit to search all allowed folders.
+      required: [query]
+
+  - name: append_file
+    description: >-
+      Add a line or a few lines to the END of a file that already exists: a
+      list, a running note, a log. Pass the text itself. Use this rather than
+      write_file whenever the operator wants something added rather than the
+      document rewritten.
+    handler: valar.tools.handlers.files:append_file
+    domain: files
+    risk: write
+    speak: Let me add that.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path of the existing file to add to.
+        text:
+          type: string
+          description: >-
+            The exact text to append (max ~4000 chars). Markdown list items
+            should include their own "- " prefix.
+      required: [path, text]
+
   - name: new_file
     description: >-
       Write a NEW document at a path the operator named: a note, a recipe, a

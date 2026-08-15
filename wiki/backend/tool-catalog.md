@@ -47,7 +47,7 @@ tools work during setup and are unreachable an hour later.
 
 ## The inventory
 
-29 entries as of 2026-08-15, 25 of them enabled.
+31 entries as of 2026-08-15, 27 of them enabled.
 
 | Tool | Domain | Risk | On | Feeds card |
 | --- | --- | --- | --- | --- |
@@ -55,9 +55,11 @@ tools work during setup and are unreachable an hour later.
 | `calendar_today` | calendar | read | no | |
 | `claude_status` | dev | read | yes | |
 | `consult_claude` | dev | write | yes | `terminal_card` |
+| `append_file` | files | write | yes | |
 | `list_dir` | files | read | yes | `permission_card` |
 | `new_file` | files | write | yes | |
 | `read_file` | files | read | yes | |
+| `search_files` | files | read | yes | |
 | `write_file` | files | write | yes | |
 | `check_image` | media | read | yes | |
 | `generate_image` | media | write | yes | `image_card` |
@@ -120,16 +122,21 @@ through `compose_view` or emitted by a handler directly. A card with no
 ## Twenty tools this house should have
 
 Ordered by how often the absence has actually bitten, not by how interesting
-they are to build. Each names the gap it closes.
+they are to build. Each names the gap it closes. Two are built; the numbering
+stays fixed so the list can be referred to by number.
 
 ### Documents and files
 
-1. **`search_files`** — grep across the allowed roots for a phrase. `read_file`
-   needs an exact path, so today the operator must know where a thing lives and
-   say so. This is the largest single gap in the file tools.
-2. **`append_file`** — add to the end of an existing note without rewriting it.
-   `write_file` regenerates a whole document, which is the wrong shape for "add
-   this to my grocery list".
+1. ~~**`search_files`**~~ — **built 2026-08-15.** Grep across the allowed
+   roots. The scan budget is per root rather than shared, which is not a
+   detail: with one budget, the first large folder walked consumed it and the
+   tool reported "nothing matches" about folders it had never opened. A
+   truncated search now says so and refuses to be read as proof of absence.
+2. ~~**`append_file`**~~ — **built 2026-08-15.** Adds to the end of an
+   existing file and carries its text directly. The rule that bodies never
+   travel in tool-call JSON is about documents; a line is not a document, and
+   making this one go through a brain call would rewrite text nobody asked to
+   change.
 3. **`rename_file`** / **`move_file`** — reorganise without leaving the
    conversation. Needs the permission card for a destination outside the roots.
 4. **`delete_file`** — the only genuinely destructive file tool, so it needs a
