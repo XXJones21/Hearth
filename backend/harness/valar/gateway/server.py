@@ -492,6 +492,34 @@ def create_app(config: ValarConfig) -> FastAPI:
             task = session.turn_task
             if task is not None and not task.done():
                 task.cancel()
+            # File the conversation before the socket's session is discarded.
+            #
+            # A Session belongs to one connection, so this is the last moment
+            # it exists. Without it a desktop chat was only ever written if the
+            # operator happened to click New session: the idle watchdog skips
+            # desktop deliberately, so quitting the app, closing the window, or
+            # a dropped socket threw the whole conversation away. Found live
+            # 2026-08-15 with nothing filed since the 11th.
+            #
+            # Empty history persists nothing, so a reconnect that carried no
+            # turns leaves no trace.
+            if session.history:
+
+                async def _gone(_kind: str, _payload: object) -> None:
+                    """The socket is already closed; end_session still wants
+                    somewhere to send its card-clear and session_ended."""
+
+                try:
+                    await end_session(
+                        session,
+                        personas.current(),
+                        voice_loop.brain,
+                        voice_loop.config,
+                        _gone,
+                        reason="disconnect",
+                    )
+                except Exception as exc:  # noqa: BLE001 - never break teardown
+                    logger.warning("disconnect persist failed: %s", exc)
             logger.info("WS disconnect session=%s", session.session_id)
 
     # --- startup: warm the heavy models in the background ----------------
