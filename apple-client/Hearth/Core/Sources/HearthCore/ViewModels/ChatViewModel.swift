@@ -210,6 +210,9 @@ public class ChatViewModel: ObservableObject {
         }
         ttsStreamPlayer?.onAmplitude = { [weak self] amp in
             // Already on the main queue; drives Sulivan's speaking waveform.
+            // The face reads the same number off FaceFeed instead of a second
+            // @Published, so a 60fps mouth costs no view updates.
+            FaceFeed.shared.speechLevel = Double(amp)
             self?.ttsAmplitude = amp
         }
     }
@@ -345,6 +348,17 @@ public class ChatViewModel: ObservableObject {
         webSocketClient?.onTtsSentence = { [weak self] sentence, segIdx in
             Task { @MainActor [weak self] in
                 self?.handleTtsSentence(sentence, segIdx: segIdx)
+            }
+        }
+
+        // The face's transient for this sentence. `at` must be on the same
+        // clock the renderer ticks with (timeIntervalSinceReferenceDate in
+        // milliseconds) or the envelope fires against a time that never
+        // arrives and the cue is silently inert.
+        webSocketClient?.onFaceCue = { name in
+            Task { @MainActor in
+                FaceFeed.shared.cue = FaceCue(
+                    name: name, at: Date.timeIntervalSinceReferenceDate * 1000)
             }
         }
 

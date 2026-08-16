@@ -34,6 +34,12 @@ struct HearthMainView: View {
     /// The persona page, likewise.
     @State private var showPersona = false
 
+    /// Accessibility > Motion. The face stops blinking, darting and swaying
+    /// under it -- but keeps its mouth on the voice, because that is speech,
+    /// not decoration. Passing it on to the orb connects plumbing that has
+    /// been sitting unwired in PersonaCanvasView since it was ported.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private var isIdle: Bool {
         stageState == .IDLE || stageState == .LOADING
     }
@@ -170,10 +176,20 @@ struct HearthMainView: View {
             ZStack {
                 // The renderer is chosen by the persona's own config, never by
                 // name: `sphere_particle` keeps the 2D canvas, `glb_animated`
-                // mounts RealityKit. A glb persona whose USDZ clips have not
-                // reached the server yet falls back to its orb rather than
-                // showing an empty volume, so Sage arrives with no code change.
-                if viewModel.personaVisualization.canRenderModel {
+                // mounts RealityKit, `procedural_face` draws the face. A glb
+                // persona whose USDZ clips have not reached the server yet --
+                // or a face whose geometry has not -- falls back to its orb
+                // rather than showing an empty volume, so Sage arrives with no
+                // code change.
+                if viewModel.personaVisualization.canRenderFace,
+                   let faceGeometry = viewModel.personaVisualization.faceGeometry {
+                    PersonaFaceView(
+                        geometry: faceGeometry,
+                        state: stageState,
+                        palette: viewModel.personaPalette,
+                        reducedMotion: reduceMotion
+                    )
+                } else if viewModel.personaVisualization.canRenderModel {
                     PersonaModelView(
                         visualization: viewModel.personaVisualization,
                         state: stageState
@@ -182,6 +198,7 @@ struct HearthMainView: View {
                     PersonaCanvasView(
                         state: stageState,
                         pulse: Double(viewModel.ttsAmplitude),
+                        reducedMotion: reduceMotion,
                         palette: viewModel.personaPalette
                     )
                 }

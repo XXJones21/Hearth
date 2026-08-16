@@ -83,6 +83,10 @@ struct BottomInputBar: View {
                 Button {
                     typing = true
                     isInputFocused = true
+                    // The face watches where the words come from. `typing`, not
+                    // focus: a dismissed keyboard drops focus while the
+                    // composer is still up and still where someone is looking.
+                    FaceFeed.shared.composerUp = true
                 } label: {
                     Image(systemName: "keyboard")
                         .font(.system(size: 20, weight: .medium))
@@ -132,6 +136,7 @@ struct BottomInputBar: View {
             Button {
                 typing = false
                 isInputFocused = false
+                FaceFeed.shared.composerUp = false
             } label: {
                 Image(systemName: "mic.fill")
                     .font(.system(size: 18, weight: .medium))
