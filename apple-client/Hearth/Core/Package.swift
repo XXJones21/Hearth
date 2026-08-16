@@ -68,5 +68,18 @@ let package = Package(
                 .swiftLanguageMode(.v5),
             ]
         ),
+        // The face director is time-injected -- `now` is an argument, never a
+        // clock read inside -- precisely so its playlists, blink tiers and
+        // envelopes can be asserted without a simulator running at 60fps.
+        // This target is where that pays off, and it is the package's first.
+        //
+        // The package declares no macOS platform, so `swift test` cannot build
+        // it here; tests run against a simulator, which is what the Makefile
+        // target and the plan's xcodebuild invocation both use.
+        .testTarget(
+            name: "HearthCoreTests",
+            dependencies: ["HearthCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )
