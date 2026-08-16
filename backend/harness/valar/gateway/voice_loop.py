@@ -75,11 +75,36 @@ _SYNTAX_SENTENCE_RE = re.compile(
 # The voice performs these; the eyes should not read them. Every text-channel
 # emission is stripped of them while the TTS request keeps them -- the exact
 # split the tags exist for. Mirrors the vocabulary create_persona teaches and
-# OmniVoice's supported set.
+# OmniVoice's supported set. The outer group captures so the same vocabulary
+# also resolves to a face expression name (below) without a second regex to
+# keep in step.
 _NONVERBAL_TAG_RE = re.compile(
-    r"\[(?:laughter|sigh|confirmation-en|question-(?:en|ah|oh|ei|yi)"
+    r"\[(laughter|sigh|confirmation-en|question-(?:en|ah|oh|ei|yi)"
     r"|surprise-(?:ah|oh|wa|yo)|dissatisfaction-hnn)\]"
 )
+
+
+def _resolve_expression(sentence: str) -> str | None:
+    """Expression name for the first performance tag in a sentence, if any.
+
+    The harness names the expression on tts_chunk_start rather than handing
+    clients a regex: this tree strips tags from the text channel and Valinor
+    does not, so a client parsing text for tags would behave differently
+    between the two. Tag families collapse ([surprise-ah|oh|wa|yo] are all
+    `surprise`): the suffix picks the vocalisation, not the face. Must run on
+    the ORIGINAL sentence, before sanitize_display_text removes the tags.
+    Design: valinor tasks/persona-avatar-system.md.
+    """
+    m = _NONVERBAL_TAG_RE.search(sentence or "")
+    if not m:
+        return None
+    tag = m.group(1)
+    if tag.startswith("question-"):
+        return "question"
+    if tag.startswith("surprise-"):
+        return "surprise"
+    return {"laughter": "laughter", "sigh": "sigh", "confirmation-en": "confirmation",
+            "dissatisfaction-hnn": "dissatisfaction"}.get(tag)
 # A tool call written as prose in brackets ('[call: start_project(input="")]',
 # live 2026-08-08). Invented argument names, usually empty: not salvageable,
 # so it is erased from the text channel and never spoken (the syntax regex
@@ -1415,15 +1440,18 @@ class VoiceLoop:
             persona.voice_reference_text,
         )
         session.state = State.SPEAKING
-        await emit(
-            "tts_chunk_start",
-            {
-                "action": "tts_chunk_start",
-                "seg_idx": 0,
-                "sample_rate": sr,
-                "text": sanitize_display_text(text),
-            },
-        )
+        say_start: dict = {
+            "action": "tts_chunk_start",
+            "seg_idx": 0,
+            "sample_rate": sr,
+            "text": sanitize_display_text(text),
+        }
+        # Resolved from the original text: sanitize strips the very tags the
+        # expression is read from.
+        say_expression = _resolve_expression(text)
+        if say_expression:
+            say_start["expression"] = say_expression
+        await emit("tts_chunk_start", say_start)
         try:
             async for pcm in self.tts.stream_sentence(text):
                 await emit("audio", pcm)
@@ -1455,15 +1483,19 @@ class VoiceLoop:
         # Carry the sentence text on its chunk_start so the client can show the
         # assistant text in step with speech (the full ai_response only arrives
         # after generation completes — too late for the chat to keep pace).
-        await emit(
-            "tts_chunk_start",
-            {
-                "action": "tts_chunk_start",
-                "seg_idx": seg_idx,
-                "sample_rate": sr,
-                "text": sanitize_display_text(sentence),
-            },
-        )
+        chunk_start: dict = {
+            "action": "tts_chunk_start",
+            "seg_idx": seg_idx,
+            "sample_rate": sr,
+            "text": sanitize_display_text(sentence),
+        }
+        # The face's cue, resolved from the ORIGINAL sentence -- sanitize
+        # strips the very tags it is read from. Absent when there is no tag.
+        expression = _resolve_expression(sentence)
+        if expression:
+            chunk_start["expression"] = expression
+            logger.info("expression cue %r for seg %d", expression, seg_idx)
+        await emit("tts_chunk_start", chunk_start)
         with Timer(telemetry, "tts_total_ms", accumulate=True):  # summed across sentences
             try:
                 async for pcm in self.tts.stream_sentence(sentence):
