@@ -42,7 +42,51 @@ export type VisualizationGlb = {
   particle_system?: { enabled: boolean };
 };
 
-export type PersonaVisualization = VisualizationSphereParticle | VisualizationGlb;
+/** Appearance only, roughly a dozen numbers. Every value is normalised
+ *  against the head's own bounding box rather than pixels, so a face is
+ *  resolution-independent and an expression written once means the same
+ *  thing on a phone and a headset. Motion never lives here: expressions are
+ *  deltas the harness ships, applied to whatever geometry a persona has.
+ *
+ *  The face is EYES-FIRST (the grok-bot register): two vertical capsules
+ *  carry the whole character; there are no brows, and the mouth only
+ *  appears when there is speech or a transient to perform.
+ *  Doc: valinor wiki/clients/persona-face.md. */
+export type FaceGeometry = {
+  head_width: number;
+  head_height: number;
+  head_roundness: number;
+  /** capsule width, as a fraction of the head's width */
+  eye_size: number;
+  eye_spacing: number;
+  eye_height: number;
+  /** capsule height as a multiple of its width; 1 is a dot, ~2.4 a tall pill */
+  eye_length: number;
+  /** resting parallel lean of both capsules, radians; usually 0 */
+  eye_tilt: number;
+  mouth_width: number;
+  mouth_thickness: number;
+  mouth_curve: number;
+};
+
+export type VisualizationProceduralFace = {
+  type: 'procedural_face';
+  /** Named starting point in personas/_visual/archetypes.json. Recorded for
+   *  provenance; geometry below is already complete and wins. */
+  archetype?: string;
+  geometry: FaceGeometry;
+  /* Colour is deliberately absent: the persona's state_colors and theme
+     colour already govern every surface that follows it. */
+  layout_preset?: string;
+  glb?: unknown;
+  sphere?: unknown;
+  particle_system?: { enabled: boolean };
+};
+
+export type PersonaVisualization =
+  | VisualizationSphereParticle
+  | VisualizationGlb
+  | VisualizationProceduralFace;
 
 export type PersonaConfig = {
   name: string;

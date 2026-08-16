@@ -5,6 +5,7 @@ import { Suspense, lazy } from 'react';
 const GlbScene = lazy(() => import('./GlbScene'));
 const SphereScene = lazy(() => import('./SphereScene'));
 
+import { PersonaFace } from './stage/PersonaFace';
 import { VisualizationErrorBoundary } from './VisualizationErrorBoundary';
 import type { PersonaConfig } from '../types/persona';
 import { mapVisualizerState, useAppStore } from '../store/appStore';
@@ -36,6 +37,19 @@ export default function PersonaCanvas({ config }: Props) {
   }
 
   const v = config.visualization;
+
+  // The face is SVG, not three.js: no Canvas, no camera, no error boundary
+  // for GLB loads. It keys on the persona so a switch remounts the loop.
+  if (v.type === 'procedural_face') {
+    const stateColors = (v as { state_colors?: Record<string, { r: number; g: number; b: number }> })
+      .state_colors;
+    return (
+      <div className="h-full w-full" key={config.name}>
+        <PersonaFace geometry={v.geometry} visualState={effective} stateColors={stateColors} />
+      </div>
+    );
+  }
+
   const sceneKey = `${config.name}:${v.type}:${v.layout_preset ?? 'default'}`;
   const assetUrl = typeof v === 'object' && v && 'glb' in v
     ? (v as { glb?: { asset_url?: string } }).glb?.asset_url || ''

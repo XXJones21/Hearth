@@ -5,40 +5,20 @@
   "classification": "abstract",
   "shipped": true,
   "visualization": {
-    "type": "sphere_particle",
-    "layout_preset": "sulivan_dashed_aurora",
-    "position": {
-      "x": 0,
-      "y": 0,
-      "z": 0
-    },
-    "scale": {
-      "x": 1,
-      "y": 1,
-      "z": 1
-    },
-    "sphere": {
-      "radius": 0.18,
-      "color": {
-        "r": 0.79,
-        "g": 0.5,
-        "b": 0.27,
-        "a": 0.35
-      },
-      "metallic": 0.08,
-      "roughness": 0.78
-    },
-    "particle_system": {
-      "enabled": true,
-      "count": 96,
-      "particle_radius": 0.012,
-      "max_distance": 0.72,
-      "color": {
-        "r": 0.85,
-        "g": 0.48,
-        "b": 0.16,
-        "a": 0.78
-      }
+    "type": "procedural_face",
+    "archetype": "warm_round",
+    "geometry": {
+      "head_width": 1.0,
+      "head_height": 1.05,
+      "head_roundness": 0.8,
+      "eye_size": 0.1,
+      "eye_spacing": 0.38,
+      "eye_height": 0.45,
+      "eye_length": 2.4,
+      "eye_tilt": 0.0,
+      "mouth_width": 0.34,
+      "mouth_thickness": 0.05,
+      "mouth_curve": 0.26
     },
     "_state_colors_comment": "Per-state orb glow (idle/listening/thinking/speaking). Data-driven across all clients via public_config(); a persona without this block falls back to the client's warm HearthPalette defaults. Hearth Direction B: fennec idle, honey listening, fennec/ember thinking, ember speaking.",
     "state_colors": {

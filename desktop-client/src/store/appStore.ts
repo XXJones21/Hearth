@@ -71,6 +71,10 @@ type AppState = {
   personaConfig: PersonaConfig | null;
   messages: ChatMessage[];
   visualState: VisualizerState;
+  /** Transient face expression cue from the harness (tts_chunk_start
+   *  `expression`). The face plays it through its envelope and a stale cue
+   *  is inert once the decay passes, so it is only ever replaced. */
+  faceCue: { name: string; at: number } | null;
   inputFocused: boolean;
   agentEvents: AgentActivityEvent[];
   connectionEvent: boolean;
@@ -106,6 +110,7 @@ type AppState = {
   liveTopic: string | null;
   setLiveTopic: (n: string | null) => void;
   setVisualState: (v: VisualizerState) => void;
+  setFaceCue: (name: string) => void;
   setInputFocused: (f: boolean) => void;
   clearAgentEvents: () => void;
   pushAgentEvent: (e: {
@@ -162,6 +167,7 @@ export const useAppStore = create<AppState>((set) => ({
   personaConfig: null,
   messages: restoreMessages(null),
   visualState: 'idle',
+  faceCue: null,
   inputFocused: false,
   activeView: 'home' as const,
   activeTools: [],
@@ -254,6 +260,7 @@ export const useAppStore = create<AppState>((set) => ({
     }),
   bumpSessionsTick: () => set((s) => ({ sessionsTick: s.sessionsTick + 1 })),
   setVisualState: (v) => set({ visualState: v }),
+  setFaceCue: (name) => set({ faceCue: { name, at: performance.now() } }),
   setInputFocused: (f) => set({ inputFocused: f }),
   setActiveView: (v) => set({ activeView: v }),
   setActiveTools: (t) => set({ activeTools: t }),
