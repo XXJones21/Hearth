@@ -22,6 +22,7 @@ from dataclasses import replace
 from typing import Awaitable, Callable
 
 from ..brain import BrainProvider, BrainStreamResult, ChatMessage, ChatOptions
+from ..brain.prompt_dialect import dialect_from_model
 from ..config import ValarConfig
 from ..config.settings import hearth_engram
 from ..memory import EngramMemory
@@ -49,8 +50,9 @@ Emit = Callable[[str, object], Awaitable[None]]
 _ANNOUNCE_RE = re.compile(
     r"\b(?:allow me to|let me|i(?:'ll| will)(?: just| now)?|one moment while i"
     r"|give me a (?:moment|second) (?:to|while i)|i shall)\s+(?:go\s+)?"
+    r"(?:(?:begin|start)(?:\s+by)?\s+)?"
     r"(?:check|consult|look(?: (?:that|this|it))? up|look into|pull(?: up)?"
-    r"|search|fetch|review|retrieve|dig|bring in|see what|find out"
+    r"|search|fetch|review|retrieve|examine|read|dig|bring in|see what|find out"
     # Delegation shapes (live 2026-07-31: "I shall have Mentat forge a more
     # sophisticated..." with zero tool calls). The commission verbs.
     r"|have|ask|task|commission|forge|dispatch|start"
@@ -83,6 +85,51 @@ _NONVERBAL_TAG_RE = re.compile(
 # so it is erased from the text channel and never spoken (the syntax regex
 # above mutes it from the TTS queue).
 _PSEUDO_CALL_RE = re.compile(r"\[call:\s*[A-Za-z_]\w*\s*\([^)\]]*\)\s*\]")
+
+# Markup / code that must never go through TTS (live: Sulivan spoke a full
+# HTML resume after read_file, and the engine then crashed on bare <style>
+# tags). The file tools made this reachable; it is not specific to them.
+_MARKUP_SPEAK_RE = re.compile(
+    r"(?is)^(?:<!DOCTYPE\b|<html\b|<head\b|<body\b|<style\b|<script\b|"
+    r"</(?:html|head|body|style|script)\b|"
+    r"(?:html|head|body|style|script)\s*\{)"
+)
+_TAGGY_RE = re.compile(r"<[^>]+>")
+
+
+def _skip_tts_sentence(sentence: str) -> bool:
+    """True when a streamed sentence looks like markup/CSS, not speech."""
+    s = (sentence or "").strip()
+    if not s:
+        return True
+    if _MARKUP_SPEAK_RE.match(s):
+        return True
+    if s.count("<") >= 2 and len(_TAGGY_RE.findall(s)) >= 2:
+        return True
+    # A bare channel header. Gemma 4 opens its reasoning with the word
+    # "thought" on its own line; the filter treats it as a skip so the
+    # person never hears the channel name announced.
+    if s.lower() == "thought":
+        return True
+    # CSS declaration blobs: property: value; { }
+    if "{" in s and "}" in s and ":" in s:
+        lower = s.lower()
+        if any(
+            k in lower
+            for k in (
+                "margin",
+                "padding",
+                "font-",
+                "color:",
+                "background",
+                "display:",
+                "flex",
+                "width:",
+                "height:",
+            )
+        ):
+            return True
+    return False
 
 
 def sanitize_display_text(text: str) -> str:
@@ -233,6 +280,7 @@ class VoiceLoop:
                 session.record_turn(
                     user_text,
                     str(ctx["partial_text"]) + " [answer cut off mid-delivery]",
+                    persona.name,
                 )
             telemetry.emit()  # a failed turn still logs its record
             with contextlib.suppress(Exception):  # socket may already be gone
@@ -283,7 +331,9 @@ class VoiceLoop:
         ctx["stage"] = "memory"
         memory_block = ""
         try:
-            memory_block = self.memory.recall(user_text)
+            memory_block = self.memory.recall(
+                user_text, project_hint=getattr(session, "topic_hint", None)
+            )
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
 
@@ -329,6 +379,9 @@ class VoiceLoop:
             # this per persona below.
             enable_thinking=False,
         )
+        # The prompt dialect follows the resident GGUF: OpenAI messages stay the
+        # intermediate form, and Gemma 4 renders its own turn tokens instead.
+        self.assembler.set_dialect(dialect_from_model(opts.model_path))
 
         # --- FLAG-GATED TOOL ROUND-TRIP (Keystone 2) --------------------------
         # Additive + opt-in. With HEARTH_TOOLS_ENABLED off (default) this whole
@@ -341,6 +394,17 @@ class VoiceLoop:
         # see whether it adds enough latency before the answer to warrant a spoken
         # "thinking" filler. 0.0 on the flag-OFF path (the call returns instantly).
         ctx["stage"] = "tool_round_trip"
+        # A few tools act on the conversation rather than on the world, and the
+        # model cannot pass them a session it does not know the id of.
+        from ..tools.context import set_turn_context
+
+        set_turn_context(
+            session_id=session.session_id,
+            persona=persona,
+            brain=self.brain,
+            config=self.config,
+            personas=getattr(self, "personas", None),
+        )
         turn_decisions: list = []
         with Timer(telemetry, "tool_round_trip_ms"):
             messages, filler_task = await self._maybe_run_tools(
@@ -567,7 +631,7 @@ class VoiceLoop:
             reply_text
             and not telemetry.tools_invoked
             and len(reply_text) < 240
-            and _ANNOUNCE_RE.search(reply_text[:90])
+            and _ANNOUNCE_RE.search(reply_text)
         ):
             logger.warning(
                 "announced action with no tool call — following through: %r",
@@ -671,7 +735,7 @@ class VoiceLoop:
         # --- SPEAKING COMPLETE ------------------------------------------------
         await emit("speaking_complete", {"action": "speaking_complete"})
         session.state = State.IDLE
-        session.record_turn(user_text, reply_text)
+        session.record_turn(user_text, reply_text, persona.name)
 
         # --- TELEMETRY --------------------------------------------------------
         telemetry.sentences_spoken = sentences_spoken
@@ -859,14 +923,19 @@ class VoiceLoop:
                 "reasoning": (r or {}).get("reasoning") or "",
             }
 
-        # Thinking filler: fired by the loop the moment the brain's first response
-        # carries tool_calls, BEFORE the handlers run — so the phrase synthesizes
-        # and plays while the tool executes (the gap it exists to cover). The task
-        # is returned to run_turn; the answer consumer joins it for audio order.
-        # "audio" flips the moment the filler's first PCM frame is emitted.
-        # Before that it can still be called off; after it, cancelling would
-        # cut a word in half.
-        filler_holder: dict = {"task": None, "audio": False}
+        # Thinking filler: the phrase that covers the gap while a handler runs.
+        # The task is returned to run_turn; the answer consumer joins it for
+        # audio order. "audio" flips the moment the filler's first PCM frame is
+        # emitted. Before that it can still be called off; after it, cancelling
+        # would cut a word in half.
+        #
+        # It starts on the FIRST HANDLER RETURN rather than on the decision that
+        # carries tool_calls. A permission card has to sit in silence while it
+        # waits for the operator, and starting synthesis at decision time races
+        # the card: the house would narrate over a question it has not been
+        # answered yet. "names" carries the decision's tools across that gap so
+        # the phrase is still chosen from the whole call, not just one result.
+        filler_holder: dict = {"task": None, "audio": False, "names": []}
 
         async def _emit_stage(stage: str) -> None:
             # State-machine sub-stage events (Phase B, 2026-06-06): the notify
@@ -900,14 +969,7 @@ class VoiceLoop:
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("tool-activity emit failed: %s", exc)
-            phrase = registry.speak_phrase(names)
-            if phrase and filler_holder["task"] is None:
-                filler_holder["task"] = asyncio.create_task(
-                    self._speak(
-                        phrase, session, emit, False, 0, telemetry,
-                        audio_flag=filler_holder,
-                    )
-                )
+            filler_holder["names"] = names
 
         # Generative UI (Phase C): the COMPOSER is the single author of
         # ui_component traffic -- the loop feeds it each executed tool result
@@ -921,6 +983,26 @@ class VoiceLoop:
         ui_enabled = bool(session.capabilities.get("ui_render"))
 
         async def on_tool_result(name: str, result) -> None:
+            # A handler that came back asking for permission has not done its
+            # work yet: the card is on screen and the turn is parked on the
+            # operator. Say nothing until they answer. Any other first return
+            # is the cue the filler was waiting for.
+            waiting = bool((getattr(result, "data", None) or {}).get("await_permission"))
+            if waiting:
+                task = filler_holder.get("task")
+                if task is not None and not task.done() and not filler_holder["audio"]:
+                    task.cancel()
+                    filler_holder["task"] = None
+                    logger.info("filler dropped: permission_card waiting for operator")
+            elif filler_holder["task"] is None:
+                phrase = registry.speak_phrase(filler_holder.get("names") or [name])
+                if phrase:
+                    filler_holder["task"] = asyncio.create_task(
+                        self._speak(
+                            phrase, session, emit, False, 0, telemetry,
+                            audio_flag=filler_holder,
+                        )
+                    )
             # The second brain's commit, told to the client the same way the
             # persona handover is: a named message rather than a card. The
             # screen needs to know the beat closed, and "the persona stopped
@@ -1000,7 +1082,41 @@ class VoiceLoop:
             )
         except Exception as exc:  # noqa: BLE001 - tools must never break the turn
             logger.error("tool round-trip failed; answering without tools: %s", exc)
-            return messages, filler_holder["task"]
+            # Keep any tool results already appended (e.g. a successful read_file
+            # before a later write_file brain 500). Inject an explicit failure so
+            # the model cannot invent "I drafted a file at ...".
+            fail_note = (
+                "\n\n[TOOL ROUND FAILED] A later tool call could not complete "
+                f"({type(exc).__name__}: {str(exc)[:240]}). "
+                "Do NOT claim a file was written or saved. Do NOT invent a draft "
+                "path. Say plainly that the draft could not be saved and offer to "
+                "retry."
+            )
+            if len(msgs_dict) > original_len:
+                for d in reversed(msgs_dict):
+                    if d.get("role") == "tool":
+                        d["content"] = str(d.get("content") or "") + fail_note
+                        break
+                else:
+                    msgs_dict.append({"role": "user", "content": fail_note.strip()})
+                tool_names = [
+                    d.get("name", "") for d in msgs_dict if d.get("role") == "tool"
+                ]
+                telemetry.tools_invoked = [n for n in tool_names if n]
+                return [
+                    ChatMessage(
+                        role=d.get("role", "user"),
+                        content=d.get("content") or "",
+                        tool_calls=d.get("tool_calls"),
+                        tool_call_id=d.get("tool_call_id"),
+                        name=d.get("name"),
+                    )
+                    for d in msgs_dict
+                ], filler_holder["task"]
+            return [
+                *messages,
+                ChatMessage(role="user", content=fail_note.strip()),
+            ], filler_holder["task"]
 
         # No tool was called => no messages appended => nothing to rebuild (fast path).
         if len(augmented) == original_len:
@@ -1329,6 +1445,9 @@ class VoiceLoop:
         audio_flag: dict | None = None,
     ) -> tuple[bool, int]:
         """Stream one sentence's TTS as PCM chunks (tts_chunk_start/binary/end)."""
+        if _skip_tts_sentence(sentence):
+            logger.info("skipping TTS for markup-like sentence: %r", sentence[:120])
+            return speaking_started, sentences_spoken
         sr = self.config.voice.output_sample_rate
         if not speaking_started:
             session.state = State.SPEAKING

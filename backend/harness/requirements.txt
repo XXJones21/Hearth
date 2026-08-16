@@ -32,3 +32,6 @@ torchaudio>=2.1
 # with the voice engine's own pip chain (two pips cannot share one env, and
 # the model download should not wait behind torch).
 huggingface_hub>=0.20
+
+# Local document reads (read_file tool -- PDF text extraction).
+pypdf>=4.0

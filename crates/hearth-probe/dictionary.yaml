@@ -35,20 +35,23 @@ runtime:
       bytes: 25285557
       sha256: b0ead4fbac288282c0806412103038789e0b2c79e45ff95758bb11761f6d3b0e
   llama_server:
-    release: b10298
+    # b10358 is the WSL gauntlet binary that loaded Muse Glimmer. muse-glimmer
+    # first shipped in b10353; b10298 (the previous pin) refuses those GGUFs
+    # with "unknown model architecture". CUDA 12.4 asset family unchanged.
+    release: b10358
     # The macOS asset is a tar.gz with a versioned top directory; the
     # provisioner strips it so the binary lands at runtime/llama-server/.
     macos_metal:
-      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/llama-b10298-bin-macos-arm64.tar.gz
-        bytes: 10981117
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10358/llama-b10358-bin-macos-arm64.tar.gz
+        bytes: 11040494
     windows_cuda:
-      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/llama-b10298-bin-win-cuda-12.4-x64.zip
-        bytes: 250457449
-      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/cudart-llama-bin-win-cuda-12.4-x64.zip
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10358/llama-b10358-bin-win-cuda-12.4-x64.zip
+        bytes: 250727763
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10358/cudart-llama-bin-win-cuda-12.4-x64.zip
         bytes: 391443627
     windows_vulkan:
-      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10298/llama-b10298-bin-win-vulkan-x64.zip
-        bytes: 34108466
+      - url: https://github.com/ggml-org/llama.cpp/releases/download/b10358/llama-b10358-bin-win-vulkan-x64.zip
+        bytes: 34178561
   # The voice engine's environment: what pip installs into <root>/envs/voice.
   # torch comes from the accelerator-matched index; everything else from PyPI.
   # The engine weights themselves are the `voice:` entry below, prefetched

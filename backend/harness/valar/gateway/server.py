@@ -31,11 +31,19 @@ from ..persona import PersonaEngine, PersonaNotFound
 from ..voice import EnergyVAD, SttUnavailable, WhisperSTT
 from .session import Session, State
 from .easel_watch import easel_watchdog
-from .session_end import idle_watchdog
+from .session_end import end_session, idle_watchdog
 from .voice_loop import VoiceLoop
 from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.gateway")
+
+# Live conversations, keyed by connection, each with a callable that files it.
+# The registry exists so something OTHER than the socket can end a session:
+# the desktop client stops this whole process when the operator quits, and the
+# socket's own teardown loses that race. /sessions/flush is the door it knocks
+# on first. Entries are added on connect and removed on disconnect, so an idle
+# house holds an empty dict.
+_LIVE_SESSIONS: dict[str, object] = {}
 
 # Telegram/OpenAI "profile" -> Valar persona, for the HTTP /v1/chat/completions
 # shim that lets the single pipeline also serve text gateways (Telegram, etc.).
@@ -76,8 +84,10 @@ def create_app(config: ValarConfig) -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "tauri://localhost",       # packaged desktop client
-            "http://localhost:1420",   # hearth-client dev server
+            "tauri://localhost",       # packaged desktop, macOS/Linux
+            "https://tauri.localhost", # packaged desktop, Windows WebView2
+            "http://tauri.localhost",
+            "http://localhost:1420",   # hearth-client / Valinor desktop dev
             "http://127.0.0.1:1420",
         ],
         allow_methods=["GET", "POST"],
@@ -188,6 +198,50 @@ def create_app(config: ValarConfig) -> FastAPI:
                 )
         except Exception:  # noqa: BLE001 - not reachable IS the answer
             return JSONResponse({"ready": False, "service": ""})
+
+    @app.get("/sessions")
+    async def sessions_list() -> JSONResponse:
+        """Conversations this house has actually had.
+
+        The Journal answers what was CURATED into the memory tree; this
+        answers what happened, including the chat from four minutes ago that
+        no diary has been written for yet, and every chat on a machine with
+        no second brain connected at all.
+        """
+        from ..memory.session_record import list_records
+
+        return JSONResponse({"sessions": list_records()})
+
+    @app.get("/sessions/{session_id}")
+    async def sessions_read(session_id: str) -> JSONResponse:
+        from ..memory.session_record import read_record
+
+        rec = read_record(session_id)
+        if rec is None:
+            return JSONResponse({"error": "no such session"}, status_code=404)
+        return JSONResponse(rec)
+
+    @app.post("/sessions/flush")
+    async def sessions_flush() -> JSONResponse:
+        """File every live conversation, now, before something kills us.
+
+        The desktop client calls this on its way to stopping the house. Quit
+        used to be a race the transcript lost: the socket closed, the server
+        began writing a summary, and the process was killed mid-call. This
+        gives the client something to WAIT for, and the writes it triggers
+        make no model call at all, so the wait is milliseconds rather than the
+        length of a generation.
+        """
+        flushers = list(_LIVE_SESSIONS.values())
+        filed = 0
+        for flush in flushers:
+            try:
+                if await flush():  # type: ignore[operator]
+                    filed += 1
+            except Exception as exc:  # noqa: BLE001 - shutdown must not raise
+                logger.warning("flush failed: %s", exc)
+        logger.info("sessions flushed: %d of %d live", filed, len(flushers))
+        return JSONResponse({"ok": True, "flushed": filed, "live": len(flushers)})
 
     config.assets_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/assets", StaticFiles(directory=str(config.assets_dir)), name="assets")
@@ -356,6 +410,22 @@ def create_app(config: ValarConfig) -> FastAPI:
             return JSONResponse({"ok": False, "error": "run_id required"}, status_code=400)
         return JSONResponse(decide(run_id, approve))
 
+    @app.post("/files/decide")
+    async def files_decide(payload: dict) -> JSONResponse:
+        from ..tools.handlers.files import decide as file_decide
+
+        request_id = str(payload.get("request_id") or "")
+        approve = bool(payload.get("approve"))
+        if not request_id:
+            return JSONResponse({"ok": False, "error": "request_id required"}, status_code=400)
+        return JSONResponse(file_decide(request_id, approve))
+
+    @app.get("/files/grant-state")
+    async def files_grant_state(request_id: str = "") -> JSONResponse:
+        from ..tools.handlers.files import grant_state
+
+        return JSONResponse(grant_state(request_id))
+
     # --- HTTP: raw OpenAI pass-through (Phase 2.6) ------------------------
     # The single-doorway route for machine executors (the Mentat conductor's
     # Pi beats): a thin streaming reverse-proxy to the brain's own OpenAI
@@ -424,7 +494,27 @@ def create_app(config: ValarConfig) -> FastAPI:
         await websocket.accept()
         session = Session(session_id=str(uuid.uuid4()))
         vad = EnergyVAD(sample_rate=config.voice.input_sample_rate)
+        conn_key = str(uuid.uuid4())
         logger.info("WS connect session=%s", session.session_id)
+
+        async def _flush_this_session() -> bool:
+            """File this conversation without a model call. Idempotent: the
+            history is cleared by end_session, so a second flush is a no-op."""
+            if not session.history:
+                return False
+            await end_session(
+                session,
+                personas.current(),
+                voice_loop.brain,
+                voice_loop.config,
+                emit,
+                reason="shutdown",
+                fast=True,
+            )
+            return True
+
+        _LIVE_SESSIONS[conn_key] = _flush_this_session
+
 
         async def emit(kind: str, payload: object) -> None:
             if isinstance(payload, (bytes, bytearray)):
@@ -467,6 +557,7 @@ def create_app(config: ValarConfig) -> FastAPI:
             except Exception:
                 pass
         finally:
+            _LIVE_SESSIONS.pop(conn_key, None)
             watchdog.cancel()
             easel.cancel()
             # Cancel any in-flight turn task so it stops emitting into the dead
@@ -474,9 +565,51 @@ def create_app(config: ValarConfig) -> FastAPI:
             task = session.turn_task
             if task is not None and not task.done():
                 task.cancel()
+            # File the conversation before the socket's session is discarded.
+            #
+            # A Session belongs to one connection, so this is the last moment
+            # it exists. Without it a desktop chat was only ever written if the
+            # operator happened to click New session: the idle watchdog skips
+            # desktop deliberately, so quitting the app, closing the window, or
+            # a dropped socket threw the whole conversation away. Found live
+            # 2026-08-15 with nothing filed since the 11th.
+            #
+            # Empty history persists nothing, so a reconnect that carried no
+            # turns leaves no trace.
+            if session.history:
+
+                async def _gone(_kind: str, _payload: object) -> None:
+                    """The socket is already closed; end_session still wants
+                    somewhere to send its card-clear and session_ended."""
+
+                try:
+                    await end_session(
+                        session,
+                        personas.current(),
+                        voice_loop.brain,
+                        voice_loop.config,
+                        _gone,
+                        reason="disconnect",
+                        # A disconnect is the one moment with no time to
+                        # spare: the client that just dropped the socket is
+                        # usually stopping this process next. Summarising here
+                        # cost three turns on 2026-08-15, killed 21ms in.
+                        fast=True,
+                    )
+                except Exception as exc:  # noqa: BLE001 - never break teardown
+                    logger.warning("disconnect persist failed: %s", exc)
             logger.info("WS disconnect session=%s", session.session_id)
 
     # --- startup: warm the heavy models in the background ----------------
+    @app.on_event("startup")
+    async def _start_journal_sync() -> None:
+        """The clock behind the Journal sync routine: it writes up the
+        conversations that ended without a write-up, which is every one that
+        ended by a kill rather than a click."""
+        from ..memory.journal_sync import journal_sync_loop
+
+        asyncio.create_task(journal_sync_loop(personas, brain, config))
+
     @app.on_event("startup")
     async def _warm_models() -> None:
         """Pre-load Whisper + NeuTTS backbone + the default persona's voice clone,
@@ -712,6 +845,145 @@ async def _handle_command(raw: str, session, personas, voice_loop, emit) -> None
             logger.info("reset_vad: cancelled in-flight turn task")
         session.reset_audio()
         session.state = State.IDLE
+
+    elif action == "new_session":
+        # Desktop (and any client) request: end the current conversation on
+        # this socket without disconnecting. Reuses the idle-watchdog path so
+        # persist + card clear + session_ended stay one contract.
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("new_session: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+
+    elif action == "resume_session":
+        # Seed a fresh session_id with a Journal chatlog (Slice 3). Validate
+        # the slug *before* ending the live chat so a bad Resume cannot wipe
+        # an active conversation.
+        from .session_resume import load_journal_turns, parse_chatlog
+
+        slug = (cmd.get("slug") or "").strip()
+        record_id = (cmd.get("session_id") or "").strip()
+        if record_id:
+            # A local record: the live truth, available the moment a turn
+            # lands and long before the journal has been given anything.
+            from ..memory.session_record import read_record
+
+            rec = read_record(record_id)
+            turns = parse_chatlog(str((rec or {}).get("chatlog") or "")) if rec else None
+            slug = record_id
+        else:
+            turns = load_journal_turns(slug)
+        if turns is None:
+            await emit(
+                "error",
+                {
+                    "action": "error",
+                    "message": f"resume_session: no transcript for {slug!r}",
+                },
+            )
+            return
+        if not turns:
+            await emit(
+                "error",
+                {
+                    "action": "error",
+                    "message": f"resume_session: empty transcript for {slug!r}",
+                },
+            )
+            return
+
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("resume_session: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+        session.history = list(turns)
+        session.touch()
+        await emit(
+            "session_resumed",
+            {
+                "action": "session_resumed",
+                "slug": slug,
+                "session_id": session.session_id,
+                "turns": [
+                    {"user": t.user, "assistant": t.assistant} for t in turns
+                ],
+            },
+        )
+        logger.info(
+            "resume_session: seeded %s with %d turns from %s",
+            session.session_id,
+            len(turns),
+            slug,
+        )
+
+    elif action == "start_topic_session":
+        # Fresh session_id with Engram topic memory (project or life-root).
+        # Not a resume: no seeded transcript. Validates the topic first so a
+        # bad name cannot wipe the live chat.
+        from pathlib import Path
+
+        from ..memory.topic import resolve_engram_root, topic_claude_md
+
+        name = (cmd.get("name") or "").strip()
+        root = resolve_engram_root(Path("."))
+        if not name or root is None or topic_claude_md(root, name) is None:
+            await emit(
+                "error",
+                {
+                    "action": "error",
+                    "message": f"start_topic_session: no Engram page for {name!r}",
+                },
+            )
+            return
+
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("start_topic_session: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+        session.topic_hint = name
+        await emit(
+            "topic_session",
+            {
+                "action": "topic_session",
+                "name": name,
+                "session_id": session.session_id,
+            },
+        )
+        logger.info(
+            "start_topic_session: %s topic=%s",
+            session.session_id,
+            name,
+        )
 
     elif action == "say":
         # Speak a short cue verbatim in the persona voice, no LLM turn (e.g. the

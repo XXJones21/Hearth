@@ -100,6 +100,13 @@ def hearth_models() -> Path:
     return Path(configured).expanduser() if configured else hearth_home() / "models"
 
 
+def _persona_dir() -> Path:
+    """Conversational personas. HEARTH_PERSONA_DIR when a supervisor is
+    sharing another household; otherwise the product tree's personas/."""
+    configured = os.environ.get("HEARTH_PERSONA_DIR", "").strip()
+    return Path(configured).expanduser() if configured else hearth_root() / "personas"
+
+
 def hearth_engram() -> Path:
     """The memory tree.
 
@@ -245,7 +252,7 @@ class ValarConfig:
     host: str = field(default_factory=lambda: _env_str("HEARTH_HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: _env_int("HEARTH_PORT", 8700))
 
-    persona_dir: Path = field(default_factory=lambda: hearth_root() / "personas")
+    persona_dir: Path = field(default_factory=lambda: _persona_dir())
     default_persona: str = field(default_factory=lambda: _env_str("HEARTH_DEFAULT_PERSONA", "Sulivan"))
     assets_dir: Path = field(default_factory=lambda: hearth_root() / "harness" / "assets")
 
