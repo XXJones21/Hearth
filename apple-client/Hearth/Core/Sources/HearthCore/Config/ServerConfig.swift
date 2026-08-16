@@ -9,6 +9,49 @@
 //
 
 import Foundation
+import Security
+
+/// The device token's home: a generic-password Keychain item. UserDefaults
+/// was the pre-alpha slot and is readable from an unencrypted backup; the
+/// getter below migrates a legacy value the first time it is asked.
+private enum TokenVault {
+    private static let service = "hearth.device-token"
+    private static let account = "house"
+
+    private static var baseQuery: [String: Any] {
+        [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+    }
+
+    static func read() -> String? {
+        var query = baseQuery
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data,
+              let token = String(data: data, encoding: .utf8),
+              !token.isEmpty else { return nil }
+        return token
+    }
+
+    static func write(_ token: String) {
+        delete()
+        var query = baseQuery
+        query[kSecValueData as String] = Data(token.utf8)
+        // The socket redials on foreground and on launch; the token has to be
+        // readable then, but never off a locked device's backup.
+        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    static func delete() {
+        SecItemDelete(baseQuery as CFDictionary)
+    }
+}
 
 public final class ServerConfig {
     public static let shared = ServerConfig()
@@ -68,22 +111,29 @@ public final class ServerConfig {
     ///
     /// A house exempts loopback and requires a token from everything else, so
     /// a phone always needs one -- a phone is never the machine running the
-    /// backend. It is stored beside the address rather than in the Keychain
-    /// for now, which is a deliberate pre-alpha shortcut and not a decision:
-    /// UserDefaults is readable from a backup, and the Keychain is where this
-    /// belongs before anyone who is not us installs it.
+    /// backend. Lives in the Keychain; the pre-alpha UserDefaults slot is
+    /// migrated on first read and then emptied, so an updated install keeps
+    /// its pairing without the token staying readable from a backup.
     public var deviceToken: String? {
         get {
-            guard let saved = UserDefaults.standard.string(forKey: deviceTokenKey),
-                  !saved.isEmpty else { return nil }
-            return saved
+            if let token = TokenVault.read() { return token }
+            if let legacy = UserDefaults.standard.string(forKey: deviceTokenKey),
+               !legacy.isEmpty {
+                TokenVault.write(legacy)
+                UserDefaults.standard.removeObject(forKey: deviceTokenKey)
+                return legacy
+            }
+            return nil
         }
         set {
+            // The legacy slot is cleared on every write so no path can leave a
+            // stale copy behind the Keychain's back.
+            UserDefaults.standard.removeObject(forKey: deviceTokenKey)
             let trimmed = newValue?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let trimmed, !trimmed.isEmpty {
-                UserDefaults.standard.set(trimmed, forKey: deviceTokenKey)
+                TokenVault.write(trimmed)
             } else {
-                UserDefaults.standard.removeObject(forKey: deviceTokenKey)
+                TokenVault.delete()
             }
         }
     }
@@ -135,6 +185,25 @@ public final class ServerConfig {
                 serverHost = value
                 serverPort = Self.defaultPort
             }
+        }
+    }
+
+    /// Commit a new address the way Apply and first run mean it: pointing
+    /// this phone at a DIFFERENT house also surrenders the old house's token.
+    /// Presenting house A's token to house B earns a 1008 close and nothing
+    /// but a reconnect loop behind it; better to arrive honestly unpaired and
+    /// be walked through the code. The raw `address` setter stays
+    /// token-neutral on purpose -- the Test button stages a typed address
+    /// through it and rolls back, and a probe must not cost the pairing.
+    public func commitAddress(_ newValue: String) {
+        let oldHost = serverHost
+        address = newValue
+        if let oldHost, let newHost = serverHost,
+           newHost.caseInsensitiveCompare(oldHost) != .orderedSame {
+            deviceToken = nil
+            // The address setter already posted, but with the old token still
+            // in place; post again so the root view re-answers isPaired.
+            NotificationCenter.default.post(name: .hearthServerConfigured, object: nil)
         }
     }
 

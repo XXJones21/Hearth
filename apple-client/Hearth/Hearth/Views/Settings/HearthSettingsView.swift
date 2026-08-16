@@ -175,6 +175,7 @@ private struct ConnectionSection: View {
 
     @State private var address = ServerConfig.shared.address
     @State private var probe: ProbeState = .idle
+    @State private var confirmForget = false
     @FocusState private var addressFocused: Bool
 
     private enum ProbeState: Equatable {
@@ -239,8 +240,48 @@ private struct ConnectionSection: View {
                 .padding(.top, 9)
 
                 status.padding(.top, 9)
+
+                Divider().overlay(HearthPalette.linen).padding(.vertical, 11)
+
+                // The local half of unpairing. The house still lists this
+                // device until someone revokes it at the desk, and the copy
+                // must not promise more than that.
+                Button { confirmForget = true } label: {
+                    Text("Forget this house")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(HearthPalette.clay)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(HearthPalette.parchment, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(HearthPalette.clayLine, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!ServerConfig.shared.isConfigured)
+                .confirmationDialog(
+                    "Forget this house?",
+                    isPresented: $confirmForget,
+                    titleVisibility: .visible
+                ) {
+                    Button("Forget", role: .destructive) { forgetHouse() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Clears the address and this phone's key, and returns to first run. The house still lists this device until it is revoked there.")
+                }
             }
         }
+    }
+
+    /// Both halves at once: the key and the address. Clearing the address
+    /// posts the configured notification, and the root view answers by
+    /// swapping back to first run; the redial tears the dead socket down.
+    private func forgetHouse() {
+        Pairing.forget()
+        ServerConfig.shared.address = ""
+        address = ""
+        Task { await viewModel.redial() }
     }
 
     private var status: some View {
@@ -306,7 +347,10 @@ private struct ConnectionSection: View {
 
     private func apply() {
         addressFocused = false
-        ServerConfig.shared.address = address
+        // commitAddress, not the raw setter: pointing at a different house
+        // surrenders the old house's token, and the root view walks the
+        // person through pairing with the new one.
+        ServerConfig.shared.commitAddress(address)
         // Normalised (scheme stripped, default port folded away).
         address = ServerConfig.shared.address
         probe = .idle

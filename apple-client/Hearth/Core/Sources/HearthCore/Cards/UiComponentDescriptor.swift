@@ -44,10 +44,13 @@ public struct UiComponentDescriptor: Identifiable {
     public static let typeSlideshow = "slideshow"
     public static let typeCaptions = "captions"
     public static let typeGeneratedView = "generated_view"
-    public static let typeSessionGallery = "session_gallery"
     /// A drawing from the local art studio. Lands at submit time, empty, and
     /// settles in place; see ImageCard and EaselStore.
     public static let typeImageCard = "image_card"
+    /// A file-access approval the house is WAITING on (see ActionCards).
+    public static let typePermissionCard = "permission_card"
+    /// A question with persona-authored options (see ActionCards).
+    public static let typeChoiceCard = "choice_card"
     public static let supportedVersion = 1
 
     // MARK: - Parsing
@@ -109,35 +112,6 @@ public struct UiComponentDescriptor: Identifiable {
         return arr.compactMap { $0 as? [String: Any] }
     }
 
-    /// Typed `sessions` list for the `session_gallery` type (Phase 5).
-    public func sessions() -> [SessionCardInfo] {
-        objList("sessions").map { obj in
-            SessionCardInfo(
-                slug: obj.optString("slug"),
-                title: obj.optString("title"),
-                date: obj.optString("date"),
-                summary: obj.optString("summary"),
-                persona: obj.optString("persona"),
-                project: obj.optString("project"),
-                imageURL: obj.optString("image_url")
-            )
-        }
-    }
-}
-
-/// One past-conversation entry in the generative `session_gallery`. Plain data
-/// (no UI deps) so it is visible to all targets; the visionOS gallery renders it.
-/// `imageURL` is the optional generated topic art (ComfyUI) — when present the
-/// card is image-forward, otherwise it shows the summary text.
-public struct SessionCardInfo: Identifiable {
-    public let slug: String
-    public let title: String
-    public let date: String
-    public let summary: String
-    public let persona: String
-    public let project: String
-    public let imageURL: String
-    public var id: String { slug }
 }
 
 // MARK: - Nested-object accessors (for generated_view sections, timer rows, …)

@@ -27,6 +27,8 @@ struct HearthMainView: View {
 
     /// The right-hand navigation drawer (HouseShelf).
     @State private var shelfOpen = false
+    /// Earlier conversations (new / resume), presented full screen.
+    @State private var showSessions = false
     /// Selene's Library, presented full screen over the stage.
     @State private var showJournal = false
     /// Apps and Extensions, likewise.
@@ -92,7 +94,12 @@ struct HearthMainView: View {
                     .clipped()
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        if viewModel.hearthState == .IDLE && viewModel.connectionStatus == .connected {
+                        if viewModel.hearthState == .SPEAKING {
+                            // Barge-in without opening the mic: quiet the
+                            // voice and return to idle. The mic button is the
+                            // interrupt that also listens.
+                            viewModel.interruptSpeaking()
+                        } else if viewModel.hearthState == .IDLE && viewModel.connectionStatus == .connected {
                             viewModel.toggleListening()
                         }
                     }
@@ -137,6 +144,7 @@ struct HearthMainView: View {
                     viewModel: viewModel,
                     transcriptShown: $transcriptShown,
                     isOpen: $shelfOpen,
+                    onOpenSessions: { showSessions = true },
                     onOpenJournal: { showJournal = true },
                     onOpenApps: { showApps = true },
                     onOpenPersona: { showPersona = true }
@@ -144,8 +152,24 @@ struct HearthMainView: View {
                 .transition(.move(edge: .trailing))
             }
         }
+        // The house closed the socket with 1008: the token was refused.
+        // Reconnect is already stopped; this is the way back. "Pair again"
+        // keeps the address and forgets only the key, so the root view opens
+        // first run directly on the code-entry step.
+        .alert("Not paired with the house", isPresented: $viewModel.needsPairing) {
+            Button("Pair again") {
+                Pairing.forget()
+                NotificationCenter.default.post(name: .hearthServerConfigured, object: nil)
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("The house refused this phone's key. It may have been revoked at the desk. Pairing again takes a fresh six-digit code from the house.")
+        }
         .fullScreenCover(isPresented: $viewModel.showSettings) {
             HearthSettingsView(viewModel: viewModel)
+        }
+        .fullScreenCover(isPresented: $showSessions) {
+            SessionsView(viewModel: viewModel)
         }
         .fullScreenCover(isPresented: $showJournal) {
             JournalView()

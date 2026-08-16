@@ -39,6 +39,10 @@ public struct DynamicComponent: View {
             GeneratedViewCard(descriptor: descriptor)
         case UiComponentDescriptor.typeImageCard:
             ImageCard(descriptor: descriptor)
+        case UiComponentDescriptor.typePermissionCard:
+            PermissionCard(descriptor: descriptor)
+        case UiComponentDescriptor.typeChoiceCard:
+            ChoiceCard(descriptor: descriptor)
         // The commissioned pair (choam_portfolio_dashboard, ticker_insight_card)
         // did not come across: they are one house's demo vocabulary, not
         // Hearth's. A server that still sends them falls through to EmptyView,

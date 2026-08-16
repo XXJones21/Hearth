@@ -109,6 +109,10 @@ private struct CardPreview: View {
             Group {
                 if let sample = CardSamples.descriptor(for: card.type) {
                     DynamicComponent(descriptor: sample)
+                        // Samples carry invented request ids and labels; the
+                        // action cards render but must not be able to answer
+                        // a question nobody asked.
+                        .environment(\.cardActionsEnabled, false)
                 } else {
                     unsupported
                 }
@@ -258,9 +262,18 @@ enum CardSamples {
                                "/Persona/Sulivan/Assets/portrait-alt.png"],
                     "interval_ms": 4000]
 
-        // session_gallery needs a live session and terminal_card has no iOS
-        // renderer, so both fall through to "made for another surface" --
-        // true, rather than an empty box.
+        case UiComponentDescriptor.typePermissionCard:
+            return ["request_id": "sample", "path": "D:\\Recipes",
+                    "action": "read", "status": "pending"]
+
+        case UiComponentDescriptor.typeChoiceCard:
+            return ["question": "Which room should the reading light live in?",
+                    "options": [["label": "The study", "detail": "Where the books already are."],
+                                ["label": "The porch", "detail": "Evening light, no outlet."]],
+                    "allow_free_text": true]
+
+        // terminal_card has no iOS renderer, so it falls through to "made for
+        // another surface" -- true, rather than an empty box.
         default:
             return nil
         }

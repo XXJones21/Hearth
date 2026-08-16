@@ -102,7 +102,7 @@ struct BottomInputBar: View {
         switch viewModel.hearthState {
         case .LISTENING: return "Listening…"
         case .THINKING:  return "Thinking…"
-        case .SPEAKING:  return "Speaking"
+        case .SPEAKING:  return "Tap to interrupt"
         default:         return "Tap to talk"
         }
     }
@@ -125,8 +125,12 @@ struct BottomInputBar: View {
     }
 
     private var talkEnabled: Bool {
+        // SPEAKING included: the mic mid-reply is barge-in -- toggleListening
+        // cuts the voice and opens a listening turn. Only THINKING stays
+        // dead, because there is nothing to interrupt yet.
         viewModel.connectionStatus == .connected &&
-        (viewModel.hearthState == .IDLE || viewModel.hearthState == .LISTENING)
+        viewModel.hearthState != .THINKING &&
+        viewModel.hearthState != .LOADING
     }
 
     // MARK: - Typing (on demand)

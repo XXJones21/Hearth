@@ -19,7 +19,11 @@ enum SpeechRecognitionError: Error {
 }
 
 class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
-    private let speechRecognizer: SFSpeechRecognizer
+    /// Optional, not force-unwrapped: `SFSpeechRecognizer(locale:)` returns nil
+    /// on a device whose locale set does not include en-US, and this manager
+    /// is built during ChatViewModel construction -- a crash here is a crash
+    /// on launch. A nil recognizer surfaces as recognizerUnavailable instead.
+    private let speechRecognizer: SFSpeechRecognizer?
     private var audioEngine: AVAudioEngine?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
@@ -35,9 +39,9 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
     var onError: ((Error) -> Void)?
 
     override init() {
-        self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
+        self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
         super.init()
-        speechRecognizer.delegate = self
+        speechRecognizer?.delegate = self
     }
 
     // MARK: - Authorization
@@ -55,16 +59,24 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
     func startRecognition() async throws {
         guard !isRunning else { return }
 
-        guard speechRecognizer.isAvailable else {
+        guard let speechRecognizer else {
             throw SpeechRecognitionError.recognizerUnavailable
         }
 
+        // Authorization FIRST. `isAvailable` is commonly false until the
+        // recognizer is authorized, so checking it first threw
+        // recognizerUnavailable ("not available on this device") on a genuine
+        // first run, before the permission dialog ever appeared.
         let authStatus = SFSpeechRecognizer.authorizationStatus()
         if authStatus == .notDetermined {
             let granted = await requestAuthorization()
             guard granted else { throw SpeechRecognitionError.notAuthorized }
         } else if authStatus != .authorized {
             throw SpeechRecognitionError.notAuthorized
+        }
+
+        guard speechRecognizer.isAvailable else {
+            throw SpeechRecognitionError.recognizerUnavailable
         }
 
         let audioApp = AVAudioApplication.shared
@@ -89,6 +101,19 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
         self.audioEngine = engine
         let inputNode = engine.inputNode
         let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+        // A zero-rate format happens mid Bluetooth handoff or after a failed
+        // session activation, and installTap with it throws the uncatchable
+        // ObjC "format.sampleRate == hwFormat.sampleRate" exception -- the
+        // do/catch below only guards engine.start(). Refuse it as an error
+        // the caller can present.
+        guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
+            cleanup()
+            throw SpeechRecognitionError.audioEngineError(NSError(
+                domain: "SpeechRecognitionManager", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "the microphone route reported no usable format"]
+            ))
+        }
 
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             request.append(buffer)

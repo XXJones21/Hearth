@@ -5,6 +5,7 @@
 //  Created by Joshua Jones on 11/6/25.
 //
 
+import AVFoundation
 import Foundation
 import Combine
 import simd
@@ -67,6 +68,10 @@ public class ChatViewModel: ObservableObject {
     @Published public var ttsAmplitude: Float = 0
     // Summary from the server's idle watchdog (session_ended).
     @Published public var sessionSummary: String?
+    /// The house refused this phone's token (socket closed 1008). Reconnect is
+    /// stopped -- retrying a revoked key is a loop that cannot win -- and the
+    /// main view offers the way back: pair again with a fresh code.
+    @Published public var needsPairing = false
 
     // Generative UI cards driven by the Valar gateway's ui_component messages.
     // Owned here; HearthMainView observes it via viewModel.cardStore.
@@ -124,6 +129,30 @@ public class ChatViewModel: ObservableObject {
     // mid-pipeline), don't wedge the app in THINKING forever.
     private var thinkingWatchdogTask: Task<Void, Never>?
     private let thinkingWatchdogTimeout: TimeInterval = 90.0
+
+    // Safety net for SPEAKING. The state is normally closed by the sentinel
+    // buffer draining (markSpeakingComplete -> onPlaybackComplete), but a
+    // phone call, Siri, or a failed engine start kills the audio path with
+    // the sentinel unplayed and NOTHING else can leave SPEAKING -- the mic,
+    // the stage tap and the text field were all disabled by it. The tap
+    // callback fires constantly while playback is alive (silence included),
+    // so "the tap went quiet" is the stall signal.
+    private var speakingWatchdogTask: Task<Void, Never>?
+    private var lastSpeechActivity = Date()
+    private let speakingStallTimeout: TimeInterval = 12.0
+    /// The user (or a stall) cut this reply off. Later segments of the SAME
+    /// reply keep arriving for a while; this mutes them so a chunk_start
+    /// cannot flip the state back to SPEAKING after the interrupt.
+    private var speechInterrupted = false
+
+    // Audio-session interruptions (calls, Siri) and route losses (Bluetooth
+    // walking away). Registered once; without these, an interruption
+    // mid-reply wedges SPEAKING permanently -- see the watchdog above, which
+    // stays as the net for whatever these do not catch.
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+    /// choice_card answers (see ActionCards.swift).
+    private var choiceObserver: NSObjectProtocol?
 
     /// The persona the house was last speaking as, so the name in the rail is
     /// right before the server confirms it rather than flashing the default.
@@ -223,6 +252,67 @@ public class ChatViewModel: ObservableObject {
             // @Published, so a 60fps mouth costs no view updates.
             FaceFeed.shared.speechLevel = Double(amp)
             self?.ttsAmplitude = amp
+            // The tap firing at all is proof the audio path is alive; the
+            // SPEAKING watchdog measures silence in these.
+            self?.lastSpeechActivity = Date()
+        }
+
+        // Registered once for the process; setupAudioComponents runs again on
+        // every redial and a second observer would double-handle each event.
+        if interruptionObserver == nil {
+            interruptionObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+                MainActor.assumeIsolated {
+                    self?.handleAudioPathLost(reason: "interrupted")
+                }
+            }
+        }
+        if routeChangeObserver == nil {
+            routeChangeObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.routeChangeNotification,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                      AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable
+                else { return }
+                MainActor.assumeIsolated {
+                    self?.handleAudioPathLost(reason: "audio route lost")
+                }
+            }
+        }
+        if choiceObserver == nil {
+            // A tapped choice_card chip is an answer: it goes out as the
+            // user's turn, exactly as if they had typed the label (the
+            // desktop feed's contract).
+            choiceObserver = NotificationCenter.default.addObserver(
+                forName: .hearthChoicePicked,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let label = note.userInfo?["label"] as? String, !label.isEmpty else { return }
+                MainActor.assumeIsolated {
+                    self?.sendMessage(label)
+                }
+            }
+        }
+    }
+
+    /// A call, Siri, or a departed Bluetooth device took the audio path out
+    /// from under whichever engine held it. Close the affected state cleanly
+    /// now instead of leaving the watchdogs to discover the wedge later.
+    private func handleAudioPathLost(reason: String) {
+        switch hearthState {
+        case .SPEAKING:
+            print("[Audio] \(reason) mid-reply -- closing the speaking turn")
+            interruptSpeaking()
+        case .LISTENING:
+            print("[Audio] \(reason) while listening -- stopping the mic")
+            stopListening()
+        default:
+            break
         }
     }
 
@@ -264,19 +354,26 @@ public class ChatViewModel: ObservableObject {
         // engine in one format, so there is no WAV-blob branch to choose against.
         webSocketClient?.onTTSChunkStart = { [weak self] segIdx, sampleRate in
             Task { @MainActor [weak self] in
+                guard let self else { return }
                 if segIdx == 0 {
-                    self?.ttsStreamPlayer?.startStream(sampleRate: sampleRate)
+                    // A new reply clears any interrupt from the previous one.
+                    self.speechInterrupted = false
+                    self.ttsStreamPlayer?.startStream(sampleRate: sampleRate)
                 }
-                self?.ttsStreamPlayer?.segmentStarted(segIdx)
+                // An interrupted reply's later segments keep arriving for a
+                // while; they must not restart audio or flip the state back.
+                guard !self.speechInterrupted else { return }
+                self.ttsStreamPlayer?.segmentStarted(segIdx)
                 // Any non-speaking state -> SPEAKING when audio arrives, so a slow
                 // server whose reply lands after the watchdog closed the turn still
                 // shows Sulivan speaking (not stuck idle).
-                if self?.hearthState != .SPEAKING {
-                    self?.hearthState = .SPEAKING
-                    self?.stopThinkingAnimation()
-                    self?.thinkingStage = nil
-                    self?.cancelThinkingWatchdog()
+                if self.hearthState != .SPEAKING {
+                    self.hearthState = .SPEAKING
+                    self.stopThinkingAnimation()
+                    self.thinkingStage = nil
+                    self.cancelThinkingWatchdog()
                 }
+                self.armSpeakingWatchdog()
             }
         }
 
@@ -393,6 +490,18 @@ public class ChatViewModel: ObservableObject {
             }
         }
 
+        webSocketClient?.onSessionResumed = { [weak self] slug, turns in
+            Task { @MainActor [weak self] in
+                self?.handleSessionResumed(slug: slug, turns: turns)
+            }
+        }
+
+        webSocketClient?.onTopicSession = { [weak self] name in
+            Task { @MainActor [weak self] in
+                self?.addSystemMessage(name.isEmpty ? "New session" : "Session for \(name)")
+            }
+        }
+
         webSocketClient?.onUiComponent = { [weak self] payload in
             // Route the raw payload into the card store (owns op/ttl/type parsing).
             Task { @MainActor [weak self] in
@@ -407,6 +516,15 @@ public class ChatViewModel: ObservableObject {
                 self.addSystemMessage("Error: \(error)")
                 self.isWaitingForResponse = false
                 self.activeTools = []
+            }
+        }
+
+        webSocketClient?.onAuthRejected = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.needsPairing = true
+                self.cancelReconnect()
+                self.addSystemMessage("The house refused this phone's key. Pair again with a fresh code.")
             }
         }
 
@@ -482,6 +600,9 @@ public class ChatViewModel: ObservableObject {
     /// by the Connection section after the user edits the field.
     public func redial() async {
         cancelReconnect()
+        // A redial is how a re-pair or a new address takes effect; whatever
+        // refusal came before it is history.
+        needsPairing = false
         webSocketClient?.disconnect()
         webSocketClient = nil
         connectionStatus = .connecting
@@ -547,6 +668,9 @@ public class ChatViewModel: ObservableObject {
     /// client_info_ack revives it. One loop at a time; no-op in debug mode.
     private func scheduleReconnect() {
         guard !isDebugMode else { return }
+        // A refused token cannot be retried into working; the way back is the
+        // pairing screen, and looping behind it would just keep earning 1008s.
+        guard !needsPairing else { return }
         guard reconnectTask == nil else { return }
         reconnectTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -583,6 +707,12 @@ public class ChatViewModel: ObservableObject {
         guard connectionStatus == .connected else {
             addSystemMessage("Connection not ready yet")
             return
+        }
+
+        // Barge-in: the mic during SPEAKING means "stop talking, listen to
+        // me" -- cut the voice and fall through into a listening turn.
+        if hearthState == .SPEAKING {
+            interruptSpeaking()
         }
 
         guard hearthState == .IDLE else { return }
@@ -655,7 +785,54 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
+    /// Stop the voice mid-reply -- the user's interrupt, or the audio path
+    /// dying. The stopped player emits amplitude 0 (closing the face's
+    /// mouth), and later segments of this reply are muted so a still-arriving
+    /// chunk_start cannot reopen the state.
+    public func interruptSpeaking() {
+        guard hearthState == .SPEAKING else { return }
+        speechInterrupted = true
+        cancelSpeakingWatchdog()
+        ttsStreamPlayer?.stop()
+        cueInFlight = false
+        isListening = false
+        hearthState = .IDLE
+    }
+
+    private func armSpeakingWatchdog() {
+        guard speakingWatchdogTask == nil else { return }
+        lastSpeechActivity = Date()
+        speakingWatchdogTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                guard self.hearthState == .SPEAKING else { continue }
+                if Date().timeIntervalSince(self.lastSpeechActivity) > self.speakingStallTimeout {
+                    print("[State] SPEAKING watchdog fired -- audio path went quiet")
+                    self.addSystemMessage("Audio stalled mid-reply")
+                    self.interruptSpeaking()
+                    return
+                }
+            }
+        }
+    }
+
+    private func cancelSpeakingWatchdog() {
+        speakingWatchdogTask?.cancel()
+        speakingWatchdogTask = nil
+    }
+
     private func handleSpeakingComplete() {
+        cancelSpeakingWatchdog()
+        // An interrupted reply must not open the post-speak listening window:
+        // the sentinel (or the stop itself) firing completion is the tail of
+        // a turn the user already ended.
+        if speechInterrupted {
+            speechInterrupted = false
+            isListening = false
+            if hearthState == .SPEAKING { hearthState = .IDLE }
+            return
+        }
         liveTranscript = ""
         // The caption deliberately SURVIVES the turn: what Sulivan just said
         // stays readable on the stage until the next turn replaces it. The
@@ -866,8 +1043,12 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
-    /// The server's idle watchdog persisted + cleared the session. The next
-    /// turn starts fresh; the transcript is retained as history.
+    /// The server persisted and cleared the session (idle watchdog, or an
+    /// explicit new_session / resume_session). The feed is WIPED to match:
+    /// the house has filed this conversation and no longer remembers it, and
+    /// a screen that keeps showing it invites a follow-up with no context and
+    /// nothing to explain why. Desktop wipes here for the same reason.
+    /// resume_session emits this first, then session_resumed repaints.
     private func handleSessionEnded(reason: String, summary: String?) {
         print("[Session] ended (reason=\(reason)); summary=\(summary ?? "<none>")")
         sessionSummary = summary
@@ -879,52 +1060,85 @@ public class ChatViewModel: ObservableObject {
         expressionsBySegment.removeAll()
         captionSegment = -1
         activeTools = []
+        isWaitingForResponse = false
+        messages.removeAll()
+        cardStore.clearAll()
+        if hearthState == .THINKING {
+            closeTurn()
+        }
+        // The house wrote a summary of what was just filed; this is where it
+        // surfaces in-app (the widget already showed it).
+        if let summary, !summary.isEmpty {
+            addSystemMessage("Session filed: \(summary)")
+        } else {
+            addSystemMessage("New session")
+        }
         publishWidgetSnapshot()
     }
 
-    // MARK: - Sessions gallery (Phase 5, generative UI)
+    // MARK: - Session control (new / resume / topic)
 
-    /// The user tapped a past-conversation card in the `session_gallery`. Send the
-    /// pick to the server (which resumes it per `mode`) and dismiss the gallery.
-    /// Resume execution is server-side and deferred — see the Phase 5 handoff doc.
-    public func selectSession(slug: String, mode: String) {
-        print("[Session] select slug=\(slug) mode=\(mode)")
-        webSocketClient?.sendSessionResume(slug: slug, mode: mode)
-        cardStore.dismissType(UiComponentDescriptor.typeSessionGallery)
-        addSystemMessage("\(mode.capitalized): \(slug)")
+    /// Every session verb shares one gate: a live socket, and no turn in
+    /// flight. Desktop hard-blocks all three the same way -- ending or
+    /// swapping the session under a reply that is still streaming would
+    /// wipe a feed the server is actively writing to.
+    private func canControlSession() -> Bool {
+        guard connectionStatus == .connected else {
+            addSystemMessage("Connection not ready yet")
+            return false
+        }
+        guard !isWaitingForResponse, hearthState != .THINKING, hearthState != .SPEAKING else {
+            addSystemMessage("Wait for the current turn to finish")
+            return false
+        }
+        return true
     }
 
-    #if DEBUG
-    /// Inject a sample `session_gallery` through the live ui_component path so the
-    /// gallery can be verified on device before the server `recall_sessions` tool
-    /// exists. No live trigger is wired; call this from a temporary affordance
-    /// when re-testing the gallery layout.
-    ///
-    /// The fixtures are deliberately invented. Valinor seeded this with six real
-    /// sessions carrying real dates and real summaries, which meant every build
-    /// shipped a stranger a week of somebody's actual work. Two obvious
-    /// placeholders exercise the same layout -- one long summary, one short --
-    /// without carrying anyone's history into the binary.
-    public func debugShowSampleGallery() {
-        let payload: [String: Any] = [
-            "type": UiComponentDescriptor.typeSessionGallery,
-            "op": "upsert",
-            "props": [
-                "mode": "continue",
-                "prompt": "Recent conversations",
-                "sessions": [
-                    ["slug": "sample-session-one", "title": "Sample session one",
-                     "date": "2026-01-02", "persona": "Sulivan", "project": "sample",
-                     "summary": "A placeholder summary, long enough to wrap onto a second line so the card's text layout is exercised at something like a realistic width."],
-                    ["slug": "sample-session-two", "title": "Sample session two",
-                     "date": "2026-01-01", "persona": "Sulivan", "project": "sample",
-                     "summary": "A short placeholder summary."],
-                ],
-            ],
-        ]
-        cardStore.apply(payload)
+    /// Start fresh without closing the app. The house keeps what it wrote
+    /// down; the live chat clears when `session_ended` comes back.
+    public func startNewSession() {
+        guard canControlSession() else { return }
+        webSocketClient?.sendNewSession()
     }
-    #endif
+
+    /// Resume a session record by id, or a journal entry by its diary slug.
+    /// The server validates before ending the live chat, replies
+    /// `session_ended` (wipe) then `session_resumed` (repaint), or an
+    /// `error` when there is no transcript -- which surfaces through the
+    /// normal error path without having wiped anything.
+    public func resumeSession(recordId: String) {
+        guard canControlSession() else { return }
+        webSocketClient?.sendResumeSession(sessionId: recordId)
+    }
+
+    public func resumeSession(slug: String) {
+        guard canControlSession() else { return }
+        webSocketClient?.sendResumeSession(slug: slug)
+    }
+
+    /// A fresh chat that already knows what it is about: opened with an
+    /// Engram topic hint so recall reads that project or life root first.
+    public func startTopicSession(name: String) {
+        guard canControlSession() else { return }
+        webSocketClient?.sendStartTopicSession(name: name)
+    }
+
+    /// The resumed conversation, flattened in order. `session_ended` already
+    /// wiped the feed; this repaints it.
+    private func handleSessionResumed(slug: String, turns: [(user: String, assistant: String)]) {
+        var rebuilt: [ChatMessage] = []
+        for turn in turns {
+            let user = turn.user.trimmingCharacters(in: .whitespacesAndNewlines)
+            let assistant = turn.assistant.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !user.isEmpty { rebuilt.append(ChatMessage(text: user, type: .user)) }
+            if !assistant.isEmpty {
+                rebuilt.append(ChatMessage(text: assistant, type: .ai, personaName: currentPersonaName))
+            }
+        }
+        messages = rebuilt
+        addSystemMessage("Resumed session")
+        publishWidgetSnapshot()
+    }
 
     // MARK: - Widget snapshot (App Group)
 
@@ -1035,6 +1249,7 @@ public class ChatViewModel: ObservableObject {
     /// Return to IDLE, clearing all turn state.
     private func closeTurn() {
         cancelThinkingWatchdog()
+        cancelSpeakingWatchdog()
         stopThinkingAnimation()
         thinkingStage = nil
         isWaitingForResponse = false
@@ -1098,7 +1313,17 @@ public class ChatViewModel: ObservableObject {
     deinit {
         thinkingTask?.cancel()
         thinkingWatchdogTask?.cancel()
+        speakingWatchdogTask?.cancel()
         responseWaitTimer?.invalidate()
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        if let routeChangeObserver {
+            NotificationCenter.default.removeObserver(routeChangeObserver)
+        }
+        if let choiceObserver {
+            NotificationCenter.default.removeObserver(choiceObserver)
+        }
         speechRecognitionManager?.stopRecognition()
         webSocketClient?.disconnect()
     }

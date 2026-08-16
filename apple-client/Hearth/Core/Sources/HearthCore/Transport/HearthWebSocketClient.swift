@@ -37,6 +37,10 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
     var onClientInfoAckReceived: ((ClientInfoAck) -> Void)?
     var onErrorReceived: ((String) -> Void)?
     var onConnectionClosed: (() -> Void)?
+    /// The house closed the socket with 1008 (policy violation): the token was
+    /// refused. Distinct from a network drop because the fix is different --
+    /// re-pair, not retry. Fired BEFORE onConnectionClosed for the same close.
+    var onAuthRejected: (() -> Void)?
     var onPongReceived: ((PongResponse) -> Void)?
     var onPlayWavFileReceived: ((WavFileInfo) -> Void)?
     var onEnvironmentModificationReceived: (([Any]) -> Void)?
@@ -71,6 +75,12 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
     var onUiComponent: (([String: Any]) -> Void)? // raw ui_component payload
     var onStateUpdate: ((String, String?) -> Void)? // (state, stage)
     var onSessionEnded: ((String, String?) -> Void)? // (reason, summary)
+    /// A resume landed: the house seeded a fresh session with these turns.
+    /// Always preceded by `session_ended` (the wipe), so the handler repaints.
+    var onSessionResumed: ((String, [(user: String, assistant: String)]) -> Void)? // (slug, turns)
+    /// A fresh session opened with an Engram topic hint. Not a resume; there
+    /// is no transcript to rehydrate.
+    var onTopicSession: ((String) -> Void)? // (topic name)
     var onPipelineStage: ((String, [String]) -> Void)? // (stage, tool names)
     var onTtsSentence: ((String, Int) -> Void)? // (sentenceText, segIdx)
     /// A face expression named by the harness on tts_chunk_start, resolved
@@ -415,6 +425,24 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
                 // Server idle watchdog persisted + cleared the session.
                 onSessionEnded?(json.reason ?? "unknown", json.summary)
 
+            case "session_resumed":
+                // The reply to resume_session: a fresh session_id seeded with a
+                // past conversation's turns. `turns` are {user, assistant}
+                // PAIRS, not flat messages; the view model flattens in order.
+                if let rawData = text.data(using: .utf8),
+                   let jsonObj = try? JSONSerialization.jsonObject(with: rawData) as? [String: Any] {
+                    let turns = (jsonObj["turns"] as? [[String: Any]] ?? []).map {
+                        (user: $0.optString("user"), assistant: $0.optString("assistant"))
+                    }
+                    onSessionResumed?(jsonObj.optString("slug"), turns)
+                }
+
+            case "topic_session":
+                if let rawData = text.data(using: .utf8),
+                   let jsonObj = try? JSONSerialization.jsonObject(with: rawData) as? [String: Any] {
+                    onTopicSession?(jsonObj.optString("name"))
+                }
+
             case "pipeline_stage":
                 // Tool-activity breadcrumb (Valar 2026-07-31): stage/event plus
                 // the tool names now running. Cosmetic on the wire — the house
@@ -614,17 +642,35 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
         }
     }
 
-    /// Phase 5: the user picked a past conversation in the generative session
-    /// gallery. The server reads the Engram Thought for `slug` and resumes it per
-    /// `mode` (continue | restore | add_context). Resume execution is server-side
-    /// (deferred) — see tasks/visionos-phase5-sessions-handoff.md.
-    func sendSessionResume(slug: String, mode: String) {
+    /// End the current conversation on this socket without disconnecting. The
+    /// server reuses its idle-watchdog path, so persist + card clear +
+    /// `session_ended` stay one contract.
+    func sendNewSession() {
+        sendAction(["action": "new_session"])
+    }
+
+    /// Resume a session RECORD by its own id -- the live truth, available the
+    /// moment a turn lands and long before the journal has anything.
+    /// Reply: `session_ended` (the wipe) then `session_resumed` (the repaint).
+    func sendResumeSession(sessionId: String) {
+        sendAction(["action": "resume_session", "session_id": sessionId])
+    }
+
+    /// Resume a JOURNAL entry by its diary slug. Same reply contract as the
+    /// record path, because to the operator it is the same button.
+    func sendResumeSession(slug: String) {
+        sendAction(["action": "resume_session", "slug": slug])
+    }
+
+    /// Open a fresh session that already knows what it is about: the house
+    /// seeds it with an Engram topic (project or life-root name). Reply:
+    /// `session_ended` then `topic_session`.
+    func sendStartTopicSession(name: String) {
+        sendAction(["action": "start_topic_session", "name": name])
+    }
+
+    private func sendAction(_ command: [String: Any]) {
         guard let task = webSocketTask, isConnected else { return }
-        let command: [String: Any] = [
-            "action": "session_resume",
-            "slug": slug,
-            "mode": mode,
-        ]
         guard let jsonData = try? JSONSerialization.data(withJSONObject: command),
               let jsonString = String(data: jsonData, encoding: .utf8) else { return }
         Task {
@@ -693,6 +739,12 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
     func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
         isConnected = false
         isWaitingForResponse = false
+        // 1008 is the house refusing this phone's token (revoked, or a token
+        // presented to the wrong house). Retrying against it is a loop that
+        // can never win, so the handler stops reconnecting and asks to pair.
+        if closeCode == .policyViolation {
+            onAuthRejected?()
+        }
         onConnectionClosed?()
     }
 }

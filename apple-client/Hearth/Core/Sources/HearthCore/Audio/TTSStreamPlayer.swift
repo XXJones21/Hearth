@@ -64,12 +64,21 @@ class TTSStreamPlayer {
             engine.stop()
         }
 
-        let fmt = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: sampleRate,
-            channels: 1,
-            interleaved: false
-        )!
+        // `sampleRate` came straight off the wire (tts_chunk_start). A zero or
+        // negative value used to hit a force-unwrapped AVAudioFormat and crash
+        // the app on a server's bad day; refuse the stream instead.
+        guard sampleRate > 0,
+              let fmt = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: sampleRate,
+                channels: 1,
+                interleaved: false
+              )
+        else {
+            print("[TTSStreamPlayer] Refusing stream with invalid sample rate \(sampleRate)")
+            audioFormat = nil
+            return
+        }
         audioFormat = fmt
         chunkLock.lock()
         _chunksReceived = 0
@@ -83,6 +92,11 @@ class TTSStreamPlayer {
             try engine.start()
         } catch {
             print("[TTSStreamPlayer] Failed to start engine: \(error)")
+            // Without this, every later guard passes against a dead engine:
+            // buffers get scheduled onto a node that never renders and the
+            // app sits in SPEAKING forever. A nil format makes the failure
+            // visible to every path that checks it.
+            audioFormat = nil
             return
         }
 
