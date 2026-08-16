@@ -103,6 +103,12 @@ export default function App() {
   useEffect(() => {
     const s = loadSettings();
     if (!s.setupComplete || !hasProbe()) return;
+    /* A client that joined a house on another machine has no install on this
+       disk and nothing to supervise. Revalidating would find no record and
+       throw it back into setup on every launch, and starting the house would
+       be this machine trying to run a backend it never downloaded. Both are
+       skipped: the socket simply dials the address it was given. */
+    if (s.remoteHouse) return;
     installState(s.installRoot || undefined)
       .then(async (state) => {
         if (!state.ok) {
@@ -195,7 +201,7 @@ export default function App() {
                  starts the house on the way in. */
               if (installed) {
                 const s = saveSettings({ setupComplete: true });
-                if (s.installRoot) {
+                if (s.installRoot && !s.remoteHouse) {
                   void wakeHouse(
                     s.installRoot,
                     'Starting the house. The model can take a minute.',

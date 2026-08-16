@@ -1,4 +1,4 @@
-import { getHttpOrigin } from './config';
+import { houseFetch } from './config';
 
 export type JournalSession = {
   slug: string;
@@ -21,7 +21,7 @@ export type JournalSearchHit = { slug: string; snippet: string };
 
 async function getJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${getHttpOrigin()}${path}`);
+    const res = await houseFetch(`${path}`);
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch {

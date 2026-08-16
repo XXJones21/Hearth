@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { ttsPlayer } from '../../lib/audioPlayer';
-import { getHttpOrigin, getWsUrl } from '../../lib/config';
+import { getWsUrl, houseFetch } from '../../lib/config';
 import { saveSettings } from '../../lib/settings';
 import { useAppStore } from '../../store/appStore';
 import { ChoiceCard } from '../cards/ChoiceCard';
@@ -107,7 +107,7 @@ export function Interview({
         await new Promise((r) => window.setTimeout(r, 2000));
         while (Date.now() < deadline) {
           try {
-            const res = await fetch(`${getHttpOrigin()}/voice/ready`, { cache: 'no-store' });
+            const res = await houseFetch(`/voice/ready`, { cache: 'no-store' });
             const body = (await res.json()) as { ready?: boolean };
             if (body.ready) break;
           } catch {
@@ -127,7 +127,7 @@ export function Interview({
   const checkForNewPersona = useCallback(async () => {
     if (handedOffRef.current) return;
     try {
-      const resp = await fetch(`${getHttpOrigin()}/health`);
+      const resp = await houseFetch(`/health`);
       const body = (await resp.json()) as { personas?: string[] };
       const names = new Set((body.personas ?? []).map(String));
       if (baselineRef.current === null) {

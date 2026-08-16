@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Merged into the bundled Info.plist by the macOS bundler.
+
+  This file exists for one reason: a Hearth that runs on another machine is
+  reached over plain http and ws on the home network, and macOS refuses both
+  from a WKWebView unless the app says otherwise.
+
+  The house speaks http by design. It listens on a LAN and on a tailnet, where
+  there is no certificate authority to issue it anything and no name it could
+  present one for -- "192.168.1.20" is not a domain. Turning that into https
+  would mean shipping a certificate story before there is a product, so the
+  transport is plain and the CONTENT is what is protected: the gateway refuses
+  every off-machine request that cannot present a device token.
+
+  NSAllowsArbitraryLoads rather than NSAllowsLocalNetworking, because the
+  address people will actually type is as often a tailnet name as a LAN
+  literal, and the narrow exemption covers only the second. Both are the same
+  house; a client that reached one and not the other would be a product with a
+  hidden asterisk.
+
+  NSLocalNetworkUsageDescription is the sentence macOS shows when it asks
+  whether this app may talk to other machines on the network. It should say
+  what the app wants, in the words of the person being asked.
+-->
+<plist version="1.0">
+<dict>
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+  </dict>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>Hearth needs the local network to reach a Hearth running on another computer in your home.</string>
+</dict>
+</plist>

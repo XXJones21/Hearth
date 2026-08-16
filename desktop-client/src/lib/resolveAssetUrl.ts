@@ -1,4 +1,4 @@
-import { getHttpOrigin } from './config';
+import { assetUrl, getHttpOrigin } from './config';
 
 /**
  * Resolve a manifest-relative asset path to a loadable URL.
@@ -16,12 +16,16 @@ export function resolvePersonaAssetUrl(
   const trimmed = path.replace(/^\/+/, '');
   // Server-generated assets (the imagery plumb) live under /assets, not
   // /Persona -- always absolute-origin (Valar sends CORS for webviews).
+  /* The token goes in the query string here, and only here, because these
+     URLs are handed to loaders and <img>/<audio> tags that take a URL and
+     cannot carry a header. A house on another machine refuses them without
+     it, and the failure looks like a broken image rather than a 401. */
   if (trimmed.startsWith('assets/')) {
-    return `${getHttpOrigin()}/${trimmed}`;
+    return assetUrl(`${getHttpOrigin()}/${trimmed}`);
   }
   if (import.meta.env.DEV) {
     return `/Persona/${trimmed}`;
   }
   const origin = getHttpOrigin();
-  return `${origin}/Persona/${trimmed}`;
+  return assetUrl(`${origin}/Persona/${trimmed}`);
 }

@@ -1,4 +1,4 @@
-import { getHttpOrigin } from './config';
+import { houseFetch } from './config';
 
 /* The Apps surface: what the house is connected to. Every field is derived
    server-side from tools.yaml, card_catalog.yaml, and each persona's grants,
@@ -36,7 +36,7 @@ export type AppsSurface = {
 
 export async function fetchApps(): Promise<AppsSurface | null> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/apps/surface`, { cache: 'no-store' });
+    const res = await houseFetch(`/apps/surface`, { cache: 'no-store' });
     if (!res.ok) return null;
     return (await res.json()) as AppsSurface;
   } catch {
@@ -58,7 +58,7 @@ export async function applyApps(
   changes: AppsChanges,
 ): Promise<{ ok: boolean; changed?: string[]; restarting?: boolean; error?: string }> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/apps/apply`, {
+    const res = await houseFetch(`/apps/apply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(changes),
@@ -75,7 +75,7 @@ export async function waitForServer(timeoutMs = 45000): Promise<boolean> {
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 1500));
     try {
-      const res = await fetch(`${getHttpOrigin()}/health`, { cache: 'no-store' });
+      const res = await houseFetch(`/health`, { cache: 'no-store' });
       if (res.ok) return true;
     } catch {
       /* still down */

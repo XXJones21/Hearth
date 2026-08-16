@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { getHttpOrigin } from '../../lib/config';
+import { houseFetch } from '../../lib/config';
 import type { CardProps, TerminalCardProps } from './types';
 
 /* The generic report card for a delegated agent or a third-party CLI.
@@ -153,7 +153,7 @@ export function TerminalCard({ props }: CardProps) {
     let cancelled = false;
     const tick = async () => {
       try {
-        const res = await fetch(`${getHttpOrigin()}/claude/state`, { cache: 'no-store' });
+        const res = await houseFetch(`/claude/state`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = (await res.json()) as LiveState;
         if (!cancelled && data.run === p.run_id) setLive(data);
@@ -180,7 +180,7 @@ export function TerminalCard({ props }: CardProps) {
     setDeciding(approve ? 'approve' : 'deny');
     setDecideError('');
     try {
-      const res = await fetch(`${getHttpOrigin()}/claude/decide`, {
+      const res = await houseFetch(`/claude/decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ run_id: p.run_id, approve }),

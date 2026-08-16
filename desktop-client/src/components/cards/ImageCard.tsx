@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getHttpOrigin } from '../../lib/config';
+import { houseFetch } from '../../lib/config';
 import { resolvePersonaAssetUrl } from '../../lib/resolveAssetUrl';
 import type { CardProps, ImageCardProps } from './types';
 
@@ -30,7 +30,7 @@ export function ImageCard({ props }: CardProps) {
     let cancelled = false;
     const tick = async () => {
       try {
-        const res = await fetch(`${getHttpOrigin()}/imagery/state`, { cache: 'no-store' });
+        const res = await houseFetch(`/imagery/state`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = (await res.json()) as Partial<ImageCardProps> & { job_id?: string };
         if (!cancelled && data.job_id === p.job_id) setLive(data);

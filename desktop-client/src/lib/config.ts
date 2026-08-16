@@ -22,12 +22,29 @@ function override(): { ws: string; http: string } | null {
   }
 }
 
+/** The token this device was given when it paired, or '' on a local install.
+ *
+ *  The gateway exempts loopback, so a client supervising its own house on this
+ *  machine needs nothing. Every other client is off-machine by definition and
+ *  is refused without this. */
+export function getDeviceToken(): string {
+  try {
+    return loadSettings().deviceToken.trim();
+  } catch {
+    return '';
+  }
+}
+
 export function getWsUrl(): string {
-  return (
+  const base =
     override()?.ws ||
     (import.meta.env.VITE_HEARTH_WS as string | undefined) ||
-    defaultWs
-  );
+    defaultWs;
+  /* The token rides in the query string because a browser WebSocket takes a
+     URL and nothing else -- no headers, no request object. The gateway reads
+     it from either place for exactly this reason. */
+  const token = getDeviceToken();
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
 export function getHttpOrigin(): string {
@@ -36,6 +53,37 @@ export function getHttpOrigin(): string {
     (import.meta.env.VITE_HEARTH_HTTP_ORIGIN as string | undefined) ||
     defaultHttp
   );
+}
+
+/** A URL against the single origin. */
+export function houseUrl(path: string): string {
+  return `${getHttpOrigin()}${path}`;
+}
+
+/* A request against the house, carrying the device token.
+ *
+ * Every HTTP call in the client goes through this rather than calling fetch
+ * with an origin of its own, so "does this carry credentials" is answered by
+ * grep instead of by auditing twenty call sites. A site that forgets the
+ * header does not fail loudly: it gets a 401 and reports the house
+ * unreachable, which looks exactly like a network problem. That is the bug
+ * this shape exists to make impossible. */
+export function houseFetch(path: string, init?: RequestInit): Promise<Response> {
+  const token = getDeviceToken();
+  const headers = new Headers(init?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  return fetch(houseUrl(path), { ...init, headers });
+}
+
+/* An asset URL with the token in the QUERY STRING, for the cases that cannot
+ * send a header: <img src>, <audio src>, and anything else that takes a URL
+ * rather than a request. Second choice everywhere else -- a query string lands
+ * in server logs where a header does not -- but the alternative is every
+ * picture in the client 401ing the moment the house is on another machine. */
+export function assetUrl(url: string): string {
+  const token = getDeviceToken();
+  if (!token) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
 }
 
 /** What the address field shows when nothing has been typed yet. */

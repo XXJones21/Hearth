@@ -1,4 +1,4 @@
-import { getHttpOrigin } from './config';
+import { getHttpOrigin, houseFetch } from './config';
 
 /* The read-only settings surface Valar serves at /settings/surface: the
    folders a client may open, the connections the house has registered, and
@@ -49,7 +49,7 @@ export type HealthInfo = {
 
 export async function fetchSurface(): Promise<SettingsSurface | null> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/settings/surface`, { cache: 'no-store' });
+    const res = await houseFetch(`/settings/surface`, { cache: 'no-store' });
     if (!res.ok) return null;
     return (await res.json()) as SettingsSurface;
   } catch {
@@ -81,7 +81,7 @@ async function engramRequest(
   body: Record<string, unknown>,
 ): Promise<{ ok: boolean; error?: string; engram?: EngramRow; created?: boolean }> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/settings/engram`, {
+    const res = await houseFetch(`/settings/engram`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
