@@ -215,6 +215,10 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
       ttsPlayer.begin(Number((data as { sample_rate?: number }).sample_rate));
       const seg = String((data as { text?: string }).text || '').trim();
       if (seg) pendingSpokenText = seg;
+      // The harness resolves non-verbal tags to an expression name at the
+      // source; the face plays it as a transient. Absent on most chunks.
+      const expression = (data as { expression?: string }).expression;
+      if (expression) s.setFaceCue(String(expression));
       s.setVisualState('speaking');
       break;
     }

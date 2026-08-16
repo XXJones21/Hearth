@@ -1,0 +1,48 @@
+{
+  "_comment": "Named starting points for procedural_face geometry. An archetype is a COMPLETE geometry block: create_persona names one and adjusts a few values from it, which keeps a small model from inventing a dozen numbers cold. Every value is normalised against the head's own bounding box. The face is eyes-first: two vertical capsules carry the character (no brows; the mouth only appears during speech or a transient). eye_size is the capsule's half-width as a fraction of the head's half-width; eye_length is its height as a multiple of its width; eye_tilt is a resting parallel lean in radians. The expression library applies relative deltas to whichever geometry a persona ends up with, so archetypes carry appearance only, never motion. Design: tasks/persona-avatar-system.md.",
+  "version": 2,
+  "archetypes": {
+    "warm_round": {
+      "_comment": "Soft and approachable: a round head, two tall friendly capsules, a warm smile when it speaks. The Sulivan-adjacent default.",
+      "head_width": 1.0,
+      "head_height": 1.05,
+      "head_roundness": 0.8,
+      "eye_size": 0.1,
+      "eye_spacing": 0.38,
+      "eye_height": 0.45,
+      "eye_length": 2.4,
+      "eye_tilt": 0.0,
+      "mouth_width": 0.34,
+      "mouth_thickness": 0.05,
+      "mouth_curve": 0.26
+    },
+    "narrow_precise": {
+      "_comment": "Composed and exact: a taller, narrower head, long thin capsules with a subtle italic lean, a level mouth. Selene-adjacent.",
+      "head_width": 0.86,
+      "head_height": 1.14,
+      "head_roundness": 0.55,
+      "eye_size": 0.075,
+      "eye_spacing": 0.34,
+      "eye_height": 0.44,
+      "eye_length": 2.9,
+      "eye_tilt": 0.05,
+      "mouth_width": 0.26,
+      "mouth_thickness": 0.04,
+      "mouth_curve": 0.05
+    },
+    "wide_open": {
+      "_comment": "Eager and expressive: a wide head, stubbier rounder capsules set far apart, a broad upturned mouth when speaking. Reads younger and louder.",
+      "head_width": 1.12,
+      "head_height": 0.98,
+      "head_roundness": 0.72,
+      "eye_size": 0.13,
+      "eye_spacing": 0.46,
+      "eye_height": 0.46,
+      "eye_length": 1.7,
+      "eye_tilt": 0.0,
+      "mouth_width": 0.4,
+      "mouth_thickness": 0.06,
+      "mouth_curve": 0.24
+    }
+  }
+}

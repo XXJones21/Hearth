@@ -530,6 +530,10 @@ export function PersonasView() {
           </div>
         </Section>
 
+        <Section label="Animations" sub="play each one on the stage and watch the face">
+          <AnimationPlayer />
+        </Section>
+
         <Section label="What they may do" sub="the same grants the Apps page shows, edited here">
           <div className="mt-2 rounded-[14px] border border-linen bg-fluff px-4 py-3">
             <div className="text-[13.5px] text-roast">Allowed</div>
@@ -721,5 +725,88 @@ export function PersonasView() {
         </div>
       )}
     </section>
+  );
+}
+
+/* The animation player: every motion the face can make, playable on the
+ * stage at left so a change to the library is seen, not imagined. Life
+ * cycle buttons set the client's visual state (the server's next state
+ * event takes it back, which is the honest behaviour for a preview);
+ * reactions fire the same transient cue a harness [laughter] tag does.
+ * Preview-only: nothing here writes to the persona or the house. */
+function AnimationPlayer() {
+  const visualState = useAppStore((s) => s.visualState);
+  const config = useAppStore((s) => s.personaConfig);
+  const [lastCue, setLastCue] = useState('');
+  const isFace = config?.visualization.type === 'procedural_face';
+
+  const states = ['idle', 'listening', 'thinking', 'speaking'] as const;
+  const reactions = [
+    'laughter',
+    'sigh',
+    'surprise',
+    'question',
+    'confirmation',
+    'dissatisfaction',
+    'blink',
+  ];
+
+  const fireCue = (name: string) => {
+    useAppStore.getState().setFaceCue(name);
+    setLastCue(name);
+    window.setTimeout(() => setLastCue((c) => (c === name ? '' : c)), 1400);
+  };
+
+  return (
+    <div className="mt-2 rounded-[14px] border border-linen bg-fluff px-4 py-3">
+      {!isFace && (
+        <p className="mb-2 rounded-[10px] border border-dashed border-bubble-line bg-parchment px-3 py-2 text-[11.5px] leading-snug text-fawn">
+          The persona on the stage is not a procedural face, so only the glow will follow along.
+          Switch to a face persona to see the full result.
+        </p>
+      )}
+      <div className="text-[13.5px] text-roast">Life cycle</div>
+      <p className="mt-0.5 text-[11.5px] leading-snug text-fawn">
+        Each state loops its own playlist of poses with its own blink rhythm. The house drives
+        these live; pressing one holds it until the next real state event.
+      </p>
+      <div className="mt-1.5">
+        {states.map((s) => (
+          <button
+            type="button"
+            key={s}
+            onClick={() => useAppStore.getState().setVisualState(s)}
+            className={`mr-1.5 mt-1.5 rounded-full px-3 py-1.5 text-[12px] transition ${
+              visualState === s
+                ? 'border border-ember bg-tab font-semibold text-roast'
+                : 'border border-linen bg-fluff text-fawn hover:border-bubble-line'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 text-[13.5px] text-roast">Reactions</div>
+      <p className="mt-0.5 text-[11.5px] leading-snug text-fawn">
+        The transient expressions the voice performs ([laughter], [sigh], ...). Each plays at full
+        strength on top of the current state, then decays back over a second.
+      </p>
+      <div className="mt-1.5">
+        {reactions.map((name) => (
+          <button
+            type="button"
+            key={name}
+            onClick={() => fireCue(name)}
+            className={`mr-1.5 mt-1.5 rounded-full px-3 py-1.5 text-[12px] transition ${
+              lastCue === name
+                ? 'border border-ember bg-tab font-semibold text-roast'
+                : 'border border-linen bg-fluff text-fawn hover:border-bubble-line'
+            }`}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
