@@ -110,10 +110,10 @@ public struct PersonaPalette: Equatable {
         return SIMD3<Float>(r, g, b)
     }
 
+    /// The module's one JSON numeric coercion, narrowed to the Float the orb
+    /// colours are kept in. Was a second copy of `personaNum` until the face
+    /// needed the same tolerance for its geometry.
     private static func num(_ any: Any?) -> Float? {
-        if let n = any as? NSNumber { return n.floatValue }
-        if let d = any as? Double { return Float(d) }
-        if let i = any as? Int { return Float(i) }
-        return nil
+        personaNum(any).map(Float.init)
     }
 }

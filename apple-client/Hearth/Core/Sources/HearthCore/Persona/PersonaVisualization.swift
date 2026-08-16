@@ -13,15 +13,50 @@
 
 import Foundation
 
+/// The one numeric coercion for persona JSON in this module.
+///
+/// Persona configs are decoded with `JSONSerialization` and optional casts, not
+/// `Codable`, because a house one field ahead of a client must still render.
+/// That tolerance is only real if every reader coerces the same way: `1` is an
+/// Int, `1.0` a Double, and both arrive as NSNumber often enough that a strict
+/// cast silently drops a value and falls back to a default nobody chose.
+/// `PersonaPalette` calls this too -- there is deliberately not a second one.
+func personaNum(_ any: Any?) -> Double? {
+    if let n = any as? NSNumber { return n.doubleValue }
+    if let d = any as? Double { return d }
+    if let i = any as? Int { return Double(i) }
+    return nil
+}
+
+/// Appearance only, normalised to the head's own bounding box. Motion never
+/// lives here -- the director owns every channel that moves, which is what
+/// lets a persona's dozen numbers drive the whole expression library instead
+/// of authoring an animation set. Defaults are the warm_round archetype, so a
+/// partial block still renders a face rather than a pile of zeroes.
+/// Spec: wiki/raw/persona-face-spec.md.
+public struct FaceGeometry: Sendable, Equatable {
+    public var headWidth = 1.0, headHeight = 1.05, headRoundness = 0.8
+    public var eyeSize = 0.1, eyeSpacing = 0.38, eyeHeight = 0.45
+    public var eyeLength = 2.4, eyeTilt = 0.0
+    public var mouthWidth = 0.34, mouthThickness = 0.05, mouthCurve = 0.26
+
+    public init() {}
+}
+
 public struct PersonaVisualization: Equatable {
     public enum Kind: String {
         /// Procedural orb (Sulivan). Rendered by PersonaCanvasView.
         case sphereParticle = "sphere_particle"
         /// Character model (Selene, soon Sage). Rendered by RealityKit.
         case glbAnimated = "glb_animated"
+        /// The eyes-first procedural face. Rendered by PersonaFaceView.
+        case proceduralFace = "procedural_face"
     }
 
     public var kind: Kind = .sphereParticle
+    /// Present only for a `procedural_face` config that carried a geometry
+    /// block. Nil is the honest state for a face whose numbers never arrived.
+    public var faceGeometry: FaceGeometry?
     /// State name -> Valar-relative USDZ path, e.g.
     /// "idle" -> "Selene/Assets/usdz/selene-idle.usdz".
     public var usdzClips: [String: String] = [:]
@@ -36,12 +71,43 @@ public struct PersonaVisualization: Equatable {
         kind == .glbAnimated && usdzClips["idle"] != nil
     }
 
+    /// A face config that arrived without its geometry falls back to the orb,
+    /// the same contract `canRenderModel` uses for a clipless model. The two
+    /// halves of "a face" -- the type and the numbers -- travel together or
+    /// the stage draws what it already knows how to draw.
+    public var canRenderFace: Bool {
+        kind == .proceduralFace && faceGeometry != nil
+    }
+
     public static func from(visualization: [String: Any]?, personaName: String) -> PersonaVisualization {
         guard let visualization else { return .fallback }
         var out = PersonaVisualization()
 
-        if let raw = visualization["type"] as? String, let kind = Kind(rawValue: raw) {
-            out.kind = kind
+        if let raw = visualization["type"] as? String {
+            if let kind = Kind(rawValue: raw) {
+                out.kind = kind
+            } else {
+                // Silence here costs an hour: an unknown type renders the orb,
+                // which is indistinguishable from a persona that asked for the
+                // orb. Say which type went unrecognised.
+                print("PersonaVisualization: unknown type '\(raw)' for \(personaName); rendering the orb")
+            }
+        }
+        if out.kind == .proceduralFace, let geo = visualization["geometry"] as? [String: Any] {
+            var g = FaceGeometry()
+            func f(_ key: String, _ fallback: Double) -> Double { personaNum(geo[key]) ?? fallback }
+            g.headWidth = f("head_width", g.headWidth)
+            g.headHeight = f("head_height", g.headHeight)
+            g.headRoundness = f("head_roundness", g.headRoundness)
+            g.eyeSize = f("eye_size", g.eyeSize)
+            g.eyeSpacing = f("eye_spacing", g.eyeSpacing)
+            g.eyeHeight = f("eye_height", g.eyeHeight)
+            g.eyeLength = f("eye_length", g.eyeLength)
+            g.eyeTilt = f("eye_tilt", g.eyeTilt)
+            g.mouthWidth = f("mouth_width", g.mouthWidth)
+            g.mouthThickness = f("mouth_thickness", g.mouthThickness)
+            g.mouthCurve = f("mouth_curve", g.mouthCurve)
+            out.faceGeometry = g
         }
         if let usdz = visualization["usdz"] as? [String: Any] {
             out.usdzClips = usdz.compactMapValues { $0 as? String }
