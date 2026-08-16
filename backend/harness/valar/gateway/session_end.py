@@ -189,7 +189,7 @@ async def end_session(
         try:
             from ..tools.handlers.session_persist import persist_session
 
-            await persist_session(
+            result = await persist_session(
                 {
                     "session_id": session.session_id,
                     "persona": persona.name,
@@ -200,6 +200,15 @@ async def end_session(
                     "write_continuity": reason != "client",
                 }
             )
+            # The journal now holds this conversation, so the record it came
+            # from is no longer waiting to be promoted. Marking it here is
+            # what keeps the nightly pass from writing a second diary for a
+            # session that already has one.
+            diary = ((result.data or {}).get("diary") or {}) if result is not None else {}
+            if diary.get("saved") or diary.get("chatlog_only"):
+                from ..memory.session_record import mark_synced
+
+                mark_synced(session.session_id, str(diary.get("thought_slug") or ""))
         except Exception as exc:  # noqa: BLE001
             logger.warning("session persist failed: %s", exc)
 

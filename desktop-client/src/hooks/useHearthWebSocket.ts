@@ -479,14 +479,20 @@ export function useHearthWebSocket(enabled = true) {
   }, [setRuntimeStatus]);
 
   const resumeSession = useCallback(
-    (slug: string) => {
-      const trimmed = slug.trim();
+    (id: string, kind: 'record' | 'journal' = 'journal') => {
+      const trimmed = id.trim();
       if (!trimmed) return;
       if (wsRef.current?.readyState !== WebSocket.OPEN) return;
       if (useAppStore.getState().isWaitingForResponse) return;
       setRuntimeStatus('Resuming session');
+      // A record is resumed by its own id; a journal entry by its diary slug.
+      // Same action, because to the operator it is the same button.
       wsRef.current.send(
-        JSON.stringify({ action: 'resume_session', slug: trimmed })
+        JSON.stringify(
+          kind === 'record'
+            ? { action: 'resume_session', session_id: trimmed }
+            : { action: 'resume_session', slug: trimmed }
+        )
       );
     },
     [setRuntimeStatus]

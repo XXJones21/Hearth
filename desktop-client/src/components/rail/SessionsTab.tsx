@@ -6,39 +6,87 @@ import {
   type JournalSession,
   type ShelfBook,
 } from '../../lib/journal';
+import {
+  chatlogTurns,
+  fetchRecord,
+  fetchRecords,
+  type SessionRecord,
+} from '../../lib/sessions';
 import { useAppStore } from '../../store/appStore';
 
-/* Earlier conversations from the memory tree (a filed diary, or a chatlog
- * from a chat too short to earn one). One-line rows grouped by date, because
- * a rail that shows three sessions at a time is a rail nobody scrolls. Click
- * expands the summary the house wrote; Resume is a second, deliberate click.
- * The journal shelves at the bottom start a NEW chat already pointed at a
- * project or a life root, which is not the same thing as resuming one. */
+/* Two sources, one list. Records are what the house has said, written as it
+   happens; journal entries are what it later wrote up. A conversation that has
+   been through both appears once, as its record, because the record is the one
+   that can still be resumed turn for turn. */
+type Row = {
+  key: string;
+  kind: 'record' | 'journal';
+  id: string;
+  date: string;
+  title: string;
+  persona: string;
+  resumable: boolean;
+  turns?: number;
+  synced?: boolean;
+};
+
+/* Earlier conversations from Engram Thoughts (diary or chatlog-only).
+ * One-line rows grouped by date. Click expands a preview; Resume is a
+ * second click. Sessions from journal start a fresh topic chat. */
 
 type Props = {
   onNewSession?: () => void;
-  onResumeSession?: (slug: string) => void;
+  onResumeSession?: (id: string, kind?: 'record' | 'journal') => void;
   onStartTopicSession?: (name: string) => void;
   busy?: boolean;
 };
 
 const ROW_CAP = 40;
 
-function dateKey(s: JournalSession): string {
+function journalDate(s: JournalSession): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(s.date)) return s.date;
   const m = s.slug.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : 'Unknown';
 }
 
-function groupByDate(
-  sessions: JournalSession[],
-): { date: string; items: JournalSession[] }[] {
-  const map = new Map<string, JournalSession[]>();
-  for (const s of sessions.slice(0, ROW_CAP)) {
-    const k = dateKey(s);
-    const arr = map.get(k) ?? [];
-    arr.push(s);
-    map.set(k, arr);
+function mergeRows(records: SessionRecord[], journal: JournalSession[]): Row[] {
+  const claimed = new Set(
+    records.map((r) => (r.thought_slug || '').trim()).filter(Boolean),
+  );
+  const rows: Row[] = records.map((r) => ({
+    key: `rec:${r.session_id}`,
+    kind: 'record',
+    id: r.session_id,
+    date: r.date || (r.started_at || '').slice(0, 10) || 'Unknown',
+    title: r.title || 'Untitled session',
+    persona: r.persona || '',
+    resumable: r.has_transcript !== false,
+    turns: r.turns,
+    synced: r.synced,
+  }));
+  for (const s of journal) {
+    // The diary this record already produced would otherwise show twice.
+    if (claimed.has(s.slug)) continue;
+    rows.push({
+      key: `jrn:${s.slug}`,
+      kind: 'journal',
+      id: s.slug,
+      date: journalDate(s),
+      title: rowTitle(s),
+      persona: s.persona || '',
+      resumable: Boolean(s.has_transcript),
+    });
+  }
+  rows.sort((a, b) => b.date.localeCompare(a.date));
+  return rows;
+}
+
+function groupByDate(rows: Row[]): { date: string; items: Row[] }[] {
+  const map = new Map<string, Row[]>();
+  for (const r of rows.slice(0, ROW_CAP)) {
+    const arr = map.get(r.date) ?? [];
+    arr.push(r);
+    map.set(r.date, arr);
   }
   return [...map.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
@@ -55,9 +103,11 @@ export function SessionsTab({
   const liveTopic = useAppStore((s) => s.liveTopic);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const [sessions, setSessions] = useState<JournalSession[] | null>(null);
+  const [records, setRecords] = useState<SessionRecord[]>([]);
   const [failed, setFailed] = useState(false);
-  const [openSlug, setOpenSlug] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<Row | null>(null);
   const [detail, setDetail] = useState<JournalSession | null>(null);
+  const [transcript, setTranscript] = useState<string>('');
   const [detailLoading, setDetailLoading] = useState(false);
   const [shelf, setShelf] = useState<{ projects: ShelfBook[]; life: ShelfBook[] } | null>(
     null,
@@ -79,6 +129,9 @@ export function SessionsTab({
           setSessions([]);
         }
       });
+    fetchRecords().then((list) => {
+      if (live) setRecords(list);
+    });
     fetchShelf()
       .then((data) => {
         if (live) setShelf(data);
@@ -92,15 +145,31 @@ export function SessionsTab({
   }, [sessionsTick]);
 
   useEffect(() => {
-    if (!openSlug) {
+    if (!openRow) {
       setDetail(null);
+      setTranscript('');
       return;
     }
     let live = true;
     setDetailLoading(true);
-    fetchSession(openSlug, true)
+    if (openRow.kind === 'record') {
+      fetchRecord(openRow.id)
+        .then((rec) => {
+          if (!live) return;
+          setDetail(null);
+          setTranscript(rec?.chatlog || '');
+        })
+        .finally(() => {
+          if (live) setDetailLoading(false);
+        });
+      return () => {
+        live = false;
+      };
+    }
+    fetchSession(openRow.id, true)
       .then((entry) => {
         if (!live) return;
+        setTranscript('');
         setDetail(entry);
       })
       .finally(() => {
@@ -109,9 +178,10 @@ export function SessionsTab({
     return () => {
       live = false;
     };
-  }, [openSlug]);
+  }, [openRow]);
 
-  const groups = sessions ? groupByDate(sessions) : [];
+  const rows = mergeRows(records, sessions ?? []);
+  const groups = sessions || records.length ? groupByDate(rows) : [];
   const topicBooks = [
     ...(shelf?.projects ?? []).map((b) => ({ ...b, kind: 'project' as const })),
     ...(shelf?.life ?? []).map((b) => ({ ...b, kind: 'life' as const })),
@@ -168,9 +238,9 @@ export function SessionsTab({
         {earlierOpen && !failed && sessions === null && (
           <p className="text-[12.5px] leading-snug text-fawn">Reading.</p>
         )}
-        {earlierOpen && !failed && sessions !== null && sessions.length === 0 && (
+        {earlierOpen && !failed && sessions !== null && rows.length === 0 && (
           <p className="text-[12.5px] leading-snug text-fawn">
-            Nothing filed yet. Ended conversations land here.
+            Nothing yet. Conversations land here as you have them.
           </p>
         )}
         {earlierOpen && !failed && groups.length > 0 && (
@@ -182,12 +252,12 @@ export function SessionsTab({
                 </h4>
                 <ul className="flex flex-col">
                   {g.items.map((s) => {
-                    const selected = openSlug === s.slug;
+                    const selected = openRow?.key === s.key;
                     return (
-                      <li key={s.slug}>
+                      <li key={s.key}>
                         <button
                           type="button"
-                          onClick={() => setOpenSlug(selected ? null : s.slug)}
+                          onClick={() => setOpenRow(selected ? null : s)}
                           className={
                             selected
                               ? 'flex w-full items-baseline gap-1.5 bg-tab px-2 py-1.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember'
@@ -195,7 +265,7 @@ export function SessionsTab({
                           }
                         >
                           <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-roast">
-                            {rowTitle(s)}
+                            {s.title}
                           </span>
                           {s.persona ? (
                             <span className="shrink-0 text-[11px] text-fawn">
@@ -204,22 +274,34 @@ export function SessionsTab({
                           ) : null}
                         </button>
                         {selected && (
-                          <div className="mb-1 rounded-xl border border-linen bg-fluff px-3 py-2.5">
+                          <div className="mb-1 px-2 pb-2">
                             {detailLoading && (
                               <p className="text-[12.5px] text-fawn">Opening.</p>
                             )}
-                            {!detailLoading && !detail && (
+                            {!detailLoading && s.kind === 'record' && (
+                              <RecordPreview
+                                row={s}
+                                chatlog={transcript}
+                                busy={busy}
+                                onResume={
+                                  s.resumable && onResumeSession
+                                    ? () => onResumeSession(s.id, 'record')
+                                    : undefined
+                                }
+                              />
+                            )}
+                            {!detailLoading && s.kind === 'journal' && !detail && (
                               <p className="text-[12.5px] text-fawn">
                                 Could not open that session.
                               </p>
                             )}
-                            {!detailLoading && detail && (
+                            {!detailLoading && s.kind === 'journal' && detail && (
                               <SessionDetail
                                 entry={detail}
                                 busy={busy}
                                 onResume={
                                   detail.has_transcript && onResumeSession
-                                    ? () => onResumeSession(detail.slug)
+                                    ? () => onResumeSession(detail.slug, 'journal')
                                     : undefined
                                 }
                               />
@@ -292,13 +374,9 @@ function Caret({ open }: { open: boolean }) {
   );
 }
 
-/* A row is one line, so the title has to earn it. "Voice session" is what the
-   house calls a chat it never titled, and forty of those stacked are a list
-   nobody can read: fall back to the first thing the operator actually said. */
 function rowTitle(s: JournalSession): string {
   const t = (s.title || '').trim();
-  const generic =
-    !t || ['voice session', 'untitled', 'untitled session'].includes(t.toLowerCase());
+  const generic = !t || ['voice session', 'untitled', 'untitled session'].includes(t.toLowerCase());
   if (!generic) return t;
   const src = (s.summary || '').replace(/^(operator|user):\s*/i, '').trim();
   const line = src.split(/\s+/).join(' ');
@@ -306,6 +384,52 @@ function rowTitle(s: JournalSession): string {
   if (line.length <= 56) return line;
   const cut = line.slice(0, 56).replace(/\s+\S*$/, '');
   return cut || line.slice(0, 56);
+}
+
+/* A record has no summary, because nothing has written one yet. What it has is
+   the conversation, so the preview shows the last thing said rather than a
+   blank space where a summary will eventually be. */
+function RecordPreview({
+  row,
+  chatlog,
+  onResume,
+  busy = false,
+}: {
+  row: Row;
+  chatlog: string;
+  onResume?: () => void;
+  busy?: boolean;
+}) {
+  const turns = chatlogTurns(chatlog);
+  const tail = turns.slice(-2);
+  return (
+    <div className="flex flex-col gap-2">
+      {tail.length === 0 ? (
+        <p className="text-[12px] leading-snug text-fawn">Nothing recorded yet.</p>
+      ) : (
+        tail.map((t, i) => (
+          <p key={i} className="text-[12.5px] leading-snug text-roast">
+            <span className="text-fawn">{t.role === 'user' ? 'You: ' : ''}</span>
+            {t.body.slice(0, 220)}
+          </p>
+        ))
+      )}
+      <p className="text-[11px] text-fawn">
+        {row.turns ? `${row.turns} turn${row.turns === 1 ? '' : 's'}` : ''}
+        {row.synced ? ' · written up in the Journal' : ' · not written up yet'}
+      </p>
+      {onResume && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onResume}
+          className="self-start rounded-full bg-ember px-3.5 py-1.5 text-[12.5px] font-semibold text-fluff transition enabled:hover:brightness-95 disabled:opacity-50"
+        >
+          Resume
+        </button>
+      )}
+    </div>
+  );
 }
 
 function SessionDetail({

@@ -15,7 +15,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 type Props = {
   onNewSession?: () => void;
-  onResumeSession?: (slug: string) => void;
+  onResumeSession?: (id: string, kind?: 'record' | 'journal') => void;
   onStartTopicSession?: (name: string) => void;
   sessionBusy?: boolean;
 };

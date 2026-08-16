@@ -199,6 +199,28 @@ def create_app(config: ValarConfig) -> FastAPI:
         except Exception:  # noqa: BLE001 - not reachable IS the answer
             return JSONResponse({"ready": False, "service": ""})
 
+    @app.get("/sessions")
+    async def sessions_list() -> JSONResponse:
+        """Conversations this house has actually had.
+
+        The Journal answers what was CURATED into the memory tree; this
+        answers what happened, including the chat from four minutes ago that
+        no diary has been written for yet, and every chat on a machine with
+        no second brain connected at all.
+        """
+        from ..memory.session_record import list_records
+
+        return JSONResponse({"sessions": list_records()})
+
+    @app.get("/sessions/{session_id}")
+    async def sessions_read(session_id: str) -> JSONResponse:
+        from ..memory.session_record import read_record
+
+        rec = read_record(session_id)
+        if rec is None:
+            return JSONResponse({"error": "no such session"}, status_code=404)
+        return JSONResponse(rec)
+
     @app.post("/sessions/flush")
     async def sessions_flush() -> JSONResponse:
         """File every live conversation, now, before something kills us.
@@ -580,6 +602,15 @@ def create_app(config: ValarConfig) -> FastAPI:
 
     # --- startup: warm the heavy models in the background ----------------
     @app.on_event("startup")
+    async def _start_journal_sync() -> None:
+        """The clock behind the Journal sync routine: it writes up the
+        conversations that ended without a write-up, which is every one that
+        ended by a kill rather than a click."""
+        from ..memory.journal_sync import journal_sync_loop
+
+        asyncio.create_task(journal_sync_loop(personas, brain, config))
+
+    @app.on_event("startup")
     async def _warm_models() -> None:
         """Pre-load Whisper + NeuTTS backbone + the default persona's voice clone,
         and make the daily model resident, at boot. With the always-on stack the
@@ -838,10 +869,20 @@ async def _handle_command(raw: str, session, personas, voice_loop, emit) -> None
         # Seed a fresh session_id with a Journal chatlog (Slice 3). Validate
         # the slug *before* ending the live chat so a bad Resume cannot wipe
         # an active conversation.
-        from .session_resume import load_journal_turns
+        from .session_resume import load_journal_turns, parse_chatlog
 
         slug = (cmd.get("slug") or "").strip()
-        turns = load_journal_turns(slug)
+        record_id = (cmd.get("session_id") or "").strip()
+        if record_id:
+            # A local record: the live truth, available the moment a turn
+            # lands and long before the journal has been given anything.
+            from ..memory.session_record import read_record
+
+            rec = read_record(record_id)
+            turns = parse_chatlog(str((rec or {}).get("chatlog") or "")) if rec else None
+            slug = record_id
+        else:
+            turns = load_journal_turns(slug)
         if turns is None:
             await emit(
                 "error",
