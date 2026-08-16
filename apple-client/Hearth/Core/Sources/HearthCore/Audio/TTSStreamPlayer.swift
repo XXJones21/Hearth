@@ -237,8 +237,24 @@ class TTSStreamPlayer {
                 print(msg)
                 self?.onDebugEvent?(msg)
                 self?.onPlaybackComplete?()
+                // The reply is fully drained: put the engine down. Without
+                // this the amplitude tap ran an RMS loop over silence ~43
+                // times a second for the rest of the process after the first
+                // reply. startStream restarts everything for the next one.
+                self?.quiesce()
             }
         }
+    }
+
+    /// Idle the audio path between replies. Keeps `audioFormat` so a
+    /// same-rate startStream is still recognised as a fresh start (the
+    /// engine-running check fails and it rebuilds).
+    private func quiesce() {
+        removeAmplitudeTap()
+        playerNode.stop()
+        engine.stop()
+        smoothedAmplitude = 0
+        onAmplitude?(0)
     }
 
     func stop() {

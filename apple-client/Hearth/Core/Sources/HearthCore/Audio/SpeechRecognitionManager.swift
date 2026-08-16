@@ -161,35 +161,44 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
         lastPartialText = ""
         hasFiredFinal = false
 
+        // The whole handler hops to main. The recognition task's callback
+        // queue is undocumented, and Timer.scheduledTimer installs on the
+        // CALLING thread's run loop -- on a queue without one the silence
+        // timer never fires and the only auto-submit path in the app is
+        // dead. Main is also where lastPartialText / hasFiredFinal /
+        // silenceTimer are read by stopRecognition and finishAndCommit, so
+        // this ends the race across those too.
         recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
-            guard let self else { return }
+            DispatchQueue.main.async {
+                guard let self else { return }
 
-            if let result {
-                let text = result.bestTranscription.formattedString
+                if let result {
+                    let text = result.bestTranscription.formattedString
 
-                if result.isFinal {
-                    self.cancelSilenceTimer()
-                    if !self.hasFiredFinal {
-                        self.hasFiredFinal = true
-                        self.onFinalResult?(text)
+                    if result.isFinal {
+                        self.cancelSilenceTimer()
+                        if !self.hasFiredFinal {
+                            self.hasFiredFinal = true
+                            self.onFinalResult?(text)
+                        }
+                    } else {
+                        self.lastPartialText = text
+                        self.onPartialResult?(text)
+                        self.resetSilenceTimer()
                     }
-                } else {
-                    self.lastPartialText = text
-                    self.onPartialResult?(text)
-                    self.resetSilenceTimer()
                 }
-            }
 
-            if let error {
-                let nsError = error as NSError
-                if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 203 {
-                    return
+                if let error {
+                    let nsError = error as NSError
+                    if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 203 {
+                        return
+                    }
+                    if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 216 {
+                        return
+                    }
+                    self.cancelSilenceTimer()
+                    self.onError?(error)
                 }
-                if nsError.domain == "kAFAssistantErrorDomain" && nsError.code == 216 {
-                    return
-                }
-                self.cancelSilenceTimer()
-                self.onError?(error)
             }
         }
 

@@ -173,6 +173,20 @@ immediately, so the user does not return to a backoff loop already at the
 
 ## Tier 2. Polish
 
+> STATUS (2026-08-16, Windows session): tasks 9 through 11 are BUILT on
+> `feat/ios-qol-tier0`, unverified on device, with these scope notes:
+> Journal resume/topic ride a notification seam (the Journal tree takes no
+> view model by design) and the main view closes the cover; search shipped
+> as `.searchable` filtering titles. Dynamic Type shipped as a
+> `hearthFont` helper (UIFontMetrics, live via sizeCategory) applied to
+> the timeline and diary reading surfaces -- remaining chrome converts
+> mechanically later. Journal furniture (shelf wood, page paper) moved to
+> ember-aware palette tokens; the book leathers stay constant on purpose.
+> DEFERRED to on-device work: keyboard-avoidance stage pinning (needs a
+> real keyboard to tune), iPad/landscape adaptation, and the
+> SpeechRecognitionManager engine-reuse refactor. Cleanups all landed
+> except the Journal partial-failure indicator.
+
 ### 9. Journal to sessions bridge
 
 The Journal is the only place past conversations appear on iOS and none can

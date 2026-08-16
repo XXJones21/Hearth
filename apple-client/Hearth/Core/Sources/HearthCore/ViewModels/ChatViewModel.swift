@@ -124,13 +124,16 @@ public class ChatViewModel: ObservableObject {
     }
     private var cueInFlight = false
 
-    // Settings and debug
+    // Settings
     @Published public var showSettings: Bool = false
-    @Published public var isDebugMode: Bool = false
 
     // WebSocket and audio
     private var webSocketClient: HearthWebSocketClient?
     private var thinkingTask: Task<Void, Never>?
+    /// Held for its CONSTRUCTION: AudioSessionManager's init configures the
+    /// process-wide AVAudioSession (.playAndRecord, the loudness mode fix)
+    /// that every other audio path depends on. Nothing calls it afterward
+    /// and that is fine -- the property looking unused is not a bug.
     private var audioInputManager: AudioSessionManager?
     private var speechRecognitionManager: SpeechRecognitionManager?
     private var ttsStreamPlayer: TTSStreamPlayer?
@@ -177,6 +180,8 @@ public class ChatViewModel: ObservableObject {
     private var routeChangeObserver: NSObjectProtocol?
     /// choice_card answers (see ActionCards.swift).
     private var choiceObserver: NSObjectProtocol?
+    /// Journal resume/topic requests (see SessionModels.swift).
+    private var journalObservers: [NSObjectProtocol] = []
 
     /// The persona the house was last speaking as, so the name in the rail is
     /// right before the server confirms it rather than flashing the default.
@@ -346,6 +351,23 @@ public class ChatViewModel: ObservableObject {
                     self?.handleAudioPathLost(reason: "audio route lost")
                 }
             }
+        }
+        if journalObservers.isEmpty {
+            // The Journal's way back into a conversation (resume by diary
+            // slug) and into a topic (a shelf book's name). The Journal tree
+            // takes no view model by design; these are its two verbs.
+            journalObservers.append(NotificationCenter.default.addObserver(
+                forName: .hearthResumeSession, object: nil, queue: .main
+            ) { [weak self] note in
+                guard let slug = note.userInfo?["slug"] as? String, !slug.isEmpty else { return }
+                MainActor.assumeIsolated { self?.resumeSession(slug: slug) }
+            })
+            journalObservers.append(NotificationCenter.default.addObserver(
+                forName: .hearthTopicSession, object: nil, queue: .main
+            ) { [weak self] note in
+                guard let name = note.userInfo?["name"] as? String, !name.isEmpty else { return }
+                MainActor.assumeIsolated { self?.startTopicSession(name: name) }
+            })
         }
         if choiceObserver == nil {
             // A tapped choice_card chip is an answer: it goes out as the
@@ -584,7 +606,7 @@ public class ChatViewModel: ObservableObject {
 
         webSocketClient?.onErrorReceived = { [weak self] error in
             Task { @MainActor [weak self] in
-                guard let self, !self.isDebugMode else { return }
+                guard let self else { return }
                 self.addSystemMessage("Error: \(error)")
                 self.isWaitingForResponse = false
                 self.activeTools = []
@@ -602,7 +624,7 @@ public class ChatViewModel: ObservableObject {
 
         webSocketClient?.onConnectionClosed = { [weak self] in
             Task { @MainActor [weak self] in
-                guard let self, !self.isDebugMode else { return }
+                guard let self else { return }
                 self.connectionStatus = .disconnected
                 self.connectionAlive = false
                 // A background teardown is deliberate; narrating it would
@@ -660,7 +682,7 @@ public class ChatViewModel: ObservableObject {
             addSystemMessage("Connecting to Hearth Server...")
 
             let connected = await webSocketClient?.connect() ?? false
-            if !connected && !isDebugMode {
+            if !connected {
                 connectionStatus = .disconnected
                 connectionAlive = false
                 hearthState = .IDLE
@@ -790,7 +812,6 @@ public class ChatViewModel: ObservableObject {
     /// connect. The orb stays "dead" (connectionAlive == false) until a fresh
     /// client_info_ack revives it. One loop at a time; no-op in debug mode.
     private func scheduleReconnect() {
-        guard !isDebugMode else { return }
         // A refused token cannot be retried into working; the way back is the
         // pairing screen, and looping behind it would just keep earning 1008s.
         guard !needsPairing else { return }
@@ -925,21 +946,17 @@ public class ChatViewModel: ObservableObject {
 
         // Fresh turn: next reply starts a new streaming bot line.
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
         expressionsBySegment.removeAll()
         captionSegment = -1
 
-        if isDebugMode {
-            hearthState = .IDLE
-            addSystemMessage("[Debug] Transcription received -- no server to forward to")
-        } else {
-            hearthState = .THINKING
-            startThinkingAnimation()
-            armThinkingWatchdog()
-            webSocketClient?.sendClientTranscription(text)
-        }
+        hearthState = .THINKING
+        startThinkingAnimation()
+        armThinkingWatchdog()
+        webSocketClient?.sendClientTranscription(text)
     }
 
     /// Stop the voice mid-reply -- the user's interrupt, or the audio path
@@ -1053,16 +1070,12 @@ public class ChatViewModel: ObservableObject {
 
         // Fresh turn: next reply starts a new streaming bot line.
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
         expressionsBySegment.removeAll()
         captionSegment = -1
-
-        if isDebugMode {
-            addSystemMessage("[Debug] Message received -- no server to forward to")
-            return
-        }
 
         let sent = webSocketClient?.sendTextQuery(text) ?? false
         if sent {
@@ -1097,31 +1110,9 @@ public class ChatViewModel: ObservableObject {
         messages = transcripts.load(persona: name)
     }
 
-    public func setDebugMode(_ enabled: Bool) {
-        isDebugMode = enabled
-        // The debug wipe is a SCREEN wipe, not a history wipe: with the
-        // write-through transcript store, letting these removals persist
-        // would erase the active persona's real history to try a debug view.
-        transcripts.suspendPersistence {
-            if enabled {
-                cancelReconnect()
-                webSocketClient?.disconnect()
-                webSocketClient = nil
-                connectionStatus = .connected
-                connectionAlive = true
-                hearthState = .IDLE
-                messages.removeAll()
-                addSystemMessage("Debug mode enabled -- server connection simulated")
-            } else {
-                connectionStatus = .disconnected
-                connectionAlive = true   // optimistic; setupWebSocket reconnects
-                hearthState = .LOADING
-                messages.removeAll()
-                addSystemMessage("Debug mode disabled -- reconnecting...")
-                setupWebSocket()
-            }
-        }
-    }
+    // setDebugMode is gone. It was public, had zero callers and no UI, wiped
+    // the feed, and tore down the socket -- a loaded gun with no trigger. A
+    // future dev pane can rebuild the simulation honestly if one is wanted.
 
     private func handleAIResponse(text: String, personaName: String) {
         stopThinkingAnimation()
@@ -1132,12 +1123,13 @@ public class ChatViewModel: ObservableObject {
         // Finalize: if the reply streamed in sentence-by-sentence, replace that
         // line with the canonical full text; otherwise append it fresh.
         if streamingBotText != nil {
-            replaceLastAiMessage(with: text, personaName: personaName)
+            replaceStreamingMessage(with: text, personaName: personaName)
             streamingBotText = nil
         } else {
             let aiMessage = ChatMessage(text: text, type: .ai, personaName: personaName)
             messages.append(aiMessage)
         }
+        streamingMessageId = nil
         isWaitingForResponse = false
     }
 
@@ -1185,15 +1177,22 @@ public class ChatViewModel: ObservableObject {
 
     /// Stream the assistant text in step with speech: the server sends each
     /// sentence on its tts_chunk_start, so the chat keeps pace with the voice.
-    /// Seg 0 starts a fresh bot line; the rest extend it.
+    /// Seg 0 starts a fresh bot line; the rest extend it. A RE-emitted
+    /// segment 0 (a restarted stream) restarts the line rather than opening a
+    /// duplicate bubble.
     private func handleTtsSentence(_ sentence: String, segIdx: Int) {
-        if segIdx == 0 || streamingBotText == nil {
+        if streamingBotText == nil {
             streamingBotText = sentence
-            messages.append(ChatMessage(text: sentence, type: .ai, personaName: currentPersonaName))
+            let message = ChatMessage(text: sentence, type: .ai, personaName: currentPersonaName)
+            streamingMessageId = message.id
+            messages.append(message)
+        } else if segIdx == 0 {
+            streamingBotText = sentence
+            replaceStreamingMessage(with: sentence, personaName: currentPersonaName)
         } else {
             let joined = (streamingBotText ?? "") + " " + sentence
             streamingBotText = joined
-            replaceLastAiMessage(with: joined, personaName: currentPersonaName)
+            replaceStreamingMessage(with: joined, personaName: currentPersonaName)
         }
         // The visionOS card shows the FULL response so far.
         liveTranscript = streamingBotText ?? sentence
@@ -1233,6 +1232,7 @@ public class ChatViewModel: ObservableObject {
         sessionSummary = summary
         if summary?.isEmpty == false { sessionSummaryDate = Date() }
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
@@ -1417,12 +1417,20 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
-    private func replaceLastAiMessage(with text: String, personaName: String) {
-        if let idx = messages.lastIndex(where: { $0.type == .ai }) {
-            messages[idx] = ChatMessage(text: text, type: .ai, personaName: personaName)
+    /// The streaming line, held by ID. Matching "the last .ai message"
+    /// overwrote the wrong row whenever anything else appended after the
+    /// streaming line mid-turn.
+    private var streamingMessageId: UUID?
+
+    private func replaceStreamingMessage(with text: String, personaName: String) {
+        let replacement = ChatMessage(text: text, type: .ai, personaName: personaName)
+        if let id = streamingMessageId,
+           let idx = messages.lastIndex(where: { $0.id == id }) {
+            messages[idx] = replacement
         } else {
-            messages.append(ChatMessage(text: text, type: .ai, personaName: personaName))
+            messages.append(replacement)
         }
+        streamingMessageId = replacement.id
     }
 
     /// Return to IDLE, clearing all turn state.
@@ -1433,6 +1441,7 @@ public class ChatViewModel: ObservableObject {
         thinkingStage = nil
         isWaitingForResponse = false
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
@@ -1503,6 +1512,9 @@ public class ChatViewModel: ObservableObject {
         }
         if let choiceObserver {
             NotificationCenter.default.removeObserver(choiceObserver)
+        }
+        for observer in journalObservers {
+            NotificationCenter.default.removeObserver(observer)
         }
         speechRecognitionManager?.stopRecognition()
         webSocketClient?.disconnect()

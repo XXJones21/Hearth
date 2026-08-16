@@ -193,6 +193,15 @@ struct HearthMainView: View {
         .fullScreenCover(isPresented: $viewModel.showSettings) {
             HearthSettingsView(viewModel: viewModel)
         }
+        // A resume or topic request from inside the Journal: the view model
+        // performs it; this view's share is closing the cover so the repaint
+        // happens where the person can see it.
+        .onReceive(NotificationCenter.default.publisher(for: .hearthResumeSession)) { _ in
+            showJournal = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hearthTopicSession)) { _ in
+            showJournal = false
+        }
         .fullScreenCover(isPresented: $showSessions) {
             SessionsView(viewModel: viewModel)
         }

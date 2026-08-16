@@ -221,7 +221,7 @@ struct BottomInputBar: View {
             // surprise-sent mid-sentence. Naming the mechanic is the
             // lightweight honest version of a countdown.
             Text("sends when you pause, or tap the button")
-                .font(.system(size: 10.5))
+                .hearthFont(10.5)
                 .foregroundStyle(HearthPalette.fawn)
         }
         .padding(.horizontal, 16)

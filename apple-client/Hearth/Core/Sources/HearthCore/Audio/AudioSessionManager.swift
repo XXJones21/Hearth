@@ -19,7 +19,9 @@ import AVFoundation
 import Foundation
 
 public final class AudioSessionManager {
-    public static let shared = AudioSessionManager()
+    // `.shared` is gone: it had zero references, and a second instance beside
+    // ChatViewModel's would just re-run configure() against the same
+    // process-wide AVAudioSession.
 
     public init() {
         configure()
@@ -84,21 +86,7 @@ public final class AudioSessionManager {
         return session.currentRoute.outputs.contains { external.contains($0.portType) }
     }
 
-    public func requestMicrophonePermission() async -> Bool {
-        let audioApp = AVAudioApplication.shared
-        switch audioApp.recordPermission {
-        case .granted:
-            return true
-        case .denied:
-            return false
-        case .undetermined:
-            return await withCheckedContinuation { continuation in
-                AVAudioApplication.requestRecordPermission { granted in
-                    continuation.resume(returning: granted)
-                }
-            }
-        @unknown default:
-            return false
-        }
-    }
+    // requestMicrophonePermission() is gone: zero call sites, and the real
+    // permission flow lives in VoicePermissions.prime() (first run) and
+    // SpeechRecognitionManager.startRecognition() (lazy fallback).
 }

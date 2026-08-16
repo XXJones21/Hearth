@@ -41,7 +41,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Hearth connects to your local Hearth server over your Wi-Fi network.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Hearth needs microphone access to stream your voice to the AI assistant.</string>
+	<string>Hearth uses the microphone so you can talk to your persona. Speech is recognized on this device.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Hearth uses device motion to create a parallax effect in the 3D visualization.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

@@ -350,21 +350,16 @@ private struct OnDeviceSection: View {
     }
 
     private var widgets: some View {
+        // No API opens the widget gallery; it is reached by long-pressing
+        // the Home Screen. The previous version opened the private
+        // "App-prefs:" scheme, which is unreliable and App Review surface --
+        // saying where the gallery lives beats pretending to deep-link.
         DeviceRow(
             initials: "Wi",
             label: "Widgets",
-            hint: "The persona orb and Tap to talk, on the Home Screen. Journal is coming, so each size will offer both.",
-            status: ("Opens the Home Screen", true),
-            action: nil,
-            chevron: true,
-            onTap: {
-                // No API opens the Home Screen editor directly; the widget
-                // gallery is reached from the Home Screen itself, so this
-                // leaves the app rather than pretending to deep-link deeper.
-                if let url = URL(string: "App-prefs:") {
-                    UIApplication.shared.open(url)
-                }
-            }
+            hint: "The persona orb and Tap to talk. Add them by long-pressing the Home Screen and choosing Hearth.",
+            status: ("Added from the Home Screen", true),
+            action: nil
         )
     }
 }

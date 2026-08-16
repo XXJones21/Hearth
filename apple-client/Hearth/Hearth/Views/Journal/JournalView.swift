@@ -21,6 +21,16 @@ import HearthCore
 struct JournalView: View {
     @StateObject private var library = JournalLibrary()
     @Environment(\.dismiss) private var dismiss
+    /// Desktop's "Search the library" box: filters shelf titles. Empty query
+    /// shows the rooms as they stand.
+    @State private var query = ""
+
+    /// Case-insensitive title filter, desktop's rule.
+    private func matching(_ books: [JournalBook]) -> [JournalBook] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return books }
+        return books.filter { $0.title.localizedCaseInsensitiveContains(q) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -33,29 +43,41 @@ struct JournalView: View {
                     } else if let error = library.loadError, library.isEmpty {
                         failure(error)
                     } else {
-                        if !library.heart.isEmpty {
+                        let heart = matching(library.heart)
+                        let life = matching(library.life)
+                        let projects = matching(library.projects)
+                        let seedlings = matching(library.seedlings)
+
+                        if !heart.isEmpty {
                             Room(label: "The Heart of the Library",
                                  caption: "on display, the volumes that live and grow") {
-                                heartDisplay
+                                heartDisplay(heart)
                             }
                         }
-                        if !library.life.isEmpty {
+                        if !life.isEmpty {
                             Room(label: "The Curator's Alcove",
                                  caption: "the person before the works") {
-                                shelf(library.life)
+                                shelf(life)
                             }
                         }
-                        if !library.projects.isEmpty {
+                        if !projects.isEmpty {
                             Room(label: "The Active Forge",
                                  caption: "works in motion") {
-                                shelf(library.projects)
+                                shelf(projects)
                             }
                         }
-                        if !library.seedlings.isEmpty {
+                        if !seedlings.isEmpty {
                             Room(label: "The Glass Conservatory",
                                  caption: "seedlings, one page each") {
-                                conservatory
+                                conservatory(seedlings)
                             }
+                        }
+                        if heart.isEmpty && life.isEmpty && projects.isEmpty && seedlings.isEmpty {
+                            Text("No book answers to \"\(query)\".")
+                                .font(.system(size: 12.5))
+                                .foregroundStyle(HearthPalette.fawn)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 40)
                         }
                         sanctum
                     }
@@ -63,6 +85,8 @@ struct JournalView: View {
                 .padding(.bottom, 28)
             }
             .background(HearthPalette.cream.ignoresSafeArea())
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .automatic),
+                        prompt: "Search the library")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Hearth") { dismiss() }
@@ -126,14 +150,15 @@ struct JournalView: View {
 
     /// The living volumes stand face-out, the way a bookshop turns its featured
     /// titles to camera. Three fit across a phone without scrolling.
-    private var heartDisplay: some View {
+    private func heartDisplay(_ books: [JournalBook]) -> some View {
         VStack(spacing: 0) {
             HStack(alignment: .bottom, spacing: 8) {
-                ForEach(library.heart) { book in
+                ForEach(books) { book in
                     NavigationLink { JournalBookView(book: book) } label: {
                         HeroBookCover(book: book)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(book.title), \(book.pages) pages")
                 }
             }
             .padding(.horizontal, 18)
@@ -161,6 +186,7 @@ struct JournalView: View {
                             BookSpine(book: book, height: 132)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("\(book.title), \(book.pages) pages")
                     }
                 }
                 .padding(.horizontal, 18)
@@ -170,14 +196,15 @@ struct JournalView: View {
         }
     }
 
-    private var conservatory: some View {
+    private func conservatory(_ books: [JournalBook]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .bottom, spacing: 9) {
-                ForEach(library.seedlings) { book in
+                ForEach(books) { book in
                     NavigationLink { JournalBookView(book: book) } label: {
                         BookSpine(book: book, height: 96)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(book.title), \(book.pages) pages")
                 }
             }
             .padding(.horizontal, 12)
@@ -250,9 +277,10 @@ private struct ShelfBoard: View {
     let height: CGFloat
 
     var body: some View {
+        // Palette tokens, not literals: the boards were the one furniture
+        // that stayed daylight-brown in ember mode.
         LinearGradient(
-            colors: [Color(red: 0.78, green: 0.58, blue: 0.38),
-                     Color(red: 0.66, green: 0.45, blue: 0.25)],
+            colors: [HearthPalette.journalWoodHi, HearthPalette.journalWoodLo],
             startPoint: .top, endPoint: .bottom
         )
         .frame(height: height)
@@ -413,8 +441,11 @@ struct BookSpine: View {
 /// subviews per book, which is 600+ views across a shelf and is felt as
 /// stutter while scrolling.
 struct PageBlock: View {
-    private static let paper = Color(red: 0.965, green: 0.933, blue: 0.878)
-    private static let shade = Color(red: 0.890, green: 0.835, blue: 0.749)
+    // Dynamic palette tokens: pages dim with the room in ember mode. The
+    // book LEATHERS above stay literal on purpose -- a bound book keeps its
+    // colour in a dim room; the furniture and paper are surface.
+    private static let paper = HearthPalette.journalPaper
+    private static let shade = HearthPalette.journalPaperLine
 
     var body: some View {
         Canvas(opaque: true) { context, size in

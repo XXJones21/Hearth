@@ -23,20 +23,7 @@ public final class TranscriptStore {
     /// not synchronous.
     private var pendingSave: Task<Void, Never>?
 
-    /// While true, scheduleSave is a no-op -- for screen wipes (debug mode)
-    /// that must not be mistaken for history wipes.
-    private var suspended = false
-
     // MARK: - Public API
-
-    /// Run `body` with persistence off: mutations to the feed inside it do
-    /// not touch the stored transcripts.
-    public func suspendPersistence(_ body: () -> Void) {
-        suspended = true
-        pendingSave?.cancel()
-        body()
-        suspended = false
-    }
 
     public func load(persona: String?) -> [ChatMessage] {
         guard let url = Self.fileURL(persona: persona),
@@ -46,7 +33,6 @@ public final class TranscriptStore {
 
     /// Debounced write of the feed's real turns under this persona's file.
     public func scheduleSave(_ messages: [ChatMessage], persona: String?) {
-        guard !suspended else { return }
         let kept = messages.filter { $0.type != .system }
         pendingSave?.cancel()
         pendingSave = Task { @MainActor in

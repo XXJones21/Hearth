@@ -19,6 +19,7 @@ struct JournalBookView: View {
             VStack(alignment: .leading, spacing: 0) {
                 keeperPage
                 stats
+                topicAction
 
                 if !book.entries.isEmpty {
                     Text("ENTRIES")
@@ -92,6 +93,32 @@ struct JournalBookView: View {
             StatCell(value: book.entries.first?.date ?? "--", label: "Latest")
         }
         .padding(.horizontal, 14)
+    }
+
+    /// A shelf book is an Engram topic (project or life root), and the house
+    /// can open a fresh chat that already knows what it is about. The Heart's
+    /// living volumes are not topics, so they carry no button.
+    @ViewBuilder
+    private var topicAction: some View {
+        if book.shelf != .heart {
+            Button {
+                NotificationCenter.default.post(
+                    name: .hearthTopicSession, object: nil,
+                    userInfo: ["name": book.title]
+                )
+            } label: {
+                Text("Start a session for \(book.title)")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundStyle(HearthPalette.roast)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(HearthPalette.fennec, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Ends the live session and opens a fresh one about this topic")
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+        }
     }
 }
 

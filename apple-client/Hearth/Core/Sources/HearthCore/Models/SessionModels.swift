@@ -13,6 +13,16 @@
 
 import Foundation
 
+public extension Notification.Name {
+    /// A Journal surface asked to resume a diary by slug (userInfo: slug).
+    /// A notification rather than a threaded view model because the Journal
+    /// tree deliberately takes no ChatViewModel; the main view closes the
+    /// cover, the view model performs the resume.
+    static let hearthResumeSession = Notification.Name("hearth.resumeSession")
+    /// A shelf book asked for a fresh topic session (userInfo: name).
+    static let hearthTopicSession = Notification.Name("hearth.topicSession")
+}
+
 // MARK: - Wire shapes
 
 /// One row of `GET /sessions`. Tolerant decode: a missing field falls back
