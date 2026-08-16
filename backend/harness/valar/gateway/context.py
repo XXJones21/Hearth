@@ -101,6 +101,20 @@ def _render_device_context(dc: dict | None) -> str:
     except Exception:  # noqa: BLE001 - continuity is additive, never breaks a turn
         pass
 
+    # What is on today, for the same reason the time is here: "what's on"
+    # should not cost a tool call when the answer is four words long.
+    try:
+        from ..memory.calendar import render_today_line
+        from ..memory.journal_sync import engram_root as _cal_root
+
+        _root = _cal_root()
+        if _root is not None:
+            _line = render_today_line(_root)
+            if _line:
+                lines.append(_line)
+    except Exception:  # noqa: BLE001 - the calendar is additive, never breaks a turn
+        pass
+
     # Due reminders ride the same rail as the clock. The house has no channel
     # that can speak unprompted, so a reminder is delivered by being IN the
     # context of the next thing said, every turn, until it is dismissed.
