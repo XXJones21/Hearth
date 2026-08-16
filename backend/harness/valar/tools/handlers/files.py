@@ -293,7 +293,11 @@ def _grant_target(path: Path) -> Path:
 
 def _permission_result(path: Path, action: str) -> ToolResult:
     """Ask the operator to grant a folder; emit the chat permission card."""
-    target = _grant_target(path)
+    # Every other action grants a FOLDER, so a file's parent is what gets
+    # named. A delete is about the file itself, and asking "may I have this
+    # folder" before removing one file would be both wrong on the card and
+    # wrong in what it authorises.
+    target = path if action == "delete" else _grant_target(path)
     request_id = uuid.uuid4().hex[:12]
     display = _display_path(target)
     _PENDING[request_id] = {
@@ -368,6 +372,15 @@ def decide(request_id: str, approve: bool) -> dict:
         except Exception as exc:  # noqa: BLE001
             return _fail(f"Could not create {_display_path(target)}: {exc}")
         logger.info("file permission created folder id=%s path=%s", request_id, target)
+    # A delete approval is an act, not a policy. It authorises this one file
+    # and is spent by the retry that follows; nothing is written to the grant
+    # list, so the next delete asks again.
+    if str(req.get("action") or "") == "delete":
+        req["status"] = "granted"
+        logger.info("file delete approved id=%s path=%s", request_id, target)
+        _resolve_waiter(req, "granted")
+        return {"ok": True, "status": "granted", "path": _display_path(target)}
+
     name = re.sub(r"[^a-z0-9]+", "-", target.name.lower()).strip("-") or "grant"
     grants = []
     if _GRANTS_FILE.exists():
@@ -828,6 +841,17 @@ async def write_file(args: dict) -> ToolResult:
     )
 
 
+def _trash_dir() -> Path:
+    """Where deleted files wait. Under the house's own home rather than the
+    memory tree: unplugging a brain must not take the trash with it."""
+    try:
+        from ...config.settings import hearth_home
+
+        return hearth_home() / "trash"
+    except Exception:  # noqa: BLE001
+        return _HEARTH_ROOT / "trash"
+
+
 def search_files(args: dict) -> ToolResult:
     """Find which files under the allowed roots contain a phrase.
 
@@ -1140,6 +1164,178 @@ async def new_file(args: dict) -> ToolResult:
             "chars": len(content),
             "created": True,
         },
+    )
+
+
+def _consume_delete_approval(path: Path) -> bool:
+    """Spend a one-shot delete approval for this exact path.
+
+    A folder grant is durable on purpose: say yes once and the house may read
+    there again. A delete approval must be the opposite. This finds an
+    approved, unspent request for this path and spends it, so the retry that
+    follows Approve deletes exactly the file that was on the card, once.
+    """
+    target = str(path).replace("\\", "/").lower()
+    for req in _PENDING.values():
+        if req.get("action") != "delete" or req.get("status") != "granted":
+            continue
+        if req.get("spent"):
+            continue
+        if str(req.get("path") or "").replace("\\", "/").lower() == target:
+            req["spent"] = True
+            return True
+    return False
+
+
+def move_file(args: dict) -> ToolResult:
+    """Move or rename a file the operator named.
+
+    One tool for both, because renaming IS moving and a model asked to choose
+    between two nearly identical tools will sometimes choose wrong.
+    """
+    raw_source = str((args or {}).get("source") or "").strip()
+    raw_dest = str((args or {}).get("destination") or "").strip()
+    if not raw_source or not raw_dest:
+        return ToolResult.error("move_file needs a source and a destination.")
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error(
+            "No writable file roots are configured. Ask the operator to check file_roots.yaml."
+        )
+
+    try:
+        source = _to_posix_path(raw_source).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that source path: {exc}")
+    if not source.exists():
+        return ToolResult.error(
+            f"No file at {_display_path(source)}. It does not exist; this is not "
+            "a permission problem."
+        )
+    if not source.is_file():
+        return ToolResult.error(f"{_display_path(source)} is a folder, not a file.")
+    if _under_root(source, roots) is None:
+        return _permission_result(source, "write")
+
+    # A bare name means "rename it, leave it where it is".
+    try:
+        if _SAFE_DEST_NAME_RE.match(raw_dest) and not _DRIVE_RE.match(raw_dest):
+            dest = (source.parent / raw_dest).resolve()
+        else:
+            dest = _to_posix_path(raw_dest).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that destination: {exc}")
+    # A destination that names an existing folder means "into it".
+    if dest.is_dir():
+        dest = (dest / source.name).resolve()
+    if not dest.suffix:
+        dest = dest.with_suffix(source.suffix)
+    if dest == source:
+        return ToolResult.error("The destination is the source; nothing to do.")
+    if dest.exists():
+        return ToolResult.error(
+            f"{_display_path(dest)} already exists. Pick another name; this tool "
+            "never overwrites."
+        )
+    if _under_root(dest.parent, roots) is None:
+        return _permission_result(
+            dest.parent, "write" if dest.parent.is_dir() else "create"
+        )
+    if not dest.parent.is_dir():
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:  # noqa: BLE001
+            return ToolResult.error(
+                f"Could not create {_display_path(dest.parent)}: {exc}"
+            )
+
+    try:
+        source.rename(dest)
+    except OSError:
+        # Across drives a rename fails; copy then remove is the same intent.
+        try:
+            import shutil
+
+            shutil.move(str(source), str(dest))
+        except Exception as exc:  # noqa: BLE001
+            return ToolResult.error(f"Could not move that file: {exc}")
+
+    renamed = source.parent == dest.parent
+    logger.info("move_file ok %s -> %s", source, dest)
+    return ToolResult(
+        content=(
+            f"{'Renamed' if renamed else 'Moved'} to: {_display_path(dest)}\n"
+            f"From: {_display_path(source)}\n"
+            "Confirm briefly, naming the new path."
+        ),
+        data={
+            "path": _display_path(dest),
+            "from": _display_path(source),
+            "renamed": renamed,
+        },
+    )
+
+
+def delete_file(args: dict) -> ToolResult:
+    """Delete a file, once the operator has said so on a card.
+
+    The only tool in the house that destroys anything, so it asks every time
+    and the approval is spent on one path rather than recorded as a standing
+    grant. It also does not truly erase: the file is moved to the house's
+    trash, because "I deleted it" should not be the last honest thing anyone
+    can say about a file.
+    """
+    raw_path = str((args or {}).get("path") or "").strip()
+    if not raw_path:
+        return ToolResult.error("delete_file needs a path.")
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error("No file roots are configured.")
+
+    try:
+        target = _to_posix_path(raw_path).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that path: {exc}")
+    if not target.exists():
+        return ToolResult.error(f"No file at {_display_path(target)}. Nothing was deleted.")
+    if not target.is_file():
+        return ToolResult.error(
+            f"{_display_path(target)} is a folder. This tool deletes single files only."
+        )
+    if _under_root(target, roots) is None:
+        return _permission_result(target, "read")
+
+    if not _consume_delete_approval(target):
+        return _permission_result(target, "delete")
+
+    trash = _trash_dir() / datetime.now().strftime("%Y-%m-%d")
+    try:
+        trash.mkdir(parents=True, exist_ok=True)
+        kept = trash / target.name
+        n = 2
+        while kept.exists():
+            kept = trash / f"{target.stem}-{n}{target.suffix}"
+            n += 1
+        try:
+            target.rename(kept)
+        except OSError:
+            # The trash lives on the house's drive and the file may not.
+            import shutil
+
+            shutil.move(str(target), str(kept))
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not delete {_display_path(target)}: {exc}")
+
+    logger.info("delete_file ok %s -> trash %s", target, kept)
+    return ToolResult(
+        content=(
+            f"Deleted: {_display_path(target)}\n"
+            f"Kept in the house trash at: {_display_path(kept)}\n"
+            "Say it is deleted, and that a copy is in the trash if they want it back."
+        ),
+        data={"path": _display_path(target), "trash": _display_path(kept)},
     )
 
 

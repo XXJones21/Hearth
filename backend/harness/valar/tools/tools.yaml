@@ -235,6 +235,47 @@ tools:
             should include their own "- " prefix.
       required: [path, text]
 
+  - name: move_file
+    description: >-
+      Move or rename a file the operator named. Pass a bare filename as the
+      destination to rename it in place, or a full path to move it. Never
+      overwrites: a destination that already exists is refused. Use when they
+      say rename, move, or "put that in".
+    handler: valar.tools.handlers.files:move_file
+    domain: files
+    risk: write
+    speak: Let me move that.
+    parameters:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Absolute path of the existing file.
+        destination:
+          type: string
+          description: >-
+            A bare filename to rename in place ("plan-v2.md"), or an absolute
+            path to move it. An existing folder means "into that folder".
+      required: [source, destination]
+
+  - name: delete_file
+    description: >-
+      Delete a single file the operator asked you to delete. ALWAYS shows them
+      a card first and waits; you may not delete anything on your own judgment.
+      The file is moved to the house trash rather than erased, so it can be
+      recovered. Never call this to "clean up" or tidy without being asked.
+    handler: valar.tools.handlers.files:delete_file
+    domain: files
+    risk: write
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path of the single file to delete.
+      required: [path]
+
   - name: new_file
     description: >-
       Write a NEW document at a path the operator named: a note, a recipe, a
@@ -516,7 +557,7 @@ tools:
       uses it; if none can carry the content's visual shape, offer the
       operator a new card (forge_card).
     handler: valar.tools.handlers.forge:list_cards
-    domain: projects
+    domain: workshop
     risk: read
     parameters:
       type: object
@@ -534,7 +575,7 @@ tools:
       and no condition on purpose: work out which cells are marked before you
       start, then write them out.
     handler: valar.tools.handlers.compose:compose_view
-    domain: projects
+    domain: workshop
     risk: read
     speak: Let me put that on the screen.
     parameters:
@@ -579,7 +620,7 @@ tools:
       witty companion", "detail": "keeps you company"}]}. A call without
       options renders nothing.
     handler: valar.tools.handlers.choice:choice_card
-    domain: projects
+    domain: workshop
     risk: read
     speak: ""
     parameters:
@@ -607,7 +648,7 @@ tools:
       not an example, not something you suggested -- their own answer. After it
       returns, tell them where it lives and stop.
     handler: valar.tools.handlers.second_brain:start_project
-    domain: projects
+    domain: brain
     risk: write
     speak: ""
     parameters:
@@ -630,7 +671,7 @@ tools:
       remembered. Until this returns ok, no connection of any kind exists,
       and you must not claim one.
     handler: valar.tools.handlers.second_brain:import_brain
-    domain: projects
+    domain: brain
     risk: write
     speak: ""
     parameters:
@@ -649,7 +690,7 @@ tools:
       declines or says they are done. Closes the setup and frees them to go
       to the house. Takes nothing.
     handler: valar.tools.handlers.second_brain:complete_brain_setup
-    domain: projects
+    domain: brain
     risk: write
     speak: ""
     parameters:
@@ -665,7 +706,7 @@ tools:
       write the system prompt IN THEIR VOICE, not yours. After it returns,
       stop: the new persona speaks next, not you.
     handler: valar.tools.handlers.creation:create_persona
-    domain: projects
+    domain: personas
     risk: write
     speak: ""
     parameters:
@@ -712,7 +753,7 @@ tools:
       build runs in the background; always tell the operator what you
       commissioned and ask whether they want it going forward.
     handler: valar.tools.handlers.forge:forge_card
-    domain: projects
+    domain: workshop
     risk: write
     speak: Let me commission the workshop.
     parameters:

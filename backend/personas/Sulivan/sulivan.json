@@ -81,10 +81,12 @@
       "search",
       "news",
       "memory",
-      "briefs",
       "media",
       "dev",
-      "files"
+      "files",
+      "workshop",
+      "brain",
+      "personas"
     ],
     "allow": [],
     "deny": []

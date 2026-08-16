@@ -42,14 +42,21 @@ export function PermissionCard({ props }: CardProps) {
      create" reads as consent to open something that is not there; what is
      actually being asked is whether to make it. */
   const creating = action === 'create';
+  /* Deleting is the one act that cannot be undone by saying no next time, so
+     it gets its own words and never claims to be a standing grant. */
+  const deleting = action === 'delete';
 
   return (
     <div className="max-w-[520px] rounded-2xl border border-linen bg-fluff px-4 py-3 shadow-soft">
       <div className="text-[11.5px] font-bold uppercase tracking-wider text-ember">
-        {creating ? 'New folder' : 'Folder access'}
+        {deleting ? 'Delete a file' : creating ? 'New folder' : 'Folder access'}
       </div>
       <p className="mt-1.5 text-[14px] leading-relaxed text-roast">
-        {creating ? (
+        {deleting ? (
+          <>
+            Delete <span className="font-medium">{p.path || 'this file'}</span>?
+          </>
+        ) : creating ? (
           <>
             Create <span className="font-medium">{p.path || 'this folder'}</span> and
             let Hearth write there?
@@ -62,7 +69,9 @@ export function PermissionCard({ props }: CardProps) {
         )}
       </p>
       <p className="mt-1 text-[12px] text-fawn">
-        This grant stays on this house until you remove it from file_grants.yaml.
+        {deleting
+          ? 'It goes to the house trash, not away for good. This approval covers this one file.'
+          : 'This grant stays on this house until you remove it from file_grants.yaml.'}
       </p>
       {pending ? (
         <div className="mt-3 flex items-center gap-2">

@@ -70,7 +70,8 @@
       "weather",
       "news",
       "memory",
-      "files"
+      "files",
+      "brain"
     ],
     "allow": [],
     "deny": [
