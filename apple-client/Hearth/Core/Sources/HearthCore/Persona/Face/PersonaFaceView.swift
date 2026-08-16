@@ -329,13 +329,27 @@ public struct PersonaFaceView: View {
 }
 
 // The face with nothing else on screen, which is how every question about it
-// ("is the arc too high", "is the mouth too low") is actually answered.
-#Preview("Persona face") {
-    VStack(spacing: 24) {
-        PersonaFaceView(geometry: FaceGeometry(), state: .IDLE)
-            .frame(width: 220, height: 220)
-        PersonaFaceView(geometry: FaceGeometry(), state: .THINKING)
-            .frame(width: 220, height: 220)
+// ("is the arc too high", "is the mouth too low") actually gets answered.
+//
+// reducedMotion is on so each frame SNAPS to its state's beat pose: a preview
+// renders one frame, and eased over 140ms that frame would be four identical
+// neutral faces. Under reduce motion it is four silhouettes you can tell apart.
+#Preview("Persona face, per state") {
+    let states: [(String, HearthState)] = [
+        ("idle", .IDLE), ("listening", .LISTENING),
+        ("thinking", .THINKING), ("speaking", .SPEAKING),
+    ]
+    return VStack(spacing: 8) {
+        ForEach(states, id: \.0) { label, state in
+            HStack(spacing: 12) {
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(HearthPalette.fawn)
+                    .frame(width: 70, alignment: .trailing)
+                PersonaFaceView(geometry: FaceGeometry(), state: state, reducedMotion: true)
+                    .frame(width: 130, height: 130)
+            }
+        }
     }
     .padding()
     .background(HearthPalette.cream)
