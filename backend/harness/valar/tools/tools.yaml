@@ -180,6 +180,86 @@ tools:
           description: The label of the timer to cancel.
       required: []
 
+  - name: fetch_url
+    description: >-
+      Open a web page and read it as text. Use when the operator names a link,
+      or when web_search returned a result whose page you need to answer
+      properly. Public web only. For a local file use read_file.
+    handler: valar.tools.handlers.web_search:fetch_url
+    domain: search
+    risk: read
+    speak: Let me open that page.
+    parameters:
+      type: object
+      properties:
+        url:
+          type: string
+          description: The page address.
+        max_chars:
+          type: integer
+          description: Max characters of text to return (default 12000, cap 20000).
+      required: [url]
+
+  - name: clipboard
+    description: >-
+      Read what the operator just copied, or put a result where they can paste
+      it. Use when they say "I copied something", "what's on my clipboard", or
+      ask you to copy an answer for them.
+    handler: valar.tools.handlers.desktop:clipboard
+    domain: desktop
+    risk: write
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [read, write]
+          description: Default read.
+        text:
+          type: string
+          description: The text to copy, when writing.
+      required: []
+
+  - name: draft_email
+    description: >-
+      Write an email and open it in the operator's mail client for them to
+      read and send. NOTHING IS SENT. Pass short instructions describing the
+      message, never the finished body. Use when they ask you to write or draft
+      an email.
+    handler: valar.tools.handlers.desktop:draft_email
+    domain: desktop
+    risk: write
+    speak: Let me draft that.
+    parameters:
+      type: object
+      properties:
+        to:
+          type: string
+          description: Recipient address, if they gave one. Never invent one.
+        subject:
+          type: string
+          description: Subject line.
+        instructions:
+          type: string
+          description: Short brief of what the email should say.
+      required: [subject]
+
+  - name: open_path
+    description: >-
+      Show the operator a file or folder on their screen, in whatever program
+      opens it. Use after writing a file, or when they ask to see something.
+      Only works for paths under the house's allowed folders.
+    handler: valar.tools.handlers.desktop:open_path
+    domain: desktop
+    risk: control
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path of the file or folder to open.
+      required: [path]
+
   - name: web_search
     description: >-
       Look up a quick fact or answer on the web (definitions, who/what is X, quick
