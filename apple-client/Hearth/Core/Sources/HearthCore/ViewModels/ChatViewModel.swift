@@ -115,6 +115,10 @@ public class ChatViewModel: ObservableObject {
     /// Sentence text keyed by TTS segment index, so the karaoke caption can be
     /// revealed when that segment is actually heard rather than when it arrives.
     private var sentencesBySegment: [Int: String] = [:]
+    /// Face expressions keyed the same way, and revealed the same way. A cue
+    /// fired on arrival would play the sixth sentence's laugh over the first
+    /// sentence's audio, which is the caption bug wearing a different face.
+    private var expressionsBySegment: [Int: String] = [:]
     // Safety net for THINKING: the server said it is working, so the listen
     // timeout no longer applies — but if nothing arrives (server died
     // mid-pipeline), don't wedge the app in THINKING forever.
@@ -200,9 +204,14 @@ public class ChatViewModel: ObservableObject {
         }
         ttsStreamPlayer?.onSegmentPlaying = { [weak self] segIdx in
             // Already on the main queue.
-            guard let self,
-                  segIdx > self.captionSegment,
-                  let sentence = self.sentencesBySegment[segIdx] else { return }
+            guard let self, segIdx > self.captionSegment else { return }
+            // The face reacts on the sentence being HEARD. Segment 0 already
+            // fired on arrival -- its audio began essentially then -- so this
+            // covers every later one.
+            if let expression = self.expressionsBySegment[segIdx] {
+                self.fireFaceCue(expression)
+            }
+            guard let sentence = self.sentencesBySegment[segIdx] else { return }
             self.captionSegment = segIdx
             self.spokenSentence = self.spokenSentence.isEmpty
                 ? sentence
@@ -215,6 +224,17 @@ public class ChatViewModel: ObservableObject {
             FaceFeed.shared.speechLevel = Double(amp)
             self?.ttsAmplitude = amp
         }
+    }
+
+    /// Hand the face a transient.
+    ///
+    /// `at` must be on the same clock the renderer ticks with
+    /// (timeIntervalSinceReferenceDate in milliseconds) or the envelope is
+    /// measured against a time that never arrives and the cue is silently
+    /// inert -- which looks exactly like a harness that never sent one.
+    private func fireFaceCue(_ name: String) {
+        FaceFeed.shared.cue = FaceCue(
+            name: name, at: Date.timeIntervalSinceReferenceDate * 1000)
     }
 
     // MARK: - WebSocket Setup
@@ -351,14 +371,19 @@ public class ChatViewModel: ObservableObject {
             }
         }
 
-        // The face's transient for this sentence. `at` must be on the same
-        // clock the renderer ticks with (timeIntervalSinceReferenceDate in
-        // milliseconds) or the envelope fires against a time that never
-        // arrives and the cue is silently inert.
-        webSocketClient?.onFaceCue = { name in
-            Task { @MainActor in
-                FaceFeed.shared.cue = FaceCue(
-                    name: name, at: Date.timeIntervalSinceReferenceDate * 1000)
+        // The face's transient for this sentence, parked against its segment
+        // and played when that segment is heard. Segment 0 is the exception,
+        // exactly as it is for the caption: its audio begins essentially now,
+        // and waiting for the first playback tap would drop the reaction that
+        // opens the reply.
+        webSocketClient?.onFaceCue = { [weak self] name, segIdx in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if segIdx == 0 {
+                    self.fireFaceCue(name)
+                } else {
+                    self.expressionsBySegment[segIdx] = name
+                }
             }
         }
 
@@ -616,6 +641,7 @@ public class ChatViewModel: ObservableObject {
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
 
         if isDebugMode {
@@ -696,6 +722,7 @@ public class ChatViewModel: ObservableObject {
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
 
         if isDebugMode {
@@ -849,6 +876,7 @@ public class ChatViewModel: ObservableObject {
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
         activeTools = []
         publishWidgetSnapshot()
@@ -1014,6 +1042,7 @@ public class ChatViewModel: ObservableObject {
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
         isListening = false
         hearthState = .IDLE

@@ -76,7 +76,11 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
     /// A face expression named by the harness on tts_chunk_start, resolved
     /// from the sentence's non-verbal tag at the source. Absent on most
     /// chunks -- a sentence with nothing to react to names nothing.
-    var onFaceCue: ((String) -> Void)?
+    ///
+    /// Carries the segment index for the same reason the sentence text does:
+    /// the server pushes every segment of a reply within a second or two while
+    /// speaking them takes far longer, so both have to wait for their audio.
+    var onFaceCue: ((String, Int) -> Void)? // (expressionName, segIdx)
     
     private let serverURL: String
     
@@ -285,7 +289,7 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
                 // The face's transient for this sentence, already resolved to
                 // a name by the harness so no client parses tags of its own.
                 if let expression = chunkInfo["expression"] as? String, !expression.isEmpty {
-                    onFaceCue?(expression)
+                    onFaceCue?(expression, segIdx)
                 }
 
             case "tts_chunk_end":
