@@ -1,4 +1,4 @@
-import { getHttpOrigin } from './config';
+import { houseFetch } from './config';
 
 /* The household. Every field exists in persona.json today; the server
    translates colours to hex and models to names so the client never sees a
@@ -72,7 +72,7 @@ export type PersonaEdit = Partial<{
 
 export async function fetchPersonas(): Promise<PersonasSurface | null> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/personas/surface`, { cache: 'no-store' });
+    const res = await houseFetch(`/personas/surface`, { cache: 'no-store' });
     if (!res.ok) return null;
     return (await res.json()) as PersonasSurface;
   } catch {
@@ -91,7 +91,7 @@ export async function fetchTestLine(req: {
   reference_text: string;
 }): Promise<ArrayBuffer | string> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/personas/speak`, {
+    const res = await houseFetch(`/personas/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -111,7 +111,7 @@ export async function applyPersonas(payload: {
   remove?: string[];
 }): Promise<{ ok: boolean; changed?: string[]; restarting?: boolean; error?: string }> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/personas/apply`, {
+    const res = await houseFetch(`/personas/apply`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

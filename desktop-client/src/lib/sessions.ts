@@ -1,4 +1,4 @@
-import { getHttpOrigin } from './config';
+import { houseFetch } from './config';
 
 /* Session records: what the house has actually said, written one turn at a
    time as it happens. The Journal (lib/journal.ts) is the curated version of
@@ -22,7 +22,7 @@ export type SessionRecord = {
 
 export async function fetchRecords(): Promise<SessionRecord[]> {
   try {
-    const res = await fetch(`${getHttpOrigin()}/sessions`, { cache: 'no-store' });
+    const res = await houseFetch(`/sessions`, { cache: 'no-store' });
     if (!res.ok) return [];
     const data = (await res.json()) as { sessions?: SessionRecord[] };
     return data.sessions ?? [];
@@ -37,8 +37,7 @@ export async function fetchRecord(
   sessionId: string,
 ): Promise<(SessionRecord & { chatlog: string }) | null> {
   try {
-    const res = await fetch(
-      `${getHttpOrigin()}/sessions/${encodeURIComponent(sessionId)}`,
+    const res = await houseFetch(`/sessions/${encodeURIComponent(sessionId)}`,
       { cache: 'no-store' },
     );
     if (!res.ok) return null;

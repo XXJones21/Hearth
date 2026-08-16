@@ -75,6 +75,12 @@ pub fn probe_model_dir() -> String {
     machine::default_model_dir().to_string_lossy().to_string()
 }
 
+/// What to call this device when it asks to join a house on another machine.
+#[tauri::command]
+pub fn probe_device_name() -> String {
+    machine::host_name()
+}
+
 /// The default install root: the one folder everything lives under.
 #[tauri::command]
 pub fn probe_install_root() -> String {

@@ -32,6 +32,14 @@ export type Settings = {
   /** The one folder Hearth lives under, chosen during setup. Empty = the
    *  machine default. Boot validates the record at this root. */
   installRoot: string;
+  /* This client joined a house that runs on ANOTHER machine, rather than
+     installing one here. It supervises nothing, has no install record to
+     revalidate, and must never be sent back into setup because there is no
+     install folder on this disk -- that is the whole distinction. */
+  remoteHouse: boolean;
+  /** The token this device was given when it paired. Empty on a local
+   *  install, which the gateway exempts for being on the machine. */
+  deviceToken: string;
 };
 
 export const DEFAULTS: Settings = {
@@ -46,6 +54,8 @@ export const DEFAULTS: Settings = {
   developerMode: false,
   setupComplete: false,
   installRoot: '',
+  remoteHouse: false,
+  deviceToken: '',
 };
 
 let cache: Settings | null = null;

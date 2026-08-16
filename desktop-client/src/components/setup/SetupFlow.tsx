@@ -31,12 +31,22 @@ import {
 import { houseStart } from '../../lib/house';
 import { loadSettings, saveSettings } from '../../lib/settings';
 import { useAppStore } from '../../store/appStore';
+import { Connect } from './Connect';
 import { Interview } from './Interview';
 import { SecondBrain } from './SecondBrain';
 import { freshOpener, type PrefetchedOpener } from './opener';
 import { VoiceTest } from './VoiceTest';
 
-type Step = 'welcome' | 'scanning' | 'found' | 'installing' | 'voice-test' | 'interview' | 'second-brain' | 'blocked';
+type Step =
+  | 'welcome'
+  | 'connect'
+  | 'scanning'
+  | 'found'
+  | 'installing'
+  | 'voice-test'
+  | 'interview'
+  | 'second-brain'
+  | 'blocked';
 
 /* Debug stages (temporary, developer mode only): jump the setup flow to a
    beat without a clean reinstall. 0 = fresh install (the welcome), 1 =
@@ -80,7 +90,6 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
   const [destFree, setDestFree] = useState<number | null>(null);
   const [sims, setSims] = useState<string[]>([]);
   const [sim, setSim] = useState<string | undefined>(undefined);
-  const [connectNote, setConnectNote] = useState(false);
   /* The interview opener the voice test prefetches behind "I heard him",
      along with the live socket it belongs to. Owned here because it has to
      outlive both screens to travel between them. */
@@ -175,8 +184,11 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         provision(onProgress, { root: dest, accel: plan?.backend ?? 'cpu' }),
       ]);
       /* The chosen root is what boot revalidates against, so it persists the
-         moment the record exists, not when the user leaves the screen. */
-      saveSettings({ installRoot: dest });
+         moment the record exists, not when the user leaves the screen. The
+         joined-house fields are cleared in the same breath: installing here
+         means this machine IS the house now, and a leftover address or token
+         would send the client to somebody else's. */
+      saveSettings({ installRoot: dest, remoteHouse: false, deviceToken: '', serverAddress: '' });
       /* No Go-to-the-house button: the install proves itself instead. The
          house starts, and the exit from setup is Sulivan speaking and a
          person saying they heard him. */
@@ -257,19 +269,38 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
               Get started
             </button>
             <button
-              onClick={() => setConnectNote(true)}
+              onClick={() => setStep('connect')}
               className="rounded-full border border-linen bg-parchment px-5 py-2.5 text-[14px] font-semibold text-fawn"
             >
               I already have a Hearth
             </button>
           </div>
-          {connectNote && (
-            <p className="mx-auto mt-4 max-w-[52ch] text-[13.5px] leading-snug text-fawn">
-              Connecting to a Hearth that already runs on another machine is coming, but this
-              build cannot do it yet. It can only install a new one here.
-            </p>
-          )}
+          <p className="mx-auto mt-4 max-w-[52ch] text-[13.5px] leading-snug text-fawn">
+            If one already runs on another machine in your home, this one can join it instead of
+            installing a second.
+          </p>
         </>
+      )}
+
+      {step === 'connect' && (
+        <Connect
+          onPaired={(address, token) => {
+            /* Saved only now, and all three together: the address this client
+               will dial, the token that gets it through the door, and the flag
+               that says there is no install on this disk to revalidate. A
+               joined client supervises nothing, so installRoot is cleared --
+               it is what every "start the house" path keys off. */
+            saveSettings({
+              serverAddress: address,
+              deviceToken: token,
+              remoteHouse: true,
+              installRoot: '',
+              startPersona: '',
+            });
+            onExit(true);
+          }}
+          onBack={() => setStep('welcome')}
+        />
       )}
 
       {step === 'blocked' && (

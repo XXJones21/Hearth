@@ -87,6 +87,9 @@ export const modelDir = () => invoke<string>('probe_model_dir');
 /** The default install root: the one folder everything lives under. */
 export const installRoot = () => invoke<string>('probe_install_root');
 
+/** This machine's name, offered as the name it pairs under. */
+export const deviceName = () => invoke<string>('probe_device_name');
+
 export type InstallState = {
   ok: boolean;
   recordExists: boolean;

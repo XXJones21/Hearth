@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import { ttsPlayer } from '../../lib/audioPlayer';
-import { getHttpOrigin, getWsUrl } from '../../lib/config';
+import { getWsUrl, houseFetch } from '../../lib/config';
 import { useAppStore } from '../../store/appStore';
 import { freshOpener, INTERVIEW_KICKOFF, type PrefetchedOpener } from './opener';
 
@@ -166,7 +166,7 @@ export function VoiceTest({
           const waitForVoice = async () => {
             if (closedRef.current || wsRef.current !== ws) return;
             try {
-              const resp = await fetch(`${getHttpOrigin()}/voice/ready`);
+              const resp = await houseFetch(`/voice/ready`);
               const body = (await resp.json()) as { ready?: boolean };
               if (body.ready) {
                 speak();

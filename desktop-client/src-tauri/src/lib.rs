@@ -29,6 +29,7 @@ pub fn run() {
       probe::probe_fixtures,
       probe::probe_model_dir,
       probe::probe_install_root,
+      probe::probe_device_name,
       probe::probe_install_state,
       probe::probe_free_disk,
       probe::probe_download,

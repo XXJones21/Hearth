@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { Btn, IconFolder, Row, Section, Segmented, Toggle } from './controls';
+import { JoinedHouse } from './JoinedHouse';
 import { PairedDevices } from './PairedDevices';
 import { ttsPlayer } from '../../lib/audioPlayer';
 import { can } from '../../lib/clientProfile';
@@ -353,8 +354,13 @@ export function SettingsView({ onReconnect, onRestartHouse, onNewSession }: Prop
           {/* Which OTHER devices may reach this house. The gateway faces the
               LAN so a phone can be a client; this is where that permission is
               granted and taken back. This computer is exempt by being on the
-              machine, so it never appears in the list. */}
-          <PairedDevices />
+              machine, so it never appears in the list.
+
+              A client that JOINED a house on another machine gets the other
+              panel: the management routes are refused from off the machine
+              even with a good token, so the device list is not something it
+              can show. What it can show is its own half of the arrangement. */}
+          {s.remoteHouse ? <JoinedHouse onReconnect={onReconnect} /> : <PairedDevices />}
         </Section>
 
         {/* ---------------- Appearance ---------------- */}

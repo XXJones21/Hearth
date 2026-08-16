@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { ttsPlayer } from '../lib/audioPlayer';
-import { getHttpOrigin, getWsUrl } from '../lib/config';
+import { assetUrl, getHttpOrigin, getWsUrl } from '../lib/config';
 import { loadSettings } from '../lib/settings';
 import { useAppStore } from '../store/appStore';
 import type { PersonaConfig } from '../types/persona';
@@ -50,7 +50,10 @@ function runtimeStatusFor(event: string): string | null {
 
 async function fetchPersonaConfig(personaName: string) {
   try {
-    const res = await fetch(personaConfigUrl(personaName), { cache: 'no-store' });
+    /* assetUrl, not houseFetch: the server can hand back an absolute
+       config_url of its own, so the token has to ride in the query
+       string rather than on a path this client composed. */
+    const res = await fetch(assetUrl(personaConfigUrl(personaName)), { cache: 'no-store' });
     if (!res.ok) return;
     const cfg = parseConfig(await res.json());
     if (!cfg) return;

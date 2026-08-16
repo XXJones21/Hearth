@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getHttpOrigin } from '../../lib/config';
+import { houseFetch } from '../../lib/config';
 import type { CardProps, PermissionCardProps } from './types';
 
 /* The one card the operator must answer before the turn can finish. A folder
@@ -18,7 +18,7 @@ export function PermissionCard({ props }: CardProps) {
     setDeciding(approve ? 'approve' : 'deny');
     setError('');
     try {
-      const res = await fetch(`${getHttpOrigin()}/files/decide`, {
+      const res = await houseFetch(`/files/decide`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ request_id: p.request_id, approve }),

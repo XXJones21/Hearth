@@ -61,6 +61,15 @@ impl Machine {
     }
 }
 
+/// This machine's name, for the house's device list.
+///
+/// The list exists to answer one question -- "which of these is the one I
+/// want to revoke" -- so "Josh's MacBook Pro" earns its place there and "Mac"
+/// does not. Empty when the OS will not say, and the caller falls back.
+pub fn host_name() -> String {
+    sysinfo::System::host_name().unwrap_or_default()
+}
+
 pub fn scan() -> Result<Machine> {
     let mut sys = sysinfo::System::new();
     sys.refresh_memory();
