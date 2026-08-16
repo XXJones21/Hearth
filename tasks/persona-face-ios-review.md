@@ -1,5 +1,18 @@
 # Persona face iOS review findings
 
+> STATUS (2026-08-16, Windows session): findings 1 through 8 and 10 are
+> FIXED on `feat/ios-qol-tier0`, unverified on device. Notes: finding 4
+> (the dead Mouth slider) fell out of the Tier 2 tap-quiesce fix rather
+> than needing its own change; finding 2 removed the segment-0 exception
+> entirely -- all cues now park and fire from the playback tap, which
+> announces segment 0 at its first rendered frame; finding 5 got both
+> halves -- the bundled sulivan.json's sphere/particle blocks restored AND
+> PersonaPalette deriving bead/particle from state_colors when a config
+> omits them, which also heals the server-sent shape without touching the
+> backend file. Finding 9 (blink starvation) is fixed on iOS; its desktop
+> twin in Valinor's director.ts, and the desktop panel half of finding 10,
+> are STILL OPEN upstream.
+
 Code review of `84d54da..HEAD` on `feat/persona-face`, scoped to
 `apple-client/` (2026-08-16). Eight review angles produced 42 candidates; 12
 went through verification against the Hearth sources, the desktop

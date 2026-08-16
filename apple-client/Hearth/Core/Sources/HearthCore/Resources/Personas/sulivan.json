@@ -7,6 +7,30 @@
   "visualization": {
     "type": "procedural_face",
     "archetype": "warm_round",
+    "_orb_comment": "The sphere and particle_system colour objects survive the move to procedural_face on purpose: every orb-fallback path (first run, pre-connect frames, widgets, face geometry missing) reads them, and deleting them silently swapped Sulivan's authored colours for brand defaults.",
+    "sphere": {
+      "radius": 0.18,
+      "color": {
+        "r": 0.79,
+        "g": 0.5,
+        "b": 0.27,
+        "a": 0.35
+      },
+      "metallic": 0.08,
+      "roughness": 0.78
+    },
+    "particle_system": {
+      "enabled": true,
+      "count": 96,
+      "particle_radius": 0.012,
+      "max_distance": 0.72,
+      "color": {
+        "r": 0.85,
+        "g": 0.48,
+        "b": 0.16,
+        "a": 0.78
+      }
+    },
     "geometry": {
       "head_width": 1.0,
       "head_height": 1.05,

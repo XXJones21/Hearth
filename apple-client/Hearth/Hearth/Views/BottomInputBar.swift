@@ -42,6 +42,13 @@ struct BottomInputBar: View {
                 .overlay(alignment: .top) { HearthPalette.linen.frame(height: 1) }
         )
         .animation(.spring(duration: 0.25), value: typing)
+        // composerUp is a process-global that only the keyboard button sets
+        // and only the mic button clears; any teardown of this bar (the root
+        // view rebuilding on a server-address change) stranded it true and
+        // the face leaned into "listening" at nothing for the rest of the
+        // process. composerFrame got this reset from day one; this is its
+        // sibling.
+        .onDisappear { FaceFeed.shared.composerUp = false }
     }
 
     // MARK: - Talk button (resting state)

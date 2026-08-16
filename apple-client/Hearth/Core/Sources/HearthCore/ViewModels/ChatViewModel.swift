@@ -301,13 +301,20 @@ public class ChatViewModel: ObservableObject {
         }
         ttsStreamPlayer?.onSegmentPlaying = { [weak self] segIdx in
             // Already on the main queue.
-            guard let self, segIdx > self.captionSegment else { return }
-            // The face reacts on the sentence being HEARD. Segment 0 already
-            // fired on arrival -- its audio began essentially then -- so this
-            // covers every later one.
-            if let expression = self.expressionsBySegment[segIdx] {
+            guard let self else { return }
+            // The face reacts on the sentence being HEARD -- segment 0
+            // included. The server emits tts_chunk_start BEFORE synthesizing
+            // the sentence and OmniVoice yields nothing until the whole
+            // sentence is done, so arrival time ran seconds early: a reply
+            // opening with [laughter] laughed at a silent face, then spoke
+            // with a flat one. removeValue also makes each cue one-shot.
+            // This runs BEFORE the caption guard on purpose: captionSegment
+            // is seeded to 0 at arrival (the caption's own approximation),
+            // which would otherwise swallow segment 0's cue here.
+            if let expression = self.expressionsBySegment.removeValue(forKey: segIdx) {
                 self.fireFaceCue(expression)
             }
+            guard segIdx > self.captionSegment else { return }
             guard let sentence = self.sentencesBySegment[segIdx] else { return }
             self.captionSegment = segIdx
             self.spokenSentence = self.spokenSentence.isEmpty
@@ -563,18 +570,14 @@ public class ChatViewModel: ObservableObject {
         }
 
         // The face's transient for this sentence, parked against its segment
-        // and played when that segment is heard. Segment 0 is the exception,
-        // exactly as it is for the caption: its audio begins essentially now,
-        // and waiting for the first playback tap would drop the reaction that
-        // opens the reply.
+        // and played when that segment is actually heard. Segment 0 is no
+        // longer the exception: its tts_chunk_start arrives before synthesis
+        // even starts, so firing on arrival played the opening reaction over
+        // seconds of silence. The playback tap announces segment 0 the moment
+        // its first audio renders, which is the honest "now".
         webSocketClient?.onFaceCue = { [weak self] name, segIdx in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                if segIdx == 0 {
-                    self.fireFaceCue(name)
-                } else {
-                    self.expressionsBySegment[segIdx] = name
-                }
+                self?.expressionsBySegment[segIdx] = name
             }
         }
 
@@ -634,6 +637,10 @@ public class ChatViewModel: ObservableObject {
                     self.addSystemMessage("Connection closed")
                 }
                 self.isWaitingForResponse = false
+                // The tap dies with the socket; whatever level it last wrote
+                // would otherwise hold the face's mouth open at idle.
+                FaceFeed.shared.speechLevel = 0
+                self.ttsAmplitude = 0
                 self.stopListening()
                 self.scheduleReconnect()
             }
@@ -1240,6 +1247,8 @@ public class ChatViewModel: ObservableObject {
         captionSegment = -1
         activeTools = []
         isWaitingForResponse = false
+        FaceFeed.shared.speechLevel = 0
+        ttsAmplitude = 0
         messages.removeAll()
         cardStore.clearAll()
         if hearthState == .THINKING {
@@ -1433,11 +1442,16 @@ public class ChatViewModel: ObservableObject {
         streamingMessageId = replacement.id
     }
 
-    /// Return to IDLE, clearing all turn state.
+    /// Return to IDLE, clearing all turn state. The speech level is zeroed
+    /// explicitly: the amplitude tap is the only writer, and if it died with
+    /// a non-zero value latched (socket drop mid-reply, watchdog close) the
+    /// face kept a round open mouth at idle until the next reply's audio.
     private func closeTurn() {
         cancelThinkingWatchdog()
         cancelSpeakingWatchdog()
         stopThinkingAnimation()
+        FaceFeed.shared.speechLevel = 0
+        ttsAmplitude = 0
         thinkingStage = nil
         isWaitingForResponse = false
         streamingBotText = nil

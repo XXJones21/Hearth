@@ -198,17 +198,25 @@ class TTSStreamPlayer {
               let playerTime = playerNode.playerTime(forNodeTime: nodeTime) else { return }
         let played = playerTime.sampleTime
 
+        // EVERY newly reached segment, in order -- not just the last. The
+        // last-wins collapse silently dropped any segment passed over within
+        // one amplitude buffer (two marks sharing a startFrame after a
+        // server-side TTS error is the guaranteed case), and with it that
+        // sentence's caption and parked face cue.
         markLock.lock()
-        var reached = -1
-        for mark in segmentMarks where mark.startFrame <= played {
-            reached = mark.idx
+        var newlyReached: [Int] = []
+        for mark in segmentMarks
+        where mark.startFrame <= played && mark.idx > lastEmittedSegment {
+            newlyReached.append(mark.idx)
         }
-        let isNewSegment = reached >= 0 && reached != lastEmittedSegment
-        if isNewSegment { lastEmittedSegment = reached }
+        newlyReached.sort()
+        if let latest = newlyReached.last { lastEmittedSegment = latest }
         markLock.unlock()
 
-        guard isNewSegment else { return }
-        DispatchQueue.main.async { [weak self] in self?.onSegmentPlaying?(reached) }
+        guard !newlyReached.isEmpty else { return }
+        DispatchQueue.main.async { [weak self] in
+            for idx in newlyReached { self?.onSegmentPlaying?(idx) }
+        }
     }
 
     /// After all PCM chunks have been queued, schedule a silent sentinel buffer.

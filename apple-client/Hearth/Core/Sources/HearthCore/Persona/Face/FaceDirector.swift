@@ -189,10 +189,21 @@ private let TRANSIENTS: [String: TransientProfile] = [
     "sigh": TransientProfile(attack: 400, hold: 900, decay: 1100),
     /* The startle: eyes lerp wide, hold a beat, lerp back. */
     "surprise": TransientProfile(attack: 150, hold: 700, decay: 450),
+    /* A deliberate blink at REAL blink speed. Without this entry the
+       Animations panel's blink chip fell through to the default envelope and
+       played a ~1.35s eyes-closed performance -- five times slower than the
+       blinkWeight blink the stage actually does, on the screen whose purpose
+       is showing what the stage will show. Not a name the harness sends;
+       ambient blinks come from the state tier's schedule. */
+    "blink": TransientProfile(attack: 110, hold: 40, decay: 140),
 ]
 
-/// Smoothstepped 0..1 envelope for a transient's age.
+/// Smoothstepped 0..1 envelope for a transient's age. Negative age is a cue
+/// stamped between frames (or a backwards clock) -- weight zero, because the
+/// smoothstep is positive for negative inputs and would pre-fire the
+/// reaction at partial (or, after a clock jump, absurd) weight.
 private func transientWeight(_ age: Double, _ p: TransientProfile) -> Double {
+    guard age >= 0 else { return 0 }
     var w: Double
     if age <= p.attack {
         w = p.attack > 0 ? age / p.attack : 1
@@ -233,6 +244,10 @@ public final class FaceDirector {
     private var beatStartedAt: Double
     private var blinkStartedAt: Double = -1
     private var nextBlinkAt: Double
+    /// The tier duration CAPTURED when the blink started, so a state change
+    /// mid-blink cannot re-measure a half-closed lid against a shorter tier
+    /// and snap it open in one frame.
+    private var blinkDuration: Double = CALM.duration
     private var saccade = (x: 0.0, y: 0.0)
     private var nextSaccadeAt: Double
     private var last: Double
@@ -256,16 +271,28 @@ public final class FaceDirector {
         reduceMotion: Bool,
         lookTarget: LookTarget? = nil
     ) -> FacePose {
-        let dt = min(100, now - last)
+        // Clamped BOTH ways. The desktop original ticks on monotonic
+        // performance.now(), where a min-only clamp is harmless; this port
+        // ticks on wall-clock timeline.date, where a backwards adjustment
+        // (NTP, a manual change) makes dt negative -- alpha then drives every
+        // channel AWAY from target, and a large jump overflows exp() into a
+        // NaN pose nothing ever clears.
+        let dt = min(100, max(0, now - last))
         last = now
 
         guard let anim = ANIMATIONS[state] else { return pose }
         if state != self.state {
-            // Entering a state restarts its playlist and its blink schedule.
+            // Entering a state restarts its playlist. The blink COUNTDOWN
+            // carries across, only re-tiered: a full re-arm meant any
+            // conversation cycling states faster than the tier's `first`
+            // (2100-3200ms -- i.e. every normal exchange) never blinked at
+            // all. An in-flight blink keeps its captured duration and simply
+            // finishes. (Desktop's director.ts has the same starvation;
+            // upstream fix noted in tasks/persona-face-ios-review.md.)
             self.state = state
             beatIndex = 0
             beatStartedAt = now
-            nextBlinkAt = now + anim.blink.first
+            nextBlinkAt = min(nextBlinkAt, now + anim.blink.first)
         }
 
         // Advance the playlist.
@@ -333,9 +360,12 @@ public final class FaceDirector {
         // Blink, on the state's energy tier. Suppressed under reduce motion;
         // lids still move with expressions that close them.
         if !reduceMotion {
-            if blinkStartedAt < 0 && now >= nextBlinkAt { blinkStartedAt = now }
+            if blinkStartedAt < 0 && now >= nextBlinkAt {
+                blinkStartedAt = now
+                blinkDuration = anim.blink.duration
+            }
             if blinkStartedAt >= 0 {
-                if let w = blinkWeight(now - blinkStartedAt, anim.blink.duration) {
+                if let w = blinkWeight(now - blinkStartedAt, blinkDuration) {
                     frame = applyExpression(frame, FACE_EXPRESSIONS[.blink]!, weight: w)
                 } else {
                     blinkStartedAt = -1
