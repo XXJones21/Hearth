@@ -49,6 +49,7 @@ The ideas the product is built around, and the first hour with it.
 - [First run](first-run.md), the voice test, the persona interview, the
   handover, and the second brain
 - [Personas](features/personas.md)
+- [The persona face](features/persona-face.md)
 - [The second brain](features/second-brain.md)
 - [Voice](features/voice.md)
 - [Apps and extensions](features/apps-and-extensions.md)
