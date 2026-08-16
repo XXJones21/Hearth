@@ -106,21 +106,21 @@ caller each.
 
 | | Windows / macOS desktop | iOS | visionOS |
 | --- | --- | --- | --- |
-| Status | shipped (this branch) | planned -- [`wiki/raw/persona-face-ios-plan.md`](../raw/persona-face-ios-plan.md) | future RealityKit pass |
+| Status | shipped (this branch) | implemented on this branch per [`wiki/raw/persona-face-ios-plan.md`](../raw/persona-face-ios-plan.md); on-device verification is the plan's task 7 | future RealityKit pass |
 | Renderer | SVG paths written imperatively in a rAF loop | SwiftUI `Canvas` in a `TimelineView`, the orb's own template | sphere + capsule entities, quaternion slerp (see the spec's port map) |
 | Amplitude source | `ttsPlayer.level()` (smoothed RMS of played PCM) | the existing `TTSStreamPlayer` amplitude tap, via the non-published `FaceFeed` | -- |
 | LookTarget | measured from the composer input's DOM position relative to the face | fixed "down, at the keyboard" while the composer is up | -- |
 | "Listening" trigger | input focus maps to the listening state | **variation:** LISTENING means the microphone is live on iOS, so the composer-being-up drives the listening POSE at the face level without touching `hearthState` | -- |
 | Cue timing | on `tts_chunk_start` arrival | same for v1; syncing to the karaoke clock (`onSegmentPlaying`) is a noted v1.1 option | -- |
 | Reduce motion | client setting; snaps easing, stops blink/saccades/sway | `accessibilityReduceMotion` environment (wired by the face work; also fixes the orb) | -- |
-| Review tooling | Personas > Animations panel plays every state and reaction | none for v1 (verify with live turns) | -- |
+| Review tooling | Personas > Animations panel plays every state and reaction | a per-state preview, reduce-motion aware | -- |
 | Unknown-type fallback | n/a (origin) | tolerant decode falls back to the orb, with a log | -- |
 
 ## Where the pieces live
 
 - Behaviour + rendering (desktop): `desktop-client/src/lib/face/` and
   `desktop-client/src/components/stage/PersonaFace.tsx`
-- Behaviour + rendering (iOS, once built): `Core/Sources/HearthCore/Persona/Face/`
+- Behaviour + rendering (iOS): `apple-client/Hearth/Core/Sources/HearthCore/Persona/Face/`
 - The harness cue: `backend/harness/valar/gateway/voice_loop.py`
   (`_resolve_expression`, the `expression` field on `tts_chunk_start`)
 - Persona data: `backend/personas/_visual/archetypes.json`, each persona's
