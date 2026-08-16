@@ -189,3 +189,67 @@ def open_path(args: dict) -> ToolResult:
         content=f"Opened {_display_path(target)} on their screen.",
         data={"path": _display_path(target)},
     )
+
+
+_MEDIA_KEYS = {
+    "play_pause": 0xB3,
+    "next": 0xB0,
+    "previous": 0xB1,
+    "stop": 0xB2,
+    "mute": 0xAD,
+    "volume_up": 0xAF,
+    "volume_down": 0xAE,
+}
+
+_PS_MEDIA = (
+    "Add-Type -Namespace W -Name K -MemberDefinition '"
+    "[DllImport(\"user32.dll\")] public static extern void keybd_event("
+    "byte b, byte s, uint f, System.IntPtr e);'; "
+    "[W.K]::keybd_event({code},0,0,[System.IntPtr]::Zero); "
+    "[W.K]::keybd_event({code},0,2,[System.IntPtr]::Zero)"
+)
+
+
+def play_media(args: dict) -> ToolResult:
+    """args: {action: play_pause|next|previous|stop|mute|volume_up|volume_down}.
+
+    Whatever is playing, whichever program is playing it. This presses the
+    media key the keyboard would press, so it reaches Spotify, a browser tab,
+    or a local player without the house needing an account with any of them.
+
+    The house cannot see what is playing, only ask for the next thing, which
+    is why nothing here reports a track name.
+    """
+    action = str((args or {}).get("action") or "play_pause").strip().lower()
+    code = _MEDIA_KEYS.get(action)
+    if code is None:
+        return ToolResult.error(
+            "That is not a media control. Use play_pause, next, previous, stop, "
+            "mute, volume_up or volume_down."
+        )
+    if not _windows():
+        return ToolResult.error(
+            "Media keys are only wired for Windows in this house. Say so plainly."
+        )
+    ok, err = _run(
+        ["powershell", "-NoProfile", "-Command", _PS_MEDIA.format(code=code)]
+    )
+    if not ok:
+        return ToolResult.error(f"I could not reach the media keys: {err}")
+    logger.info("play_media %s", action)
+    said = {
+        "play_pause": "Toggled play or pause",
+        "next": "Skipped to the next track",
+        "previous": "Went back a track",
+        "stop": "Stopped playback",
+        "mute": "Toggled mute",
+        "volume_up": "Turned it up",
+        "volume_down": "Turned it down",
+    }[action]
+    return ToolResult(
+        content=(
+            f"{said}. The house cannot see what is playing, so confirm the "
+            "action without naming a track."
+        ),
+        data={"action": action},
+    )

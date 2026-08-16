@@ -260,6 +260,67 @@ tools:
           description: Absolute path of the file or folder to open.
       required: [path]
 
+  - name: house_status
+    description: >-
+      How the house itself is running: which model is loaded, graphics memory,
+      how long it has been up, where memory lives, how many conversations are
+      kept. Use when they ask why you are slow, what you are running on, or
+      whether something is wrong. Answer in plain language, not numbers.
+    handler: valar.tools.handlers.house:house_status
+    domain: house
+    risk: read
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: list_models
+    description: >-
+      The models installed on this machine, and which one is loaded. Call this
+      before switch_model so you name a real file rather than guessing.
+    handler: valar.tools.handlers.house:list_models
+    domain: house
+    risk: read
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: switch_model
+    description: >-
+      Load a different model for the next turn. Use only when they ask for it
+      by name or ask for a bigger or smaller mind. Loading takes time and the
+      first reply afterwards is slow; say so. Call list_models first.
+    handler: valar.tools.handlers.house:switch_model
+    domain: house
+    risk: control
+    speak: Let me bring that model in.
+    parameters:
+      type: object
+      properties:
+        model:
+          type: string
+          description: Model filename, or enough of it to match exactly one.
+      required: [model]
+
+  - name: play_media
+    description: >-
+      Control whatever is playing on the machine: play or pause, skip, go
+      back, stop, mute, volume. Works with Spotify, a browser tab, or any
+      player, because it presses the same media key a keyboard would. The
+      house cannot see what is playing, so never name a track.
+    handler: valar.tools.handlers.desktop:play_media
+    domain: desktop
+    risk: control
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [play_pause, next, previous, stop, mute, volume_up, volume_down]
+          description: Default play_pause.
+      required: []
+
   - name: web_search
     description: >-
       Look up a quick fact or answer on the web (definitions, who/what is X, quick
