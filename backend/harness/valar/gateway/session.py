@@ -60,8 +60,17 @@ class Session:
     # memory.recall so every turn loads that claude.md. Cleared on session end.
     topic_hint: str | None = None
 
-    def record_turn(self, user: str, assistant: str) -> None:
+    def record_turn(self, user: str, assistant: str, persona: str = "") -> None:
         self.history.append(Turn(user=user, assistant=assistant))
+        # Durable as it happens, not at session end. This is the one seam every
+        # completed exchange passes through, which is why the record hangs
+        # here rather than in the three places sessions can end.
+        try:
+            from ..memory.session_record import append_turn
+
+            append_turn(self, user, assistant, persona)
+        except Exception:  # noqa: BLE001 - recording never breaks a turn
+            pass
         self.touch()
 
     def touch(self) -> None:

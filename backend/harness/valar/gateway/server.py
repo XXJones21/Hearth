@@ -568,6 +568,11 @@ def create_app(config: ValarConfig) -> FastAPI:
                         voice_loop.config,
                         _gone,
                         reason="disconnect",
+                        # A disconnect is the one moment with no time to
+                        # spare: the client that just dropped the socket is
+                        # usually stopping this process next. Summarising here
+                        # cost three turns on 2026-08-15, killed 21ms in.
+                        fast=True,
                     )
                 except Exception as exc:  # noqa: BLE001 - never break teardown
                     logger.warning("disconnect persist failed: %s", exc)

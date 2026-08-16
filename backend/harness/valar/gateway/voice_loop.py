@@ -280,6 +280,7 @@ class VoiceLoop:
                 session.record_turn(
                     user_text,
                     str(ctx["partial_text"]) + " [answer cut off mid-delivery]",
+                    persona.name,
                 )
             telemetry.emit()  # a failed turn still logs its record
             with contextlib.suppress(Exception):  # socket may already be gone
@@ -723,7 +724,7 @@ class VoiceLoop:
         # --- SPEAKING COMPLETE ------------------------------------------------
         await emit("speaking_complete", {"action": "speaking_complete"})
         session.state = State.IDLE
-        session.record_turn(user_text, reply_text)
+        session.record_turn(user_text, reply_text, persona.name)
 
         # --- TELEMETRY --------------------------------------------------------
         telemetry.sentences_spoken = sentences_spoken
