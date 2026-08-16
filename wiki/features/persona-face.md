@@ -106,14 +106,14 @@ caller each.
 
 | | Windows / macOS desktop | iOS | visionOS |
 | --- | --- | --- | --- |
-| Status | shipped (this branch) | implemented on this branch per [`wiki/raw/persona-face-ios-plan.md`](../raw/persona-face-ios-plan.md); on-device verification is the plan's task 7 | future RealityKit pass |
+| Status | shipped (this branch) | implemented on this branch per [`wiki/raw/persona-face-ios-plan.md`](../raw/persona-face-ios-plan.md), plus the four adjustments below; on-device verification is the plan's task 7 | future RealityKit pass |
 | Renderer | SVG paths written imperatively in a rAF loop | SwiftUI `Canvas` in a `TimelineView`, the orb's own template | sphere + capsule entities, quaternion slerp (see the spec's port map) |
 | Amplitude source | `ttsPlayer.level()` (smoothed RMS of played PCM) | the existing `TTSStreamPlayer` amplitude tap, via the non-published `FaceFeed` | -- |
-| LookTarget | measured from the composer input's DOM position relative to the face | fixed "down, at the keyboard" while the composer is up | -- |
-| "Listening" trigger | input focus maps to the listening state | **variation:** LISTENING means the microphone is live on iOS, so the composer-being-up drives the listening POSE at the face level without touching `hearthState` | -- |
-| Cue timing | on `tts_chunk_start` arrival | same for v1; syncing to the karaoke clock (`onSegmentPlaying`) is a noted v1.1 option | -- |
+| LookTarget | measured from the composer input's DOM position relative to the face | measured the same way: the composer publishes its frame, the face reads its own | -- |
+| "Listening" trigger | input focus maps to the listening state | LISTENING means the microphone is live on iOS, so the composer-being-up drives the listening POSE at the face level without touching `hearthState` -- but only over IDLE: a live turn wins, or typing a follow-up would cost the whole reply's thinking and speaking beats | -- |
+| Cue timing | on `tts_chunk_start` arrival | **on the karaoke clock**: cues are parked by segment and fired from `onSegmentPlaying`, segment 0 excepted. The server pushes a whole reply in a second or two, so arrival-time cues played the sixth sentence's laugh over the first sentence's audio -- the same flaw the caption already worked around. The desktop still fires on arrival |
 | Reduce motion | client setting; snaps easing, stops blink/saccades/sway | `accessibilityReduceMotion` environment (wired by the face work; also fixes the orb) | -- |
-| Review tooling | Personas > Animations panel plays every state and reaction | a per-state preview, reduce-motion aware | -- |
+| Review tooling | Personas > Animations panel plays every state and reaction | Persona > Animations on the phone: every state, every reaction, and a slider standing in for the voice; plus a per-state Xcode preview | -- |
 | Unknown-type fallback | n/a (origin) | tolerant decode falls back to the orb, with a log | -- |
 
 ## Where the pieces live

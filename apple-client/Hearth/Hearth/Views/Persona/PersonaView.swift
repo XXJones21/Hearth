@@ -310,7 +310,37 @@ struct PersonaView: View {
             PersonaSection(title: "Presence") {
                 LockedRow(label: "Form", value: persona.formLabel)
             }
+            animationsRow(persona)
             colorsSection(persona)
+        }
+    }
+
+    /// The way into the face's own room, and only for the persona actually on
+    /// the stage: the panel plays live geometry, and the household strip can
+    /// be showing someone whose config this client has never been handed.
+    @ViewBuilder
+    private func animationsRow(_ persona: PersonaSurface.Persona) -> some View {
+        if persona.name.lowercased() == viewModel.currentPersonaName.lowercased(),
+           viewModel.personaVisualization.canRenderFace,
+           let geometry = viewModel.personaVisualization.faceGeometry {
+            NavigationLink {
+                FaceAnimationsView(geometry: geometry, palette: viewModel.personaPalette)
+            } label: {
+                HStack {
+                    Text("Animations")
+                        .font(.system(size: 15))
+                        .foregroundStyle(HearthPalette.roast)
+                    Spacer()
+                    Text("every state and reaction")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(HearthPalette.fawn)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(HearthPalette.fawn)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 13)
+            }
         }
     }
 
