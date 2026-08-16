@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.parse
 import urllib.request
 
@@ -27,6 +28,7 @@ logger = logging.getLogger("valar.tools.web_search")
 
 _DDG_URL = "https://api.duckduckgo.com/"
 _TIMEOUT_S = 10
+_USER_AGENT = "Mozilla/5.0 (compatible; Hearth/1.0; +local)"
 _MAX_TOPICS = 3
 _CARD_BODY_CHARS = 280
 
@@ -117,3 +119,131 @@ def news_headlines(args: dict) -> ToolResult:
             "props": {"title": title, "body": _clip(result.content)},
         }
     return result
+
+
+# --- reading a page, not just finding one ---------------------------------
+
+_FETCH_MAX_CHARS = 12_000
+_FETCH_HARD_MAX = 20_000
+_FETCH_BYTES_CAP = 4_000_000
+
+
+def _is_private_host(host: str) -> bool:
+    """True for anything on this machine or this network.
+
+    The house itself listens on loopback, as do its brain, its voice, and the
+    operator's other software. A model that can be told "read this URL" can be
+    told to read those, and a page it summarises out loud is a page it can be
+    made to exfiltrate. Fetching is for the public web.
+    """
+    import ipaddress
+    import socket
+
+    host = (host or "").strip().lower().strip("[]")
+    if not host or host in ("localhost", "localhost.localdomain"):
+        return True
+    if host.endswith(".local") or host.endswith(".internal"):
+        return True
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return True  # cannot resolve: refuse rather than try
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            continue
+        if ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_reserved:
+            return True
+    return False
+
+
+def fetch_url(args: dict) -> ToolResult:
+    """args: {url: str, max_chars?: int}. Read a public web page as text.
+
+    web_search returns titles and snippets and nothing could open the result,
+    so an answer that needed the page itself could only be assembled from
+    fragments. This opens it.
+    """
+    url = str((args or {}).get("url") or "").strip().strip('"').strip("'")
+    if not url:
+        return ToolResult.error("fetch_url needs a URL.")
+    if url.startswith("//"):
+        url = "https:" + url
+    if not re.match(r"^https?://", url, re.IGNORECASE):
+        if "." in url.split("/")[0]:
+            url = "https://" + url
+        else:
+            return ToolResult.error(
+                f"{url!r} is not a web address. Only http and https can be read."
+            )
+
+    parsed = urllib.parse.urlparse(url)
+    if _is_private_host(parsed.hostname or ""):
+        return ToolResult.error(
+            "That address is on this machine or this network, and fetching is "
+            "for the public web only. Tell them plainly rather than trying "
+            "another way in."
+        )
+
+    try:
+        max_chars = int((args or {}).get("max_chars") or _FETCH_MAX_CHARS)
+    except (TypeError, ValueError):
+        max_chars = _FETCH_MAX_CHARS
+    max_chars = max(500, min(max_chars, _FETCH_HARD_MAX))
+
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": _USER_AGENT, "Accept": "text/html,text/plain,*/*"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:  # noqa: S310
+            ctype = str(resp.headers.get("Content-Type") or "").lower()
+            raw = resp.read(_FETCH_BYTES_CAP)
+            final_url = resp.geturl()
+    except Exception as exc:  # noqa: BLE001 - the network is allowed to fail
+        logger.warning("fetch_url failed %s: %s", url, exc)
+        return ToolResult.error(f"Could not open that page: {exc}")
+
+    if "application/pdf" in ctype:
+        return ToolResult.error(
+            "That link is a PDF. Ask them to save it and name the path, then "
+            "read_file can open it."
+        )
+    if ctype and not any(t in ctype for t in ("text/", "json", "xml")):
+        return ToolResult.error(f"That link is {ctype.split(';')[0]}, which is not readable text.")
+
+    charset = "utf-8"
+    if "charset=" in ctype:
+        charset = ctype.split("charset=", 1)[1].split(";")[0].strip() or "utf-8"
+    try:
+        text = raw.decode(charset, errors="replace")
+    except LookupError:
+        text = raw.decode("utf-8", errors="replace")
+
+    if "html" in ctype or text.lstrip()[:200].lower().startswith(("<!doctype", "<html")):
+        try:
+            from .files import _extract_html
+
+            text = _extract_html(text)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("fetch_url extract failed: %s", exc)
+
+    text = text.strip()
+    if not text:
+        return ToolResult.error(
+            "That page had no readable text. It may be built entirely by script."
+        )
+    body = text[:max_chars]
+    truncated = len(text) > len(body)
+    logger.info("fetch_url ok %s (%d chars%s)", final_url, len(body), ", truncated" if truncated else "")
+    return ToolResult(
+        content=(
+            f"Page: {final_url}\nChars: {len(body)}"
+            + (" (truncated)" if truncated else "")
+            + "\n---\n"
+            + body
+        ),
+        data={"url": final_url, "chars": len(body), "truncated": truncated},
+    )

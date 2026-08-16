@@ -1,7 +1,7 @@
 ---
 title: Developing on Hearth
 status: draft
-last_reviewed: 2026-08-08
+last_reviewed: 2026-08-15
 related:
   - _index.md
   - first-run.md
@@ -59,12 +59,14 @@ harness or building its environment with `backend/scripts/build_env.sh`. The
 repository does not pin exact versions of any of these; whatever is current
 and available on your platform is what the scripts assume.
 
-## Two build loops
+## Three build loops
 
-Which loop you need depends on what you changed. Client-only changes use the
-first. Anything under `backend/` or the supervisor needs the second, every
-time, because the desktop app ships the backend as a bundled tarball rather
-than reading it from disk.
+Which loop you need depends on what you changed and what you are testing
+against. Client-only changes use the first. Anything under `backend/` or the
+supervisor needs the ship loop before it can reach an installer, every time,
+because the desktop app ships the backend as a bundled tarball rather than
+reading it from disk. The third loop is for trying backend work against a
+house that is already installed, without rebuilding anything.
 
 ### The client dev loop
 
@@ -96,6 +98,54 @@ Connection, takes a different address if you have a backend up elsewhere.
 `18700` is Hearth's own port, chosen so a development build never
 accidentally finds an unrelated server on the machine's usual ports. See
 `desktop-client/src/lib/config.ts` for the full block.
+
+### The installed-house loop
+
+For trying backend changes against a house that is already installed and has
+real data in it. Nothing is rebuilt: the installed tree at
+`<install root>/runtime/backend/harness/valar` is the Python the house
+imports, so copying source over it and restarting is the whole loop.
+
+1. Copy the package, adding and overwriting but never deleting.
+
+   ```
+   cp -r backend/harness/valar/. "<install root>/runtime/backend/harness/valar/"
+   ```
+
+2. Drop stale bytecode.
+
+   ```
+   find "<install root>/runtime/backend/harness/valar" -name __pycache__ -type d -prune -exec rm -rf {} +
+   ```
+
+3. Import-smoke it with the house's own Python, which is the interpreter that
+   will actually load it and the only one with the dependencies.
+
+   ```
+   cd "<install root>/runtime/backend/harness"
+   "<install root>/runtime/python/python.exe" -c "import valar.gateway.server"
+   ```
+
+4. Restart the house from **Settings > The house > Restart**. Python is read
+   at import, so nothing you copied is live until the process restarts.
+
+**Never copy over these.** They are the installed house's own state, and a
+recursive copy that includes them silently replaces someone's setup with the
+repository's defaults:
+
+| Path | Why |
+| --- | --- |
+| `tools/file_grants.yaml` | Folder grants the operator approved on this machine. Not in the repository at all, so it survives a copy that does not delete. |
+| `tools/file_roots.yaml` | The curated roots for this install. The repository ships defaults, which is not the same list. |
+| `backend/personas/` | Personas created or edited on this machine, and any persona set swapped in for testing. |
+| `config/hearth.env` | Ports, model paths, and `HEARTH_ENGRAM`, all resolved for this install at provisioning time. |
+
+Import-smoke before the restart rather than after. A missing symbol makes
+`app.py` crash-loop and the port never binds, and from the client that looks
+identical to a slow model load until the boot gate gives up.
+
+This loop is a testing shortcut and not a delivery mechanism. Anything proved
+this way still has to go through the ship loop to reach an installer.
 
 ### The ship loop
 

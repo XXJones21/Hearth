@@ -23,8 +23,18 @@ export type ConnectionRow = {
 
 export type ResolvedRow = { label: string; value: string; drift: string };
 
+/** Where memory lives. Its own row rather than one of the folders, because it
+    has to be answerable when the answer is "nowhere yet". */
+export type EngramRow = {
+  path: string;
+  connected: boolean;
+  exists: boolean;
+  entries: number;
+};
+
 export type SettingsSurface = {
   folders: FolderRow[];
+  engram?: EngramRow;
   connections: ConnectionRow[];
   resolved: ResolvedRow[];
   server: { version: string; port: number; brain_backend: string };
@@ -46,6 +56,50 @@ export async function fetchSurface(): Promise<SettingsSurface | null> {
     // Older server without the endpoint, or unreachable: the panel degrades
     // to its client-local rows rather than showing an error.
     return null;
+  }
+}
+
+/** Point the house at a memory tree. An existing brain is adopted as it is; an
+    empty folder is provisioned into one. Anything else is refused by the house,
+    which is the same rule the conversational bridge follows. */
+export async function setEngram(
+  path: string,
+): Promise<{ ok: boolean; error?: string; engram?: EngramRow; created?: boolean }> {
+  return engramRequest({ path });
+}
+
+/** Unplug the memory tree. Nothing on disk is deleted. */
+export async function clearEngram(): Promise<{
+  ok: boolean;
+  error?: string;
+  engram?: EngramRow;
+}> {
+  return engramRequest({ clear: true });
+}
+
+async function engramRequest(
+  body: Record<string, unknown>,
+): Promise<{ ok: boolean; error?: string; engram?: EngramRow; created?: boolean }> {
+  try {
+    const res = await fetch(`${getHttpOrigin()}/settings/engram`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      error?: string;
+      created?: boolean;
+      engram?: EngramRow;
+    };
+    return {
+      ok: Boolean(data.ok),
+      error: data.error,
+      created: data.created,
+      engram: data.engram,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'unreachable' };
   }
 }
 

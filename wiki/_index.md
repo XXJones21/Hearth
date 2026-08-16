@@ -67,6 +67,7 @@ The engineering record behind the product pages.
 | How does it get installed, and in what form? | [`backend/packaging-options.md`](backend/packaging-options.md) |
 | How do we build the thing people download? | [`backend/build-pipeline.md`](backend/build-pipeline.md) |
 | How does a persona get a voice? | [`backend/voice-engine.md`](backend/voice-engine.md) |
+| What can a persona actually do, and what is missing? | [`backend/tool-catalog.md`](backend/tool-catalog.md) |
 | How does someone install it on a Mac, in full? | [`install-macos.md`](install-macos.md) |
 | How does an install become a newer one? | [`updates.md`](updates.md) |
 | What happens the first time someone opens it? | [`first-run.md`](first-run.md) |

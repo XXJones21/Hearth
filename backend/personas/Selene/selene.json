@@ -69,7 +69,9 @@
     "domains": [
       "weather",
       "news",
-      "memory"
+      "memory",
+      "files",
+      "brain"
     ],
     "allow": [],
     "deny": [

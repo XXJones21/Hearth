@@ -56,9 +56,21 @@ class Session:
     # in-band `reset_vad` can now CANCEL the turn instead of queueing behind it,
     # and a disconnect cancels it instead of letting it emit into a dead socket.
     turn_task: object | None = None
+    # Engram topic for this chat (project or life-root name). Passed into
+    # memory.recall so every turn loads that claude.md. Cleared on session end.
+    topic_hint: str | None = None
 
-    def record_turn(self, user: str, assistant: str) -> None:
+    def record_turn(self, user: str, assistant: str, persona: str = "") -> None:
         self.history.append(Turn(user=user, assistant=assistant))
+        # Durable as it happens, not at session end. This is the one seam every
+        # completed exchange passes through, which is why the record hangs
+        # here rather than in the three places sessions can end.
+        try:
+            from ..memory.session_record import append_turn
+
+            append_turn(self, user, assistant, persona)
+        except Exception:  # noqa: BLE001 - recording never breaks a turn
+            pass
         self.touch()
 
     def touch(self) -> None:

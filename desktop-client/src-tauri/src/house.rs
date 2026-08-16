@@ -18,7 +18,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -65,8 +65,51 @@ pub struct House {
     stopping: Arc<AtomicBool>,
     children: Arc<Mutex<Vec<Managed>>>,
     status: Arc<Mutex<HouseStatus>>,
+    /// The gateway's port, kept so stop() can ask it to file the live
+    /// conversation before the tree is killed.
+    gateway_port: Option<u16>,
     #[cfg(windows)]
     _job: Arc<win32job::Job>,
+}
+
+/// Ask the house to write down whatever conversation is open, and wait for it.
+///
+/// Quit stops the backend within milliseconds of the socket closing, so the
+/// server's own teardown never finished: it began summarising and was killed
+/// mid-call. This is the handshake that fixes it. The endpoint makes no model
+/// call, so the normal answer arrives in well under a second; the timeout is
+/// only here so a wedged house cannot hold the app open.
+///
+/// Hand-rolled rather than pulling in an HTTP client: it is one loopback POST
+/// with no body, and a dependency for that would be a poor trade.
+fn flush_sessions(port: u16) {
+    use std::io::{Read, Write};
+    use std::net::TcpStream;
+
+    let addr = format!("127.0.0.1:{port}");
+    let deadline = Duration::from_secs(5);
+    let Ok(mut stream) = TcpStream::connect(&addr) else {
+        return; // nothing listening; nothing to flush
+    };
+    let _ = stream.set_read_timeout(Some(deadline));
+    let _ = stream.set_write_timeout(Some(deadline));
+    let req = format!(
+        "POST /sessions/flush HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\
+         Content-Length: 0\r\nConnection: close\r\n\r\n"
+    );
+    if stream.write_all(req.as_bytes()).is_err() {
+        return;
+    }
+    // Reading to the end is the point: returning early would put us back in
+    // the race this exists to end.
+    let mut buf = Vec::new();
+    let _ = stream.read_to_end(&mut buf);
+    let head = String::from_utf8_lossy(&buf);
+    let ok = head.starts_with("HTTP/1.1 200");
+    log::info!(
+        "house flush: {}",
+        if ok { "sessions filed" } else { "no answer" }
+    );
 }
 
 pub type HouseState = Mutex<Option<House>>;
@@ -108,7 +151,17 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
             config_path.display()
         ));
     }
-    let file = parse_env_file(&config_path);
+    let mut file = parse_env_file(&config_path);
+    // Optional overlay: keys win over hearth.env so a supervisor can point
+    // this house at another household without rewriting the product file.
+    if let Ok(overlay) = std::env::var("HEARTH_ENV_OVERLAY") {
+        let overlay_path = PathBuf::from(&overlay);
+        if overlay_path.is_file() {
+            for (k, v) in parse_env_file(&overlay_path) {
+                file.insert(k, v);
+            }
+        }
+    }
     let require = |key: &str| -> Result<String, String> {
         file.get(key).cloned().ok_or_else(|| {
             format!("{} is missing {}; re-render the configuration", config_path.display(), key)
@@ -255,16 +308,14 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
             args.push(steps.clone());
         }
         for (name, clip, text) in persona_voices(&backend) {
-            // The triplet splits on ':', which a Windows drive letter breaks
-            // (sulivan:D:/clip parses as clip "D" and the engine dies with
-            // "cannot read reference audio D", found live 2026-08-08). The
-            // engine runs with cwd = backend, so paths relative to it carry
-            // no drive colon on any platform.
-            let rel = |p: &Path| {
-                p.strip_prefix(&backend).map(slash).unwrap_or_else(|_| slash(p))
-            };
+            let _ = (clip, text);
+            // Relative to cwd=backend so a junction target that canonicalizes
+            // onto D:\Tools\... does not put a drive-letter colon in --voice.
+            let lower = name.to_lowercase();
             args.push("--voice".into());
-            args.push(format!("{}:{}:{}", name, rel(&clip), rel(&text)));
+            args.push(format!(
+                "{lower}:personas/{name}/voice/{lower}_voice_reference.wav:personas/{name}/voice/{lower}_voice_reference.txt"
+            ));
         }
         specs.push(Spec {
             name: "voice-engine",
@@ -355,11 +406,12 @@ fn refresh_voice_args(spec: &Spec) -> Vec<String> {
         }
     }
     for (name, clip, text) in persona_voices(&spec.cwd) {
-        let rel = |p: &Path| {
-            p.strip_prefix(&spec.cwd).map(slash).unwrap_or_else(|_| slash(p))
-        };
+        let _ = (clip, text);
+        let lower = name.to_lowercase();
         kept.push("--voice".into());
-        kept.push(format!("{}:{}:{}", name, rel(&clip), rel(&text)));
+        kept.push(format!(
+            "{lower}:personas/{name}/voice/{lower}_voice_reference.wav:personas/{name}/voice/{lower}_voice_reference.txt"
+        ));
     }
     kept
 }
@@ -444,6 +496,12 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
     stop(state);
 
     let (specs, logs_dir) = build_specs(&root)?;
+    // The gateway is the one child with a conversation in it, so its port is
+    // the one stop() has to knock on before killing anything.
+    let gateway_port = specs
+        .iter()
+        .find(|s| s.name == "harness")
+        .and_then(|s| s.health_port);
     let stopping = Arc::new(AtomicBool::new(false));
     let children: Arc<Mutex<Vec<Managed>>> = Arc::new(Mutex::new(Vec::new()));
     let status = Arc::new(Mutex::new(HouseStatus {
@@ -575,6 +633,7 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
         stopping,
         children,
         status,
+        gateway_port,
         #[cfg(windows)]
         _job: job.clone(),
     };
@@ -585,6 +644,12 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
 pub fn stop(state: &HouseState) {
     let mut guard = state.lock().unwrap();
     if let Some(house) = guard.take() {
+        // Ask before killing. The conversation lives in the gateway's memory
+        // and is written only when a session ends, so a kill with no warning
+        // is how a day of talking disappears.
+        if let Some(port) = house.gateway_port {
+            flush_sessions(port);
+        }
         house.stopping.store(true, Ordering::SeqCst);
         let mut children = house.children.lock().unwrap();
         for managed in children.iter_mut() {
@@ -605,13 +670,25 @@ pub fn status(state: &HouseState) -> HouseStatus {
         .unwrap_or_default()
 }
 
+/// Bring the house up, or bounce it: `start` stops whatever this instance is
+/// already supervising before it spawns anything, so a second call IS the
+/// restart and the client needs no separate command for it.
+///
+/// Async, and the work goes to a blocking worker. As a sync command this ran
+/// on the UI thread through a process spawn and a health gate that waits on
+/// llama-server loading a model, which is tens of seconds with the window
+/// unable to paint: Windows marks it Not Responding and the operator is told
+/// their new app has hung on first run. The boot overlay can only animate if
+/// this thread is free.
 #[tauri::command]
-pub fn house_start(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, HouseState>,
-    root: String,
-) -> Result<(), String> {
-    start(app, &state, PathBuf::from(root))
+pub async fn house_start(app: tauri::AppHandle, root: String) -> Result<(), String> {
+    let worker = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = worker.state::<HouseState>();
+        start(worker.clone(), &state, PathBuf::from(root))
+    })
+    .await
+    .map_err(|e| format!("house start worker failed: {e}"))?
 }
 
 #[tauri::command]

@@ -157,8 +157,113 @@ def _curated_pages(repo_root: Path) -> dict[str, str]:
 
 def _session_dirs(root: Path) -> list[Path]:
     thoughts = root / "Thoughts"
+    if not thoughts.is_dir():
+        return []
     dirs = [d for d in thoughts.iterdir() if d.is_dir() and _DATED_DIR_RE.match(d.name)]
     return sorted(dirs, key=lambda d: d.name, reverse=True)
+
+
+def _chatlog_list_fields(chatlog: Path) -> tuple[str, str]:
+    """Title and first-user-line preview from a chatlog.md."""
+    title = ""
+    summary = ""
+    try:
+        lines = chatlog.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return "", ""
+    for i, line in enumerate(lines):
+        if line.startswith("# ") and not title:
+            title = line[2:].strip()
+            if title.lower().startswith("chat log:"):
+                title = title[9:].strip()
+            continue
+        if line.startswith("### User"):
+            body: list[str] = []
+            for ln in lines[i + 1 :]:
+                if ln.startswith("### ") or ln.strip() == "---":
+                    break
+                if ln.strip():
+                    body.append(ln.strip())
+            summary = " ".join(body)[:400]
+            break
+    return title, summary
+
+
+def _empty_session_entry(slug: str, title: str, summary: str, date: str) -> dict:
+    return {
+        "title": title or "Untitled",
+        "date": date,
+        "persona": "",
+        "project": "",
+        "tags": [],
+        "session_id": "",
+        "summary": summary,
+        "decisions": [],
+        "questions": [],
+        "actions": [],
+        "slug": slug,
+    }
+
+
+def _line_title(text: str) -> str:
+    """First-line title from a user utterance or summary, Operator: stripped."""
+    t = " ".join((text or "").split())
+    low = t.lower()
+    for prefix in ("operator:", "user:"):
+        if low.startswith(prefix):
+            t = t[len(prefix) :].strip()
+            break
+    if len(t) > 56:
+        t = t[:56].rsplit(" ", 1)[0] or t[:56]
+    return t
+
+
+def _prefer_title(title: str, *fallbacks: str) -> str:
+    """Keep a real title; replace the summarizer's Voice session fallback."""
+    raw = (title or "").strip()
+    if raw.lower().startswith("chat log:"):
+        raw = raw[9:].strip()
+    generic = raw.lower() in ("", "voice session", "untitled", "untitled session")
+    if not generic:
+        return raw
+    for fb in fallbacks:
+        cand = _line_title(fb)
+        if cand:
+            return cand
+    return raw or "Untitled"
+
+
+def _session_entry_from_dir(d: Path) -> dict | None:
+    """List row for a Thoughts slug: diary if present, else chatlog-only."""
+    diary = d / "claude.md"
+    chatlog = d / "chatlog.md"
+    date = d.name[:10] if _DATED_DIR_RE.match(d.name) else ""
+    if diary.is_file():
+        try:
+            entry = _parse_diary(diary.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            return None
+        entry["slug"] = d.name
+        if not entry.get("date"):
+            entry["date"] = date
+        entry["has_transcript"] = chatlog.is_file()
+        entry["summary"] = str(entry.get("summary") or "")[:400]
+        chatlog_user = ""
+        if chatlog.is_file():
+            _, chatlog_user = _chatlog_list_fields(chatlog)
+        entry["title"] = _prefer_title(
+            str(entry.get("title") or ""),
+            chatlog_user,
+            str(entry.get("summary") or ""),
+        )
+        return entry
+    if chatlog.is_file():
+        title, summary = _chatlog_list_fields(chatlog)
+        entry = _empty_session_entry(d.name, title, summary, date)
+        entry["has_transcript"] = True
+        entry["title"] = _prefer_title(title, summary)
+        return entry
+    return None
 
 
 def register(app: FastAPI, repo_root: Path) -> None:
@@ -169,20 +274,13 @@ def register(app: FastAPI, repo_root: Path) -> None:
             raise HTTPException(503, "Engram not available")
         out = []
         for d in _session_dirs(root):
-            diary = d / "claude.md"
-            if not diary.is_file():
+            entry = _session_entry_from_dir(d)
+            if entry is None:
                 continue
-            try:
-                entry = _parse_diary(diary.read_text(encoding="utf-8", errors="replace"))
-            except OSError:
+            if persona and str(entry.get("persona") or "").lower() != persona.lower():
                 continue
-            entry["slug"] = d.name
-            entry["has_transcript"] = (d / "chatlog.md").is_file()
-            if persona and entry["persona"].lower() != persona.lower():
+            if project and str(entry.get("project") or "").lower() != project.lower():
                 continue
-            if project and entry["project"].lower() != project.lower():
-                continue
-            entry["summary"] = entry["summary"][:400]
             out.append(entry)
             if len(out) >= max(1, min(limit, 200)):
                 break
@@ -196,13 +294,10 @@ def register(app: FastAPI, repo_root: Path) -> None:
         if "/" in slug or "\\" in slug or ".." in slug:
             raise HTTPException(400, "bad slug")
         d = root / "Thoughts" / slug
-        diary = d / "claude.md"
-        if not diary.is_file():
+        entry = _session_entry_from_dir(d)
+        if entry is None:
             raise HTTPException(404, "no such session")
-        entry = _parse_diary(diary.read_text(encoding="utf-8", errors="replace"))
-        entry["slug"] = slug
         chatlog = d / "chatlog.md"
-        entry["has_transcript"] = chatlog.is_file()
         if transcript and chatlog.is_file():
             entry["transcript"] = chatlog.read_text(encoding="utf-8", errors="replace")[:200_000]
         return entry

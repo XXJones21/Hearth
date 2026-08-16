@@ -2,10 +2,11 @@
 
 Answers "what is this house made of" for the Settings panel: the folders a
 client can open in a file browser, the connections the house has registered,
-and the resolved config the developer pane shows. Strictly read-only. There
-is no write path yet, by design -- every server-side value is still an env
-var read once at process start (see config/settings.py), so a setter would
-have to answer "hot-reload or restart?" per key first.
+and the resolved config the developer pane shows. Read-only with one
+exception: every other server-side value is an env var read once at process
+start (see config/settings.py), so a setter would have to answer "hot-reload
+or restart?" per key first. HEARTH_ENGRAM is read per call, which is why
+POST /settings/engram can exist and the rest still cannot.
 
 Folders and connections are registries rather than fixed lists: a client
 renders whatever rows arrive, so adding a folder or packaging CHOAM as an
@@ -251,12 +252,58 @@ def _resolved(config: ValarConfig) -> list[dict]:
     ]
 
 
+def _engram_row() -> dict:
+    """Where memory lives, as a thing a client can change.
+
+    Separate from the folder rows because those only exist when their folder
+    does, and the whole point of this one is to be answerable when the answer
+    is currently "nowhere".
+    """
+    configured = (os.environ.get("HEARTH_ENGRAM") or "").strip()
+    if not configured:
+        return {"path": "", "connected": False, "exists": False, "entries": 0}
+    p = Path(configured).expanduser()
+    exists = p.is_dir()
+    entries = 0
+    if exists:
+        for quarter in ("Projects", "Areas", "Thoughts", "Resources"):
+            q = p / quarter
+            if q.is_dir():
+                try:
+                    entries += sum(1 for _ in q.iterdir())
+                except OSError:
+                    pass
+    return {"path": str(p), "connected": True, "exists": exists, "entries": entries}
+
+
 def register(app: FastAPI, config: ValarConfig) -> None:
+    @app.post("/settings/engram")
+    async def settings_engram(body: dict) -> JSONResponse:
+        """Connect the house to a memory tree, or unplug it.
+
+        The one write on this surface, and it earns the exception the module
+        docstring carves out: HEARTH_ENGRAM is read per call rather than once
+        at start, so it is the rare key that can move without a restart.
+
+        `clear` is a separate flag rather than an empty path, so a blank text
+        box cannot quietly disconnect someone's decade of notes. The tree is
+        never deleted by either branch.
+        """
+        from ..tools.handlers.second_brain import link_brain, unlink_brain
+
+        if bool(body.get("clear")):
+            result = unlink_brain()
+        else:
+            result = link_brain(str(body.get("path") or ""), allow_new=True)
+        status = 200 if result.get("ok") else 400
+        return JSONResponse({**result, "engram": _engram_row()}, status_code=status)
+
     @app.get("/settings/surface")
     async def settings_surface() -> JSONResponse:
         return JSONResponse(
             {
                 "folders": _folders(config),
+                "engram": _engram_row(),
                 "connections": _connections(),
                 "resolved": _resolved(config),
                 "server": {

@@ -310,6 +310,14 @@ In the new persona's voice, and argued from self-interest rather than features.
    project. An empty brain is intimidating; a brain with one true thing in it is
    a start.
 
+Someone who already keeps notes says so here, and `import_brain` bridges the
+house to that folder instead of seeding one. The beat is not the last chance to
+answer, and it must not be built as though it were: **Settings > On disk >
+Journal and memory** connects, moves, or unplugs the tree at any point
+afterwards. Both doors call the same `link_brain`, so the rule that a house
+never guesses at whose memory it is opening holds on both. See
+[the Windows client](clients/windows.md).
+
 **Seed empty. Never clone.** This is a standing constraint rather than a
 preference. The memory layer currently hard-codes one person's path in two
 modules with no environment override, and it carries a hand-maintained table of

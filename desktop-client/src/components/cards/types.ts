@@ -103,6 +103,13 @@ export type GeneratedViewProps = {
   sections: GeneratedViewSection[];
 };
 
+export type PermissionCardProps = {
+  request_id: string;
+  path: string;
+  action?: 'read' | 'list' | 'write' | string;
+  status?: 'pending' | 'granted' | 'denied' | string;
+};
+
 /** Every card component receives its raw props object; components narrow it. */
 export type CardProps = {
   props: Record<string, unknown>;

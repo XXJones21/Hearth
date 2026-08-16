@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import uuid
 
 from ..brain import BrainProvider, BrainStreamResult, ChatMessage, ChatOptions
 from ..config import ValarConfig
@@ -72,6 +73,19 @@ def _parse_summary(text: str, fallback: str) -> tuple[str, str]:
     return title, summary
 
 
+def _first_user_title(session: Session) -> str:
+    """Short title from the first operator line when the summarizer is generic."""
+    for turn in session.history:
+        text = (turn.user or "").strip()
+        if not text:
+            continue
+        line = " ".join(text.split())
+        if len(line) > 56:
+            line = line[:56].rsplit(" ", 1)[0] or line[:56]
+        return line
+    return ""
+
+
 async def summarize_session(
     session: Session, persona: Persona, brain: BrainProvider, config: ValarConfig
 ) -> dict:
@@ -106,6 +120,8 @@ async def summarize_session(
         logger.warning("session summary brain call failed: %s", exc)
 
     title, summary = _parse_summary(text, fallback)
+    if not title or title.lower() == "voice session":
+        title = _first_user_title(session) or title or "Voice session"
     return {
         "title": title,
         "summary": summary,
@@ -124,38 +140,95 @@ async def end_session(
     brain: BrainProvider,
     config: ValarConfig,
     emit,
+    *,
+    reason: str = "idle",
+    fast: bool = False,
 ) -> None:
-    """Persist + announce + reset one idle session. Never raises."""
+    """Persist + announce + reset one session. Never raises.
+
+    ``reason`` is ``idle`` for the watchdog and ``client`` for an explicit
+    ``new_session`` request from the desktop (or any) client. Empty history
+    skips summarize/persist so a fresh New Session click stays instant.
+
+    ``fast`` skips the summarising brain call and titles the session from its
+    first line instead. It exists for shutdown: the client stops the house
+    seconds after asking for this, and a model call in that window is a race
+    the transcript loses. A chatlog nobody summarised is worth immeasurably
+    more than a summary nobody got to write.
+    """
     turns = len(session.history)
-    logger.info("ending idle session %s (%d turns)", session.session_id, turns)
+    logger.info(
+        "ending session %s (%d turns, reason=%s%s)",
+        session.session_id,
+        turns,
+        reason,
+        ", fast" if fast else "",
+    )
 
-    summary = await summarize_session(session, persona, brain, config)
+    summary: dict = {"title": "", "summary": ""}
+    if turns and fast:
+        # Truthy dict on purpose: save_session_to_engram runs its own LLM
+        # extraction when the summary is empty, which is the call being
+        # avoided.
+        first = ""
+        for turn in session.history:
+            if getattr(turn, "user", "") and str(turn.user).strip():
+                first = str(turn.user).strip()
+                break
+        summary = {"title": (first[:60] or "Conversation"), "summary": ""}
+    elif turns:
+        summary = await summarize_session(session, persona, brain, config)
 
-    history_dicts: list[dict] = []
-    for turn in session.history:
-        if turn.user:
-            history_dicts.append({"role": "user", "content": turn.user})
-        if turn.assistant:
-            history_dicts.append({"role": "assistant", "content": turn.assistant})
+        history_dicts: list[dict] = []
+        for turn in session.history:
+            if turn.user:
+                history_dicts.append({"role": "user", "content": turn.user})
+            if turn.assistant:
+                history_dicts.append({"role": "assistant", "content": turn.assistant})
 
-    try:
-        from ..tools.handlers.session_persist import persist_session
+        try:
+            from ..tools.handlers.session_persist import persist_session
 
-        await persist_session(
-            {
-                "session_id": session.session_id,
-                "persona": persona.name,
-                "history": history_dicts,
-                "summary": summary,
-            }
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("session persist failed: %s", exc)
+            result = await persist_session(
+                {
+                    "session_id": session.session_id,
+                    "persona": persona.name,
+                    "history": history_dicts,
+                    "summary": summary,
+                    # Explicit New session must not seed the next SCX with
+                    # "Previous session: ..." or the wipe is only cosmetic.
+                    "write_continuity": reason != "client",
+                }
+            )
+            # The journal now holds this conversation, so the record it came
+            # from is no longer waiting to be promoted. Marking it here is
+            # what keeps the nightly pass from writing a second diary for a
+            # session that already has one.
+            diary = ((result.data or {}).get("diary") or {}) if result is not None else {}
+            if diary.get("saved") or diary.get("chatlog_only"):
+                from ..memory.session_record import mark_synced
 
-    # Fresh start: the cleared history is what makes the next turn a new session.
+                mark_synced(session.session_id, str(diary.get("thought_slug") or ""))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("session persist failed: %s", exc)
+
+    # Fresh start: cleared history + a new id so ledger/telemetry do not glue
+    # the next turns onto the ended session.
     session.history.clear()
+    session.session_id = str(uuid.uuid4())
+    session.topic_hint = None
     session.touch()
     session.state = State.IDLE
+
+    if reason == "client":
+        # Drop any prior continuity so New session is a real wipe, not a
+        # history clear that still surfaces "Previous session: ..." in SCX.
+        try:
+            from ..memory.continuity import clear_continuity
+
+            clear_continuity()
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("clear continuity failed: %s", exc)
 
     try:
         # Composer-managed card lifetime (Phase C): a session end clears the
@@ -170,8 +243,9 @@ async def end_session(
             "session_ended",
             {
                 "action": "session_ended",
-                "reason": "idle",
+                "reason": reason,
                 "summary": summary.get("summary", ""),
+                "session_id": session.session_id,
             },
         )
     except Exception as exc:  # noqa: BLE001 - client may be gone; the persist stands
@@ -190,7 +264,8 @@ async def idle_watchdog(
     ``current_persona`` is a zero-arg callable returning the active Persona (the
     persona can switch mid-session). Runs until cancelled (on disconnect). A
     session can end multiple times over one connection -- each idle window after
-    real turns persists and resets again.
+    real turns persists and resets again. Desktop connections skip idle persist
+    (``session.platform == "desktop"``); explicit New session still ends.
     """
     idle_s = config.session_idle_s
     if idle_s <= 0:
@@ -198,6 +273,8 @@ async def idle_watchdog(
     check_every = min(10.0, max(1.0, idle_s / 4))
     while True:
         await asyncio.sleep(check_every)
+        if (session.platform or "").lower() == "desktop":
+            continue
         if not session.history:
             continue
         if session.state is not State.IDLE:

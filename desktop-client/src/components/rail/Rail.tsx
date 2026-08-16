@@ -13,8 +13,20 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'routines', label: 'Routines' },
 ];
 
-export function Rail() {
-  const [tab, setTab] = useState<TabId>('memory');
+type Props = {
+  onNewSession?: () => void;
+  onResumeSession?: (id: string, kind?: 'record' | 'journal') => void;
+  onStartTopicSession?: (name: string) => void;
+  sessionBusy?: boolean;
+};
+
+export function Rail({
+  onNewSession,
+  onResumeSession,
+  onStartTopicSession,
+  sessionBusy = false,
+}: Props) {
+  const [tab, setTab] = useState<TabId>('sessions');
 
   return (
     <aside
@@ -54,8 +66,15 @@ export function Rail() {
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'sessions' && <SessionsTab />}
+      <div className="rail-scroll min-h-0 flex-1 overflow-y-auto">
+        {tab === 'sessions' && (
+          <SessionsTab
+            onNewSession={onNewSession}
+            onResumeSession={onResumeSession}
+            onStartTopicSession={onStartTopicSession}
+            busy={sessionBusy}
+          />
+        )}
         {tab === 'memory' && <MemoryTab />}
         {tab === 'routines' && <RoutinesTab />}
       </div>
@@ -63,8 +82,14 @@ export function Rail() {
       <div className="mt-4 flex items-center gap-2.5">
         <button
           type="button"
-          aria-label="New routine"
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-linen bg-fluff text-ember shadow-soft"
+          aria-label="New session"
+          title="New session"
+          disabled={!onNewSession || sessionBusy}
+          onClick={() => {
+            setTab('sessions');
+            onNewSession?.();
+          }}
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-linen bg-fluff text-ember shadow-soft transition enabled:hover:brightness-95 disabled:opacity-50"
         >
           <IconPlus className="h-[18px] w-[18px]" />
         </button>

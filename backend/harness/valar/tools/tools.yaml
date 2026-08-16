@@ -70,6 +70,75 @@ tools:
       properties: {}
       required: []
 
+  - name: create_reminder
+    description: >-
+      Remind the operator of something at a TIME: "remind me at 6", "tomorrow
+      morning", "in two hours". Use for anything beyond the current
+      conversation; set_timer is for short countdowns you can hear finish.
+      Always say the time back to them. Be honest that it surfaces in
+      conversation when due rather than making a sound on its own.
+    handler: valar.tools.handlers.reminders:create_reminder
+    domain: timers
+    risk: write
+    parameters:
+      type: object
+      properties:
+        when:
+          type: string
+          description: >-
+            The time, as they said it: "6pm", "tomorrow at 9", "in 2 hours",
+            or "2026-08-20 14:30". Do not guess if it was not said.
+        text:
+          type: string
+          description: What to remind them of, in their words.
+      required: [when, text]
+
+  - name: list_reminders
+    description: List the reminders that are still standing, soonest first.
+    handler: valar.tools.handlers.reminders:list_reminders
+    domain: timers
+    risk: read
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: dismiss_reminder
+    description: >-
+      Tick off a reminder once it has been dealt with, so it stops coming up.
+      Use when they say done, handled, or drop it.
+    handler: valar.tools.handlers.reminders:dismiss_reminder
+    domain: timers
+    risk: write
+    parameters:
+      type: object
+      properties:
+        text:
+          type: string
+          description: A few words identifying which reminder.
+      required: [text]
+
+  - name: manage_routine
+    description: >-
+      List the standing routines the house runs on a clock, or stop one. Use
+      when they ask what it does on its own, or say stop doing X. You cannot
+      add a routine this way: each one is code behind a loop, and a heading
+      with nothing behind it would be a lie.
+    handler: valar.tools.handlers.reminders:manage_routine
+    domain: memory
+    risk: write
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [list, remove]
+          description: Default list.
+        name:
+          type: string
+          description: Which routine, when removing.
+      required: []
+
   - name: set_timer
     description: >-
       Set a countdown timer. Use for "set a timer for 5 minutes", "remind me in an
@@ -111,6 +180,86 @@ tools:
           description: The label of the timer to cancel.
       required: []
 
+  - name: fetch_url
+    description: >-
+      Open a web page and read it as text. Use when the operator names a link,
+      or when web_search returned a result whose page you need to answer
+      properly. Public web only. For a local file use read_file.
+    handler: valar.tools.handlers.web_search:fetch_url
+    domain: search
+    risk: read
+    speak: Let me open that page.
+    parameters:
+      type: object
+      properties:
+        url:
+          type: string
+          description: The page address.
+        max_chars:
+          type: integer
+          description: Max characters of text to return (default 12000, cap 20000).
+      required: [url]
+
+  - name: clipboard
+    description: >-
+      Read what the operator just copied, or put a result where they can paste
+      it. Use when they say "I copied something", "what's on my clipboard", or
+      ask you to copy an answer for them.
+    handler: valar.tools.handlers.desktop:clipboard
+    domain: desktop
+    risk: write
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [read, write]
+          description: Default read.
+        text:
+          type: string
+          description: The text to copy, when writing.
+      required: []
+
+  - name: draft_email
+    description: >-
+      Write an email and open it in the operator's mail client for them to
+      read and send. NOTHING IS SENT. Pass short instructions describing the
+      message, never the finished body. Use when they ask you to write or draft
+      an email.
+    handler: valar.tools.handlers.desktop:draft_email
+    domain: desktop
+    risk: write
+    speak: Let me draft that.
+    parameters:
+      type: object
+      properties:
+        to:
+          type: string
+          description: Recipient address, if they gave one. Never invent one.
+        subject:
+          type: string
+          description: Subject line.
+        instructions:
+          type: string
+          description: Short brief of what the email should say.
+      required: [subject]
+
+  - name: open_path
+    description: >-
+      Show the operator a file or folder on their screen, in whatever program
+      opens it. Use after writing a file, or when they ask to see something.
+      Only works for paths under the house's allowed folders.
+    handler: valar.tools.handlers.desktop:open_path
+    domain: desktop
+    risk: control
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path of the file or folder to open.
+      required: [path]
+
   - name: web_search
     description: >-
       Look up a quick fact or answer on the web (definitions, who/what is X, quick
@@ -141,6 +290,295 @@ tools:
           type: string
           description: Optional topic to focus the news on, e.g. "technology" or "sports".
       required: []
+
+  - name: read_file
+    description: >-
+      Read the text of a local file the operator named by path. Use when they
+      point at a resume, note, HTML page, PDF, or similar and ask you to review
+      or summarize it. Prefer this over asking them to paste. Paths must sit
+      under the house's allowed folders, or a folder the operator approved on
+      the permission card. If they name a directory, call list_dir first, then
+      read_file on each file you need.
+      For deep Engram questions without a path, prefer recall / consult_memory.
+    handler: valar.tools.handlers.files:read_file
+    domain: files
+    risk: read
+    speak: Let me read that file.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute Windows or WSL path the operator provided.
+        offset:
+          type: integer
+          description: Character offset into the extracted text (default 0).
+        max_chars:
+          type: integer
+          description: Max characters to return (default 12000, cap 20000).
+      required: [path]
+
+  - name: list_dir
+    description: >-
+      List the files and subfolders in a local directory the operator named.
+      Use when they point at a folder and ask what is in it, or when you need
+      the names before calling read_file. If the folder is outside the house's
+      allowed roots, a permission card is shown; after they approve, call
+      list_dir again. Do not invent filenames.
+    handler: valar.tools.handlers.files:list_dir
+    domain: files
+    risk: read
+    speak: Let me see what's in that folder.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute Windows or WSL path of the directory.
+      required: [path]
+
+  - name: search_files
+    description: >-
+      Find which local files contain a word or phrase, when the operator asks
+      where something is written down and does NOT give a path. Returns paths
+      with a line number and a snippet; call read_file on whichever one you
+      need. Searches only the house's allowed folders. Use this instead of
+      guessing a filename or asking them where they put it.
+    handler: valar.tools.handlers.files:search_files
+    domain: files
+    risk: read
+    speak: Let me find that.
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The word or phrase to look for. At least two characters.
+        root:
+          type: string
+          description: >-
+            Optional root name to narrow the search (for example "career" or
+            "engram"). Omit to search all allowed folders.
+      required: [query]
+
+  - name: append_file
+    description: >-
+      Add a line or a few lines to the END of a file that already exists: a
+      list, a running note, a log. Pass the text itself. Use this rather than
+      write_file whenever the operator wants something added rather than the
+      document rewritten.
+    handler: valar.tools.handlers.files:append_file
+    domain: files
+    risk: write
+    speak: Let me add that.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path of the existing file to add to.
+        text:
+          type: string
+          description: >-
+            The exact text to append (max ~4000 chars). Markdown list items
+            should include their own "- " prefix.
+      required: [path, text]
+
+  - name: move_file
+    description: >-
+      Move or rename a file the operator named. Pass a bare filename as the
+      destination to rename it in place, or a full path to move it. Never
+      overwrites: a destination that already exists is refused. Use when they
+      say rename, move, or "put that in".
+    handler: valar.tools.handlers.files:move_file
+    domain: files
+    risk: write
+    speak: Let me move that.
+    parameters:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Absolute path of the existing file.
+        destination:
+          type: string
+          description: >-
+            A bare filename to rename in place ("plan-v2.md"), or an absolute
+            path to move it. An existing folder means "into that folder".
+      required: [source, destination]
+
+  - name: delete_file
+    description: >-
+      Delete a single file the operator asked you to delete. ALWAYS shows them
+      a card first and waits; you may not delete anything on your own judgment.
+      The file is moved to the house trash rather than erased, so it can be
+      recovered. Never call this to "clean up" or tidy without being asked.
+    handler: valar.tools.handlers.files:delete_file
+    domain: files
+    risk: write
+    speak: ""
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Absolute path of the single file to delete.
+      required: [path]
+
+  - name: new_file
+    description: >-
+      Write a NEW document at a path the operator named: a note, a recipe, a
+      list, a plan. Use when they ask you to write something down that does
+      not exist yet. Pass the destination path and SHORT instructions saying
+      what to write; the harness composes the document. Do NOT pass the body.
+      Markdown unless they ask otherwise. If the folder does not exist yet, a
+      permission card asks the operator before it is created. To revise a file
+      that already exists, use write_file instead.
+    handler: valar.tools.handlers.files:new_file
+    domain: files
+    risk: write
+    speak: Let me write that up.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: >-
+            Absolute path for the new file, including the filename. Example:
+            "D:/Recipes/pumpkin-pie.md". A missing extension becomes .md.
+        instructions:
+          type: string
+          description: >-
+            Short brief of what the document should contain (max ~2000 chars).
+            Example: "A pumpkin pie recipe: ingredients list, then numbered
+            steps, then baking time and temperature."
+      required: [path, instructions]
+
+  - name: write_file
+    description: >-
+      Draft a NEW file beside an existing source the operator named. Pass only
+      source + short instructions (what to change). Do NOT pass the draft body:
+      the harness re-reads the source and writes the file. HTML/PDF sources
+      save as *-draft.md. Text sources keep their type. Never claim a draft was
+      saved unless this tool returns "Wrote draft:". After success, speak only
+      the path from the tool result.
+    handler: valar.tools.handlers.files:write_file
+    domain: files
+    risk: write
+    speak: Let me draft something up.
+    parameters:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Absolute Windows or WSL path of the existing file to draft from.
+        instructions:
+          type: string
+          description: >-
+            Short revision brief (max ~2000 chars). Example: "Reframe for Forward
+            Deployed Engineer; emphasize production AI systems; keep contact block."
+        dest_name:
+          type: string
+          description: >-
+            Optional filename only (same folder). HTML/PDF sources require .md;
+            other sources keep the source extension. Omit to auto-name
+            <stem>-draft.<ext>.
+      required: [source, instructions]
+
+  - name: forget
+    description: >-
+      Remove or correct one stored fact about the operator. Use when they say
+      that is wrong, forget that, or correct something you remembered. Pass a
+      few words identifying the fact; pass replace_with to correct it instead
+      of deleting it. If several facts match, it lists them and changes
+      nothing: ask which one.
+    handler: valar.tools.handlers.memory:forget
+    domain: memory
+    risk: write
+    parameters:
+      type: object
+      properties:
+        fact:
+          type: string
+          description: A few words identifying the stored fact.
+        replace_with:
+          type: string
+          description: Optional corrected wording. Omit to remove the fact entirely.
+      required: [fact]
+
+  - name: search_journal
+    description: >-
+      Search past conversations for a word or phrase and return the sessions
+      that mention it, with dates. Use for "when did we talk about X", "what
+      did I say about Y", or to find the conversation before answering from
+      it. For facts about the operator prefer recall; this is for finding a
+      CONVERSATION.
+    handler: valar.tools.handlers.memory:search_journal
+    domain: memory
+    risk: read
+    speak: Let me look back through our conversations.
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Word or phrase to look for.
+        limit:
+          type: integer
+          description: Maximum sessions to return (default 8, cap 20).
+      required: [query]
+
+  - name: session_summary
+    description: >-
+      Write up the CURRENT conversation into the Journal now, without ending
+      it. Use when they say save this, write this down, or keep a record of
+      this conversation. The conversation continues afterwards.
+    handler: valar.tools.handlers.session_persist:session_summary
+    domain: memory
+    risk: write
+    speak: Let me write this up.
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: list_projects
+    description: >-
+      List the projects in the operator's second brain, most recently touched
+      first. Use before update_project, or when they ask what they are working
+      on. Never invent a project name.
+    handler: valar.tools.handlers.projects:list_projects
+    domain: brain
+    risk: read
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: update_project
+    description: >-
+      Add a decision or a note to a project in the second brain. Use when a
+      conversation settles something worth keeping. Write the decision itself,
+      not the conversation around it. If the name is ambiguous it lists the
+      matches and writes nothing.
+    handler: valar.tools.handlers.projects:update_project
+    domain: brain
+    risk: write
+    speak: Let me note that down.
+    parameters:
+      type: object
+      properties:
+        project:
+          type: string
+          description: Project name or folder slug, as returned by list_projects.
+        note:
+          type: string
+          description: The decision or note to record (max ~1000 chars).
+        section:
+          type: string
+          enum: [decisions, notes]
+          description: Which heading to append under. Default decisions.
+      required: [project, note]
 
   - name: remember
     description: >-
@@ -363,7 +801,7 @@ tools:
       uses it; if none can carry the content's visual shape, offer the
       operator a new card (forge_card).
     handler: valar.tools.handlers.forge:list_cards
-    domain: projects
+    domain: workshop
     risk: read
     parameters:
       type: object
@@ -381,7 +819,7 @@ tools:
       and no condition on purpose: work out which cells are marked before you
       start, then write them out.
     handler: valar.tools.handlers.compose:compose_view
-    domain: projects
+    domain: workshop
     risk: read
     speak: Let me put that on the screen.
     parameters:
@@ -426,7 +864,7 @@ tools:
       witty companion", "detail": "keeps you company"}]}. A call without
       options renders nothing.
     handler: valar.tools.handlers.choice:choice_card
-    domain: projects
+    domain: workshop
     risk: read
     speak: ""
     parameters:
@@ -454,7 +892,7 @@ tools:
       not an example, not something you suggested -- their own answer. After it
       returns, tell them where it lives and stop.
     handler: valar.tools.handlers.second_brain:start_project
-    domain: projects
+    domain: brain
     risk: write
     speak: ""
     parameters:
@@ -477,7 +915,7 @@ tools:
       remembered. Until this returns ok, no connection of any kind exists,
       and you must not claim one.
     handler: valar.tools.handlers.second_brain:import_brain
-    domain: projects
+    domain: brain
     risk: write
     speak: ""
     parameters:
@@ -496,7 +934,7 @@ tools:
       declines or says they are done. Closes the setup and frees them to go
       to the house. Takes nothing.
     handler: valar.tools.handlers.second_brain:complete_brain_setup
-    domain: projects
+    domain: brain
     risk: write
     speak: ""
     parameters:
@@ -512,7 +950,7 @@ tools:
       write the system prompt IN THEIR VOICE, not yours. After it returns,
       stop: the new persona speaks next, not you.
     handler: valar.tools.handlers.creation:create_persona
-    domain: projects
+    domain: personas
     risk: write
     speak: ""
     parameters:
@@ -559,7 +997,7 @@ tools:
       build runs in the background; always tell the operator what you
       commissioned and ask whether they want it going forward.
     handler: valar.tools.handlers.forge:forge_card
-    domain: projects
+    domain: workshop
     risk: write
     speak: Let me commission the workshop.
     parameters:

@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Protocol
 
+from .prompt_dialect import PromptDialect
+
 
 @dataclass
 class ChatMessage:
@@ -53,6 +55,9 @@ class ChatOptions:
     # behavior. Only consulted by the flag-gated tool round-trip; the streaming
     # chat() path ignores it.
     tools: list[dict] | None = None
+    # Set by the router when a GGUF becomes resident. Default OpenAI preset.
+    # Unimplemented families (qwen, glimmer) stay stamped here and wire as OpenAI.
+    prompt_dialect: PromptDialect = PromptDialect.OPENAI
 
 
 @dataclass

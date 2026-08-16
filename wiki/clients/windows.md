@@ -45,6 +45,102 @@ Closing the client window does not stop Hearth. It minimizes to the tray, and
 the backend keeps running, because an always-on companion cannot depend on a
 window staying open. Quit is the explicit stop.
 
+**Quit files the conversation first.** A conversation lives in the gateway's
+memory and is written to the journal only when the session ends, so stopping
+the backend without warning is how a day of talking disappears. Quit, Stop, and
+Restart all knock on `POST /sessions/flush` and wait for the answer before
+anything is killed. That write makes no model call: it saves the transcript and
+titles it from the first line, because a chatlog nobody summarised is worth
+immeasurably more than a summary nobody got to write. A session also files
+itself when its socket closes on its own, which covers a crash or a redial.
+
+**Waking takes as long as the model takes.** While the house comes up, the
+window holds a waking overlay that says what it is waiting for, and it stays
+up until `/health` answers rather than until the command returns. If the house
+never answers, the overlay says so and offers Try again and Settings instead
+of leaving an empty frame that looks like a broken app. The start command runs
+on a worker thread for exactly this reason: as a synchronous call it blocked
+the UI thread through the model load, and Windows marked the window Not
+Responding on first run.
+
+**Settings > On disk > Journal and memory** is where the memory tree lives, and
+it is the one row on that surface that changes something rather than opening a
+folder. Connect points the house at a folder: one that already holds a brain
+(any of Projects, Areas, Thoughts, Resources) is adopted as it is, and one that
+is completely empty is provisioned into a new brain. A folder with unrelated
+things in it is refused, because writing four folders into someone's Documents
+is not a small mistake. Remove unplugs the tree without deleting a file of it,
+which leaves the house in the same state it has before anyone answers the
+question: the Journal reports no tree and memory recall returns nothing.
+
+Both actions end the live chat, since a session opened against the old tree
+would file its diary and its continuity note there after the move. The change
+applies immediately and survives restarts, because `HEARTH_ENGRAM` is read per
+call rather than once at start, and it is written back to `hearth.env`. This is
+the same `link_brain` the conversational `import_brain` calls during first run,
+so there is one rule about whose memory a house may open, not two.
+
+Pointing two houses at one tree is what makes a shared brain possible and is
+also how two houses come to write the same day. Continuity notes do not collide
+(each house writes its own file) and diaries are per-slug, but the nightly
+review runs in every house that has one. See
+[the second brain](../features/second-brain.md) for what the tree is and what
+lives inside it.
+
+**Settings > The house** has Start, Stop, and **Restart**. Restart is start
+again, since starting stops whatever this client is already supervising, and
+it exists so a backend change does not cost a relaunch. It drops the socket,
+raises the same waking overlay, and redials when the house answers.
+
+To clear the live conversation without quitting, use **New session** on the
+right-rail Sessions tab (or the + button under it). That sends a `new_session`
+WebSocket action: the house ends the current chat on the same socket, clears
+the feed, and the next message starts fresh. Idle timeout does the same end
+path automatically after the configured quiet window.
+
+**Earlier conversations** on the same Sessions tab list what the house filed
+(`GET /journal/sessions`): a full diary, or just a `chatlog.md` for a chat too
+short to earn one. Rows are one line each, grouped under their date, and a
+chat the house never titled shows the first thing the operator said instead of
+the words "Voice session" forty times over. Click a row to read the summary,
+decisions, open questions, and transcript in the rail; **Open Journal** jumps
+to the full library. **Resume** (when a transcript exists) sends
+`resume_session` with that diary slug: the house ends the current chat, seeds
+a fresh `session_id` from `chatlog.md`, and the feed rehydrates so the next
+message continues that thread without reusing the archived session id.
+
+**Sessions from journal**, the collapsed shelf under that list, is the other
+direction: it starts a NEW chat that already knows its subject.
+`start_topic_session` names a project or a life root, and the house opens the
+session with that Engram topic hint so recall reads those pages first. It is
+not a resume and there is no transcript to rehydrate; the live topic is shown
+at the top of the tab until the session ends.
+
+**Desktop sessions do not end on the idle timer.** A chat left open overnight
+is still there in the morning, because a window that stays open is not the
+same signal as a voice surface going quiet. The other clients still persist
+after idle, and **New session** still ends and files a chat on any of them.
+
+**Local files.** When the operator names a path under an allow-listed root
+(the roots in `file_roots.yaml`, plus the configured memory tree), Sulivan can
+call `read_file` to open markdown, text, HTML, or PDF contents instead of
+asking them to paste. `list_dir` names what is in a folder one level deep,
+capped at 200 entries, so the persona reads real filenames rather than
+guessing at them. `write_file` drafts a new file beside a source it was
+pointed at: the persona passes the source path and a short brief of what to
+change, never the draft body, and the harness writes `<name>-draft.md` for
+HTML and PDF sources or the same type for text. The source is never
+overwritten, and a path is only ever spoken when the tool reports writing one.
+
+**Folders outside the roots** are not refused, and they are not silently
+opened either. The turn stops and a permission card asks the operator to
+approve or deny that exact path. The house stays quiet while the card waits,
+up to five minutes; Approve records the grant in `file_grants.yaml` beside the
+handler and the parked tool call runs again on the spot, so the answer arrives
+in the conversation that asked for it rather than in the next one. Deny ends
+that call and nothing is remembered. Grants are per-machine and are not
+committed.
+
 ## What the installer gives you
 
 The client is the installer. You download one app, and the first run
