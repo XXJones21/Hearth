@@ -18,6 +18,7 @@
 //  there: the WS callbacks hop to the main actor, and a render loop is a view.
 //
 
+import CoreGraphics
 import Foundation
 
 @MainActor
@@ -36,6 +37,18 @@ public final class FaceFeed {
     /// a keyboard dismisses or a menu opens, and the face should keep watching
     /// the place the words are being typed.
     public var composerUp: Bool = false
+
+    /// Where the composer actually is, in global coordinates, or nil when it
+    /// is down.
+    ///
+    /// The face used to look at a constant "down": true enough on a phone,
+    /// where the keyboard is always at the bottom, but it cannot tell a
+    /// one-line composer from a full keyboard, and it would be a lie the first
+    /// time this runs on an iPad or in a resized window. The desktop measures
+    /// the input's real position relative to the face and points there; this
+    /// is the same measurement, taken by the composer and read by the face,
+    /// because neither can see the other's frame.
+    public var composerFrame: CGRect?
 
     private init() {}
 }

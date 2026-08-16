@@ -67,22 +67,25 @@ public struct PersonaFaceView: View {
         // Never paused, even under reduce motion: the director suppresses
         // blink, saccades and sway itself, and the mouth still has to follow
         // the voice. A paused timeline would freeze the speech too.
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
-            Canvas { ctx, size in
-                let nowMs = timeline.date.timeIntervalSinceReferenceDate * 1000
-                let feed = FaceFeed.shared
-                let director = box.director(for: geometry, now: nowMs)
-                let pose = director.tick(
-                    now: nowMs,
-                    state: faceState,
-                    cue: feed.cue,
-                    speechLevel: feed.speechLevel,
-                    reduceMotion: reducedMotion,
-                    // The phone's words come from the keyboard at the bottom
-                    // of the screen, so that is where the face looks.
-                    lookTarget: feed.composerUp
-                        ? LookTarget(x: 0, y: 1, focus: 0.5) : nil)
-                draw(pose, into: ctx, size: size)
+        // The face has to know where it is on screen to work out where the
+        // composer is relative to it, and Canvas only reports its own size.
+        GeometryReader { proxy in
+            TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: false)) { timeline in
+                Canvas { ctx, size in
+                    let nowMs = timeline.date.timeIntervalSinceReferenceDate * 1000
+                    let feed = FaceFeed.shared
+                    let director = box.director(for: geometry, now: nowMs)
+                    let pose = director.tick(
+                        now: nowMs,
+                        state: faceState,
+                        cue: feed.cue,
+                        speechLevel: feed.speechLevel,
+                        reduceMotion: reducedMotion,
+                        lookTarget: Self.lookTarget(
+                            face: proxy.frame(in: .global),
+                            composer: feed.composerUp ? feed.composerFrame : nil))
+                    draw(pose, into: ctx, size: size)
+                }
             }
         }
         // The stage is tap-to-talk. A face that ate the tap would break the
@@ -91,21 +94,48 @@ public struct PersonaFaceView: View {
         .accessibilityLabel("Persona face")
     }
 
-    /// The face's own reading of the turn.
+    private var faceState: FaceState {
+        Self.faceState(for: state, composerUp: FaceFeed.shared.composerUp)
+    }
+
+    /// The face's own reading of the turn. Pure and internal so the rule can
+    /// be asserted rather than eyeballed on a phone.
     ///
     /// The composer being up counts as listening even though `hearthState`
     /// only says LISTENING while the microphone is live -- someone typing is
     /// someone talking to it, and the listening pose plus the look target is
-    /// what makes the face watch the keyboard. LOADING idles: a face that has
-    /// not heard anything yet is idle, not thinking.
-    private var faceState: FaceState {
-        if FaceFeed.shared.composerUp { return .listening }
+    /// what makes the face watch the keyboard.
+    ///
+    /// But it only outranks IDLE. A live turn wins, which is the same rule the
+    /// stage already applies to the easel override: someone typing a follow-up
+    /// while the house is mid-reply must not cost the thinking and speaking
+    /// beats -- the face would sit there listening through the whole answer it
+    /// was giving. LOADING idles: a face that has not heard anything yet is
+    /// idle, not thinking.
+    static func faceState(for state: HearthState, composerUp: Bool) -> FaceState {
         switch state {
         case .LISTENING: return .listening
         case .THINKING: return .thinking
         case .SPEAKING: return .speaking
-        case .IDLE, .LOADING: return .idle
+        case .IDLE, .LOADING: return composerUp ? .listening : .idle
         }
+    }
+
+    /// Where to look, in gaze space: the composer's centre relative to the
+    /// face's, normalised by the face's own size, clamped to the head.
+    ///
+    /// The same arithmetic the desktop does against DOM rects. The 0.9 keeps
+    /// a fully off-screen target from pinning the eyes to the very edge, and
+    /// focus 0.5 converges them part way -- reading something a foot away, not
+    /// staring through it.
+    static func lookTarget(face: CGRect, composer: CGRect?) -> LookTarget? {
+        guard let composer, face.width > 0, face.height > 0 else { return nil }
+        let dx = (composer.midX - face.midX) / face.width
+        let dy = (composer.midY - face.midY) / face.height
+        return LookTarget(
+            x: min(1, max(-1, dx * 0.9)),
+            y: min(1, max(-1, dy * 0.9)),
+            focus: 0.5)
     }
 
     // MARK: - Colours

@@ -146,6 +146,19 @@ struct BottomInputBar: View {
             .accessibilityLabel("Back to voice")
 
             TextField("Message…", text: $inputText)
+                // Where the words are being typed, published for the face to
+                // look at. The field itself, not the whole bar: the face
+                // should watch the text, not the send button.
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { FaceFeed.shared.composerFrame = proxy.frame(in: .global) }
+                            .onChange(of: proxy.frame(in: .global)) { _, frame in
+                                FaceFeed.shared.composerFrame = frame
+                            }
+                            .onDisappear { FaceFeed.shared.composerFrame = nil }
+                    }
+                )
                 .padding(.horizontal, 16)
                 .padding(.vertical, 11)
                 .background(HearthPalette.parchment)
