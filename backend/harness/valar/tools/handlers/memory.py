@@ -227,3 +227,145 @@ def recall(args: dict) -> ToolResult:
         content="Here is what I remember.\n\n" + "\n\n".join(parts),
         data={"facts": matches, "notes": [s for _, s in notes]},
     )
+
+
+# --- correcting and searching what was kept -------------------------------
+
+
+def _facts_path() -> Path | None:
+    """The shared operator-facts file, or None when memory is unavailable."""
+    bs = _ensure_brain_sync()
+    if bs is None:
+        return None
+    try:
+        return bs._operator_facts_path()  # type: ignore[union-attr]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def forget(args: dict) -> ToolResult:
+    """args: {fact: str, replace_with?: str}. Remove or correct one stored fact.
+
+    ``remember`` wrote and nothing unwrote, so a fact that was wrong when it
+    was said stayed wrong until someone opened the file by hand. This is the
+    other direction.
+
+    It refuses to guess. One match is removed; several are listed back so the
+    operator can say which, because deleting the wrong memory is worse than
+    asking a second question.
+    """
+    query = str((args or {}).get("fact") or (args or {}).get("query") or "").strip()
+    replacement = str((args or {}).get("replace_with") or "").strip()
+    if len(query) < 3:
+        return ToolResult.error("Tell me which fact to forget, in a few words.")
+
+    path = _facts_path()
+    if path is None or not path.is_file():
+        return ToolResult.error("There are no stored facts to forget.")
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        return ToolResult.error(f"Could not read the facts file: {exc}")
+
+    needle = query.lower()
+    hits = [
+        i
+        for i, ln in enumerate(lines)
+        if ln.strip().startswith("- ") and needle in ln.lower()
+    ]
+    if not hits:
+        return ToolResult.error(
+            f"Nothing stored matches {query!r}. Say so plainly rather than "
+            "claiming to have forgotten something."
+        )
+    if len(hits) > 1:
+        shown = "; ".join(lines[i].strip()[2:][:80] for i in hits[:5])
+        return ToolResult.error(
+            f"{len(hits)} stored facts match {query!r}: {shown}. "
+            "Ask which one before removing anything."
+        )
+
+    idx = hits[0]
+    removed = lines[idx].strip()[2:]
+    if replacement:
+        lines[idx] = f"- {replacement}"
+    else:
+        del lines[idx]
+    try:
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    except OSError as exc:
+        return ToolResult.error(f"Could not update the facts file: {exc}")
+
+    logger.info("forget: %s %r", "replaced" if replacement else "removed", removed[:60])
+    return ToolResult(
+        content=(
+            (f"Corrected: {removed[:100]} -> {replacement[:100]}" if replacement
+             else f"Forgotten: {removed[:120]}")
+            + "\nConfirm briefly in your own words."
+        ),
+        data={"removed": removed, "replaced_with": replacement},
+    )
+
+
+def search_journal(args: dict) -> ToolResult:
+    """args: {query: str, limit?: int}. Full text across past conversations.
+
+    ``recall`` searches the memory layer's own index; this reads the diaries
+    themselves, which is what answers "when did we talk about X" with a date
+    and a session to open.
+    """
+    query = str((args or {}).get("query") or "").strip()
+    limit = int((args or {}).get("limit") or 8)
+    if len(query) < 2:
+        return ToolResult.error("search_journal needs at least two characters.")
+
+    try:
+        from ...memory.journal_sync import engram_root
+    except Exception:  # noqa: BLE001
+        return ToolResult.error("The journal is not available.")
+    root = engram_root()
+    if root is None:
+        return ToolResult.error("There is no second brain connected to search.")
+
+    needle = query.lower()
+    hits: list[dict] = []
+    thoughts = root / "Thoughts"
+    if not thoughts.is_dir():
+        return ToolResult.error("The journal has no sessions yet.")
+    try:
+        days = sorted((d for d in thoughts.iterdir() if d.is_dir()), reverse=True)
+    except OSError as exc:
+        return ToolResult.error(f"Could not read the journal: {exc}")
+
+    for d in days:
+        if len(hits) >= max(1, min(limit, 20)):
+            break
+        for name in ("claude.md", "chatlog.md"):
+            f = d / name
+            if not f.is_file():
+                continue
+            try:
+                text = f.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            at = text.lower().find(needle)
+            if at < 0:
+                continue
+            start = max(0, at - 70)
+            snippet = " ".join(text[start : at + len(query) + 110].split())
+            hits.append({"slug": d.name, "where": name, "snippet": snippet})
+            break
+
+    if not hits:
+        return ToolResult(
+            content=(
+                f"No past conversation mentions {query!r}. Say so plainly; do not "
+                "reconstruct one from memory."
+            ),
+            data={"query": query, "hits": []},
+        )
+    lines = [f"Journal matches for {query!r}: {len(hits)}"]
+    for h in hits:
+        lines.append(f"- {h['slug']}: {h['snippet'][:180]}")
+    logger.info("search_journal %r -> %d", query, len(hits))
+    return ToolResult(content="\n".join(lines), data={"query": query, "hits": hits})

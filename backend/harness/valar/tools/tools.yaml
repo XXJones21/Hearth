@@ -336,6 +336,101 @@ tools:
             <stem>-draft.<ext>.
       required: [source, instructions]
 
+  - name: forget
+    description: >-
+      Remove or correct one stored fact about the operator. Use when they say
+      that is wrong, forget that, or correct something you remembered. Pass a
+      few words identifying the fact; pass replace_with to correct it instead
+      of deleting it. If several facts match, it lists them and changes
+      nothing: ask which one.
+    handler: valar.tools.handlers.memory:forget
+    domain: memory
+    risk: write
+    parameters:
+      type: object
+      properties:
+        fact:
+          type: string
+          description: A few words identifying the stored fact.
+        replace_with:
+          type: string
+          description: Optional corrected wording. Omit to remove the fact entirely.
+      required: [fact]
+
+  - name: search_journal
+    description: >-
+      Search past conversations for a word or phrase and return the sessions
+      that mention it, with dates. Use for "when did we talk about X", "what
+      did I say about Y", or to find the conversation before answering from
+      it. For facts about the operator prefer recall; this is for finding a
+      CONVERSATION.
+    handler: valar.tools.handlers.memory:search_journal
+    domain: memory
+    risk: read
+    speak: Let me look back through our conversations.
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Word or phrase to look for.
+        limit:
+          type: integer
+          description: Maximum sessions to return (default 8, cap 20).
+      required: [query]
+
+  - name: session_summary
+    description: >-
+      Write up the CURRENT conversation into the Journal now, without ending
+      it. Use when they say save this, write this down, or keep a record of
+      this conversation. The conversation continues afterwards.
+    handler: valar.tools.handlers.session_persist:session_summary
+    domain: memory
+    risk: write
+    speak: Let me write this up.
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: list_projects
+    description: >-
+      List the projects in the operator's second brain, most recently touched
+      first. Use before update_project, or when they ask what they are working
+      on. Never invent a project name.
+    handler: valar.tools.handlers.projects:list_projects
+    domain: brain
+    risk: read
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: update_project
+    description: >-
+      Add a decision or a note to a project in the second brain. Use when a
+      conversation settles something worth keeping. Write the decision itself,
+      not the conversation around it. If the name is ambiguous it lists the
+      matches and writes nothing.
+    handler: valar.tools.handlers.projects:update_project
+    domain: brain
+    risk: write
+    speak: Let me note that down.
+    parameters:
+      type: object
+      properties:
+        project:
+          type: string
+          description: Project name or folder slug, as returned by list_projects.
+        note:
+          type: string
+          description: The decision or note to record (max ~1000 chars).
+        section:
+          type: string
+          enum: [decisions, notes]
+          description: Which heading to append under. Default decisions.
+      required: [project, note]
+
   - name: remember
     description: >-
       Store a durable fact about the user for later (in long-term memory). Use when

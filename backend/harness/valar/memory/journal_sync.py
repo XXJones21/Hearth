@@ -116,8 +116,12 @@ def pending(minutes: int = SETTLE_MINUTES, limit: int = MAX_PER_TICK) -> list[di
     return out[:limit]
 
 
-async def promote(record: dict, personas, brain, config) -> bool:
-    """Give one record the write-up it never got. Never raises."""
+async def promote(record: dict, personas, brain, config, persona=None) -> bool:
+    """Give one record the write-up it never got. Never raises.
+
+    ``persona`` short-circuits the lookup for a caller that already holds one,
+    which is the live turn asking for its own conversation to be written up.
+    """
     session_id = str(record.get("session_id") or "")
     try:
         from ..gateway.session import Session
@@ -135,11 +139,12 @@ async def promote(record: dict, personas, brain, config) -> bool:
             mark_synced(session_id, "")
             return False
 
-        persona_name = str(record.get("persona") or "") or personas.current_name()
-        try:
-            persona = personas.load(persona_name)
-        except Exception:  # noqa: BLE001 - a renamed persona must not strand a record
-            persona = personas.current()
+        if persona is None:
+            persona_name = str(record.get("persona") or "") or personas.current_name()
+            try:
+                persona = personas.load(persona_name)
+            except Exception:  # noqa: BLE001 - a renamed persona must not strand a record
+                persona = personas.current()
 
         # summarize_session reads a Session; the record IS the session, just
         # from disk instead of memory.

@@ -394,6 +394,17 @@ class VoiceLoop:
         # see whether it adds enough latency before the answer to warrant a spoken
         # "thinking" filler. 0.0 on the flag-OFF path (the call returns instantly).
         ctx["stage"] = "tool_round_trip"
+        # A few tools act on the conversation rather than on the world, and the
+        # model cannot pass them a session it does not know the id of.
+        from ..tools.context import set_turn_context
+
+        set_turn_context(
+            session_id=session.session_id,
+            persona=persona,
+            brain=self.brain,
+            config=self.config,
+            personas=getattr(self, "personas", None),
+        )
         turn_decisions: list = []
         with Timer(telemetry, "tool_round_trip_ms"):
             messages, filler_task = await self._maybe_run_tools(

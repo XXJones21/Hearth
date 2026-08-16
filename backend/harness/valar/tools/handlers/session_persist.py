@@ -159,3 +159,59 @@ async def persist_session(args: dict) -> ToolResult:
         ok=bool(saved.get("saved") or saved.get("chatlog_only") or continuity_ok),
         data={"diary": saved, "continuity": continuity_ok},
     )
+
+
+async def session_summary(args: dict) -> ToolResult:
+    """Write up THIS conversation now, instead of waiting for it to end.
+
+    Filing has always been something that happened to a conversation later:
+    when it ended, or when the nightly routine got to it. This is the operator
+    asking for it on purpose, mid-sentence, which is the only way to say "keep
+    this one" without also saying "and stop talking to me".
+
+    The record is already on disk turn by turn, so this is a promotion rather
+    than a save: summarise what is there, write the diary, mark it synced. The
+    conversation keeps going, and a turn after this re-dirties the record so
+    the next pass picks up the rest.
+    """
+    from ..context import turn_context
+
+    ctx = turn_context()
+    session_id = str(ctx.get("session_id") or "")
+    if not session_id:
+        return ToolResult.error(
+            "There is no live conversation to write up."
+        )
+
+    from ...memory.journal_sync import promote
+    from ...memory.session_record import read_record
+
+    record = read_record(session_id)
+    if not record or int(record.get("turns") or 0) == 0:
+        return ToolResult.error(
+            "Nothing has been said in this conversation yet, so there is nothing "
+            "to write up."
+        )
+
+    ok = await promote(
+        {"session_id": session_id, "persona": record.get("persona") or ""},
+        ctx.get("personas"),
+        ctx.get("brain"),
+        ctx.get("config"),
+        persona=ctx.get("persona"),
+    )
+    if not ok:
+        return ToolResult.error(
+            "I could not write that up. The conversation is still saved word for "
+            "word; only the summary failed."
+        )
+    turns = int(record.get("turns") or 0)
+    return ToolResult(
+        content=(
+            f"Written up: this conversation ({turns} turn"
+            + ("" if turns == 1 else "s")
+            + ") is now in the Journal.\n"
+            "Say so briefly. The conversation continues; nothing was cleared."
+        ),
+        data={"session_id": session_id, "turns": turns},
+    )
