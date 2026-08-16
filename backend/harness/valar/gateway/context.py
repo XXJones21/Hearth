@@ -101,6 +101,21 @@ def _render_device_context(dc: dict | None) -> str:
     except Exception:  # noqa: BLE001 - continuity is additive, never breaks a turn
         pass
 
+    # Due reminders ride the same rail as the clock. The house has no channel
+    # that can speak unprompted, so a reminder is delivered by being IN the
+    # context of the next thing said, every turn, until it is dismissed.
+    try:
+        from ..memory.journal_sync import engram_root
+        from ..memory.reminders import render_due_line
+
+        root = engram_root()
+        if root is not None:
+            line = render_due_line(root)
+            if line:
+                lines.append(line)
+    except Exception:  # noqa: BLE001 - reminders are additive, never break a turn
+        pass
+
     return "# Current context\n" + "\n".join(lines)
 
 

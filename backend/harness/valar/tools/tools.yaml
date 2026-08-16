@@ -70,6 +70,75 @@ tools:
       properties: {}
       required: []
 
+  - name: create_reminder
+    description: >-
+      Remind the operator of something at a TIME: "remind me at 6", "tomorrow
+      morning", "in two hours". Use for anything beyond the current
+      conversation; set_timer is for short countdowns you can hear finish.
+      Always say the time back to them. Be honest that it surfaces in
+      conversation when due rather than making a sound on its own.
+    handler: valar.tools.handlers.reminders:create_reminder
+    domain: timers
+    risk: write
+    parameters:
+      type: object
+      properties:
+        when:
+          type: string
+          description: >-
+            The time, as they said it: "6pm", "tomorrow at 9", "in 2 hours",
+            or "2026-08-20 14:30". Do not guess if it was not said.
+        text:
+          type: string
+          description: What to remind them of, in their words.
+      required: [when, text]
+
+  - name: list_reminders
+    description: List the reminders that are still standing, soonest first.
+    handler: valar.tools.handlers.reminders:list_reminders
+    domain: timers
+    risk: read
+    parameters:
+      type: object
+      properties: {}
+      required: []
+
+  - name: dismiss_reminder
+    description: >-
+      Tick off a reminder once it has been dealt with, so it stops coming up.
+      Use when they say done, handled, or drop it.
+    handler: valar.tools.handlers.reminders:dismiss_reminder
+    domain: timers
+    risk: write
+    parameters:
+      type: object
+      properties:
+        text:
+          type: string
+          description: A few words identifying which reminder.
+      required: [text]
+
+  - name: manage_routine
+    description: >-
+      List the standing routines the house runs on a clock, or stop one. Use
+      when they ask what it does on its own, or say stop doing X. You cannot
+      add a routine this way: each one is code behind a loop, and a heading
+      with nothing behind it would be a lie.
+    handler: valar.tools.handlers.reminders:manage_routine
+    domain: memory
+    risk: write
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [list, remove]
+          description: Default list.
+        name:
+          type: string
+          description: Which routine, when removing.
+      required: []
+
   - name: set_timer
     description: >-
       Set a countdown timer. Use for "set a timer for 5 minutes", "remind me in an
