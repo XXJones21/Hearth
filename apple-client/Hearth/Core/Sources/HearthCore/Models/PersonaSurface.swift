@@ -83,6 +83,11 @@ public struct PersonaSurface: Decodable {
         /// falls back to the orb (PersonaVisualization defaults to
         /// sphereParticle), so its colours do apply and it gets the seed
         /// offer. Treating "unknown" as "model" would hide a working control.
+        ///
+        /// `procedural_face` lands in the not-a-model branch deliberately. The
+        /// face is drawn, not imported, and it washes its ink with the same
+        /// per-state colours the orb glows with -- so the state-colour editor
+        /// stays live for a persona wearing one.
         public var usesModelAsset: Bool { visualizationType == "glb_animated" }
 
         public var formLabel: String {

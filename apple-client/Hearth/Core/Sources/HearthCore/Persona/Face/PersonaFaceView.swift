@@ -327,3 +327,16 @@ public struct PersonaFaceView: View {
         return path
     }
 }
+
+// The face with nothing else on screen, which is how every question about it
+// ("is the arc too high", "is the mouth too low") is actually answered.
+#Preview("Persona face") {
+    VStack(spacing: 24) {
+        PersonaFaceView(geometry: FaceGeometry(), state: .IDLE)
+            .frame(width: 220, height: 220)
+        PersonaFaceView(geometry: FaceGeometry(), state: .THINKING)
+            .frame(width: 220, height: 220)
+    }
+    .padding()
+    .background(HearthPalette.cream)
+}

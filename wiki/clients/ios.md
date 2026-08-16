@@ -37,7 +37,7 @@ Windows house on 2026-08-08. Here is what that turn looked like:
 2. The house replies with streamed audio, played back in order as it
    arrives, so the reply starts speaking before the whole response has
    generated.
-3. A persona orb on screen animates from the real playback amplitude of that
+3. The persona on screen animates from the real playback amplitude of that
    audio, not a canned animation.
 4. Cards, such as a weather card, arrive on the same connection and land in
    a scrolling timeline below the persona.
@@ -56,6 +56,34 @@ House-side settings, such as which model a persona uses or which tools it
 can call, are edited on the desktop, not on the phone. The phone only edits
 what belongs to the phone: the persona's prompt and colors, and its own
 on-device features like speech recognition.
+
+## The face
+
+A persona whose config asks for one is drawn as a face rather than an orb:
+two eyes, a mouth that only appears while it is speaking, and no eyebrows.
+It is drawn from a dozen numbers the persona owns -- how wide the head is,
+how far apart the eyes sit, how long they are -- so two personas wearing the
+same expressions still look like two different people.
+
+Nothing about it is a video or a canned animation. The eyes drift and blink
+on their own while it waits, look away while the house is thinking, and drop
+toward the keyboard when you open it to type, because that is where the
+words are coming from. While it talks, the mouth follows the actual sound of
+the voice rather than the text.
+
+The house can also name a reaction for a sentence -- a laugh, a sigh, a
+question, a startle -- and the face plays it on that sentence and settles
+back out of it. Those names come from the house, so the phone and the
+desktop react in the same places.
+
+Turning on Accessibility > Motion > Reduce Motion stops the blinking, the
+gaze darting and the sway. The mouth still moves with the voice: that is
+speech, not decoration.
+
+The face lives in `HearthCore/Persona/Face/`, and its design -- the pose
+channels, the expression library, the timing -- is written down once in
+`wiki/raw/persona-face-spec.md` and implemented from that same document on
+every client.
 
 ## How pairing works
 
@@ -119,8 +147,8 @@ thing entirely, wearing someone else's memory and personas.
   built on the house side; the app cannot yet enter a code or send a token.
 - **No widgets yet.** Home-screen widgets are declared as a target but not
   built out.
-- **No persona imagery.** Personas render as an orb; a 3D or animated
-  persona model is not bundled with any persona yet.
+- **No persona imagery.** Personas render as an orb or a drawn face; a 3D or
+  animated persona model is not bundled with any persona yet.
 - **visionOS is a skeleton**, not a full app. It builds and can host the
   orb, but the volumetric window and full scene are not built.
 - **No away-from-home access.** Reaching a house from outside your own
