@@ -107,6 +107,15 @@ Apps card library already marks it so; keep that honest.
 
 ## Tier 1. Daily quality of life
 
+> STATUS (2026-08-16, Windows session): tasks 5 through 8 are BUILT on
+> `feat/ios-qol-tier0`, unverified on device. Notes against the plan:
+> tap-to-send replaced tap-to-discard (discard moved to the stage tap); the
+> countdown shipped as an explicit "sends when you pause" hint rather than a
+> timer bar; mic level drives the talk button's glow; keepalive is 20 s and
+> the pong transcript row is gone; speak-replies off is volume zero so the
+> karaoke caption still reveals in playback time; permission priming runs
+> right after pairing succeeds in first run.
+
 ### 5. Transcript persistence, per persona
 
 Nothing is persisted; relaunch loses everything, and switching personas keeps

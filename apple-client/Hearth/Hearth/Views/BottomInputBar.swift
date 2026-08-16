@@ -59,10 +59,17 @@ struct BottomInputBar: View {
                 .frame(maxWidth: 240)
                 .padding(.vertical, 16)
                 .background(
+                    // While listening the glow rides the actual microphone
+                    // (viewModel.micLevel), so a muted mic and a dead route
+                    // LOOK different from a working one -- the fixed timer
+                    // pulse looked identical either way.
                     Capsule().fill(talkColor)
-                        .shadow(color: talkColor.opacity(0.5), radius: pulse ? 16 : 8, y: 4)
+                        .shadow(color: talkColor.opacity(0.5),
+                                radius: pulse ? 10 + CGFloat(viewModel.micLevel) * 14 : 8,
+                                y: 4)
                 )
-                .scaleEffect(pulse ? 1.04 : 1.0)
+                .scaleEffect(pulse ? 1.02 + CGFloat(viewModel.micLevel) * 0.05 : 1.0)
+                .animation(.easeOut(duration: 0.12), value: viewModel.micLevel)
             }
             .disabled(!talkEnabled)
             .accessibilityLabel(talkLabel)
@@ -100,7 +107,10 @@ struct BottomInputBar: View {
 
     private var talkLabel: String {
         switch viewModel.hearthState {
-        case .LISTENING: return "Listening…"
+        // The label is the contract: once there are words, a tap SENDS them
+        // (a pause sends on its own). The discard is the stage tap.
+        case .LISTENING:
+            return viewModel.liveTranscription.isEmpty ? "Listening…" : "Tap to send"
         case .THINKING:  return "Thinking…"
         case .SPEAKING:  return "Tap to interrupt"
         default:         return "Tap to talk"
@@ -203,14 +213,22 @@ struct BottomInputBar: View {
     // MARK: - Live transcription
 
     private var liveTranscriptionOverlay: some View {
-        Text(viewModel.liveTranscription)
-            .font(.subheadline)
-            .foregroundStyle(HearthPalette.roast)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(HearthPalette.glowtint)
-            .clipShape(.rect(cornerRadius: 12, style: .continuous))
-            .transition(.opacity.combined(with: .move(edge: .bottom)))
-            .animation(.easeInOut(duration: 0.2), value: viewModel.liveTranscription)
+        VStack(spacing: 4) {
+            Text(viewModel.liveTranscription)
+                .font(.subheadline)
+                .foregroundStyle(HearthPalette.roast)
+            // The silence auto-submit was invisible, so people were
+            // surprise-sent mid-sentence. Naming the mechanic is the
+            // lightweight honest version of a countdown.
+            Text("sends when you pause, or tap the button")
+                .font(.system(size: 10.5))
+                .foregroundStyle(HearthPalette.fawn)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(HearthPalette.glowtint)
+        .clipShape(.rect(cornerRadius: 12, style: .continuous))
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .animation(.easeInOut(duration: 0.2), value: viewModel.liveTranscription)
     }
 }

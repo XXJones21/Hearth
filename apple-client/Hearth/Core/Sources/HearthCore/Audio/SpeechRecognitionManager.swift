@@ -18,6 +18,29 @@ enum SpeechRecognitionError: Error {
     case audioEngineError(Error)
 }
 
+/// Ask for both voice permissions in one deliberate moment (first run, right
+/// after pairing succeeds), instead of two system alerts stacking on the
+/// first mic tap. Skips anything already answered. Public because first run
+/// lives in the app target.
+public enum VoicePermissions {
+    public static func prime() async {
+        if SFSpeechRecognizer.authorizationStatus() == .notDetermined {
+            _ = await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { _ in
+                    continuation.resume(returning: true)
+                }
+            }
+        }
+        if AVAudioApplication.shared.recordPermission == .undetermined {
+            _ = await withCheckedContinuation { continuation in
+                AVAudioApplication.requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
+        }
+    }
+}
+
 class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
     /// Optional, not force-unwrapped: `SFSpeechRecognizer(locale:)` returns nil
     /// on a device whose locale set does not include en-US, and this manager
@@ -37,6 +60,11 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
     var onPartialResult: ((String) -> Void)?
     var onFinalResult: ((String) -> Void)?
     var onError: ((Error) -> Void)?
+    /// Smoothed input level 0..1, ~per audio buffer while the mic is live.
+    /// Drives the listening pulse so it reads the actual microphone rather
+    /// than a timer -- a muted mic and a dead route now LOOK different.
+    var onLevel: ((Float) -> Void)?
+    private var smoothedLevel: Float = 0
 
     override init() {
         self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
@@ -115,8 +143,19 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
             ))
         }
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
             request.append(buffer)
+            // The buffer is already in hand; metering it is one pass.
+            guard let self, let channel = buffer.floatChannelData?[0] else { return }
+            let n = Int(buffer.frameLength)
+            guard n > 0 else { return }
+            var sumSquares: Float = 0
+            for i in 0..<n { let s = channel[i]; sumSquares += s * s }
+            let rms = (sumSquares / Float(n)).squareRoot()
+            let level = min(1, rms * 9)
+            self.smoothedLevel = self.smoothedLevel * 0.7 + level * 0.3
+            let out = self.smoothedLevel
+            DispatchQueue.main.async { self.onLevel?(out) }
         }
 
         lastPartialText = ""
@@ -172,6 +211,24 @@ class SpeechRecognitionManager: NSObject, SFSpeechRecognizerDelegate {
         cleanup()
         print("[SpeechRecognitionManager] Recognition stopped")
     }
+
+    /// Commit whatever has been said SO FAR, now -- the user's tap instead of
+    /// the silence timeout. Same path the timer takes (`hasFiredFinal` keeps
+    /// the recognizer's own late final from double-sending), so tap and
+    /// timeout cannot drift apart. No partial yet means nothing to commit;
+    /// the caller treats that as a plain stop.
+    @discardableResult
+    func finishAndCommit() -> Bool {
+        guard isRunning, !hasFiredFinal else { return false }
+        let text = lastPartialText
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        hasFiredFinal = true
+        cancelSilenceTimer()
+        print("[SpeechRecognitionManager] Tap commit -- finalizing: '\(text)'")
+        onFinalResult?(text)
+        return true
+    }
+
 
     private func cleanup() {
         cancelSilenceTimer()

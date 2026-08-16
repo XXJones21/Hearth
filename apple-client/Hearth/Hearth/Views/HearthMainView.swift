@@ -15,6 +15,7 @@
 
 import SwiftUI
 import HearthCore
+import UIKit
 
 struct HearthMainView: View {
     @ObservedObject var viewModel: ChatViewModel
@@ -99,6 +100,10 @@ struct HearthMainView: View {
                             // voice and return to idle. The mic button is the
                             // interrupt that also listens.
                             viewModel.interruptSpeaking()
+                        } else if viewModel.hearthState == .LISTENING {
+                            // The mic button SENDS now, so the discard moved
+                            // here: tapping the stage throws the partial away.
+                            viewModel.discardListening()
                         } else if viewModel.hearthState == .IDLE && viewModel.connectionStatus == .connected {
                             viewModel.toggleListening()
                         }
@@ -164,6 +169,26 @@ struct HearthMainView: View {
             Button("Not now", role: .cancel) {}
         } message: {
             Text("The house refused this phone's key. It may have been revoked at the desk. Pairing again takes a fresh six-digit code from the house.")
+        }
+        // Voice problems the collapsed transcript would swallow: permission
+        // denials get their Settings deep link; the rest just get seen.
+        .alert(
+            "Voice",
+            isPresented: Binding(
+                get: { viewModel.voiceAlert != nil },
+                set: { if !$0 { viewModel.voiceAlert = nil } }
+            )
+        ) {
+            if viewModel.voiceAlert?.contains("Settings") == true {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.voiceAlert ?? "")
         }
         .fullScreenCover(isPresented: $viewModel.showSettings) {
             HearthSettingsView(viewModel: viewModel)

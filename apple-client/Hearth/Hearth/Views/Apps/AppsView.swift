@@ -94,6 +94,14 @@ struct AppsView: View {
                 .font(.system(size: 12.5))
                 .italic()
                 .foregroundStyle(HearthPalette.fawn)
+            // The rows below are deliberately read-only: applying app changes
+            // restarts the house, which is not a thing a phone should do to a
+            // machine someone else may be talking to. Without this line the
+            // inert rows read as a broken screen.
+            Text("Changes are made at the desk, on the machine running the house. This phone reads.")
+                .font(.system(size: 11))
+                .foregroundStyle(HearthPalette.fawn.opacity(0.85))
+                .padding(.top, 3)
         }
         .padding(.horizontal, 18)
         .padding(.top, 4)

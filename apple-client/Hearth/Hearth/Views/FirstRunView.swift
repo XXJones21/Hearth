@@ -146,6 +146,11 @@ struct FirstRunView: View {
                 // only question it is ever asked: which of these is the one I
                 // lost. "iPhone" three times over answers nothing.
                 try await Pairing.pair(code: code, deviceName: UIDevice.current.name)
+                // Ask for the voice permissions HERE, in one deliberate
+                // moment right after the house let the phone in, instead of
+                // two system alerts stacking on the first mic tap. Skipped
+                // automatically once answered.
+                await VoicePermissions.prime()
                 // ServerConfig posts on the address path; pairing has to say so
                 // itself, and it is the same signal -- the root view's question
                 // is "can this phone talk to a house", not "which half changed".

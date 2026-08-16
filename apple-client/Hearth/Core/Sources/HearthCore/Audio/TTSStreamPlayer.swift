@@ -40,6 +40,14 @@ class TTSStreamPlayer {
     /// arrival races ahead of the voice. The karaoke caption reads this.
     var onSegmentPlaying: ((Int) -> Void)?
 
+    /// 0..1 on the playback mixer. Zero (Settings > Voice off) keeps the
+    /// whole turn intact -- rendering continues, so the karaoke caption still
+    /// reveals in playback time -- with nothing audible and the amplitude tap
+    /// reading silence, which correctly keeps the face's mouth shut.
+    var playbackVolume: Float = 1 {
+        didSet { engine.mainMixerNode.outputVolume = max(0, min(1, playbackVolume)) }
+    }
+
     /// Frames of audio scheduled so far — the playback timeline every segment
     /// mark is measured against.
     private var scheduledFrames: AVAudioFramePosition = 0
@@ -100,6 +108,7 @@ class TTSStreamPlayer {
             return
         }
 
+        engine.mainMixerNode.outputVolume = max(0, min(1, playbackVolume))
         playerNode.play()
         installAmplitudeTap()
         print("[TTSStreamPlayer] Stream started @ \(sampleRate)Hz")

@@ -18,9 +18,25 @@ public enum ConnectionStatus {
     case connected
 }
 
+/// One tap's worth of touch feedback, for a voice-first surface used without
+/// looking at the screen: listening began, words went out, something failed.
+@MainActor
+enum Haptics {
+    static func listenStart() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+    static func commit() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+}
+
 @MainActor
 public class ChatViewModel: ObservableObject {
-    @Published public var messages: [ChatMessage] = []
+    /// Write-through: every change to the feed re-persists the active
+    /// persona's transcript (debounced, system rows excluded). Restores
+    /// happen in init and on persona swap, and go through the same variable,
+    /// which keeps the store's copy and the screen's copy one thing.
+    @Published public var messages: [ChatMessage] = [] {
+        didSet { transcripts.scheduleSave(messages, persona: currentPersonaName) }
+    }
+    private let transcripts = TranscriptStore()
     @Published public var connectionStatus: ConnectionStatus = .disconnected {
         didSet { publishWidgetSnapshot(); tryStartPendingQuickTalk() }
     }
@@ -66,6 +82,14 @@ public class ChatViewModel: ObservableObject {
     private var captionSegment = -1
     // Smoothed TTS playback amplitude 0..1 (drives Sulivan's speaking waveform).
     @Published public var ttsAmplitude: Float = 0
+    /// Smoothed MICROPHONE level 0..1 while listening, so the listening pulse
+    /// reads the actual mic instead of a timer. Quantized before publishing
+    /// to keep the redraw rate civil.
+    @Published public var micLevel: Float = 0
+    /// A voice problem the user must SEE: permission denied, recognizer gone.
+    /// The transcript rows still happen, but the transcript is collapsed by
+    /// default -- this drives an alert with a Settings deep link.
+    @Published public var voiceAlert: String?
     // Summary from the server's idle watchdog (session_ended).
     @Published public var sessionSummary: String?
     /// The house refused this phone's token (socket closed 1008). Reconnect is
@@ -187,6 +211,12 @@ public class ChatViewModel: ObservableObject {
             self?.objectWillChange.send()
         }
 
+        // Yesterday's conversation is still here today. Restored before the
+        // dial so the feed is not empty-then-flashing; the boot sequence's
+        // personas_list re-answers the persona and the adopt guard below
+        // keeps it from wiping what this just restored.
+        messages = transcripts.load(persona: LastPersona.name)
+
         // One path, not two. Valinor chose here between an on-device MLX engine
         // and the socket; the on-device set did not come across, and the
         // product's thesis already answers the question it was asking -- the
@@ -194,6 +224,26 @@ public class ChatViewModel: ObservableObject {
         // house rather than the phone.
         setupWebSocket()
         dial()
+        startKeepalive()
+    }
+
+    /// Application-level ping. Desktop pings every 5 seconds; without one the
+    /// phone only discovers a half-open socket when the next turn fails.
+    /// One loop for the process -- it reads whatever client is current, so a
+    /// redial does not need to restart it.
+    private var keepaliveTask: Task<Void, Never>?
+
+    private func startKeepalive() {
+        guard keepaliveTask == nil else { return }
+        keepaliveTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                if self.connectionStatus == .connected, !self.inBackground {
+                    _ = self.webSocketClient?.sendPing()
+                }
+            }
+        }
     }
 
     // MARK: - Audio / Speech Setup
@@ -213,12 +263,25 @@ public class ChatViewModel: ObservableObject {
                 self?.handleClientTranscription(text)
             }
         }
-        speechRecognitionManager?.onError = { [weak self] _ in
+        speechRecognitionManager?.onError = { [weak self] error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                // The error used to be bound to `_`: a dropped recognizer or
+                // revoked mic presented as "the button flicked back for no
+                // reason". Say what happened.
                 if self.hearthState == .LISTENING {
                     self.stopListening()
+                    self.presentVoiceProblem(error)
                 }
+            }
+        }
+        speechRecognitionManager?.onLevel = { [weak self] level in
+            // Already on the main queue. Quantized so the pulse follows the
+            // mic without publishing 47 view updates a second.
+            guard let self, self.hearthState == .LISTENING else { return }
+            let stepped = (level * 10).rounded() / 10
+            if abs(stepped - self.micLevel) >= 0.1 {
+                self.micLevel = stepped
             }
         }
 
@@ -356,8 +419,10 @@ public class ChatViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if segIdx == 0 {
-                    // A new reply clears any interrupt from the previous one.
+                    // A new reply clears any interrupt from the previous one,
+                    // and picks up the phone's voice prefs (Settings > Voice).
                     self.speechInterrupted = false
+                    self.ttsStreamPlayer?.playbackVolume = ClientPrefs.effectiveVolume
                     self.ttsStreamPlayer?.startStream(sampleRate: sampleRate)
                 }
                 // An interrupted reply's later segments keep arriving for a
@@ -404,19 +469,26 @@ public class ChatViewModel: ObservableObject {
 
         webSocketClient?.onPersonasListReceived = { [weak self] names, currentPersona in
             Task { @MainActor [weak self] in
+                guard let self else { return }
                 print("[Persona] server list: \(names.joined(separator: ", "))")
-                self?.availablePersonas = names
-                self?.selectedPersona = currentPersona
-                self?.currentPersonaName = currentPersona
-                LastPersona.name = currentPersona
+                self.availablePersonas = names
+                self.adoptPersona(currentPersona)
+                // Settings > Personas > start with: ask the house for the
+                // pinned persona once per connect. Desktop's rule verbatim --
+                // only when it differs AND exists in the served list, so a
+                // stale pin cannot strand the client on a persona the house
+                // no longer serves.
+                if let pin = ClientPrefs.startPersona,
+                   pin.caseInsensitiveCompare(currentPersona) != .orderedSame,
+                   names.contains(where: { $0.caseInsensitiveCompare(pin) == .orderedSame }) {
+                    self.webSocketClient?.sendSwitchPersona(pin)
+                }
             }
         }
 
         webSocketClient?.onPersonaSwitched = { [weak self] personaName in
             Task { @MainActor [weak self] in
-                self?.selectedPersona = personaName
-                self?.currentPersonaName = personaName
-                LastPersona.name = personaName
+                self?.adoptPersona(personaName)
                 self?.addSystemMessage("Switched to \(personaName)")
             }
         }
@@ -533,17 +605,23 @@ public class ChatViewModel: ObservableObject {
                 guard let self, !self.isDebugMode else { return }
                 self.connectionStatus = .disconnected
                 self.connectionAlive = false
-                self.addSystemMessage("Connection closed")
+                // A background teardown is deliberate; narrating it would
+                // stamp "Connection closed" into the feed on every app
+                // switch.
+                if !self.inBackground {
+                    self.addSystemMessage("Connection closed")
+                }
                 self.isWaitingForResponse = false
                 self.stopListening()
                 self.scheduleReconnect()
             }
         }
 
-        webSocketClient?.onPongReceived = { [weak self] pong in
-            Task { @MainActor [weak self] in
-                self?.addSystemMessage("Server ping successful")
-            }
+        // Log-only. This used to write "Server ping successful" into the
+        // transcript, which with a real keepalive would narrate the feed
+        // into noise every twenty seconds.
+        webSocketClient?.onPongReceived = { _ in
+            print("[WS] pong")
         }
 
         // Server-side partial_transcription and transcription callbacks are unused
@@ -658,6 +736,51 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Scene lifecycle
+
+    /// True between scenePhase background and the next foreground. Gates the
+    /// reconnect loop and the keepalive: a suspended app cannot service
+    /// either, and iOS kills the socket anyway -- better to close it on our
+    /// own terms.
+    private var inBackground = false
+
+    /// scenePhase went to background: stop the engines deliberately instead
+    /// of letting suspension kill them mid-frame, and close the socket so
+    /// its death is not discovered as an "error" later.
+    public func enterBackground() {
+        inBackground = true
+        if hearthState == .LISTENING { stopListening() }
+        if hearthState == .SPEAKING { interruptSpeaking() }
+        cancelReconnect()
+        webSocketClient?.disconnect()
+        connectionStatus = .disconnected
+        connectionAlive = false
+    }
+
+    /// Back on screen: reset the backoff and dial NOW. Without this the
+    /// person returned to a loop already at the 30 second cap and a dead
+    /// talk button for the rest of it.
+    public func enterForeground() {
+        guard inBackground else { return }
+        inBackground = false
+        guard !needsPairing, ServerConfig.shared.isConfigured else { return }
+        Task { await redial() }
+    }
+
+    // MARK: - History
+
+    /// Settings > Conversation history. Clearing the active persona also
+    /// empties the live feed; clearing all leaves other personas' feeds to
+    /// be discovered empty on their next swap.
+    public func clearHistory(allPersonas: Bool) {
+        if allPersonas {
+            transcripts.clearAll()
+        } else {
+            transcripts.clear(persona: currentPersonaName)
+        }
+        messages = []
+    }
+
     // MARK: - Auto-reconnect
 
     private var reconnectTask: Task<Void, Never>?
@@ -671,6 +794,10 @@ public class ChatViewModel: ObservableObject {
         // A refused token cannot be retried into working; the way back is the
         // pairing screen, and looping behind it would just keep earning 1008s.
         guard !needsPairing else { return }
+        // Settings > Connection: someone debugging a server can stop the
+        // client from dialing back. And a backgrounded phone does not dial;
+        // the foreground kick does.
+        guard ClientPrefs.autoReconnect, !inBackground else { return }
         guard reconnectTask == nil else { return }
         reconnectTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -700,7 +827,13 @@ public class ChatViewModel: ObservableObject {
 
     public func toggleListening() {
         if hearthState == .LISTENING {
-            stopListening()
+            // The button reads "tap to send", so a tap SENDS what has been
+            // said so far -- the silence timeout's path exactly, just now.
+            // (It used to discard, which surprised everyone who trusted the
+            // label.) With nothing said yet it is a plain stop.
+            if speechRecognitionManager?.finishAndCommit() != true {
+                stopListening()
+            }
             return
         }
 
@@ -723,24 +856,45 @@ public class ChatViewModel: ObservableObject {
                 try await speechRecognitionManager?.startRecognition()
                 hearthState = .LISTENING
                 isListening = true
+                Haptics.listenStart()
                 startResponseWaitTimer()
             } catch {
-                if let sttError = error as? SpeechRecognitionError {
-                    switch sttError {
-                    case .notAuthorized:
-                        addSystemMessage("Speech recognition permission denied. Please enable in Settings.")
-                    case .microphonePermissionDenied:
-                        addSystemMessage("Microphone permission denied. Please enable in Settings.")
-                    case .recognizerUnavailable:
-                        addSystemMessage("Speech recognition is not available on this device.")
-                    case .audioEngineError(let underlying):
-                        addSystemMessage("Audio error: \(underlying.localizedDescription)")
-                    }
-                } else {
-                    addSystemMessage("Failed to start speech recognition: \(error.localizedDescription)")
-                }
+                presentVoiceProblem(error)
             }
         }
+    }
+
+    /// Throw the partial transcription away without sending it. The stage
+    /// tap's meaning during LISTENING, now that the mic button commits.
+    public func discardListening() {
+        guard hearthState == .LISTENING else { return }
+        stopListening()
+    }
+
+    /// A voice failure the user must SEE. The transcript row still happens
+    /// (the record), but the transcript is collapsed by default -- denying
+    /// the mic used to make the button look silently dead, with the
+    /// explanation written to a pane nobody had open. `voiceAlert` drives an
+    /// alert with a Settings deep link for the permission cases.
+    private func presentVoiceProblem(_ error: Error) {
+        Haptics.error()
+        let message: String
+        if let sttError = error as? SpeechRecognitionError {
+            switch sttError {
+            case .notAuthorized:
+                message = "Hearth needs Speech Recognition permission to hear you. Turn it on in Settings."
+            case .microphonePermissionDenied:
+                message = "Hearth needs the microphone to hear you. Turn it on in Settings."
+            case .recognizerUnavailable:
+                message = "Speech recognition is not available on this device right now."
+            case .audioEngineError(let underlying):
+                message = "The microphone could not start: \(underlying.localizedDescription)"
+            }
+        } else {
+            message = "Listening could not start: \(error.localizedDescription)"
+        }
+        addSystemMessage(message)
+        voiceAlert = message
     }
 
     private func stopListening() {
@@ -750,6 +904,7 @@ public class ChatViewModel: ObservableObject {
         isPostSpeakListen = false
         stopResponseWaitTimer()
         liveTranscription = ""
+        micLevel = 0
     }
 
     private func handleClientTranscription(_ text: String) {
@@ -759,6 +914,8 @@ public class ChatViewModel: ObservableObject {
         }
 
         liveTranscription = ""
+        micLevel = 0
+        Haptics.commit()
         let userMessage = ChatMessage(text: text, type: .user)
         messages.append(userMessage)
 
@@ -923,24 +1080,46 @@ public class ChatViewModel: ObservableObject {
         webSocketClient?.sendSwitchPersona(name)
     }
 
+    /// Adopt the persona the server says is active. The equality guard is
+    /// desktop's boot-sequence fix carried over: personas_list and
+    /// persona_config both name the current persona on every connect, and
+    /// without the check the second arrival swaps the transcript it just
+    /// restored. An actual change swaps the in-memory feed to the new
+    /// persona's stored one -- it does NOT delete the old persona's file;
+    /// that is what makes per-persona history real.
+    private func adoptPersona(_ name: String) {
+        guard !name.isEmpty else { return }
+        let changed = currentPersonaName.caseInsensitiveCompare(name) != .orderedSame
+        selectedPersona = name
+        currentPersonaName = name
+        LastPersona.name = name
+        guard changed else { return }
+        messages = transcripts.load(persona: name)
+    }
+
     public func setDebugMode(_ enabled: Bool) {
         isDebugMode = enabled
-        if enabled {
-            cancelReconnect()
-            webSocketClient?.disconnect()
-            webSocketClient = nil
-            connectionStatus = .connected
-            connectionAlive = true
-            hearthState = .IDLE
-            messages.removeAll()
-            addSystemMessage("Debug mode enabled -- server connection simulated")
-        } else {
-            connectionStatus = .disconnected
-            connectionAlive = true   // optimistic; setupWebSocket reconnects
-            hearthState = .LOADING
-            messages.removeAll()
-            addSystemMessage("Debug mode disabled -- reconnecting...")
-            setupWebSocket()
+        // The debug wipe is a SCREEN wipe, not a history wipe: with the
+        // write-through transcript store, letting these removals persist
+        // would erase the active persona's real history to try a debug view.
+        transcripts.suspendPersistence {
+            if enabled {
+                cancelReconnect()
+                webSocketClient?.disconnect()
+                webSocketClient = nil
+                connectionStatus = .connected
+                connectionAlive = true
+                hearthState = .IDLE
+                messages.removeAll()
+                addSystemMessage("Debug mode enabled -- server connection simulated")
+            } else {
+                connectionStatus = .disconnected
+                connectionAlive = true   // optimistic; setupWebSocket reconnects
+                hearthState = .LOADING
+                messages.removeAll()
+                addSystemMessage("Debug mode disabled -- reconnecting...")
+                setupWebSocket()
+            }
         }
     }
 
@@ -1314,6 +1493,7 @@ public class ChatViewModel: ObservableObject {
         thinkingTask?.cancel()
         thinkingWatchdogTask?.cancel()
         speakingWatchdogTask?.cancel()
+        keepaliveTask?.cancel()
         responseWaitTimer?.invalidate()
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)
