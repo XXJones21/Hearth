@@ -93,17 +93,27 @@ public final class PersonaFaceTexture {
     /// is the one number to turn.
     public var longitudeOffset: Float = 0
 
-    /// How much of the front hemisphere the face spans. Larger is a smaller
-    /// face on a bigger head.
-    public var extent: Float = 0.62
+    /// How much of the front hemisphere the face spans.
+    ///
+    /// LARGER IS A BIGGER FACE. A feature drawn at half-width `w` in face space
+    /// covers `w * extent` of the sphere's surface, so raising this grows the
+    /// eyes rather than shrinking them. (An earlier version of this comment
+    /// said the opposite, which was simply wrong.)
+    ///
+    /// 0.68 is 0.62 stepped up a tenth, on the operator's read of the first
+    /// correctly-oriented device run: the face was in the right place and the
+    /// eyes were a touch small.
+    public var extent: Float = 0.68
 
     /// How far the ink leans toward `roast` from the state's glow colour.
     ///
-    /// The flat renderer uses 0.62 and gets away with it, because it draws its
-    /// ink on a parchment head. Here the ink sits on a bead that is emissive,
-    /// bright, and blooming, so the same mix reads as a smudge rather than an
-    /// eye. Raised on the evidence of the first device run.
-    public var inkBlend: Float = 0.78
+    /// The flat renderer's value, deliberately. This was briefly raised to 0.78
+    /// to fight a face that came up too bright, which turned out to be a colour
+    /// SPACE fault rather than a colour one -- see `linearized`. With the real
+    /// cause fixed, the mix goes back to matching the phone, because the two
+    /// renderers drawing the same persona in different browns is a drift nobody
+    /// would notice until they were side by side.
+    public var inkBlend: Float = 0.62
 
     public init?(size: Int = 512, kernelName: String = "face_kernel") {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -160,8 +170,8 @@ public final class PersonaFaceTexture {
     /// its own colours would drift from the orb it sits on.
     public func draw(pose: FacePose, palette: PersonaPalette, state: HearthState) {
         let glow = palette.glow(for: state)
-        let ink = mix(glow, HearthPalette.Scene.roast, inkBlend)
-        let glint = mix(HearthPalette.Scene.honey, HearthPalette.Scene.fluff, 0.75)
+        let ink = linearized(mix(glow, HearthPalette.Scene.roast, inkBlend))
+        let glint = linearized(mix(HearthPalette.Scene.honey, HearthPalette.Scene.fluff, 0.75))
 
         var params = FaceParams(
             headWidth: Float(pose.headWidth),
@@ -219,6 +229,29 @@ public final class PersonaFaceTexture {
 
     private func mix(_ a: SIMD3<Float>, _ b: SIMD3<Float>, _ t: Float) -> SIMD3<Float> {
         a * (1 - t) + b * t
+    }
+
+    /// sRGB components to linear.
+    ///
+    /// This is the difference between the face and the bead, and it is why the
+    /// first two device runs came up too bright.
+    ///
+    /// HearthPalette.Scene stores components as hex/255, which is the sRGB
+    /// convention -- the file says so. The bead hands those to RealityKit
+    /// through UIColor(red:green:blue:), which declares them sRGB, and the
+    /// renderer converts. The face writes them into an rgba16Float texture, and
+    /// a float texture is LINEAR: whatever is in it is taken at face value. So
+    /// the same numbers that make the bead correct made the ink roughly
+    /// pow(c, 1/2.2) too light, which is most of a stop.
+    ///
+    /// `roast` is the clearest case: 0.231 as an sRGB component is 0.045 in
+    /// linear, and the difference between those two is exactly the difference
+    /// between ink and a smudge.
+    private func linearized(_ c: SIMD3<Float>) -> SIMD3<Float> {
+        func channel(_ v: Float) -> Float {
+            v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
+        }
+        return SIMD3<Float>(channel(c.x), channel(c.y), channel(c.z))
     }
 
     /// Find the compiled kernel, wherever the build put it.
