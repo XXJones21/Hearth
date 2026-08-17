@@ -58,9 +58,7 @@ one" -- reads as (1) with (2) as the ambition. Confirm before building.
 
 ## Not in scope
 
-The particle waveform's SIZE. It spans `particleMaxDistance * 1.8`, tuned
-against a different orb scale, and at the volume's 0.22 scale it reads as a
-wave cutting across the room. That is a separate quality-of-life adjustment the
-operator has flagged, and it is deliberately not folded in here: the wave being
-too wide and the mouth being the wrong shape are different complaints, and
-fixing them together would make it impossible to tell which change did what.
+The particle waveform's SIZE, which is
+[vision-visual-polish.md](vision-visual-polish.md) item 2. The wave being too
+wide and the mouth being the wrong shape are different complaints, and fixing
+them together would make it impossible to tell which change did what.

@@ -336,9 +336,23 @@ first said:
   Parameterising the phone's for both would serve neither. They stay in the
   iOS target until something actually wants them twice.
 
-**Phase 2, the face.** WRITTEN 2026-08-17, unverified on the headset.
-`PersonaFaceTexture` and `face_kernel`, the `FacePose` params bridge, the
-material binding, the attachment fallback. Look-at moved out; see below.
+**Phase 2, the face.** LANDED 2026-08-17. **Gate 2 PASSED** on the device: the
+face alive on the orb through a full turn, blinking, with the mouth riding real
+TTS amplitude. The `LowLevelTexture` pattern is proven, on hardware, for the
+first time. `PersonaFaceTexture` and `face_kernel`, the `FacePose` params
+bridge, the material binding, the attachment fallback. Look-at moved out; see
+below.
+
+Four adjustments came out of the device runs and none were predictable from the
+simulator: the face landed a quarter turn off (RealityKit's sphere UV seam is
+undocumented, so the shell's rotation is measured rather than derived); the
+limb fade was vignetting the whole face rather than its last few degrees; the
+ink was being written sRGB into a linear float texture, which is most of a stop
+too bright and was the whole of the "washed out" complaint; and the geometry
+carried from a flat 130pt phone view is simply small on a bead the size of a
+palm. The face now runs flat black at `eyeScale` 1.2, both marked as test
+settings in the code. Colour polish is
+[tasks/vision-visual-polish.md](../../tasks/vision-visual-polish.md).
 *Headset gate 2: the face alive on the orb, expressions firing on
 `tts_chunk_start`.* This is also the first on-device proof of the
 `LowLevelTexture` pattern.
