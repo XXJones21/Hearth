@@ -1,0 +1,308 @@
+---
+title: Hearth Vision Design
+status: draft
+last_reviewed: 2026-08-17
+related:
+  - visionos-handoff.md
+  - apple-migration-plan.md
+  - persona-face-spec.md
+sources:
+  - brainstorming session 2026-08-17, Windows house
+  - D:/Tools/Valinor/Apple Client/Valinor/Valinor (Visualization/, VisionOS/)
+  - apple-client/Hearth/Core/Sources/HearthCore
+---
+
+# Hearth Vision Design
+
+The approved design for the dedicated Hearth Vision app: what the visionOS
+client is, how it is structured, and the order it gets built. This document is
+the outcome of the 2026-08-17 brainstorm and supersedes section 4 of
+`visionos-handoff.md` where the two disagree. The handoff's sections 1 to 3
+and 5 to 7 (state of the target, what crosses, hazards, the scheme trap, first
+moves) remain accurate and are not restated here.
+
+---
+
+## Onboarding a new session
+
+If you are a fresh session picking this up, in this order:
+
+1. Read `wiki/raw/visionos-handoff.md` for the state of the Vision target,
+   the migration hazards, and the scheme trap. The target is an untouched
+   Xcode template until phase 0 below lands.
+2. Read this document whole. It is the design authority for the Vision app.
+3. The manifest `apple-client/manifest.yaml` is the authority on what crosses
+   from Valinor and what is excluded. New files authored for this design are
+   `generated` entries. The caustics set stays `excluded`; the face borrows
+   its pattern (section 3), never its files.
+4. Source for ported files: `/Users/jones/Valinor`, branch `hearth-ios`, under
+   `Apple Client/Valinor/Valinor/` (`Visualization/`, `VisionOS/`). A copy
+   also exists on the Windows box at `D:/Tools/Valinor/Apple Client/` but the
+   manifest names the Mac tree as source.
+5. Branch from a `main` that contains the shared-scheme commits `a4930b0` and
+   `43c66ee`. Confirm all four schemes list in Xcode before touching anything.
+6. Find the current phase by checking which phase gates (section 8) already
+   pass, and continue from the first one that does not.
+
+The build machine is the MacBook Air, on the tailnet at `100.83.26.13`.
+Section 10 covers driving it from Windows.
+
+---
+
+## The decisions
+
+Settled in the brainstorm, each with its reasoning in the numbered sections:
+
+| Decision | Choice |
+| --- | --- |
+| Topology | Compact volume as the resting state, immersive space as the expansion, toggled by pinch-and-hold on the orb in both directions |
+| Construction | Everything is an entity or a RealityKit attachment; scene hosts are dumb stages |
+| Face | Live texture on the orb's front hemisphere, `CausticsTexture` pattern, `FaceDirector` reused untouched |
+| Choreography | Harness-named behavior cues over the wire, client behavior library, `state_update` fallback |
+| Cards | The shared SwiftUI card library as attachments, billboard toward the user, anchored to the orb |
+| Journals | Books as entities on a shelf, pages are the existing SwiftUI journal views mounted inside |
+| Surfaces | Settings, Apps, Transcript as 2D windows reusing iOS views; Persona as a volumetric window |
+| Reuse direction | Spatial code targets iOS 18 as well; the iOS client adopts the RealityKit orb later |
+
+---
+
+## 1. Scenes
+
+Five scenes. Three are RealityKit hosts for one shared entity world.
+
+- **Pairing window**, a plain 2D `WindowGroup`. Shown when unpaired; address
+  then code, reusing `FirstRunView`'s flow reshaped for a floating pane.
+- **Main volume**, a volumetric `WindowGroup` and the launch scene. The
+  persona rig sits low in the box (the `CardOrbitLayout.orbY = -0.22`
+  reasoning carries over: low means it can be set on a real table), cards
+  billboard beside it, a compact journal shelf, the composer as a bottom
+  ornament, house status as a top ornament. Launch opens this scene alone.
+- **Library volume**, a volumetric `WindowGroup` opened on demand. The
+  journal shelf at full size, same book entities the main volume shows
+  compactly. Opens from the shelf; closes freely.
+- **Immersive house**, an `ImmersiveSpace` with `.mixed` passthrough. The
+  shelf and books settle into the room, the orb roams, and the real
+  `BloomComponent` replaces the billboard halo through the `realBloomActive`
+  switch the ported scene manager already carries. While immersive is open
+  the main volume dismisses; it returns on exit. This mirrors the iOS
+  collapsed and expanded discipline at room scale.
+- **Transcript window**, a 2D `WindowGroup` hosting `TimelineFeed`. History
+  is a thing in the room, not a mode of the stage.
+
+**The one-scene rule.** An entity lives in exactly one scene at a time. The
+world (persona rig, shelf, card cluster) is owned by an app-level world
+model, and each RealityKit host attaches or releases the shared root on
+appear and dismiss. The scene manager stays hoisted at app level; hosts hold
+no state worth keeping.
+
+**The toggle.** Pinch-and-hold the orb (the 2-second hold from Valinor's
+`SulivanVolumeView`, reinstated now that its destination exists) enters the
+immersive house from the volume, and the same gesture inside the immersive
+house closes it and reopens the volume. A plain pinch on the orb starts a
+voice turn, unchanged.
+
+## 2. Where the code lives
+
+- **`HearthCore`** stays as it is but must compile for xrOS. The first task
+  of phase 0 is adding it to the Vision target and burning down the
+  `#if os(iOS)` fallout, expected first in `Audio/`, `Cards/`, `Config/`.
+- **`HearthSpatial`**, a new library target in the same Core package: the
+  persona rig (orb, face texture, look-at), the behavior system,
+  `CardOrbitLayout`, book and shelf entities, and the ported
+  `RealityKitSceneManager`. Platform floor iOS 18 and visionOS 2. No
+  `#if os(visionOS)` guards except where an API genuinely diverges. This is
+  what makes the later iOS adoption of the RealityKit orb a target change
+  rather than a rewrite, and it is enforced by a build gate: `HearthSpatial`
+  compiles for iOS 18 even before iOS uses it.
+- **The Vision target** holds only scenes, hosts, `Info.plist`, and
+  entitlements. Thin by design, like the iOS target already is.
+
+## 3. The persona rig and the face
+
+`PersonaRig`, an entity in `HearthSpatial` composed of the orb body (ported
+from `RealityKitSceneManager` minus its immersive-only branches, which move
+behind the mode switch), the glow billboard for volume mode, and the face.
+
+**The face texture.** `PersonaFaceTexture` is structurally a sibling of
+Valinor's `CausticsTexture`: a `LowLevelTexture` (rgba16Float, 512) rewritten
+every frame by a `face_kernel` Metal compute pass, exposed as a
+`TextureResource`, ticked from the host's per-frame closure. `FaceDirector`
+and `FaceExpressions` are reused with zero changes. Per frame the director's
+`FacePose` serializes into a params struct (eye centers and half-sizes, blink
+phase, pupil offset, mouth shape, palette colors) exactly as `CausticsParams`
+does, and the kernel draws the established capsule-and-squircle ink language
+as signed distance fields. The texture binds to the orb's front hemisphere as
+an emissive-weighted material layer, so the face glows with the body and
+participates in bloom in immersive mode.
+
+**Fallback.** `CausticsTexture` construction can return nil on a device
+without a usable compute pipeline, and `PersonaFaceTexture` keeps that
+contract. The fallback is the existing `PersonaFaceView` mounted as an
+attachment billboard: degraded, never faceless.
+
+**Look-at, two layers.** The body layer rotates the rig toward a target with
+a smoothed slerp: the user's head anchor when listening or speaking (looking
+forward while listening is this layer's default), or an object target during
+choreography. The gaze layer is the existing `LookTarget` pupil math, fed by
+projecting the 3D target into face space, so the eyes lead the head turn the
+way composer-tracking already works on iOS. Both layers feed the one
+director; there is no second state machine.
+
+**A caveat to respect.** The caustics set was never validated on a device, so
+the `LowLevelTexture` pattern gets its first on-device proof through the
+face. Treat the pattern as unproven until headset gate 2 passes.
+
+## 4. Choreography
+
+**The wire.** Valar emits a `behavior_cue` message at tool boundaries:
+`{name, phase: start | end}`, with `name` mapped from the tool being invoked
+(`consulting_journal`, `searching_files`, `remembering`, `working`). Same
+seam and philosophy as `tts_chunk_start` naming face expressions: the harness
+names the performance, the client stages it. The Valar change lands in
+Valinor first and merges into the Hearth backend after, per the standing
+rule. The client treats the cue vocabulary as open: an unknown name resolves
+to the generic working behavior.
+
+**The client.** `BehaviorDirector` in `HearthSpatial` receives cues,
+forwarded from `ChatViewModel` through a small feed mirroring `FaceFeed`, and
+resolves them against a behavior library: a table from cue name to a sequence
+of primitives such as `flyTo(target)`, `orientTo`, `openBook`, `hoverAt`,
+`returnHome`. Primitives are entity animations with completions, so behaviors
+compose and a new cue is a table entry, not new code.
+
+**Interruption rules, explicit.** A `start` cue preempts idle. TTS beginning
+recalls the orb toward the user unless the running behavior marks itself
+speak-in-place. An `end` cue, a new turn, or any error resolves to
+`returnHome`. In the compact volume the same cues play at desk scale: targets
+are entities, and the entities are simply closer.
+
+**The fallback producer.** Until the Valar cue lands, or on any turn that
+arrives without one, coarse cues derive from `state_update` (thinking maps to
+an attentive idle, tool stages to a generic working hover). The director
+cannot tell the producers apart, so headset work never blocks on the backend.
+
+## 5. Journals as books
+
+**The book.** `JournalBook`, a simple procedural cover-and-pages mesh, cover
+colored from the persona palette and carrying the journal's title, opening on
+a hinge animation. No modeled assets in v1; the object language stays in the
+orb's clean geometric family. Opened, the pages are a SwiftUI attachment
+reusing `JournalBookView` and `JournalEntryView`, so the reading experience
+is the proven iOS one mounted inside the object. Closing the book folds the
+attachment away with it.
+
+**The shelf.** `JournalShelf` lays out books from the same server-fed
+`JournalModels` the iOS client renders, and it is the dynamic-growth point:
+a new journal arriving is a new book appearing. Compact in the main volume,
+full size in the library volume, settled near a real surface in the immersive
+house. Same entities in all three.
+
+**Two open paths.** Gaze-and-pinch a book directly, or the orb opens it: the
+`consulting_journal` choreography is `flyTo(shelf)`, the book slides out and
+opens, the orb hovers while the harness reads, `returnHome` on the `end`
+cue. The book left open at the found entry is the payoff: the spatial version
+of a card, except it is the actual object of the search.
+
+## 6. Cards
+
+Cards stay the shared SwiftUI library, mounted as RealityView attachments.
+`CardOrbitLayout` ports as the anchor logic: cards spawn from the orb's
+position, take their slot in the column, and billboard toward the user
+continuously. They anchor to the rig, not the scene, so when the orb travels
+its cards follow with a soft spring lag: the orb reads as carrying its work.
+Lifecycle, types, and rendering are `CardStore` unchanged. Nothing forks from
+iOS, which is deliberate: the card library stays universal across Apple
+devices.
+
+## 7. The surfaces
+
+- **Settings**: a 2D window, near carbon copy of `HearthSettingsView`, plus a
+  visionOS section for immersive preferences as they accrue.
+- **Persona**: a volumetric window: the active persona rendered through the
+  already-shared `PersonaModelView` (Selene works today on iOS and carries),
+  with the existing SwiftUI persona menu mounted as an attachment panel.
+- **Apps**: a 2D window reusing `AppsView` and `CardLibraryView` as they are.
+- **Transcript**: the 2D window from section 1, hosting `TimelineFeed`.
+
+All four open from the shelf ornament on the main volume.
+
+## 8. Phasing
+
+Ordered so each failure is cheap and the headset is needed as late as
+possible.
+
+**Phase 0, groundwork.** Branch from a `main` containing `a4930b0` and
+`43c66ee`. Add HearthCore to the Vision target; burn down the xrOS fallout.
+Fix both plists: microphone, speech, local networking and ATS into the Vision
+plist; `NSWorldSensingUsageDescription` out of the iOS one, parked until
+phase 4. Delete the Xcode template entirely; write the scene skeleton
+(pairing window plus an empty main volume). No headset, no house.
+
+**Phase 1, the compact house core.** Create `HearthSpatial`. Port
+`RealityKitSceneManager` (volume path only) into `PersonaRig`. Pairing window
+live against the house. Cards as billboarding attachments through the ported
+`CardOrbitLayout`. Composer and status ornaments.
+*Headset gate 1: a full voice turn in the volume.* Pinch the orb, speech
+recognized, reply spoken, a card beside the orb.
+
+**Phase 2, the face.** `PersonaFaceTexture` and `face_kernel`, the `FacePose`
+params bridge, hemisphere material binding, the attachment fallback. Body and
+gaze look-at with the head anchor.
+*Headset gate 2: the face alive on the orb, expressions firing on
+`tts_chunk_start`.* This is also the first on-device proof of the
+`LowLevelTexture` pattern.
+
+**Phase 3, choreography and journals.** `BehaviorDirector`, primitives, the
+`state_update` fallback producer. `JournalBook`, `JournalShelf`, both open
+paths, the library volume. In parallel on the backend: `behavior_cue` lands
+in Valar in Valinor, then merges to the Hearth backend; the client swaps
+producers with no change.
+*Gate 3: a journal-search turn makes the orb fly to the shelf, and the found
+entry is readable in the opened book.*
+
+**Phase 4, the immersive house.** The `ImmersiveSpace(.mixed)` host, entity
+re-hosting between volume and room, the `realBloomActive` switch,
+pinch-and-hold in both directions, `NSWorldSensingUsageDescription` into the
+Vision plist when surface placement lands. Room-scale choreography falls out
+of the same behavior library.
+*Gate 4: the immersive round trip.* Hold to enter, the room furnishes, hold
+to leave, the volume returns.
+
+**Phase 5, surfaces and polish.** Settings, Persona, Apps, Transcript
+windows; the shelf ornament that opens them.
+
+## 9. Definition of done
+
+Extends `visionos-handoff.md` section 8, which still applies in full.
+
+- The Vision target links HearthCore and HearthSpatial and builds for xrOS
+  device and simulator. No file from the Xcode template remains.
+- `HearthSpatial` compiles for iOS 18. A build gate only; iOS adoption of the
+  RealityKit orb is its own later workstream.
+- `tools/apple-gates.sh` clean; `apple-scrub.py --check` reports no drift;
+  new files are `generated` entries in the manifest; the caustics set is
+  still `excluded` and the manifest still says why.
+- Both `Info.plist` files justify every key they carry.
+- Headset gates 1 through 4 pass as written in section 8.
+
+## 10. Building from Windows, and the Mac seam
+
+The MacBook Air is on the tailnet at `100.83.26.13`. As of 2026-08-17 the
+route works but SSH is refused: Remote Login is off. Enable it on the Air
+(System Settings, General, Sharing, Remote Login) and a Windows session can
+drive builds directly:
+
+```
+ssh jones@100.83.26.13 "cd ~/Hearth/apple-client/Hearth && \
+  xcodebuild -scheme 'Hearth Vision' -destination 'generic/platform=visionOS' build"
+```
+
+What that seam covers: builds, gate scripts, git operations, log retrieval.
+What it does not: headset deploys, signing dialogs, simulator interaction,
+and anything Xcode presents as UI. Those remain hands-on-Mac work, which is
+why the onboarding block at the top of this document exists either way.
+
+Two standing hazards from the handoff apply to every Mac session: the SDK
+must match the headset OS (a mismatch crashes before `main()` and looks like
+the app), and a device hang at launch is a debugger question before it is an
+app question.
