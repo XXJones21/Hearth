@@ -44,7 +44,7 @@ struct JournalEntryView: View {
                 ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                     if section.heading.isEmpty {
                         Text(section.body)
-                            .font(.system(size: 13))
+                            .hearthFont(13)
                             .lineSpacing(3)
                             .foregroundStyle(HearthPalette.roast)
                             .fixedSize(horizontal: false, vertical: true)
@@ -67,6 +67,28 @@ struct JournalEntryView: View {
 
     private var actions: some View {
         HStack(spacing: 9) {
+            // The way back INTO this conversation. On iOS the Journal is the
+            // only place past conversations appear; without this none of them
+            // could be reopened. The main view hears the notification, closes
+            // the Journal, and the view model performs the resume.
+            if entry.hasTranscript && !entry.slug.isEmpty {
+                Button {
+                    NotificationCenter.default.post(
+                        name: .hearthResumeSession, object: nil,
+                        userInfo: ["slug": entry.slug]
+                    )
+                } label: {
+                    Text("Resume")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(HearthPalette.fluff)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(HearthPalette.ember, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Ends the live session and picks this conversation back up")
+            }
+
             Button {
                 // Wiring lands with the composer hand-off; the shape is fixed
                 // by the design (pre-fill, do not edit in place).
@@ -152,7 +174,7 @@ private struct SectionBlock: View {
                         Text(isBullet
                              ? line.dropFirst().trimmingCharacters(in: .whitespaces)
                              : line)
-                            .font(.system(size: 12.5))
+                            .hearthFont(12.5)
                             .lineSpacing(2)
                             .foregroundStyle(HearthPalette.roast)
                             .fixedSize(horizontal: false, vertical: true)

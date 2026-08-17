@@ -10,9 +10,6 @@
 //  card the user already scrolled past. The list is capped at `maxCards` to
 //  bound memory. `clear` still drops every instance of a type.
 //
-//  Exception: `session_gallery` is a transient picker, not a transcript entry,
-//  so it stays one-per-type (see `singletonTypes`).
-//
 
 import Foundation
 import Combine
@@ -24,12 +21,6 @@ public final class CardStore: ObservableObject {
 
     /// Matches the desktop's `slice(-40)`.
     private static let maxCards = 40
-
-    /// Types that are UI surfaces rather than transcript entries: a second
-    /// emit replaces the first instead of stacking a duplicate.
-    private static let singletonTypes: Set<String> = [
-        UiComponentDescriptor.typeSessionGallery
-    ]
 
     /// Pending expiry tasks, keyed by card INSTANCE id.
     private var ttlTasks: [String: Task<Void, Never>] = [:]
@@ -65,10 +56,6 @@ public final class CardStore: ObservableObject {
         guard let descriptor = UiComponentDescriptor.from(raw) else {
             print("[UI] ui_component payload unusable (bad type or version); ignored")
             return
-        }
-
-        if Self.singletonTypes.contains(descriptor.type) {
-            dismissType(descriptor.type)
         }
 
         cards.append(descriptor)

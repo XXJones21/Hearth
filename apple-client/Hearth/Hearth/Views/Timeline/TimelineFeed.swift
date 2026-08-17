@@ -65,10 +65,10 @@ struct TimelineFeed: View {
     private var emptyState: some View {
         VStack(spacing: 8) {
             Text("Ask anything, or just start talking")
-                .font(.system(size: 15, weight: .medium))
+                .hearthFont(15, weight: .medium)
                 .foregroundStyle(HearthPalette.roast)
             Text("Your home server is listening.")
-                .font(.system(size: 13))
+                .hearthFont(13)
                 .foregroundStyle(HearthPalette.fawn)
         }
         .frame(maxWidth: .infinity)
@@ -126,7 +126,7 @@ private struct TimelineRow: View {
             HStack(spacing: 12) {
                 Color.clear.frame(width: 44, height: 1)
                 Text(message.text)
-                    .font(.system(size: 12))
+                    .hearthFont(12)
                     .foregroundStyle(HearthPalette.fawn)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -203,7 +203,9 @@ private struct UserBubble: View {
         HStack {
             Spacer(minLength: 24)
             Text(text)
-                .font(.system(size: 14))
+                // The reading surfaces follow Dynamic Type (the ClientProfile
+                // promise); the 44pt attribution nodes and chrome stay fixed.
+                .hearthFont(14)
                 .foregroundStyle(HearthPalette.roast)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
@@ -259,16 +261,16 @@ private struct PersonaEntryCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .hearthFont(14, weight: .semibold)
                     .foregroundStyle(HearthPalette.roast)
                 Spacer()
                 Text(time, format: .dateTime.hour().minute())
-                    .font(.system(size: 11))
+                    .hearthFont(11)
                     .foregroundStyle(HearthPalette.fawn)
             }
             ForEach(Array(Self.paragraphs(of: text).enumerated()), id: \.offset) { _, paragraph in
                 Text(paragraph)
-                    .font(.system(size: 14))
+                    .hearthFont(14)
                     .foregroundStyle(HearthPalette.roast)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)

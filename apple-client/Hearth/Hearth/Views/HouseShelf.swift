@@ -22,6 +22,7 @@ struct HouseShelf: View {
     @ObservedObject var viewModel: ChatViewModel
     @Binding var transcriptShown: Bool
     @Binding var isOpen: Bool
+    var onOpenSessions: () -> Void = {}
     var onOpenJournal: () -> Void = {}
     var onOpenApps: () -> Void = {}
     var onOpenPersona: () -> Void = {}
@@ -47,6 +48,10 @@ struct HouseShelf: View {
                     }
 
                     // Top-level destinations, each its own view when built.
+                    ShelfRow(title: "Sessions", icon: { HearthIcon(shape: BubbleIcon()) }) {
+                        close()
+                        onOpenSessions()
+                    }
                     ShelfRow(title: "Journal", icon: { HearthIcon(shape: BookIcon()) }) {
                         close()
                         onOpenJournal()

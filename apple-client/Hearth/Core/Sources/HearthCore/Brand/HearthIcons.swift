@@ -57,6 +57,32 @@ public struct BookIcon: Shape {
     }
 }
 
+/// Sessions. A speech bubble in the same language as the others: 24-unit
+/// grid, quad-curve corners, a tail off the lower left. Constructed rather
+/// than ported -- the desktop rail's Sessions tab has no icon to copy.
+public struct BubbleIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
+        let g = Grid(rect: rect)
+        var path = Path()
+        path.move(to: g.p(6.5, 3.5))
+        path.addLine(to: g.p(17.5, 3.5))
+        path.addQuadCurve(to: g.p(20, 6), control: g.p(20, 3.5))
+        path.addLine(to: g.p(20, 14))
+        path.addQuadCurve(to: g.p(17.5, 16.5), control: g.p(20, 16.5))
+        path.addLine(to: g.p(11, 16.5))
+        path.addLine(to: g.p(7, 20.5))
+        path.addLine(to: g.p(7, 16.5))
+        path.addQuadCurve(to: g.p(4, 14), control: g.p(4, 16.5))
+        path.addLine(to: g.p(4, 6))
+        path.addQuadCurve(to: g.p(6.5, 3.5), control: g.p(4, 3.5))
+        path.closeSubpath()
+        return path
+    }
+}
+
 /// Persona. Desktop's IconPerson: head, and shoulders as a half circle.
 public struct PersonIcon: Shape {
     /// Explicit: a public struct's memberwise init is internal.

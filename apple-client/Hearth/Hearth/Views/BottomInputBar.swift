@@ -42,6 +42,13 @@ struct BottomInputBar: View {
                 .overlay(alignment: .top) { HearthPalette.linen.frame(height: 1) }
         )
         .animation(.spring(duration: 0.25), value: typing)
+        // composerUp is a process-global that only the keyboard button sets
+        // and only the mic button clears; any teardown of this bar (the root
+        // view rebuilding on a server-address change) stranded it true and
+        // the face leaned into "listening" at nothing for the rest of the
+        // process. composerFrame got this reset from day one; this is its
+        // sibling.
+        .onDisappear { FaceFeed.shared.composerUp = false }
     }
 
     // MARK: - Talk button (resting state)
@@ -59,10 +66,17 @@ struct BottomInputBar: View {
                 .frame(maxWidth: 240)
                 .padding(.vertical, 16)
                 .background(
+                    // While listening the glow rides the actual microphone
+                    // (viewModel.micLevel), so a muted mic and a dead route
+                    // LOOK different from a working one -- the fixed timer
+                    // pulse looked identical either way.
                     Capsule().fill(talkColor)
-                        .shadow(color: talkColor.opacity(0.5), radius: pulse ? 16 : 8, y: 4)
+                        .shadow(color: talkColor.opacity(0.5),
+                                radius: pulse ? 10 + CGFloat(viewModel.micLevel) * 14 : 8,
+                                y: 4)
                 )
-                .scaleEffect(pulse ? 1.04 : 1.0)
+                .scaleEffect(pulse ? 1.02 + CGFloat(viewModel.micLevel) * 0.05 : 1.0)
+                .animation(.easeOut(duration: 0.12), value: viewModel.micLevel)
             }
             .disabled(!talkEnabled)
             .accessibilityLabel(talkLabel)
@@ -83,6 +97,10 @@ struct BottomInputBar: View {
                 Button {
                     typing = true
                     isInputFocused = true
+                    // The face watches where the words come from. `typing`, not
+                    // focus: a dismissed keyboard drops focus while the
+                    // composer is still up and still where someone is looking.
+                    FaceFeed.shared.composerUp = true
                 } label: {
                     Image(systemName: "keyboard")
                         .font(.system(size: 20, weight: .medium))
@@ -96,9 +114,12 @@ struct BottomInputBar: View {
 
     private var talkLabel: String {
         switch viewModel.hearthState {
-        case .LISTENING: return "Listening…"
+        // The label is the contract: once there are words, a tap SENDS them
+        // (a pause sends on its own). The discard is the stage tap.
+        case .LISTENING:
+            return viewModel.liveTranscription.isEmpty ? "Listening…" : "Tap to send"
         case .THINKING:  return "Thinking…"
-        case .SPEAKING:  return "Speaking"
+        case .SPEAKING:  return "Tap to interrupt"
         default:         return "Tap to talk"
         }
     }
@@ -121,8 +142,12 @@ struct BottomInputBar: View {
     }
 
     private var talkEnabled: Bool {
+        // SPEAKING included: the mic mid-reply is barge-in -- toggleListening
+        // cuts the voice and opens a listening turn. Only THINKING stays
+        // dead, because there is nothing to interrupt yet.
         viewModel.connectionStatus == .connected &&
-        (viewModel.hearthState == .IDLE || viewModel.hearthState == .LISTENING)
+        viewModel.hearthState != .THINKING &&
+        viewModel.hearthState != .LOADING
     }
 
     // MARK: - Typing (on demand)
@@ -132,6 +157,7 @@ struct BottomInputBar: View {
             Button {
                 typing = false
                 isInputFocused = false
+                FaceFeed.shared.composerUp = false
             } label: {
                 Image(systemName: "mic.fill")
                     .font(.system(size: 18, weight: .medium))
@@ -141,6 +167,19 @@ struct BottomInputBar: View {
             .accessibilityLabel("Back to voice")
 
             TextField("Message…", text: $inputText)
+                // Where the words are being typed, published for the face to
+                // look at. The field itself, not the whole bar: the face
+                // should watch the text, not the send button.
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear { FaceFeed.shared.composerFrame = proxy.frame(in: .global) }
+                            .onChange(of: proxy.frame(in: .global)) { _, frame in
+                                FaceFeed.shared.composerFrame = frame
+                            }
+                            .onDisappear { FaceFeed.shared.composerFrame = nil }
+                    }
+                )
                 .padding(.horizontal, 16)
                 .padding(.vertical, 11)
                 .background(HearthPalette.parchment)
@@ -181,14 +220,22 @@ struct BottomInputBar: View {
     // MARK: - Live transcription
 
     private var liveTranscriptionOverlay: some View {
-        Text(viewModel.liveTranscription)
-            .font(.subheadline)
-            .foregroundStyle(HearthPalette.roast)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(HearthPalette.glowtint)
-            .clipShape(.rect(cornerRadius: 12, style: .continuous))
-            .transition(.opacity.combined(with: .move(edge: .bottom)))
-            .animation(.easeInOut(duration: 0.2), value: viewModel.liveTranscription)
+        VStack(spacing: 4) {
+            Text(viewModel.liveTranscription)
+                .font(.subheadline)
+                .foregroundStyle(HearthPalette.roast)
+            // The silence auto-submit was invisible, so people were
+            // surprise-sent mid-sentence. Naming the mechanic is the
+            // lightweight honest version of a countdown.
+            Text("sends when you pause, or tap the button")
+                .hearthFont(10.5)
+                .foregroundStyle(HearthPalette.fawn)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(HearthPalette.glowtint)
+        .clipShape(.rect(cornerRadius: 12, style: .continuous))
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .animation(.easeInOut(duration: 0.2), value: viewModel.liveTranscription)
     }
 }

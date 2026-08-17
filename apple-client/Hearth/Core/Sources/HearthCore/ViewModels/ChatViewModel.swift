@@ -5,6 +5,7 @@
 //  Created by Joshua Jones on 11/6/25.
 //
 
+import AVFoundation
 import Foundation
 import Combine
 import simd
@@ -17,9 +18,25 @@ public enum ConnectionStatus {
     case connected
 }
 
+/// One tap's worth of touch feedback, for a voice-first surface used without
+/// looking at the screen: listening began, words went out, something failed.
+@MainActor
+enum Haptics {
+    static func listenStart() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+    static func commit() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+}
+
 @MainActor
 public class ChatViewModel: ObservableObject {
-    @Published public var messages: [ChatMessage] = []
+    /// Write-through: every change to the feed re-persists the active
+    /// persona's transcript (debounced, system rows excluded). Restores
+    /// happen in init and on persona swap, and go through the same variable,
+    /// which keeps the store's copy and the screen's copy one thing.
+    @Published public var messages: [ChatMessage] = [] {
+        didSet { transcripts.scheduleSave(messages, persona: currentPersonaName) }
+    }
+    private let transcripts = TranscriptStore()
     @Published public var connectionStatus: ConnectionStatus = .disconnected {
         didSet { publishWidgetSnapshot(); tryStartPendingQuickTalk() }
     }
@@ -65,8 +82,20 @@ public class ChatViewModel: ObservableObject {
     private var captionSegment = -1
     // Smoothed TTS playback amplitude 0..1 (drives Sulivan's speaking waveform).
     @Published public var ttsAmplitude: Float = 0
+    /// Smoothed MICROPHONE level 0..1 while listening, so the listening pulse
+    /// reads the actual mic instead of a timer. Quantized before publishing
+    /// to keep the redraw rate civil.
+    @Published public var micLevel: Float = 0
+    /// A voice problem the user must SEE: permission denied, recognizer gone.
+    /// The transcript rows still happen, but the transcript is collapsed by
+    /// default -- this drives an alert with a Settings deep link.
+    @Published public var voiceAlert: String?
     // Summary from the server's idle watchdog (session_ended).
     @Published public var sessionSummary: String?
+    /// The house refused this phone's token (socket closed 1008). Reconnect is
+    /// stopped -- retrying a revoked key is a loop that cannot win -- and the
+    /// main view offers the way back: pair again with a fresh code.
+    @Published public var needsPairing = false
 
     // Generative UI cards driven by the Valar gateway's ui_component messages.
     // Owned here; HearthMainView observes it via viewModel.cardStore.
@@ -95,13 +124,16 @@ public class ChatViewModel: ObservableObject {
     }
     private var cueInFlight = false
 
-    // Settings and debug
+    // Settings
     @Published public var showSettings: Bool = false
-    @Published public var isDebugMode: Bool = false
 
     // WebSocket and audio
     private var webSocketClient: HearthWebSocketClient?
     private var thinkingTask: Task<Void, Never>?
+    /// Held for its CONSTRUCTION: AudioSessionManager's init configures the
+    /// process-wide AVAudioSession (.playAndRecord, the loudness mode fix)
+    /// that every other audio path depends on. Nothing calls it afterward
+    /// and that is fine -- the property looking unused is not a bug.
     private var audioInputManager: AudioSessionManager?
     private var speechRecognitionManager: SpeechRecognitionManager?
     private var ttsStreamPlayer: TTSStreamPlayer?
@@ -115,11 +147,41 @@ public class ChatViewModel: ObservableObject {
     /// Sentence text keyed by TTS segment index, so the karaoke caption can be
     /// revealed when that segment is actually heard rather than when it arrives.
     private var sentencesBySegment: [Int: String] = [:]
+    /// Face expressions keyed the same way, and revealed the same way. A cue
+    /// fired on arrival would play the sixth sentence's laugh over the first
+    /// sentence's audio, which is the caption bug wearing a different face.
+    private var expressionsBySegment: [Int: String] = [:]
     // Safety net for THINKING: the server said it is working, so the listen
     // timeout no longer applies — but if nothing arrives (server died
     // mid-pipeline), don't wedge the app in THINKING forever.
     private var thinkingWatchdogTask: Task<Void, Never>?
     private let thinkingWatchdogTimeout: TimeInterval = 90.0
+
+    // Safety net for SPEAKING. The state is normally closed by the sentinel
+    // buffer draining (markSpeakingComplete -> onPlaybackComplete), but a
+    // phone call, Siri, or a failed engine start kills the audio path with
+    // the sentinel unplayed and NOTHING else can leave SPEAKING -- the mic,
+    // the stage tap and the text field were all disabled by it. The tap
+    // callback fires constantly while playback is alive (silence included),
+    // so "the tap went quiet" is the stall signal.
+    private var speakingWatchdogTask: Task<Void, Never>?
+    private var lastSpeechActivity = Date()
+    private let speakingStallTimeout: TimeInterval = 12.0
+    /// The user (or a stall) cut this reply off. Later segments of the SAME
+    /// reply keep arriving for a while; this mutes them so a chunk_start
+    /// cannot flip the state back to SPEAKING after the interrupt.
+    private var speechInterrupted = false
+
+    // Audio-session interruptions (calls, Siri) and route losses (Bluetooth
+    // walking away). Registered once; without these, an interruption
+    // mid-reply wedges SPEAKING permanently -- see the watchdog above, which
+    // stays as the net for whatever these do not catch.
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+    /// choice_card answers (see ActionCards.swift).
+    private var choiceObserver: NSObjectProtocol?
+    /// Journal resume/topic requests (see SessionModels.swift).
+    private var journalObservers: [NSObjectProtocol] = []
 
     /// The persona the house was last speaking as, so the name in the rail is
     /// right before the server confirms it rather than flashing the default.
@@ -154,6 +216,12 @@ public class ChatViewModel: ObservableObject {
             self?.objectWillChange.send()
         }
 
+        // Yesterday's conversation is still here today. Restored before the
+        // dial so the feed is not empty-then-flashing; the boot sequence's
+        // personas_list re-answers the persona and the adopt guard below
+        // keeps it from wiping what this just restored.
+        messages = transcripts.load(persona: LastPersona.name)
+
         // One path, not two. Valinor chose here between an on-device MLX engine
         // and the socket; the on-device set did not come across, and the
         // product's thesis already answers the question it was asking -- the
@@ -161,6 +229,26 @@ public class ChatViewModel: ObservableObject {
         // house rather than the phone.
         setupWebSocket()
         dial()
+        startKeepalive()
+    }
+
+    /// Application-level ping. Desktop pings every 5 seconds; without one the
+    /// phone only discovers a half-open socket when the next turn fails.
+    /// One loop for the process -- it reads whatever client is current, so a
+    /// redial does not need to restart it.
+    private var keepaliveTask: Task<Void, Never>?
+
+    private func startKeepalive() {
+        guard keepaliveTask == nil else { return }
+        keepaliveTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                if self.connectionStatus == .connected, !self.inBackground {
+                    _ = self.webSocketClient?.sendPing()
+                }
+            }
+        }
     }
 
     // MARK: - Audio / Speech Setup
@@ -180,12 +268,25 @@ public class ChatViewModel: ObservableObject {
                 self?.handleClientTranscription(text)
             }
         }
-        speechRecognitionManager?.onError = { [weak self] _ in
+        speechRecognitionManager?.onError = { [weak self] error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                // The error used to be bound to `_`: a dropped recognizer or
+                // revoked mic presented as "the button flicked back for no
+                // reason". Say what happened.
                 if self.hearthState == .LISTENING {
                     self.stopListening()
+                    self.presentVoiceProblem(error)
                 }
+            }
+        }
+        speechRecognitionManager?.onLevel = { [weak self] level in
+            // Already on the main queue. Quantized so the pulse follows the
+            // mic without publishing 47 view updates a second.
+            guard let self, self.hearthState == .LISTENING else { return }
+            let stepped = (level * 10).rounded() / 10
+            if abs(stepped - self.micLevel) >= 0.1 {
+                self.micLevel = stepped
             }
         }
 
@@ -200,9 +301,21 @@ public class ChatViewModel: ObservableObject {
         }
         ttsStreamPlayer?.onSegmentPlaying = { [weak self] segIdx in
             // Already on the main queue.
-            guard let self,
-                  segIdx > self.captionSegment,
-                  let sentence = self.sentencesBySegment[segIdx] else { return }
+            guard let self else { return }
+            // The face reacts on the sentence being HEARD -- segment 0
+            // included. The server emits tts_chunk_start BEFORE synthesizing
+            // the sentence and OmniVoice yields nothing until the whole
+            // sentence is done, so arrival time ran seconds early: a reply
+            // opening with [laughter] laughed at a silent face, then spoke
+            // with a flat one. removeValue also makes each cue one-shot.
+            // This runs BEFORE the caption guard on purpose: captionSegment
+            // is seeded to 0 at arrival (the caption's own approximation),
+            // which would otherwise swallow segment 0's cue here.
+            if let expression = self.expressionsBySegment.removeValue(forKey: segIdx) {
+                self.fireFaceCue(expression)
+            }
+            guard segIdx > self.captionSegment else { return }
+            guard let sentence = self.sentencesBySegment[segIdx] else { return }
             self.captionSegment = segIdx
             self.spokenSentence = self.spokenSentence.isEmpty
                 ? sentence
@@ -210,8 +323,100 @@ public class ChatViewModel: ObservableObject {
         }
         ttsStreamPlayer?.onAmplitude = { [weak self] amp in
             // Already on the main queue; drives Sulivan's speaking waveform.
+            // The face reads the same number off FaceFeed instead of a second
+            // @Published, so a 60fps mouth costs no view updates.
+            FaceFeed.shared.speechLevel = Double(amp)
             self?.ttsAmplitude = amp
+            // The tap firing at all is proof the audio path is alive; the
+            // SPEAKING watchdog measures silence in these.
+            self?.lastSpeechActivity = Date()
         }
+
+        // Registered once for the process; setupAudioComponents runs again on
+        // every redial and a second observer would double-handle each event.
+        if interruptionObserver == nil {
+            interruptionObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+                MainActor.assumeIsolated {
+                    self?.handleAudioPathLost(reason: "interrupted")
+                }
+            }
+        }
+        if routeChangeObserver == nil {
+            routeChangeObserver = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.routeChangeNotification,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let raw = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                      AVAudioSession.RouteChangeReason(rawValue: raw) == .oldDeviceUnavailable
+                else { return }
+                MainActor.assumeIsolated {
+                    self?.handleAudioPathLost(reason: "audio route lost")
+                }
+            }
+        }
+        if journalObservers.isEmpty {
+            // The Journal's way back into a conversation (resume by diary
+            // slug) and into a topic (a shelf book's name). The Journal tree
+            // takes no view model by design; these are its two verbs.
+            journalObservers.append(NotificationCenter.default.addObserver(
+                forName: .hearthResumeSession, object: nil, queue: .main
+            ) { [weak self] note in
+                guard let slug = note.userInfo?["slug"] as? String, !slug.isEmpty else { return }
+                MainActor.assumeIsolated { self?.resumeSession(slug: slug) }
+            })
+            journalObservers.append(NotificationCenter.default.addObserver(
+                forName: .hearthTopicSession, object: nil, queue: .main
+            ) { [weak self] note in
+                guard let name = note.userInfo?["name"] as? String, !name.isEmpty else { return }
+                MainActor.assumeIsolated { self?.startTopicSession(name: name) }
+            })
+        }
+        if choiceObserver == nil {
+            // A tapped choice_card chip is an answer: it goes out as the
+            // user's turn, exactly as if they had typed the label (the
+            // desktop feed's contract).
+            choiceObserver = NotificationCenter.default.addObserver(
+                forName: .hearthChoicePicked,
+                object: nil, queue: .main
+            ) { [weak self] note in
+                guard let label = note.userInfo?["label"] as? String, !label.isEmpty else { return }
+                MainActor.assumeIsolated {
+                    self?.sendMessage(label)
+                }
+            }
+        }
+    }
+
+    /// A call, Siri, or a departed Bluetooth device took the audio path out
+    /// from under whichever engine held it. Close the affected state cleanly
+    /// now instead of leaving the watchdogs to discover the wedge later.
+    private func handleAudioPathLost(reason: String) {
+        switch hearthState {
+        case .SPEAKING:
+            print("[Audio] \(reason) mid-reply -- closing the speaking turn")
+            interruptSpeaking()
+        case .LISTENING:
+            print("[Audio] \(reason) while listening -- stopping the mic")
+            stopListening()
+        default:
+            break
+        }
+    }
+
+    /// Hand the face a transient.
+    ///
+    /// `at` must be on the same clock the renderer ticks with
+    /// (timeIntervalSinceReferenceDate in milliseconds) or the envelope is
+    /// measured against a time that never arrives and the cue is silently
+    /// inert -- which looks exactly like a harness that never sent one.
+    private func fireFaceCue(_ name: String) {
+        FaceFeed.shared.cue = FaceCue(
+            name: name, at: Date.timeIntervalSinceReferenceDate * 1000)
     }
 
     // MARK: - WebSocket Setup
@@ -241,19 +446,28 @@ public class ChatViewModel: ObservableObject {
         // engine in one format, so there is no WAV-blob branch to choose against.
         webSocketClient?.onTTSChunkStart = { [weak self] segIdx, sampleRate in
             Task { @MainActor [weak self] in
+                guard let self else { return }
                 if segIdx == 0 {
-                    self?.ttsStreamPlayer?.startStream(sampleRate: sampleRate)
+                    // A new reply clears any interrupt from the previous one,
+                    // and picks up the phone's voice prefs (Settings > Voice).
+                    self.speechInterrupted = false
+                    self.ttsStreamPlayer?.playbackVolume = ClientPrefs.effectiveVolume
+                    self.ttsStreamPlayer?.startStream(sampleRate: sampleRate)
                 }
-                self?.ttsStreamPlayer?.segmentStarted(segIdx)
+                // An interrupted reply's later segments keep arriving for a
+                // while; they must not restart audio or flip the state back.
+                guard !self.speechInterrupted else { return }
+                self.ttsStreamPlayer?.segmentStarted(segIdx)
                 // Any non-speaking state -> SPEAKING when audio arrives, so a slow
                 // server whose reply lands after the watchdog closed the turn still
                 // shows Sulivan speaking (not stuck idle).
-                if self?.hearthState != .SPEAKING {
-                    self?.hearthState = .SPEAKING
-                    self?.stopThinkingAnimation()
-                    self?.thinkingStage = nil
-                    self?.cancelThinkingWatchdog()
+                if self.hearthState != .SPEAKING {
+                    self.hearthState = .SPEAKING
+                    self.stopThinkingAnimation()
+                    self.thinkingStage = nil
+                    self.cancelThinkingWatchdog()
                 }
+                self.armSpeakingWatchdog()
             }
         }
 
@@ -284,19 +498,26 @@ public class ChatViewModel: ObservableObject {
 
         webSocketClient?.onPersonasListReceived = { [weak self] names, currentPersona in
             Task { @MainActor [weak self] in
+                guard let self else { return }
                 print("[Persona] server list: \(names.joined(separator: ", "))")
-                self?.availablePersonas = names
-                self?.selectedPersona = currentPersona
-                self?.currentPersonaName = currentPersona
-                LastPersona.name = currentPersona
+                self.availablePersonas = names
+                self.adoptPersona(currentPersona)
+                // Settings > Personas > start with: ask the house for the
+                // pinned persona once per connect. Desktop's rule verbatim --
+                // only when it differs AND exists in the served list, so a
+                // stale pin cannot strand the client on a persona the house
+                // no longer serves.
+                if let pin = ClientPrefs.startPersona,
+                   pin.caseInsensitiveCompare(currentPersona) != .orderedSame,
+                   names.contains(where: { $0.caseInsensitiveCompare(pin) == .orderedSame }) {
+                    self.webSocketClient?.sendSwitchPersona(pin)
+                }
             }
         }
 
         webSocketClient?.onPersonaSwitched = { [weak self] personaName in
             Task { @MainActor [weak self] in
-                self?.selectedPersona = personaName
-                self?.currentPersonaName = personaName
-                LastPersona.name = personaName
+                self?.adoptPersona(personaName)
                 self?.addSystemMessage("Switched to \(personaName)")
             }
         }
@@ -348,9 +569,33 @@ public class ChatViewModel: ObservableObject {
             }
         }
 
+        // The face's transient for this sentence, parked against its segment
+        // and played when that segment is actually heard. Segment 0 is no
+        // longer the exception: its tts_chunk_start arrives before synthesis
+        // even starts, so firing on arrival played the opening reaction over
+        // seconds of silence. The playback tap announces segment 0 the moment
+        // its first audio renders, which is the honest "now".
+        webSocketClient?.onFaceCue = { [weak self] name, segIdx in
+            Task { @MainActor [weak self] in
+                self?.expressionsBySegment[segIdx] = name
+            }
+        }
+
         webSocketClient?.onSessionEnded = { [weak self] reason, summary in
             Task { @MainActor [weak self] in
                 self?.handleSessionEnded(reason: reason, summary: summary)
+            }
+        }
+
+        webSocketClient?.onSessionResumed = { [weak self] slug, turns in
+            Task { @MainActor [weak self] in
+                self?.handleSessionResumed(slug: slug, turns: turns)
+            }
+        }
+
+        webSocketClient?.onTopicSession = { [weak self] name in
+            Task { @MainActor [weak self] in
+                self?.addSystemMessage(name.isEmpty ? "New session" : "Session for \(name)")
             }
         }
 
@@ -364,29 +609,48 @@ public class ChatViewModel: ObservableObject {
 
         webSocketClient?.onErrorReceived = { [weak self] error in
             Task { @MainActor [weak self] in
-                guard let self, !self.isDebugMode else { return }
+                guard let self else { return }
                 self.addSystemMessage("Error: \(error)")
                 self.isWaitingForResponse = false
                 self.activeTools = []
             }
         }
 
+        webSocketClient?.onAuthRejected = { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.needsPairing = true
+                self.cancelReconnect()
+                self.addSystemMessage("The house refused this phone's key. Pair again with a fresh code.")
+            }
+        }
+
         webSocketClient?.onConnectionClosed = { [weak self] in
             Task { @MainActor [weak self] in
-                guard let self, !self.isDebugMode else { return }
+                guard let self else { return }
                 self.connectionStatus = .disconnected
                 self.connectionAlive = false
-                self.addSystemMessage("Connection closed")
+                // A background teardown is deliberate; narrating it would
+                // stamp "Connection closed" into the feed on every app
+                // switch.
+                if !self.inBackground {
+                    self.addSystemMessage("Connection closed")
+                }
                 self.isWaitingForResponse = false
+                // The tap dies with the socket; whatever level it last wrote
+                // would otherwise hold the face's mouth open at idle.
+                FaceFeed.shared.speechLevel = 0
+                self.ttsAmplitude = 0
                 self.stopListening()
                 self.scheduleReconnect()
             }
         }
 
-        webSocketClient?.onPongReceived = { [weak self] pong in
-            Task { @MainActor [weak self] in
-                self?.addSystemMessage("Server ping successful")
-            }
+        // Log-only. This used to write "Server ping successful" into the
+        // transcript, which with a real keepalive would narrate the feed
+        // into noise every twenty seconds.
+        webSocketClient?.onPongReceived = { _ in
+            print("[WS] pong")
         }
 
         // Server-side partial_transcription and transcription callbacks are unused
@@ -425,7 +689,7 @@ public class ChatViewModel: ObservableObject {
             addSystemMessage("Connecting to Hearth Server...")
 
             let connected = await webSocketClient?.connect() ?? false
-            if !connected && !isDebugMode {
+            if !connected {
                 connectionStatus = .disconnected
                 connectionAlive = false
                 hearthState = .IDLE
@@ -443,6 +707,9 @@ public class ChatViewModel: ObservableObject {
     /// by the Connection section after the user edits the field.
     public func redial() async {
         cancelReconnect()
+        // A redial is how a re-pair or a new address takes effect; whatever
+        // refusal came before it is history.
+        needsPairing = false
         webSocketClient?.disconnect()
         webSocketClient = nil
         connectionStatus = .connecting
@@ -498,6 +765,51 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Scene lifecycle
+
+    /// True between scenePhase background and the next foreground. Gates the
+    /// reconnect loop and the keepalive: a suspended app cannot service
+    /// either, and iOS kills the socket anyway -- better to close it on our
+    /// own terms.
+    private var inBackground = false
+
+    /// scenePhase went to background: stop the engines deliberately instead
+    /// of letting suspension kill them mid-frame, and close the socket so
+    /// its death is not discovered as an "error" later.
+    public func enterBackground() {
+        inBackground = true
+        if hearthState == .LISTENING { stopListening() }
+        if hearthState == .SPEAKING { interruptSpeaking() }
+        cancelReconnect()
+        webSocketClient?.disconnect()
+        connectionStatus = .disconnected
+        connectionAlive = false
+    }
+
+    /// Back on screen: reset the backoff and dial NOW. Without this the
+    /// person returned to a loop already at the 30 second cap and a dead
+    /// talk button for the rest of it.
+    public func enterForeground() {
+        guard inBackground else { return }
+        inBackground = false
+        guard !needsPairing, ServerConfig.shared.isConfigured else { return }
+        Task { await redial() }
+    }
+
+    // MARK: - History
+
+    /// Settings > Conversation history. Clearing the active persona also
+    /// empties the live feed; clearing all leaves other personas' feeds to
+    /// be discovered empty on their next swap.
+    public func clearHistory(allPersonas: Bool) {
+        if allPersonas {
+            transcripts.clearAll()
+        } else {
+            transcripts.clear(persona: currentPersonaName)
+        }
+        messages = []
+    }
+
     // MARK: - Auto-reconnect
 
     private var reconnectTask: Task<Void, Never>?
@@ -507,7 +819,13 @@ public class ChatViewModel: ObservableObject {
     /// connect. The orb stays "dead" (connectionAlive == false) until a fresh
     /// client_info_ack revives it. One loop at a time; no-op in debug mode.
     private func scheduleReconnect() {
-        guard !isDebugMode else { return }
+        // A refused token cannot be retried into working; the way back is the
+        // pairing screen, and looping behind it would just keep earning 1008s.
+        guard !needsPairing else { return }
+        // Settings > Connection: someone debugging a server can stop the
+        // client from dialing back. And a backgrounded phone does not dial;
+        // the foreground kick does.
+        guard ClientPrefs.autoReconnect, !inBackground else { return }
         guard reconnectTask == nil else { return }
         reconnectTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -537,13 +855,25 @@ public class ChatViewModel: ObservableObject {
 
     public func toggleListening() {
         if hearthState == .LISTENING {
-            stopListening()
+            // The button reads "tap to send", so a tap SENDS what has been
+            // said so far -- the silence timeout's path exactly, just now.
+            // (It used to discard, which surprised everyone who trusted the
+            // label.) With nothing said yet it is a plain stop.
+            if speechRecognitionManager?.finishAndCommit() != true {
+                stopListening()
+            }
             return
         }
 
         guard connectionStatus == .connected else {
             addSystemMessage("Connection not ready yet")
             return
+        }
+
+        // Barge-in: the mic during SPEAKING means "stop talking, listen to
+        // me" -- cut the voice and fall through into a listening turn.
+        if hearthState == .SPEAKING {
+            interruptSpeaking()
         }
 
         guard hearthState == .IDLE else { return }
@@ -554,24 +884,45 @@ public class ChatViewModel: ObservableObject {
                 try await speechRecognitionManager?.startRecognition()
                 hearthState = .LISTENING
                 isListening = true
+                Haptics.listenStart()
                 startResponseWaitTimer()
             } catch {
-                if let sttError = error as? SpeechRecognitionError {
-                    switch sttError {
-                    case .notAuthorized:
-                        addSystemMessage("Speech recognition permission denied. Please enable in Settings.")
-                    case .microphonePermissionDenied:
-                        addSystemMessage("Microphone permission denied. Please enable in Settings.")
-                    case .recognizerUnavailable:
-                        addSystemMessage("Speech recognition is not available on this device.")
-                    case .audioEngineError(let underlying):
-                        addSystemMessage("Audio error: \(underlying.localizedDescription)")
-                    }
-                } else {
-                    addSystemMessage("Failed to start speech recognition: \(error.localizedDescription)")
-                }
+                presentVoiceProblem(error)
             }
         }
+    }
+
+    /// Throw the partial transcription away without sending it. The stage
+    /// tap's meaning during LISTENING, now that the mic button commits.
+    public func discardListening() {
+        guard hearthState == .LISTENING else { return }
+        stopListening()
+    }
+
+    /// A voice failure the user must SEE. The transcript row still happens
+    /// (the record), but the transcript is collapsed by default -- denying
+    /// the mic used to make the button look silently dead, with the
+    /// explanation written to a pane nobody had open. `voiceAlert` drives an
+    /// alert with a Settings deep link for the permission cases.
+    private func presentVoiceProblem(_ error: Error) {
+        Haptics.error()
+        let message: String
+        if let sttError = error as? SpeechRecognitionError {
+            switch sttError {
+            case .notAuthorized:
+                message = "Hearth needs Speech Recognition permission to hear you. Turn it on in Settings."
+            case .microphonePermissionDenied:
+                message = "Hearth needs the microphone to hear you. Turn it on in Settings."
+            case .recognizerUnavailable:
+                message = "Speech recognition is not available on this device right now."
+            case .audioEngineError(let underlying):
+                message = "The microphone could not start: \(underlying.localizedDescription)"
+            }
+        } else {
+            message = "Listening could not start: \(error.localizedDescription)"
+        }
+        addSystemMessage(message)
+        voiceAlert = message
     }
 
     private func stopListening() {
@@ -581,6 +932,7 @@ public class ChatViewModel: ObservableObject {
         isPostSpeakListen = false
         stopResponseWaitTimer()
         liveTranscription = ""
+        micLevel = 0
     }
 
     private func handleClientTranscription(_ text: String) {
@@ -590,6 +942,8 @@ public class ChatViewModel: ObservableObject {
         }
 
         liveTranscription = ""
+        micLevel = 0
+        Haptics.commit()
         let userMessage = ChatMessage(text: text, type: .user)
         messages.append(userMessage)
 
@@ -599,23 +953,67 @@ public class ChatViewModel: ObservableObject {
 
         // Fresh turn: next reply starts a new streaming bot line.
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
 
-        if isDebugMode {
-            hearthState = .IDLE
-            addSystemMessage("[Debug] Transcription received -- no server to forward to")
-        } else {
-            hearthState = .THINKING
-            startThinkingAnimation()
-            armThinkingWatchdog()
-            webSocketClient?.sendClientTranscription(text)
+        hearthState = .THINKING
+        startThinkingAnimation()
+        armThinkingWatchdog()
+        webSocketClient?.sendClientTranscription(text)
+    }
+
+    /// Stop the voice mid-reply -- the user's interrupt, or the audio path
+    /// dying. The stopped player emits amplitude 0 (closing the face's
+    /// mouth), and later segments of this reply are muted so a still-arriving
+    /// chunk_start cannot reopen the state.
+    public func interruptSpeaking() {
+        guard hearthState == .SPEAKING else { return }
+        speechInterrupted = true
+        cancelSpeakingWatchdog()
+        ttsStreamPlayer?.stop()
+        cueInFlight = false
+        isListening = false
+        hearthState = .IDLE
+    }
+
+    private func armSpeakingWatchdog() {
+        guard speakingWatchdogTask == nil else { return }
+        lastSpeechActivity = Date()
+        speakingWatchdogTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                guard self.hearthState == .SPEAKING else { continue }
+                if Date().timeIntervalSince(self.lastSpeechActivity) > self.speakingStallTimeout {
+                    print("[State] SPEAKING watchdog fired -- audio path went quiet")
+                    self.addSystemMessage("Audio stalled mid-reply")
+                    self.interruptSpeaking()
+                    return
+                }
+            }
         }
     }
 
+    private func cancelSpeakingWatchdog() {
+        speakingWatchdogTask?.cancel()
+        speakingWatchdogTask = nil
+    }
+
     private func handleSpeakingComplete() {
+        cancelSpeakingWatchdog()
+        // An interrupted reply must not open the post-speak listening window:
+        // the sentinel (or the stop itself) firing completion is the tail of
+        // a turn the user already ended.
+        if speechInterrupted {
+            speechInterrupted = false
+            isListening = false
+            if hearthState == .SPEAKING { hearthState = .IDLE }
+            return
+        }
         liveTranscript = ""
         // The caption deliberately SURVIVES the turn: what Sulivan just said
         // stays readable on the stage until the next turn replaces it. The
@@ -679,15 +1077,12 @@ public class ChatViewModel: ObservableObject {
 
         // Fresh turn: next reply starts a new streaming bot line.
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
-
-        if isDebugMode {
-            addSystemMessage("[Debug] Message received -- no server to forward to")
-            return
-        }
 
         let sent = webSocketClient?.sendTextQuery(text) ?? false
         if sent {
@@ -705,26 +1100,26 @@ public class ChatViewModel: ObservableObject {
         webSocketClient?.sendSwitchPersona(name)
     }
 
-    public func setDebugMode(_ enabled: Bool) {
-        isDebugMode = enabled
-        if enabled {
-            cancelReconnect()
-            webSocketClient?.disconnect()
-            webSocketClient = nil
-            connectionStatus = .connected
-            connectionAlive = true
-            hearthState = .IDLE
-            messages.removeAll()
-            addSystemMessage("Debug mode enabled -- server connection simulated")
-        } else {
-            connectionStatus = .disconnected
-            connectionAlive = true   // optimistic; setupWebSocket reconnects
-            hearthState = .LOADING
-            messages.removeAll()
-            addSystemMessage("Debug mode disabled -- reconnecting...")
-            setupWebSocket()
-        }
+    /// Adopt the persona the server says is active. The equality guard is
+    /// desktop's boot-sequence fix carried over: personas_list and
+    /// persona_config both name the current persona on every connect, and
+    /// without the check the second arrival swaps the transcript it just
+    /// restored. An actual change swaps the in-memory feed to the new
+    /// persona's stored one -- it does NOT delete the old persona's file;
+    /// that is what makes per-persona history real.
+    private func adoptPersona(_ name: String) {
+        guard !name.isEmpty else { return }
+        let changed = currentPersonaName.caseInsensitiveCompare(name) != .orderedSame
+        selectedPersona = name
+        currentPersonaName = name
+        LastPersona.name = name
+        guard changed else { return }
+        messages = transcripts.load(persona: name)
     }
+
+    // setDebugMode is gone. It was public, had zero callers and no UI, wiped
+    // the feed, and tore down the socket -- a loaded gun with no trigger. A
+    // future dev pane can rebuild the simulation honestly if one is wanted.
 
     private func handleAIResponse(text: String, personaName: String) {
         stopThinkingAnimation()
@@ -735,12 +1130,13 @@ public class ChatViewModel: ObservableObject {
         // Finalize: if the reply streamed in sentence-by-sentence, replace that
         // line with the canonical full text; otherwise append it fresh.
         if streamingBotText != nil {
-            replaceLastAiMessage(with: text, personaName: personaName)
+            replaceStreamingMessage(with: text, personaName: personaName)
             streamingBotText = nil
         } else {
             let aiMessage = ChatMessage(text: text, type: .ai, personaName: personaName)
             messages.append(aiMessage)
         }
+        streamingMessageId = nil
         isWaitingForResponse = false
     }
 
@@ -788,15 +1184,22 @@ public class ChatViewModel: ObservableObject {
 
     /// Stream the assistant text in step with speech: the server sends each
     /// sentence on its tts_chunk_start, so the chat keeps pace with the voice.
-    /// Seg 0 starts a fresh bot line; the rest extend it.
+    /// Seg 0 starts a fresh bot line; the rest extend it. A RE-emitted
+    /// segment 0 (a restarted stream) restarts the line rather than opening a
+    /// duplicate bubble.
     private func handleTtsSentence(_ sentence: String, segIdx: Int) {
-        if segIdx == 0 || streamingBotText == nil {
+        if streamingBotText == nil {
             streamingBotText = sentence
-            messages.append(ChatMessage(text: sentence, type: .ai, personaName: currentPersonaName))
+            let message = ChatMessage(text: sentence, type: .ai, personaName: currentPersonaName)
+            streamingMessageId = message.id
+            messages.append(message)
+        } else if segIdx == 0 {
+            streamingBotText = sentence
+            replaceStreamingMessage(with: sentence, personaName: currentPersonaName)
         } else {
             let joined = (streamingBotText ?? "") + " " + sentence
             streamingBotText = joined
-            replaceLastAiMessage(with: joined, personaName: currentPersonaName)
+            replaceStreamingMessage(with: joined, personaName: currentPersonaName)
         }
         // The visionOS card shows the FULL response so far.
         liveTranscript = streamingBotText ?? sentence
@@ -825,64 +1228,105 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
-    /// The server's idle watchdog persisted + cleared the session. The next
-    /// turn starts fresh; the transcript is retained as history.
+    /// The server persisted and cleared the session (idle watchdog, or an
+    /// explicit new_session / resume_session). The feed is WIPED to match:
+    /// the house has filed this conversation and no longer remembers it, and
+    /// a screen that keeps showing it invites a follow-up with no context and
+    /// nothing to explain why. Desktop wipes here for the same reason.
+    /// resume_session emits this first, then session_resumed repaints.
     private func handleSessionEnded(reason: String, summary: String?) {
         print("[Session] ended (reason=\(reason)); summary=\(summary ?? "<none>")")
         sessionSummary = summary
         if summary?.isEmpty == false { sessionSummaryDate = Date() }
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
         activeTools = []
+        isWaitingForResponse = false
+        FaceFeed.shared.speechLevel = 0
+        ttsAmplitude = 0
+        messages.removeAll()
+        cardStore.clearAll()
+        if hearthState == .THINKING {
+            closeTurn()
+        }
+        // The house wrote a summary of what was just filed; this is where it
+        // surfaces in-app (the widget already showed it).
+        if let summary, !summary.isEmpty {
+            addSystemMessage("Session filed: \(summary)")
+        } else {
+            addSystemMessage("New session")
+        }
         publishWidgetSnapshot()
     }
 
-    // MARK: - Sessions gallery (Phase 5, generative UI)
+    // MARK: - Session control (new / resume / topic)
 
-    /// The user tapped a past-conversation card in the `session_gallery`. Send the
-    /// pick to the server (which resumes it per `mode`) and dismiss the gallery.
-    /// Resume execution is server-side and deferred — see the Phase 5 handoff doc.
-    public func selectSession(slug: String, mode: String) {
-        print("[Session] select slug=\(slug) mode=\(mode)")
-        webSocketClient?.sendSessionResume(slug: slug, mode: mode)
-        cardStore.dismissType(UiComponentDescriptor.typeSessionGallery)
-        addSystemMessage("\(mode.capitalized): \(slug)")
+    /// Every session verb shares one gate: a live socket, and no turn in
+    /// flight. Desktop hard-blocks all three the same way -- ending or
+    /// swapping the session under a reply that is still streaming would
+    /// wipe a feed the server is actively writing to.
+    private func canControlSession() -> Bool {
+        guard connectionStatus == .connected else {
+            addSystemMessage("Connection not ready yet")
+            return false
+        }
+        guard !isWaitingForResponse, hearthState != .THINKING, hearthState != .SPEAKING else {
+            addSystemMessage("Wait for the current turn to finish")
+            return false
+        }
+        return true
     }
 
-    #if DEBUG
-    /// Inject a sample `session_gallery` through the live ui_component path so the
-    /// gallery can be verified on device before the server `recall_sessions` tool
-    /// exists. No live trigger is wired; call this from a temporary affordance
-    /// when re-testing the gallery layout.
-    ///
-    /// The fixtures are deliberately invented. Valinor seeded this with six real
-    /// sessions carrying real dates and real summaries, which meant every build
-    /// shipped a stranger a week of somebody's actual work. Two obvious
-    /// placeholders exercise the same layout -- one long summary, one short --
-    /// without carrying anyone's history into the binary.
-    public func debugShowSampleGallery() {
-        let payload: [String: Any] = [
-            "type": UiComponentDescriptor.typeSessionGallery,
-            "op": "upsert",
-            "props": [
-                "mode": "continue",
-                "prompt": "Recent conversations",
-                "sessions": [
-                    ["slug": "sample-session-one", "title": "Sample session one",
-                     "date": "2026-01-02", "persona": "Sulivan", "project": "sample",
-                     "summary": "A placeholder summary, long enough to wrap onto a second line so the card's text layout is exercised at something like a realistic width."],
-                    ["slug": "sample-session-two", "title": "Sample session two",
-                     "date": "2026-01-01", "persona": "Sulivan", "project": "sample",
-                     "summary": "A short placeholder summary."],
-                ],
-            ],
-        ]
-        cardStore.apply(payload)
+    /// Start fresh without closing the app. The house keeps what it wrote
+    /// down; the live chat clears when `session_ended` comes back.
+    public func startNewSession() {
+        guard canControlSession() else { return }
+        webSocketClient?.sendNewSession()
     }
-    #endif
+
+    /// Resume a session record by id, or a journal entry by its diary slug.
+    /// The server validates before ending the live chat, replies
+    /// `session_ended` (wipe) then `session_resumed` (repaint), or an
+    /// `error` when there is no transcript -- which surfaces through the
+    /// normal error path without having wiped anything.
+    public func resumeSession(recordId: String) {
+        guard canControlSession() else { return }
+        webSocketClient?.sendResumeSession(sessionId: recordId)
+    }
+
+    public func resumeSession(slug: String) {
+        guard canControlSession() else { return }
+        webSocketClient?.sendResumeSession(slug: slug)
+    }
+
+    /// A fresh chat that already knows what it is about: opened with an
+    /// Engram topic hint so recall reads that project or life root first.
+    public func startTopicSession(name: String) {
+        guard canControlSession() else { return }
+        webSocketClient?.sendStartTopicSession(name: name)
+    }
+
+    /// The resumed conversation, flattened in order. `session_ended` already
+    /// wiped the feed; this repaints it.
+    private func handleSessionResumed(slug: String, turns: [(user: String, assistant: String)]) {
+        var rebuilt: [ChatMessage] = []
+        for turn in turns {
+            let user = turn.user.trimmingCharacters(in: .whitespacesAndNewlines)
+            let assistant = turn.assistant.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !user.isEmpty { rebuilt.append(ChatMessage(text: user, type: .user)) }
+            if !assistant.isEmpty {
+                rebuilt.append(ChatMessage(text: assistant, type: .ai, personaName: currentPersonaName))
+            }
+        }
+        messages = rebuilt
+        addSystemMessage("Resumed session")
+        publishWidgetSnapshot()
+    }
 
     // MARK: - Widget snapshot (App Group)
 
@@ -982,24 +1426,40 @@ public class ChatViewModel: ObservableObject {
         }
     }
 
-    private func replaceLastAiMessage(with text: String, personaName: String) {
-        if let idx = messages.lastIndex(where: { $0.type == .ai }) {
-            messages[idx] = ChatMessage(text: text, type: .ai, personaName: personaName)
+    /// The streaming line, held by ID. Matching "the last .ai message"
+    /// overwrote the wrong row whenever anything else appended after the
+    /// streaming line mid-turn.
+    private var streamingMessageId: UUID?
+
+    private func replaceStreamingMessage(with text: String, personaName: String) {
+        let replacement = ChatMessage(text: text, type: .ai, personaName: personaName)
+        if let id = streamingMessageId,
+           let idx = messages.lastIndex(where: { $0.id == id }) {
+            messages[idx] = replacement
         } else {
-            messages.append(ChatMessage(text: text, type: .ai, personaName: personaName))
+            messages.append(replacement)
         }
+        streamingMessageId = replacement.id
     }
 
-    /// Return to IDLE, clearing all turn state.
+    /// Return to IDLE, clearing all turn state. The speech level is zeroed
+    /// explicitly: the amplitude tap is the only writer, and if it died with
+    /// a non-zero value latched (socket drop mid-reply, watchdog close) the
+    /// face kept a round open mouth at idle until the next reply's audio.
     private func closeTurn() {
         cancelThinkingWatchdog()
+        cancelSpeakingWatchdog()
         stopThinkingAnimation()
+        FaceFeed.shared.speechLevel = 0
+        ttsAmplitude = 0
         thinkingStage = nil
         isWaitingForResponse = false
         streamingBotText = nil
+        streamingMessageId = nil
         liveTranscript = ""
         spokenSentence = ""
         sentencesBySegment.removeAll()
+        expressionsBySegment.removeAll()
         captionSegment = -1
         isListening = false
         hearthState = .IDLE
@@ -1055,7 +1515,21 @@ public class ChatViewModel: ObservableObject {
     deinit {
         thinkingTask?.cancel()
         thinkingWatchdogTask?.cancel()
+        speakingWatchdogTask?.cancel()
+        keepaliveTask?.cancel()
         responseWaitTimer?.invalidate()
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        if let routeChangeObserver {
+            NotificationCenter.default.removeObserver(routeChangeObserver)
+        }
+        if let choiceObserver {
+            NotificationCenter.default.removeObserver(choiceObserver)
+        }
+        for observer in journalObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
         speechRecognitionManager?.stopRecognition()
         webSocketClient?.disconnect()
     }

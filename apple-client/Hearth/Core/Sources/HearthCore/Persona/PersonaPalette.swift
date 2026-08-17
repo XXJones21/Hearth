@@ -93,6 +93,15 @@ public struct PersonaPalette: Equatable {
             if let c = rgb(states["listening"]) { p.listening = c }
             if let c = rgb(states["thinking"])  { p.thinking = c }
             if let c = rgb(states["speaking"])  { p.speaking = c }
+
+            // A face-era config (procedural_face) may carry state_colors and
+            // no sphere/particle objects at all. The orb-fallback paths --
+            // first run, pre-connect frames, widgets, a face whose geometry
+            // has not arrived -- still deserve the persona's OWN colours, so
+            // the bead borrows the idle glow and the particles the listening
+            // glow rather than degrading to brand defaults.
+            if vis["sphere"] == nil, let c = rgb(states["idle"]) { p.sphere = c }
+            if vis["particle_system"] == nil, let c = rgb(states["listening"]) { p.particle = c }
         }
         return p
     }
@@ -110,10 +119,10 @@ public struct PersonaPalette: Equatable {
         return SIMD3<Float>(r, g, b)
     }
 
+    /// The module's one JSON numeric coercion, narrowed to the Float the orb
+    /// colours are kept in. Was a second copy of `personaNum` until the face
+    /// needed the same tolerance for its geometry.
     private static func num(_ any: Any?) -> Float? {
-        if let n = any as? NSNumber { return n.floatValue }
-        if let d = any as? Double { return Float(d) }
-        if let i = any as? Int { return Float(i) }
-        return nil
+        personaNum(any).map(Float.init)
     }
 }

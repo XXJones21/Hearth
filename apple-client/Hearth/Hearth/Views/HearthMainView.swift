@@ -15,6 +15,7 @@
 
 import SwiftUI
 import HearthCore
+import UIKit
 
 struct HearthMainView: View {
     @ObservedObject var viewModel: ChatViewModel
@@ -27,12 +28,20 @@ struct HearthMainView: View {
 
     /// The right-hand navigation drawer (HouseShelf).
     @State private var shelfOpen = false
+    /// Earlier conversations (new / resume), presented full screen.
+    @State private var showSessions = false
     /// Selene's Library, presented full screen over the stage.
     @State private var showJournal = false
     /// Apps and Extensions, likewise.
     @State private var showApps = false
     /// The persona page, likewise.
     @State private var showPersona = false
+
+    /// Accessibility > Motion. The face stops blinking, darting and swaying
+    /// under it -- but keeps its mouth on the voice, because that is speech,
+    /// not decoration. Passing it on to the orb connects plumbing that has
+    /// been sitting unwired in PersonaCanvasView since it was ported.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isIdle: Bool {
         stageState == .IDLE || stageState == .LOADING
@@ -86,7 +95,16 @@ struct HearthMainView: View {
                     .clipped()
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        if viewModel.hearthState == .IDLE && viewModel.connectionStatus == .connected {
+                        if viewModel.hearthState == .SPEAKING {
+                            // Barge-in without opening the mic: quiet the
+                            // voice and return to idle. The mic button is the
+                            // interrupt that also listens.
+                            viewModel.interruptSpeaking()
+                        } else if viewModel.hearthState == .LISTENING {
+                            // The mic button SENDS now, so the discard moved
+                            // here: tapping the stage throws the partial away.
+                            viewModel.discardListening()
+                        } else if viewModel.hearthState == .IDLE && viewModel.connectionStatus == .connected {
                             viewModel.toggleListening()
                         }
                     }
@@ -131,6 +149,7 @@ struct HearthMainView: View {
                     viewModel: viewModel,
                     transcriptShown: $transcriptShown,
                     isOpen: $shelfOpen,
+                    onOpenSessions: { showSessions = true },
                     onOpenJournal: { showJournal = true },
                     onOpenApps: { showApps = true },
                     onOpenPersona: { showPersona = true }
@@ -138,8 +157,53 @@ struct HearthMainView: View {
                 .transition(.move(edge: .trailing))
             }
         }
+        // The house closed the socket with 1008: the token was refused.
+        // Reconnect is already stopped; this is the way back. "Pair again"
+        // keeps the address and forgets only the key, so the root view opens
+        // first run directly on the code-entry step.
+        .alert("Not paired with the house", isPresented: $viewModel.needsPairing) {
+            Button("Pair again") {
+                Pairing.forget()
+                NotificationCenter.default.post(name: .hearthServerConfigured, object: nil)
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("The house refused this phone's key. It may have been revoked at the desk. Pairing again takes a fresh six-digit code from the house.")
+        }
+        // Voice problems the collapsed transcript would swallow: permission
+        // denials get their Settings deep link; the rest just get seen.
+        .alert(
+            "Voice",
+            isPresented: Binding(
+                get: { viewModel.voiceAlert != nil },
+                set: { if !$0 { viewModel.voiceAlert = nil } }
+            )
+        ) {
+            if viewModel.voiceAlert?.contains("Settings") == true {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.voiceAlert ?? "")
+        }
         .fullScreenCover(isPresented: $viewModel.showSettings) {
             HearthSettingsView(viewModel: viewModel)
+        }
+        // A resume or topic request from inside the Journal: the view model
+        // performs it; this view's share is closing the cover so the repaint
+        // happens where the person can see it.
+        .onReceive(NotificationCenter.default.publisher(for: .hearthResumeSession)) { _ in
+            showJournal = false
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hearthTopicSession)) { _ in
+            showJournal = false
+        }
+        .fullScreenCover(isPresented: $showSessions) {
+            SessionsView(viewModel: viewModel)
         }
         .fullScreenCover(isPresented: $showJournal) {
             JournalView()
@@ -170,10 +234,20 @@ struct HearthMainView: View {
             ZStack {
                 // The renderer is chosen by the persona's own config, never by
                 // name: `sphere_particle` keeps the 2D canvas, `glb_animated`
-                // mounts RealityKit. A glb persona whose USDZ clips have not
-                // reached the server yet falls back to its orb rather than
-                // showing an empty volume, so Sage arrives with no code change.
-                if viewModel.personaVisualization.canRenderModel {
+                // mounts RealityKit, `procedural_face` draws the face. A glb
+                // persona whose USDZ clips have not reached the server yet --
+                // or a face whose geometry has not -- falls back to its orb
+                // rather than showing an empty volume, so Sage arrives with no
+                // code change.
+                if viewModel.personaVisualization.canRenderFace,
+                   let faceGeometry = viewModel.personaVisualization.faceGeometry {
+                    PersonaFaceView(
+                        geometry: faceGeometry,
+                        state: stageState,
+                        palette: viewModel.personaPalette,
+                        reducedMotion: reduceMotion
+                    )
+                } else if viewModel.personaVisualization.canRenderModel {
                     PersonaModelView(
                         visualization: viewModel.personaVisualization,
                         state: stageState
@@ -182,6 +256,7 @@ struct HearthMainView: View {
                     PersonaCanvasView(
                         state: stageState,
                         pulse: Double(viewModel.ttsAmplitude),
+                        reducedMotion: reduceMotion,
                         palette: viewModel.personaPalette
                     )
                 }

@@ -36,6 +36,11 @@ struct HearthApp: App {
     /// "connecting" forever. First run owns the screen until both halves exist.
     @State private var ready = ServerConfig.shared.isConfigured && ServerConfig.shared.isPaired
 
+    /// Background stops the engines and closes the socket on our own terms;
+    /// foreground resets the backoff and dials NOW instead of leaving the
+    /// person to wait out a loop already at its 30 second cap.
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -43,6 +48,14 @@ struct HearthApp: App {
                     HearthMainView(viewModel: viewModel)
                 } else {
                     FirstRunView()
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard ready else { return }
+                switch phase {
+                case .background: viewModel.enterBackground()
+                case .active: viewModel.enterForeground()
+                default: break
                 }
             }
             .onOpenURL { handleOpenURL($0) }

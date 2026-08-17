@@ -17,11 +17,16 @@ import Foundation
 // MARK: - Wire shapes
 
 /// One entry inside a shelf book: title, date, synopsis (Valar's `t`/`d`/`s`).
+/// Entries assembled from `/journal/sessions` also carry their diary `slug`
+/// and whether a transcript was kept -- the resume target. Shelf-book entries
+/// have neither, and their Resume affordance simply never renders.
 public struct JournalEntry: Decodable, Identifiable {
     public let title: String
     public let date: String
     public let synopsis: String
     public var persona: String = "Sulivan"
+    public var slug: String = ""
+    public var hasTranscript: Bool = false
 
     public var id: String { "\(date)-\(title)" }
 
@@ -38,11 +43,14 @@ public struct JournalEntry: Decodable, Identifiable {
         synopsis = (try? c.decode(String.self, forKey: .synopsis)) ?? ""
     }
 
-    public init(title: String, date: String, synopsis: String, persona: String) {
+    public init(title: String, date: String, synopsis: String, persona: String,
+                slug: String = "", hasTranscript: Bool = false) {
         self.title = title
         self.date = date
         self.synopsis = synopsis
         self.persona = persona
+        self.slug = slug
+        self.hasTranscript = hasTranscript
     }
 }
 
@@ -92,6 +100,9 @@ private struct SessionsResponse: Decodable {
         public var date: String = ""
         public var persona: String = ""
         public var summary: String = ""
+        // Optional so an older house without them cannot sink the decode.
+        public var slug: String?
+        public var has_transcript: Bool?
     }
     public var sessions: [Session] = []
 }
@@ -176,7 +187,9 @@ public final class JournalLibrary: ObservableObject {
                         title: $0.title.isEmpty ? "Session" : $0.title,
                         date: $0.date,
                         synopsis: $0.summary,
-                        persona: $0.persona.split(separator: " ").first.map(String.init) ?? "Sulivan"
+                        persona: $0.persona.split(separator: " ").first.map(String.init) ?? "Sulivan",
+                        slug: $0.slug ?? "",
+                        hasTranscript: $0.has_transcript ?? false
                     )
                 }
             books.append(JournalBook(

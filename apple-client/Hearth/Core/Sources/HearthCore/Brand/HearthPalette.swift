@@ -82,6 +82,14 @@ public enum HearthPalette {
 
         // Soft-shadow ink (shadow-soft: rgb(97,63,29) @ 0.07 on light surfaces)
         static let shadow:      UInt32 = 0x613F1D
+
+        // The library's furniture: shelf wood and page paper. The book
+        // leathers themselves stay constant in both modes (a bound book keeps
+        // its colour in a dim room); the furniture is surface and must flip.
+        static let journalWoodHi:    UInt32 = 0xC69461
+        static let journalWoodLo:    UInt32 = 0xA8733F
+        static let journalPaper:     UInt32 = 0xF6EEE0
+        static let journalPaperLine: UInt32 = 0xE3D5BF
     }
 
     /// Ember mode -- the warm dark variant. Values are the desktop's `.ember`
@@ -109,6 +117,12 @@ public enum HearthPalette {
         /// The card shadow reads as nothing on a dark surface; a faint warm
         /// lift beats an invisible one.
         static let shadow:     UInt32 = 0x000000
+
+        // Wood in lamplight, pages in shadow -- dimmed, not desaturated.
+        static let journalWoodHi:    UInt32 = 0x6B4A2C
+        static let journalWoodLo:    UInt32 = 0x503620
+        static let journalPaper:     UInt32 = 0xB7A88E
+        static let journalPaperLine: UInt32 = 0x94856C
     }
 
     // MARK: - SwiftUI colors (UI surfaces, text, chrome)
@@ -135,6 +149,11 @@ public enum HearthPalette {
     public static let clayLine   = color(Hex.clayLine, EmberHex.clayLine)
 
     public static let shadow     = color(Hex.shadow, EmberHex.shadow)
+
+    public static let journalWoodHi    = color(Hex.journalWoodHi, EmberHex.journalWoodHi)
+    public static let journalWoodLo    = color(Hex.journalWoodLo, EmberHex.journalWoodLo)
+    public static let journalPaper     = color(Hex.journalPaper, EmberHex.journalPaper)
+    public static let journalPaperLine = color(Hex.journalPaperLine, EmberHex.journalPaperLine)
 
     /// The fire: identical in both modes.
     public static let fennec     = color(Hex.fennec)
@@ -221,6 +240,37 @@ public extension View {
     func hearthSoftShadow() -> some View {
         shadow(color: HearthPalette.shadow.opacity(HearthPalette.isEmber ? 0.35 : 0.07),
                radius: 5, x: 0, y: 2)
+    }
+
+    /// A brand-size font that follows Dynamic Type. `ClientProfile` promises
+    /// "iOS follows the OS: Dynamic Type for size"; a bare
+    /// `.font(.system(size:))` breaks that promise, and there is no
+    /// system-font-with-relativeTo in SwiftUI, so this scales the point size
+    /// through UIFontMetrics. Reading the size category from the environment
+    /// is what makes it live -- the modifier re-evaluates when the person
+    /// changes their text size.
+    func hearthFont(_ size: CGFloat, weight: Font.Weight = .regular,
+                    design: Font.Design = .default) -> some View {
+        modifier(HearthScaledFont(size: size, weight: weight, design: design))
+    }
+}
+
+public struct HearthScaledFont: ViewModifier {
+    @Environment(\.sizeCategory) private var sizeCategory
+    let size: CGFloat
+    let weight: Font.Weight
+    let design: Font.Design
+
+    public func body(content: Content) -> some View {
+        #if canImport(UIKit)
+        let traits = UITraitCollection(
+            preferredContentSizeCategory: UIContentSizeCategory(sizeCategory))
+        let scaled = UIFontMetrics(forTextStyle: .body)
+            .scaledValue(for: size, compatibleWith: traits)
+        content.font(.system(size: scaled, weight: weight, design: design))
+        #else
+        content.font(.system(size: size, weight: weight, design: design))
+        #endif
     }
 }
 

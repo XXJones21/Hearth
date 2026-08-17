@@ -18,7 +18,6 @@
 //  still organised by.
 //
 //  Mockup of record: hearth-pitch/mockups/hearth-ios-settings-mockup.html
-//  Sections still to come: Personas and Voice (item 12).
 //
 
 import SwiftUI
@@ -35,6 +34,9 @@ struct HearthSettingsView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header
                     ConnectionSection(viewModel: viewModel)
+                    PersonasSection(viewModel: viewModel)
+                    VoiceSection()
+                    HistorySection(viewModel: viewModel)
 
                     if ClientProfile.can(.devPane) {
                         // Never renders on iOS. Here so the shape is obvious
@@ -175,6 +177,8 @@ private struct ConnectionSection: View {
 
     @State private var address = ServerConfig.shared.address
     @State private var probe: ProbeState = .idle
+    @State private var confirmForget = false
+    @State private var autoReconnect = ClientPrefs.autoReconnect
     @FocusState private var addressFocused: Bool
 
     private enum ProbeState: Equatable {
@@ -239,8 +243,60 @@ private struct ConnectionSection: View {
                 .padding(.top, 9)
 
                 status.padding(.top, 9)
+
+                Divider().overlay(HearthPalette.linen).padding(.vertical, 11)
+
+                SettingsRow(label: "Reconnect automatically",
+                            hint: "Off stops the client from dialing back after a drop. For debugging a server; leave it on for daily use.") {
+                    Toggle("", isOn: $autoReconnect)
+                        .labelsHidden()
+                        .tint(HearthPalette.fennec)
+                        .onChange(of: autoReconnect) { _, v in
+                            ClientPrefs.autoReconnect = v
+                        }
+                }
+
+                Divider().overlay(HearthPalette.linen).padding(.vertical, 11)
+
+                // The local half of unpairing. The house still lists this
+                // device until someone revokes it at the desk, and the copy
+                // must not promise more than that.
+                Button { confirmForget = true } label: {
+                    Text("Forget this house")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundStyle(HearthPalette.clay)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(HearthPalette.parchment, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(HearthPalette.clayLine, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!ServerConfig.shared.isConfigured)
+                .confirmationDialog(
+                    "Forget this house?",
+                    isPresented: $confirmForget,
+                    titleVisibility: .visible
+                ) {
+                    Button("Forget", role: .destructive) { forgetHouse() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Clears the address and this phone's key, and returns to first run. The house still lists this device until it is revoked there.")
+                }
             }
         }
+    }
+
+    /// Both halves at once: the key and the address. Clearing the address
+    /// posts the configured notification, and the root view answers by
+    /// swapping back to first run; the redial tears the dead socket down.
+    private func forgetHouse() {
+        Pairing.forget()
+        ServerConfig.shared.address = ""
+        address = ""
+        Task { await viewModel.redial() }
     }
 
     private var status: some View {
@@ -306,11 +362,134 @@ private struct ConnectionSection: View {
 
     private func apply() {
         addressFocused = false
-        ServerConfig.shared.address = address
+        // commitAddress, not the raw setter: pointing at a different house
+        // surrenders the old house's token, and the root view walks the
+        // person through pairing with the new one.
+        ServerConfig.shared.commitAddress(address)
         // Normalised (scheme stripped, default port folded away).
         address = ServerConfig.shared.address
         probe = .idle
         Task { await viewModel.redial() }
+    }
+}
+
+// MARK: - Personas (start-with pin)
+
+/// The one persona setting that is the PHONE'S: which persona to ask the
+/// house for on connect. Enforcement is in ChatViewModel with desktop's rule
+/// (only when the pin differs and exists in the served list).
+private struct PersonasSection: View {
+    @ObservedObject var viewModel: ChatViewModel
+    @State private var pin: String = ClientPrefs.startPersona ?? ""
+
+    private var options: [String] {
+        // The served list when connected; otherwise at least the stored pin,
+        // so an offline visit does not show a picker missing its own value.
+        var names = viewModel.availablePersonas
+        if !pin.isEmpty, !names.contains(where: { $0.caseInsensitiveCompare(pin) == .orderedSame }) {
+            names.append(pin)
+        }
+        return names
+    }
+
+    var body: some View {
+        SettingsSection(title: "Personas") {
+            SettingsRow(label: "Start with",
+                        hint: "Ask the house for this persona when the app connects. Whatever the house is on, otherwise.") {
+                Picker("", selection: $pin) {
+                    Text("House's choice").tag("")
+                    ForEach(options, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+                .labelsHidden()
+                .tint(HearthPalette.ember)
+                .onChange(of: pin) { _, v in
+                    ClientPrefs.startPersona = v.isEmpty ? nil : v
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Voice (this phone's output)
+
+private struct VoiceSection: View {
+    @State private var speak = ClientPrefs.speakReplies
+    @State private var volume = ClientPrefs.voiceVolume
+
+    var body: some View {
+        SettingsSection(title: "Voice") {
+            VStack(alignment: .leading, spacing: 12) {
+                SettingsRow(label: "Speak replies",
+                            hint: "Off keeps the captions and the conversation; only the sound stops.") {
+                    Toggle("", isOn: $speak)
+                        .labelsHidden()
+                        .tint(HearthPalette.fennec)
+                        .onChange(of: speak) { _, v in
+                            ClientPrefs.speakReplies = v
+                        }
+                }
+                SettingsRow(label: "Volume", hint: nil) {
+                    Slider(value: $volume, in: 0...1)
+                        .frame(width: 140)
+                        .tint(HearthPalette.fennec)
+                        .disabled(!speak)
+                        .onChange(of: volume) { _, v in
+                            ClientPrefs.voiceVolume = v
+                        }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Conversation history (on this phone)
+
+private struct HistorySection: View {
+    @ObservedObject var viewModel: ChatViewModel
+    @State private var confirmClear = false
+    @State private var confirmClearAll = false
+
+    var body: some View {
+        SettingsSection(title: "Conversation history", badge: "This phone") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Transcripts live on this phone, one per persona. The house's own record (sessions, the Journal) is untouched by clearing them.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(HearthPalette.fawn)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Button { confirmClear = true } label: {
+                        pill("Clear \(viewModel.currentPersonaName)'s")
+                    }
+                    Button { confirmClearAll = true } label: {
+                        pill("Clear all")
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .confirmationDialog("Clear \(viewModel.currentPersonaName)'s history on this phone?",
+                            isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Clear", role: .destructive) { viewModel.clearHistory(allPersonas: false) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Clear every persona's history on this phone?",
+                            isPresented: $confirmClearAll, titleVisibility: .visible) {
+            Button("Clear all", role: .destructive) { viewModel.clearHistory(allPersonas: true) }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+
+    private func pill(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(HearthPalette.clay)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(HearthPalette.parchment, in: Capsule())
+            .overlay(Capsule().stroke(HearthPalette.clayLine, lineWidth: 1))
     }
 }
 

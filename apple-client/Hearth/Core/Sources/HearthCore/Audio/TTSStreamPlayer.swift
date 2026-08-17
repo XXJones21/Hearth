@@ -40,6 +40,14 @@ class TTSStreamPlayer {
     /// arrival races ahead of the voice. The karaoke caption reads this.
     var onSegmentPlaying: ((Int) -> Void)?
 
+    /// 0..1 on the playback mixer. Zero (Settings > Voice off) keeps the
+    /// whole turn intact -- rendering continues, so the karaoke caption still
+    /// reveals in playback time -- with nothing audible and the amplitude tap
+    /// reading silence, which correctly keeps the face's mouth shut.
+    var playbackVolume: Float = 1 {
+        didSet { engine.mainMixerNode.outputVolume = max(0, min(1, playbackVolume)) }
+    }
+
     /// Frames of audio scheduled so far — the playback timeline every segment
     /// mark is measured against.
     private var scheduledFrames: AVAudioFramePosition = 0
@@ -64,12 +72,21 @@ class TTSStreamPlayer {
             engine.stop()
         }
 
-        let fmt = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32,
-            sampleRate: sampleRate,
-            channels: 1,
-            interleaved: false
-        )!
+        // `sampleRate` came straight off the wire (tts_chunk_start). A zero or
+        // negative value used to hit a force-unwrapped AVAudioFormat and crash
+        // the app on a server's bad day; refuse the stream instead.
+        guard sampleRate > 0,
+              let fmt = AVAudioFormat(
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: sampleRate,
+                channels: 1,
+                interleaved: false
+              )
+        else {
+            print("[TTSStreamPlayer] Refusing stream with invalid sample rate \(sampleRate)")
+            audioFormat = nil
+            return
+        }
         audioFormat = fmt
         chunkLock.lock()
         _chunksReceived = 0
@@ -83,9 +100,15 @@ class TTSStreamPlayer {
             try engine.start()
         } catch {
             print("[TTSStreamPlayer] Failed to start engine: \(error)")
+            // Without this, every later guard passes against a dead engine:
+            // buffers get scheduled onto a node that never renders and the
+            // app sits in SPEAKING forever. A nil format makes the failure
+            // visible to every path that checks it.
+            audioFormat = nil
             return
         }
 
+        engine.mainMixerNode.outputVolume = max(0, min(1, playbackVolume))
         playerNode.play()
         installAmplitudeTap()
         print("[TTSStreamPlayer] Stream started @ \(sampleRate)Hz")
@@ -175,17 +198,25 @@ class TTSStreamPlayer {
               let playerTime = playerNode.playerTime(forNodeTime: nodeTime) else { return }
         let played = playerTime.sampleTime
 
+        // EVERY newly reached segment, in order -- not just the last. The
+        // last-wins collapse silently dropped any segment passed over within
+        // one amplitude buffer (two marks sharing a startFrame after a
+        // server-side TTS error is the guaranteed case), and with it that
+        // sentence's caption and parked face cue.
         markLock.lock()
-        var reached = -1
-        for mark in segmentMarks where mark.startFrame <= played {
-            reached = mark.idx
+        var newlyReached: [Int] = []
+        for mark in segmentMarks
+        where mark.startFrame <= played && mark.idx > lastEmittedSegment {
+            newlyReached.append(mark.idx)
         }
-        let isNewSegment = reached >= 0 && reached != lastEmittedSegment
-        if isNewSegment { lastEmittedSegment = reached }
+        newlyReached.sort()
+        if let latest = newlyReached.last { lastEmittedSegment = latest }
         markLock.unlock()
 
-        guard isNewSegment else { return }
-        DispatchQueue.main.async { [weak self] in self?.onSegmentPlaying?(reached) }
+        guard !newlyReached.isEmpty else { return }
+        DispatchQueue.main.async { [weak self] in
+            for idx in newlyReached { self?.onSegmentPlaying?(idx) }
+        }
     }
 
     /// After all PCM chunks have been queued, schedule a silent sentinel buffer.
@@ -214,8 +245,24 @@ class TTSStreamPlayer {
                 print(msg)
                 self?.onDebugEvent?(msg)
                 self?.onPlaybackComplete?()
+                // The reply is fully drained: put the engine down. Without
+                // this the amplitude tap ran an RMS loop over silence ~43
+                // times a second for the rest of the process after the first
+                // reply. startStream restarts everything for the next one.
+                self?.quiesce()
             }
         }
+    }
+
+    /// Idle the audio path between replies. Keeps `audioFormat` so a
+    /// same-rate startStream is still recognised as a fresh start (the
+    /// engine-running check fails and it rebuilds).
+    private func quiesce() {
+        removeAmplitudeTap()
+        playerNode.stop()
+        engine.stop()
+        smoothedAmplitude = 0
+        onAmplitude?(0)
     }
 
     func stop() {
