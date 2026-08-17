@@ -48,8 +48,6 @@
 	<string>Saves a drawing from the easel to your photo library.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Hearth uses speech recognition to transcribe your voice into text for the AI assistant.</string>
-	<key>NSWorldSensingUsageDescription</key>
-	<string>Hearth uses your room's shape so Sulivan's caustics light can play across your real walls and floor in immersive mode.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -1,7 +1,64 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	The Vision target's Info.plist.
+
+	An ordinary per-target plist, not a per-SDK override, and that is the point
+	of the second target: INFOPLIST_FILE is per-SDK, which is how
+	NSWorldSensingUsageDescription came to be present in one build of the old
+	client and missing from the other while both read "the same" file.
+
+	Every key here is justified, per the design's definition of done. Diff it
+	against Hearth/Info.plist deliberately -- the differences are the argument:
+
+	  - No CFBundleURLTypes. `hearth://talk` belongs to the QuickTalk widget,
+	    the widget extension is an iOS target, and two apps registering one
+	    scheme is an ambiguity.
+	  - No NSPhotoLibraryAddUsageDescription. Saving an easel drawing to a photo
+	    library is a phone verb; if the headset grows it, the key comes with it.
+	  - No NSMotionUsageDescription. The parallax that key was for is
+	    DeviceMotionTracker, which never crossed in the migration.
+	  - No UISupportedInterfaceOrientations or UILaunchScreen. A volume has no
+	    orientation and visionOS has no launch screen.
+	  - No NSWorldSensingUsageDescription, and this one is a deliberate hold
+	    rather than an omission. It is phase 4's key, for the scene
+	    reconstruction that lets the immersive house settle onto real surfaces.
+	    ARKit hard-crashes on the authorization request when it is absent, so it
+	    goes in the same commit that first asks -- and not one phase earlier,
+	    because a permission prompt for something the app does not yet do is a
+	    prompt the person cannot evaluate.
+-->
 <plist version="1.0">
 <dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Hearth connects to your local Hearth server over your Wi-Fi network.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Hearth uses the microphone so you can talk to your persona. Speech is recognized on this device.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Hearth uses speech recognition to transcribe your voice into text for the AI assistant.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>
@@ -13,8 +70,15 @@
 			<key>UISceneSessionRoleImmersiveSpaceApplication</key>
 			<array>
 				<dict>
+					<!--
+						Mixed, not the template's Full. Passthrough is not a
+						detail of the immersive house: design section 1 has the
+						shelf and books settling into the real room and the orb
+						roaming it. Full immersion would replace the room the
+						whole scene is staged against.
+					-->
 					<key>UISceneInitialImmersionStyle</key>
-					<string>UIImmersionStyleFull</string>
+					<string>UIImmersionStyleMixed</string>
 				</dict>
 			</array>
 		</dict>
