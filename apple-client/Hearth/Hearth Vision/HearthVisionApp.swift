@@ -5,11 +5,10 @@
 //  The visionOS entry point, and the skeleton of the topology in
 //  wiki/raw/hearth-vision-design.md section 1.
 //
-//  Five scenes are designed. Two exist here, which is phase 0's whole scope:
-//  the pairing window and an empty main volume. The library volume, the
-//  immersive house and the transcript window are named in SceneID below and
-//  declared when the phase that needs them lands -- a scene with nothing to
-//  stage is a scene that cannot be judged.
+//  Five scenes are designed. Two exist: the pairing window and the main volume.
+//  The library volume, the immersive house and the transcript window are named
+//  in SceneID below and declared when the phase that needs them lands -- a scene
+//  with nothing to stage is a scene that cannot be judged.
 //
 //  What this file does NOT carry, and the iOS entry point does: an onOpenURL
 //  handler. `hearth://talk` is the QuickTalk widget's deep link, the widget
@@ -26,6 +25,7 @@
 import SwiftUI
 import HearthCore
 import HearthUI
+import HearthSpatial
 
 @main
 struct HearthVisionApp: App {
@@ -37,6 +37,17 @@ struct HearthVisionApp: App {
     /// ChatViewModel dials in its initializer, so a view that built its own
     /// would open a second socket every time SwiftUI rebuilt the body.
     @StateObject private var viewModel = ChatViewModel()
+
+    /// The entity world, hoisted for the same reason as the view model and with
+    /// more at stake. In phase 4 the volume dismisses while the immersive house
+    /// opens, and the SAME rig has to survive that handover -- a rig owned by
+    /// the volume would be destroyed at precisely the moment the design asks it
+    /// to travel. Hosts attach and release it; nobody but this file owns it.
+    ///
+    /// `embedCamera: false` is not a preference. On visionOS the system owns
+    /// the viewer pose, and an app-created camera in a volumetric window
+    /// crashes the device at launch.
+    @StateObject private var rig = PersonaRig(embedCamera: false)
 
     /// Mirrors ServerConfig so pairing swaps the scene without a relaunch.
     /// ServerConfig is the store of record; this is the redraw trigger.
@@ -51,7 +62,7 @@ struct HearthVisionApp: App {
         // sends for the pairing window, rather than launching into a flat pane
         // and promoting to a volume afterwards.
         WindowGroup(id: SceneID.personaVolume) {
-            MainVolume(viewModel: viewModel, ready: ready)
+            MainVolume(viewModel: viewModel, rig: rig, ready: ready)
                 .onAppear {
                     guard !ready else { return }
                     openWindow(id: SceneID.pairing)
@@ -78,10 +89,9 @@ struct HearthVisionApp: App {
         // real table.
         .defaultSize(width: 0.8, height: 0.8, depth: 0.8, in: .meters)
 
-        // A plain 2D pane. Address then code, and in phase 1 it reuses
-        // FirstRunView's flow reshaped for a floating window -- that view is in
-        // the iOS target today and reads UIDevice.current.name for the pairing
-        // call, so the reshape is a real port rather than a move.
+        // A plain 2D pane. Address then code, against the same HearthCore
+        // contract the phone pairs through; only the chrome is Vision-native.
+        // See PairingWindow for why the phone's view was not reused directly.
         WindowGroup(id: SceneID.pairing) {
             PairingWindow()
         }

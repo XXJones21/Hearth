@@ -281,12 +281,34 @@ the simulator rather than by reading:
   headset's mode and say so in the palette, or give visionOS its own
   resolution path.
 
-**Phase 1, the compact house core.** Create `HearthSpatial`. Port
-`RealityKitSceneManager` (volume path only) into `PersonaRig`. Pairing window
-live against the house. Cards as billboarding attachments through the ported
+**Phase 1, the compact house core.** LANDED 2026-08-17, gate outstanding.
+Port `RealityKitSceneManager` (volume path only) into `PersonaRig`. Pairing
+window live against the house. Cards as attachments through the ported
 `CardOrbitLayout`. Composer and status ornaments.
 *Headset gate 1: a full voice turn in the volume.* Pinch the orb, speech
 recognized, reply spoken, a card beside the orb.
+
+What the simulator can and cannot say: the rig renders, the field animates,
+both ornaments live, and the pairing window runs its two steps against the real
+`Pairing.pair`. Gate 1 itself needs the headset and a running house, and
+nothing below the gate line has been proven by this.
+
+Two decisions taken during the port, both departures from what this document
+first said:
+
+- **The pairing window is Vision-native, not a reshaped `FirstRunView`.** What
+  is genuinely shared is the contract, and that IS reused unchanged --
+  `ServerConfig`, `Pairing.pair`, `.hearthServerConfigured`. What does not
+  carry is the chrome: the phone's view is a full-screen column sized against
+  a keyboard sliding up under it, and the headset's is a 396pt pane floating
+  in front of a room. Two layouts, one flow. (Standing reason to revisit:
+  reaching a house over Tailscale from the headset is unresolved, and the
+  address step is where that surfaces.)
+- **The ornaments are Vision-native too.** `HouseStatusBar` and
+  `BottomInputBar` are shaped for a 390pt column with a keyboard under them;
+  an ornament is a short horizontal strip with no keyboard of its own.
+  Parameterising the phone's for both would serve neither. They stay in the
+  iOS target until something actually wants them twice.
 
 **Phase 2, the face.** `PersonaFaceTexture` and `face_kernel`, the `FacePose`
 params bridge, hemisphere material binding, the attachment fallback. Body and

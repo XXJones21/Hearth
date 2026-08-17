@@ -844,33 +844,92 @@ components:
     target: visionos
     kind: directory
     disposition: generated
+    files:
+      - to: MainVolume.swift
+        note: >-
+          The resting state, ported in SHAPE from Valinor's SulivanVolumeView
+          (231 lines) rather than in substance: the rig transform, the
+          SceneEvents.Update tick and the attachment layout carry, the
+          pinch-and-hold ramp does not (phase 4). A dumb stage by the one-scene
+          rule -- everything in it is a placement or a subscription.
+      - to: PairingWindow.swift
+        note: >-
+          Address then code. Design section 1 proposed reshaping the phone's
+          FirstRunView; what is genuinely shared -- ServerConfig, Pairing.pair,
+          the .hearthServerConfigured signal -- IS reused, and only the chrome
+          is new. The phone's view is a full-screen column sized against a
+          keyboard sliding under it; this is a 396pt pane in front of a room.
+      - to: LiveText.swift
+        note: >-
+          From Valinor's LiveTranscriptCardView (61 lines). The volume's only
+          conversation surface, because section 1 makes history the transcript
+          window's job rather than a mode of the stage.
+      - to: Ornaments.swift
+        note: >-
+          House status on top, composer on the bottom. Ornaments rather than
+          content because both are ABOUT the volume rather than in it, and an
+          ornament rides outside the bounded box without stealing depth from the
+          stage. Vision-native: the phone's HouseStatusBar and BottomInputBar
+          are shaped for a 390pt column with a keyboard under them, and
+          parameterising them for a horizontal strip would serve neither.
     note: >-
       The hosts, and only the hosts. Each attaches or releases the shared entity
       root on appear and dismiss -- the one-scene rule of design section 1 --
       and holds no state worth keeping.
 
   - name: spatial-rig
+    source: Valinor/
     destination: Core/Sources/HearthSpatial/
     area: 6
     target: spatial
     kind: directory
-    disposition: generated
+    disposition: edits
+    files:
+      - from: Visualization/RealityKitSceneManager.swift
+        to: PersonaRig.swift
+        lines: 611
+        disposition: edits
+        note: >-
+          The renderer, landed in phase 1. Was `reality-kit-scene`, dropping it
+          flat into the app target; it lands in the shared library instead.
+
+          FOUR subtractions and one rename. The caustic swirl overlay and
+          `sphereCausticTexture` are gone with the excluded caustics set -- an
+          overlay whose only input is an excluded texture is dead weight.
+          `PersonaState` replaces the raw turn state at the boundary, so the rig
+          is told how to look rather than importing a state machine. The
+          per-frame `Date()` read is gone: SceneEvents.Update already carries
+          the frame delta, and reading the wall clock sixty times a second
+          bought nothing. And the name -- a "scene manager" owning no scene was
+          always a misnomer, and design section 1's one-scene rule depends on
+          the distinction.
+
+          What SURVIVED, against this area's older note that the mode switch
+          should be dropped: realBloomActive, configure(for:) and
+          transitionProgress. Design sections 1 and 8 reinstate the
+          pinch-and-hold and the bloom swap in phase 4, so the switch is dormant
+          rather than deleted.
+      - from: VisionOS/CardOrbitLayout.swift
+        to: CardOrbitLayout.swift
+        lines: 46
+        disposition: edits
+        note: >-
+          Device-validated 2026-06-12, and the numbers are unchanged because
+          nothing here has a better claim than that. The `#if os(visionOS)`
+          guard came off: it is arithmetic on three floats and only ever existed
+          because the file lived in a shared iOS target.
+      - to: HearthSpatial.swift
+        disposition: generated
+        note: "namespace marker, and the phase 0 placeholder that let the target build empty"
     note: >-
-      Was `reality-kit-scene`, landing Valinor's RealityKitSceneManager.swift
-      (611 lines) flat in the app target. It lands here instead, decomposed into
-      PersonaRig and its parts, keeping the volumetric path that is
-      device-validated and losing the immersive mode switch and bloom changes
-      that belong to the caustics work.
+      Still to land here, all `generated`: PersonaFaceTexture and its
+      face_kernel (phase 2), BehaviorDirector and its primitive library, and
+      JournalBook and JournalShelf (phase 3).
 
-      Also here, all `generated` and all phase 1 or later: PersonaFaceTexture
-      and its face_kernel, BehaviorDirector and its primitive library,
-      JournalBook, JournalShelf, and CardOrbitLayout ported from
-      Valinor/VisionOS/CardOrbitLayout.swift (46 lines, device-validated
-      2026-06-12).
-
-      Empty in phase 0 apart from the namespace marker. The target builds for
-      iOS as well as visionOS deliberately: that gate is what keeps the later
-      iOS adoption of the RealityKit orb a target change rather than a rewrite.
+      The target builds for iOS as well as visionOS deliberately, and the iOS
+      app links it from phase 0 so the gate is real rather than notional: that
+      is what keeps the later iOS adoption of the RealityKit orb a target change
+      rather than a rewrite.
 
   - name: visionos-plist
     source: Info-visionOS.plist
