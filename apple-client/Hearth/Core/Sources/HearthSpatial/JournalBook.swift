@@ -2,20 +2,28 @@
 //  JournalBook.swift
 //  HearthSpatial
 //
-//  A journal as an object you can pick up, rather than a row in a list.
+//  A journal as an object on a shelf: spine out, bound in leather, its title
+//  stamped up the spine.
 //
-//  Procedural: a cover, a spine and a block of pages, built from boxes. No
-//  modelled assets in v1, and that is a decision rather than a shortcut. The
-//  orb is clean geometry and a warm palette; a photoreal leather-bound tome
-//  next to it would look like it wandered in from another app. The object
-//  language stays in the bead's family and the persona's colours.
+//  This is the phone's `BookSpine` in three dimensions, and it is a
+//  reconstruction rather than an invention. Every rule comes from that view --
+//  the spine gets wider the more pages it holds, the leather is one of six
+//  picked by hashing the title, the lettering is the same pale cream, there is
+//  a highlight down the hinge edge. Those decisions were made once, for a
+//  library that already reads well; the headset's job is to render them with
+//  boxes instead of rounded rectangles, not to have opinions about them.
 //
-//  WHAT IT DOES NOT OWN: the reading experience. An open book's pages are a
-//  SwiftUI attachment mounted by the host, reusing JournalBookView and
-//  JournalEntryView unchanged -- the same views the phone renders. This file
-//  builds a thing that opens; what is written inside it is the shared surface's
-//  business, and duplicating it here would be a second journal renderer to keep
-//  in step with the first.
+//  WHY SPINE OUT. The first cut stood the books cover-forward, which is how a
+//  shop displays three featured titles and not how a library holds two hundred.
+//  Cover-out costs six times the shelf width per book and tells you nothing the
+//  spine does not -- and it left every book unlabelled, because the cover has
+//  no text on it. A shelf is spines. The phone knows this: its `heartDisplay`
+//  turns exactly the living volumes face-out and every other room is spines.
+//
+//  WHAT IT DOES NOT OWN: the reading experience. An opened journal is
+//  JournalBookView, the view the phone renders, mounted by the host as a
+//  SwiftUI attachment. Duplicating it here would be a second journal renderer
+//  to keep in step with the first.
 //
 
 import Foundation
@@ -35,156 +43,122 @@ public final class JournalBookEntity {
     /// The journal this stands for.
     public let book: JournalBook
 
-    private let cover: ModelEntity
-    private let pages: ModelEntity
+    private let spine: ModelEntity
 
-    /// Open books lie flat and face the reader; closed ones stand on the shelf.
-    public private(set) var isOpen = false
-
-    /// Where the attachment carrying the pages should sit when open, in the
-    /// book's own space. The host reads this rather than guessing.
-    public var pageAnchor: SIMD3<Float> { SIMD3<Float>(0, Self.height * 0.52, 0) }
-
-    // A book's proportions, not a slab's. Roughly a hardback: taller than it
-    // is wide, and thin. The first cut had these near-square and the shelf read
-    // as a stack of tiles rather than a row of books.
-    //
-    // These are the entity's OWN units. The library panel scales the whole row
-    // to fit, so what matters here is the ratio between them and the plank.
-    public static let width: Float = 0.030
+    /// A book's height on the shelf, in the library's own units. Everything
+    /// else is a proportion of this, exactly as the phone's spine is a
+    /// proportion of its 132pt height.
     public static let height: Float = 0.046
-    public static let thickness: Float = 0.009
+    /// How far a book reaches back into the shelf.
+    public static let depth: Float = 0.034
+
+    /// How thick THIS book is, from its page count.
+    public var thickness: Float { Self.height * JournalLeather.spineFraction(pages: book.pages) }
 
     public init(book: JournalBook, palette: PersonaPalette) {
         self.book = book
         root = Entity()
         root.name = "JournalBook.\(book.id)"
 
-        // The cover carries the persona's colour, shaded by shelf so the four
-        // shelves read as four groups without a label between them.
-        var coverMaterial = PhysicallyBasedMaterial()
-        coverMaterial.baseColor = .init(tint: Self.coverColor(for: book, palette: palette))
-        coverMaterial.roughness = .init(floatLiteral: 0.65)
-        coverMaterial.metallic = .init(floatLiteral: 0.0)
+        let width = Self.height * JournalLeather.spineFraction(pages: book.pages)
 
-        cover = ModelEntity(
-            mesh: .generateBox(size: SIMD3<Float>(Self.width, Self.height, Self.thickness),
-                               cornerRadius: 0.002),
-            materials: [coverMaterial])
-        cover.name = "cover"
-        root.addChild(cover)
+        // The binding. `PersonaPalette` deliberately does NOT tint this: a
+        // library is bound in leather, not in the persona's accent, and the
+        // phone's shelf makes the same call. The persona colours the orb; the
+        // house colours its books.
+        var leather = PhysicallyBasedMaterial()
+        leather.baseColor = .init(tint: Self.color(JournalLeather.scene(forTitle: book.title)))
+        leather.roughness = .init(floatLiteral: 0.78)
+        leather.metallic = .init(floatLiteral: 0.0)
 
-        // The page block, a hair smaller so the cover reads as wrapping it.
-        var pageMaterial = PhysicallyBasedMaterial()
-        pageMaterial.baseColor = .init(tint: Self.color(HearthPalette.Scene.cream))
-        pageMaterial.roughness = .init(floatLiteral: 0.9)
-        pages = ModelEntity(
-            mesh: .generateBox(size: SIMD3<Float>(Self.width * 0.92,
-                                                  Self.height * 0.94,
-                                                  Self.thickness * 0.7),
-                               cornerRadius: 0.001),
-            materials: [pageMaterial])
+        spine = ModelEntity(
+            mesh: .generateBox(size: SIMD3<Float>(width, Self.height, Self.depth),
+                               cornerRadius: width * 0.14),
+            materials: [leather])
+        spine.name = "spine"
+        root.addChild(spine)
+
+        // The pale block of pages, showing at the fore edge -- the side away
+        // from the hinge. Without it a spine-out book is a coloured brick.
+        var paper = PhysicallyBasedMaterial()
+        paper.baseColor = .init(tint: Self.color(HearthPalette.Scene.cream))
+        paper.roughness = .init(floatLiteral: 0.95)
+        let pages = ModelEntity(
+            mesh: .generateBox(size: SIMD3<Float>(width * 0.72,
+                                                  Self.height * 0.92,
+                                                  Self.depth * 0.94),
+                               cornerRadius: 0.0004),
+            materials: [paper])
         pages.name = "pages"
-        pages.position = SIMD3<Float>(0, 0, Self.thickness * 0.18)
+        // Pushed back so it peeks out behind the leather rather than through it.
+        pages.position = SIMD3<Float>(0, 0, -Self.depth * 0.06)
         root.addChild(pages)
 
-        // Gaze-and-pinch. Design section 5's first open path, and the reason it
-        // exists: a person should be able to take a book down without asking
-        // the house to do it for them.
+        addTitle(width: width)
+
+        // Gaze-and-pinch, and the collision box is the SPINE and nothing but
+        // the spine -- the phone's comment says the same thing for the same
+        // reason. A generous box on a shelf of thin books means the wrong book
+        // opens.
         #if os(visionOS)
         root.components.set(CollisionComponent(
-            shapes: [.generateBox(size: SIMD3<Float>(Self.width * 1.4,
-                                                     Self.height * 1.2,
-                                                     Self.thickness * 3))]))
+            shapes: [.generateBox(size: SIMD3<Float>(width, Self.height, Self.depth))]))
         root.components.set(InputTargetComponent())
         root.components.set(HoverEffectComponent())
         #endif
     }
 
-    /// Open or close, on the hinge.
+    /// The title, stamped up the spine.
     ///
-    /// The cover swings and the whole book tips toward the reader. Animated
-    /// through RealityKit's own `move(to:)` rather than the behaviour
-    /// director's per-frame sequencer, because this is a one-shot with a fixed
-    /// destination and nothing has to compose with it.
-    public func setOpen(_ open: Bool, animated: Bool = true) {
-        guard open != isOpen else { return }
-        isOpen = open
+    /// Rotated a quarter turn so it reads bottom-to-top, which is what the
+    /// phone does with `rotationEffect(.degrees(-90))` and what almost every
+    /// English-language spine does in life. Truncated by the container frame
+    /// rather than by counting characters: a long title on a thin spine is the
+    /// normal case, not the exception.
+    private func addTitle(width: Float) {
+        let usable = Self.height * 0.86
+        let mesh = MeshResource.generateText(
+            book.title,
+            extrusionDepth: 0.0002,
+            font: .systemFont(ofSize: 0.0092, weight: .semibold),
+            containerFrame: CGRect(x: 0, y: 0, width: CGFloat(usable), height: CGFloat(width)),
+            alignment: .left,
+            lineBreakMode: .byTruncatingTail)
 
-        let duration: TimeInterval = animated ? 0.45 : 0
+        var ink = UnlitMaterial()
+        ink.color = .init(tint: Self.color(JournalLeather.letteringScene))
 
-        // The cover swings back on its spine edge. Rotating about the entity's
-        // centre would sink half of it through the pages, so the cover is
-        // offset to its hinge and rotated there.
-        let coverAngle: Float = open ? -.pi * 0.78 : 0
-        var coverTransform = Transform()
-        coverTransform.rotation = simd_quatf(angle: coverAngle, axis: SIMD3<Float>(0, 1, 0))
-        // Hinge at the spine: shift out, turn, shift back.
-        coverTransform.translation = SIMD3<Float>(
-            -Self.width * 0.5 + cos(coverAngle) * Self.width * 0.5,
-            0,
-            sin(coverAngle) * Self.width * 0.5)
-        cover.move(to: coverTransform, relativeTo: root, duration: duration)
-
-        // The book itself tips flat and lifts, so an open book reads as being
-        // held out to you rather than still filed on the shelf.
-        var bookTransform = Transform()
-        bookTransform.rotation = open
-            ? simd_quatf(angle: -.pi * 0.32, axis: SIMD3<Float>(1, 0, 0))
-            : simd_quatf(angle: 0, axis: SIMD3<Float>(1, 0, 0))
-        bookTransform.translation = open ? SIMD3<Float>(0, 0.03, 0.05) : .zero
-        root.move(to: bookTransform, relativeTo: root.parent, duration: duration)
+        let label = ModelEntity(mesh: mesh, materials: [ink])
+        label.name = "title"
+        // Turn it up the spine, then push it just clear of the leather.
+        label.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
+        // generateText lays out from its own origin, so the rotated text has to
+        // be walked back into the middle of the face by hand.
+        label.position = SIMD3<Float>(width * 0.30,
+                                      -usable * 0.5,
+                                      Self.depth * 0.5 + 0.0004)
+        root.addChild(label)
     }
 
-    /// Re-tint on a palette swap, so a persona change reaches the shelf.
-    public func apply(palette: PersonaPalette) {
-        var material = PhysicallyBasedMaterial()
-        material.baseColor = .init(tint: Self.coverColor(for: book, palette: palette))
-        material.roughness = .init(floatLiteral: 0.65)
-        material.metallic = .init(floatLiteral: 0.0)
-        cover.model?.materials = [material]
-    }
-
-    // MARK: - Colour
-
-    /// The persona's colour, shifted per shelf.
+    /// Re-tint on a palette swap.
     ///
-    /// Not four arbitrary colours: the persona's own palette supplies the
-    /// family and the shelf picks a member of it, so a house with a different
-    /// persona gets a different library rather than the same one repainted.
-    private static func coverColor(for book: JournalBook, palette: PersonaPalette) -> UIColor {
-        let base: SIMD3<Float>
-        switch book.shelf {
-        case .heart:    base = palette.speaking
-        case .life:     base = palette.listening
-        case .project:  base = palette.sphere
-        case .seedling: base = palette.thinking
-        }
-        // A seedling is barely written; it reads paler, which is the shelf's
-        // whole meaning made visible.
-        let t: Float = book.isSeedling ? 0.55 : 0.18
-        return color(base * (1 - t) + HearthPalette.Scene.cream * t)
-    }
+    /// A no-op for the binding, which is the persona-independent part, and kept
+    /// so hosts can call it uniformly without knowing that.
+    public func apply(palette: PersonaPalette) {}
 
     private static func color(_ c: SIMD3<Float>) -> UIColor {
         UIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1)
     }
 }
 
-// MARK: - The shelf plank
+// MARK: - The shelf board
 
-/// One shelf: a plank for books to stand on.
-///
-/// Separate from the books so a row can be laid out and scaled as one thing.
-/// Plain geometry, warm wood from the brand's own journal tokens -- the same
-/// two colours the phone's journal covers use, so the library reads as the same
-/// library in both places.
+/// One shelf board, the phone's `ShelfBoard` given a third dimension.
 @MainActor
 public enum JournalShelfPlank {
-    /// A plank `width` long, sized in the book's own units.
     public static func make(width: Float) -> Entity {
-        let thickness: Float = JournalBookEntity.thickness * 1.6
-        let depth: Float = JournalBookEntity.thickness * 4.2
+        let thickness: Float = JournalBookEntity.height * 0.10
+        let depth: Float = JournalBookEntity.depth * 1.15
 
         var material = PhysicallyBasedMaterial()
         material.baseColor = .init(tint: color(HearthPalette.Scene.roast))
@@ -193,11 +167,10 @@ public enum JournalShelfPlank {
 
         let plank = ModelEntity(
             mesh: .generateBox(size: SIMD3<Float>(width, thickness, depth),
-                               cornerRadius: 0.0012),
+                               cornerRadius: thickness * 0.25),
             materials: [material])
-        plank.name = "shelf.plank"
-        // Books stand ON it, so the plank sits below their origin by half a
-        // book plus half a plank.
+        plank.name = "shelf.board"
+        // Books stand ON it.
         plank.position = SIMD3<Float>(0, -(JournalBookEntity.height + thickness) * 0.5, 0)
         return plank
     }

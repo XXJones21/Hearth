@@ -98,18 +98,7 @@ struct HearthVisionApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 460, height: 580)
 
-        // The library, opened from the shelf.
-        //
-        // Volumetric rather than a panel in the main volume, and that is the
-        // shape design section 1 called for from the start. The books are real
-        // entities on real shelves, and three-dimensional content cannot live
-        // in a RealityView ATTACHMENT -- an attachment is a SwiftUI view
-        // rendered onto a plane. A volume can hold a volume; a plane cannot.
-        WindowGroup(id: SceneID.libraryVolume) {
-            LibraryVolume(viewModel: viewModel)
-        }
-        .windowStyle(.volumetric)
-        .defaultSize(width: 0.7, height: 0.6, depth: 0.35, in: .meters)
+
     }
 }
 
@@ -127,7 +116,12 @@ enum SceneID {
 
     // Declared in the phase that stages them. See design sections 1 and 8.
 
-    /// Phase 3: the journal shelf at full size.
+    /// NOT USED. Design section 1 wanted the library at full size in its own
+    /// volumetric window; on the device a second volume sits in FRONT of the
+    /// main one and obscures it, which is the wrong trade for a library you
+    /// open mid-conversation. The library lives in the main volume's centre
+    /// slot instead. Kept named so the next person to reach for a second volume
+    /// finds out here rather than on a headset.
     static let libraryVolume = "hearth.library-volume"
     /// Phase 4: the mixed immersive house.
     static let immersiveHouse = "hearth.immersive-house"

@@ -382,15 +382,6 @@ struct BookSpine: View {
         min(46, max(19, 17 + CGFloat(book.pages) * 2.2))
     }
 
-    private static let leathers: [Color] = [
-        Color(red: 0.725, green: 0.443, blue: 0.290),
-        Color(red: 0.659, green: 0.384, blue: 0.243),
-        Color(red: 0.788, green: 0.541, blue: 0.333),
-        Color(red: 0.557, green: 0.357, blue: 0.235),
-        Color(red: 0.816, green: 0.592, blue: 0.388),
-        Color(red: 0.612, green: 0.416, blue: 0.271)
-    ]
-
     var body: some View {
         ZStack {
             background
@@ -402,7 +393,7 @@ struct BookSpine: View {
             // overlap and the wrong book opens.
             Text(book.title)
                 .font(.system(size: 10.5, weight: .semibold))
-                .foregroundStyle(Color(red: 1, green: 0.953, blue: 0.894))
+                .foregroundStyle(JournalLeather.letteringColor)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(width: height - 20)
@@ -429,7 +420,9 @@ struct BookSpine: View {
             PageBlock()
         } else {
             LinearGradient(
-                colors: [Self.leathers[book.title.paletteIndex(Self.leathers.count)],
+                // The six live in HearthCore now, so the headset's 3D spines
+                // are bound in the same leather as these.
+                colors: [JournalLeather.color(forTitle: book.title),
                          .black.opacity(0.22)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )

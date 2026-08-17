@@ -17,8 +17,8 @@
 //
 //  The journals are NOT here. Books loose in the volume floated with nothing to
 //  stand on and cluttered a stage meant to hold a persona; they live in the
-//  library VOLUME now, on shelves, where they can be scrolled. See
-//  LibraryVolume.
+//  centre slot now, as ENTITIES on shelves you scroll. See
+//  JournalLibraryEntity for why they are not a window of their own.
 //
 
 import SwiftUI
@@ -39,13 +39,20 @@ struct MainVolume: View {
     /// Apple surface with room for.
     @State private var surface: HouseSurface?
 
-    /// Whether the library window is up, so its shelf button toggles rather
-    /// than only opens. Tracked rather than asked, because there is no way to
-    /// ask SwiftUI whether a scene id is currently presented.
-    @State private var libraryOpen = false
+    /// The library, built once and held. Shelves of spine-out books that live
+    /// in this volume's centre slot -- see JournalLibraryEntity for why they are
+    /// not a window of their own.
+    @State private var libraryEntity = JournalLibraryEntity()
+    @StateObject private var library = JournalLibrary()
 
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
+    /// The journal being read, or nil for the shelves.
+    @State private var reading: JournalBook?
+
+    /// Scroll state for the shelves. `hasScrolled` is the whole arbitration
+    /// between the two pinches: a drag that travelled was a scroll, and the tap
+    /// ending it opens nothing.
+    @State private var scrollAtGestureStart: Float = 0
+    @State private var hasScrolled = false
 
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
@@ -102,6 +109,12 @@ struct MainVolume: View {
             rig.behavior.setTarget("recall",
                 at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
 
+
+            // The centre slot's 3D half. Hidden until the Journal button asks
+            // for it; the orb slides left to make room.
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.06, 0.02)
+            libraryEntity.root.isEnabled = false
+            content.add(libraryEntity.root)
 
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
@@ -166,6 +179,34 @@ struct MainVolume: View {
                         .frame(width: 220, height: 220)
                 }
             }
+            // An opened journal. JournalBookView, the phone's own reading
+            // view, unchanged -- the library is new; what is written in a
+            // journal is not.
+            if let reading {
+                Attachment(id: Self.readerID) {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Button {
+                                self.reading = nil
+                            } label: {
+                                Label("Shelves", systemImage: "chevron.left")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .buttonStyle(.plain)
+                            .tint(HearthPalette.ember)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(HearthPalette.parchment)
+
+                        JournalBookView(book: reading)
+                    }
+                    .frame(width: 420, height: 560)
+                    .background(HearthPalette.cream)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
             // The centre slot. Every panel is a shared HearthUI surface, the
             // same one the phone renders.
             if let surface {
@@ -220,27 +261,46 @@ struct MainVolume: View {
         // same reply this does, so nothing has to be threaded between two
         // sibling scenes to say one string.
         .onChange(of: viewModel.liveTranscript) { _, text in
-            guard rig.behavior.isPerforming, !libraryOpen, !text.isEmpty else { return }
-            libraryOpen = true
-            openWindow(id: SceneID.libraryVolume)
+            guard rig.behavior.isPerforming, !text.isEmpty else { return }
+            let title = Self.firstQuotedTitle(in: text)
+            guard !title.isEmpty, let found = libraryEntity.book(matchingTitle: title) else { return }
+            surface = .journal
+            reading = found
         }
-        .onChange(of: surface) { _, open in
-            // Journal is a scene, not a panel. Its books are real entities on
-            // real shelves, and an attachment is a SwiftUI view rendered onto a
-            // plane -- a volume can hold a volume, a plane cannot. So the
-            // Journal button opens the library window and this one never shows
-            // it, which is also why the orb does not slide for it: nothing is
-            // taking the centre of this box.
-            if open == .journal {
-                surface = nil
-                if libraryOpen {
-                    dismissWindow(id: SceneID.libraryVolume)
-                } else {
-                    openWindow(id: SceneID.libraryVolume)
+        .task { await library.load() }
+        .onChange(of: library.allBooks.map(\.id)) { _, _ in rebuildLibrary() }
+        .onChange(of: viewModel.personaPalette) { _, _ in rebuildLibrary() }
+        // Drag to scroll the shelves. Clamped by the library itself, because
+        // there is no scroll bar in a volume to show you where you went.
+        .gesture(
+            DragGesture()
+                .targetedToEntity(libraryEntity.root)
+                .onChanged { value in
+                    if abs(value.translation.height) > 6 { hasScrolled = true }
+                    libraryEntity.scroll = scrollAtGestureStart
+                        + Float(value.translation.height) * -0.0009
                 }
-                libraryOpen.toggle()
-                return
-            }
+                .onEnded { _ in scrollAtGestureStart = libraryEntity.scroll }
+        )
+        // Pinch a spine to read it. Same pinch as the scroll, told apart by
+        // whether it moved -- which is what a ScrollView would have arbitrated
+        // for free and what a RealityView has to do for itself.
+        .gesture(
+            SpatialTapGesture()
+                .targetedToEntity(libraryEntity.root)
+                .onEnded { value in
+                    defer { hasScrolled = false }
+                    guard !hasScrolled else { return }
+                    reading = libraryEntity.book(for: value.entity)
+                }
+        )
+        .onChange(of: surface) { _, open in
+            // Journal fills the centre slot with ENTITIES rather than a panel:
+            // its books are three-dimensional and an attachment is a SwiftUI
+            // view rendered onto a plane. The orb slides for it like any other
+            // destination, because it is one.
+            libraryEntity.root.isEnabled = (open == .journal)
+            if open != .journal { reading = nil }
             withAnimation(.easeInOut(duration: 0.35)) {
                 rig.homePosition = SIMD3<Float>(
                     open == nil ? 0 : Self.stageLeftX,
@@ -276,6 +336,7 @@ struct MainVolume: View {
     private static let liveTextID = "hearth.live-text"
     private static let faceFallbackID = "hearth.face-fallback"
     private static let surfaceID = "hearth.surface"
+    private static let readerID = "hearth.journal-reader"
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough
@@ -317,5 +378,35 @@ struct MainVolume: View {
             if panel.parent == nil { content.add(panel) }
             panel.position = SIMD3<Float>(0.09, 0.02, 0.10)
         }
+
+        // An opened journal stands in front of the shelves it came off, and
+        // the shelves go dark behind it: a library still visible behind the
+        // page you are reading is a library competing with it.
+        if let page = attachments.entity(for: Self.readerID) {
+            if page.parent == nil { content.add(page) }
+            page.position = SIMD3<Float>(0.09, 0.02, 0.14)
+        }
+        libraryEntity.root.isEnabled = (surface == .journal && reading == nil)
+    }
+
+    /// Rebuild the shelves from the house's library.
+    private func rebuildLibrary() {
+        libraryEntity.apply(heart: library.heart,
+                            life: library.life,
+                            projects: library.projects,
+                            seedlings: library.seedlings,
+                            palette: viewModel.personaPalette)
+    }
+
+    /// The first quoted run in the house's reply. See
+    /// JournalLibraryEntity.book(matchingTitle:) for why this is temporary.
+    private static func firstQuotedTitle(in text: String) -> String {
+        for quote in ["\u{201C}", "\"", "'"] {
+            let parts = text.components(separatedBy: quote)
+            if parts.count >= 2, !parts[1].isEmpty, parts[1].count < 60 {
+                return parts[1]
+            }
+        }
+        return ""
     }
 }
