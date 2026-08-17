@@ -97,6 +97,19 @@ struct HearthVisionApp: App {
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 460, height: 580)
+
+        // The library, opened from the shelf.
+        //
+        // Volumetric rather than a panel in the main volume, and that is the
+        // shape design section 1 called for from the start. The books are real
+        // entities on real shelves, and three-dimensional content cannot live
+        // in a RealityView ATTACHMENT -- an attachment is a SwiftUI view
+        // rendered onto a plane. A volume can hold a volume; a plane cannot.
+        WindowGroup(id: SceneID.libraryVolume) {
+            LibraryVolume(viewModel: viewModel)
+        }
+        .windowStyle(.volumetric)
+        .defaultSize(width: 0.7, height: 0.6, depth: 0.35, in: .meters)
     }
 }
 

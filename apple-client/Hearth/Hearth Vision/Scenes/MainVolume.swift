@@ -17,7 +17,8 @@
 //
 //  The journals are NOT here. Books loose in the volume floated with nothing to
 //  stand on and cluttered a stage meant to hold a persona; they live in the
-//  Journal panel now, on shelves, where they can be scrolled. See LibraryPanel.
+//  library VOLUME now, on shelves, where they can be scrolled. See
+//  LibraryVolume.
 //
 
 import SwiftUI
@@ -38,9 +39,13 @@ struct MainVolume: View {
     /// Apple surface with room for.
     @State private var surface: HouseSurface?
 
-    /// A journal the house named while consulting one, for the library to open
-    /// when it opens. Design section 5's second path.
-    @State private var pendingJournalTitle: String?
+    /// Whether the library window is up, so its shelf button toggles rather
+    /// than only opens. Tracked rather than asked, because there is no way to
+    /// ask SwiftUI whether a scene id is currently presented.
+    @State private var libraryOpen = false
+
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
 
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
@@ -165,9 +170,7 @@ struct MainVolume: View {
             // same one the phone renders.
             if let surface {
                 Attachment(id: Self.surfaceID) {
-                    HouseSurfacePanel(viewModel: viewModel,
-                                      surface: surface,
-                                      pendingJournalTitle: pendingJournalTitle) {
+                    HouseSurfacePanel(viewModel: viewModel, surface: surface) {
                         self.surface = nil
                     }
                 }
@@ -212,18 +215,32 @@ struct MainVolume: View {
         // so moving it moves the orb's whole notion of where it lives -- a
         // performance mid-flight lands in the new place rather than snapping
         // back to the old one afterwards.
-        // Design section 5's second open path, now that the books live in a
-        // panel: `consulting_journal` opens the library, and the title the house
-        // mentions is handed along for it to open once its shelves have loaded.
+        // Design section 5's second open path: consulting a journal opens the
+        // library. WHICH journal is the library's own business -- it watches the
+        // same reply this does, so nothing has to be threaded between two
+        // sibling scenes to say one string.
         .onChange(of: viewModel.liveTranscript) { _, text in
-            guard rig.behavior.isPerforming, !text.isEmpty else { return }
-            let title = firstQuotedTitle(in: text)
-            guard !title.isEmpty else { return }
-            pendingJournalTitle = title
-            if surface == nil { surface = .journal }
+            guard rig.behavior.isPerforming, !libraryOpen, !text.isEmpty else { return }
+            libraryOpen = true
+            openWindow(id: SceneID.libraryVolume)
         }
         .onChange(of: surface) { _, open in
-            if open != .journal { pendingJournalTitle = nil }
+            // Journal is a scene, not a panel. Its books are real entities on
+            // real shelves, and an attachment is a SwiftUI view rendered onto a
+            // plane -- a volume can hold a volume, a plane cannot. So the
+            // Journal button opens the library window and this one never shows
+            // it, which is also why the orb does not slide for it: nothing is
+            // taking the centre of this box.
+            if open == .journal {
+                surface = nil
+                if libraryOpen {
+                    dismissWindow(id: SceneID.libraryVolume)
+                } else {
+                    openWindow(id: SceneID.libraryVolume)
+                }
+                libraryOpen.toggle()
+                return
+            }
             withAnimation(.easeInOut(duration: 0.35)) {
                 rig.homePosition = SIMD3<Float>(
                     open == nil ? 0 : Self.stageLeftX,
@@ -265,22 +282,6 @@ struct MainVolume: View {
     /// to clear a 560pt panel, close enough to still be in the room with it.
     private static let stageLeftX: Float = -0.26
 
-    /// The first quoted or title-cased run in the house's reply.
-    ///
-    /// Crude on purpose. The house says "I found it in *Seedlings* --" and the
-    /// shelf matches loosely from there; getting this wrong costs a book that
-    /// does not open, which is the same as today. When `behavior_cue` grows a
-    /// payload -- and it should, because the harness KNOWS which journal it
-    /// read -- this whole function is deleted rather than improved.
-    private func firstQuotedTitle(in text: String) -> String {
-        for quote in ["\u{201C}", "\"", "'"] {
-            let parts = text.components(separatedBy: quote)
-            if parts.count >= 2, !parts[1].isEmpty, parts[1].count < 60 {
-                return parts[1]
-            }
-        }
-        return ""
-    }
 
     /// Parent each attachment to the volume and place it. Cards appearing and
     /// expiring under CardStore's TTL show up here as the attachment set
@@ -305,5 +306,16 @@ struct MainVolume: View {
             face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
         }
 
+        // The centre slot, standing a little forward so it reads as being in
+        // front of the stage rather than embedded in it.
+        //
+        // An attachment that is never added to the content is never rendered,
+        // and it fails SILENTLY -- the view is built, the id resolves, and
+        // nothing appears. That is what happened here: this block was lost with
+        // an unrelated one, and the panel simply did not show.
+        if let panel = attachments.entity(for: Self.surfaceID) {
+            if panel.parent == nil { content.add(panel) }
+            panel.position = SIMD3<Float>(0.09, 0.02, 0.10)
+        }
     }
 }
