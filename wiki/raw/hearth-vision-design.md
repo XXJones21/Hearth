@@ -174,7 +174,17 @@ director; there is no second state machine.
 
 **A caveat to respect.** The caustics set was never validated on a device, so
 the `LowLevelTexture` pattern gets its first on-device proof through the
-face. Treat the pattern as unproven until headset gate 2 passes.
+face. Treat the pattern as unproven until headset gate 2 passes. *(Resolved
+2026-08-17: the pattern works. The face renders on the headset, and the kernel
+compiles and links for iOS as well.)*
+
+**An open change to the mouth.** The speaking particle waveform is, in the
+operator's judgement, the best speaking treatment across every client -- and
+the face draws an unrelated oval beside it. Two answers to one question, with
+the weaker one on the face. The mouth should become the waveform. Scoped, with
+the two readings of that separated and the phase-channel question laid out, in
+`tasks/vision-waveform-mouth.md`; deliberately not folded together with the
+separate complaint that the particle wave is too wide at volume scale.
 
 ## 4. Choreography
 
