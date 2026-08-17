@@ -100,10 +100,19 @@ public final class PersonaFaceTexture {
     /// eyes rather than shrinking them. (An earlier version of this comment
     /// said the opposite, which was simply wrong.)
     ///
-    /// 0.68 is 0.62 stepped up a tenth, on the operator's read of the first
-    /// correctly-oriented device run: the face was in the right place and the
-    /// eyes were a touch small.
-    public var extent: Float = 0.68
+    /// 0.82 is 0.62 stepped up a tenth and then a fifth, both on the operator's
+    /// read of a device run -- the second judged against a hand held up beside
+    /// the orb, which is the only scale reference that means anything here. A
+    /// bead the size of a palm needs eyes you can read at a glance, and the
+    /// numbers carried from a flat 130pt phone view were never going to be it.
+    ///
+    /// This scales the WHOLE face, not the eyes alone, and that is deliberate:
+    /// the proportions come from FaceGeometry, which the phone shares, and
+    /// growing one feature here would be the headset quietly drawing a
+    /// different Sulivan. If the eyes should be larger *relative to the face*,
+    /// that is `eyeSize` in the persona's own geometry and it belongs to both
+    /// clients.
+    public var extent: Float = 0.82
 
     /// How far the ink leans toward `roast` from the state's glow colour.
     ///
@@ -113,7 +122,33 @@ public final class PersonaFaceTexture {
     /// cause fixed, the mix goes back to matching the phone, because the two
     /// renderers drawing the same persona in different browns is a drift nobody
     /// would notice until they were side by side.
+    ///
+    /// Only consulted when `inkStyle` is `.stateWash`.
     public var inkBlend: Float = 0.62
+
+    /// What colour the ink is.
+    public enum InkStyle: Sendable {
+        /// Flat black, ignoring the persona entirely.
+        case flatBlack
+        /// The phone's treatment: ink leaning toward `roast` from the active
+        /// state's glow colour, so the state is legible in peripheral vision.
+        case stateWash
+    }
+
+    /// Flat black for now, at the operator's call after seeing the wash on the
+    /// device.
+    ///
+    /// Worth being honest that this is a step AWAY from the design: section 3
+    /// has the face reading its colours from the same per-state palette the
+    /// bead does, so a face never invents colours the orb does not have. On a
+    /// bright emissive bead the washed brown reads as smudged rather than
+    /// drawn, and flat black simply reads.
+    ///
+    /// Kept as a switch rather than a deletion because the wash is not wrong in
+    /// principle -- it is what makes the state legible from across a room, and
+    /// it may come back once the bead is not the only thing behind it. Revisit
+    /// with the phase 5 polish pass.
+    public var inkStyle: InkStyle = .flatBlack
 
     public init?(size: Int = 512, kernelName: String = "face_kernel") {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -169,8 +204,16 @@ public final class PersonaFaceTexture {
     /// colour so the state is legible in peripheral vision. A face that invented
     /// its own colours would drift from the orb it sits on.
     public func draw(pose: FacePose, palette: PersonaPalette, state: HearthState) {
-        let glow = palette.glow(for: state)
-        let ink = linearized(mix(glow, HearthPalette.Scene.roast, inkBlend))
+        let ink: SIMD3<Float>
+        switch inkStyle {
+        case .flatBlack:
+            // Already linear. Black is black in either space, so this one does
+            // not go through `linearized` -- and saying so is cheaper than
+            // leaving a reader to wonder why it does not.
+            ink = .zero
+        case .stateWash:
+            ink = linearized(mix(palette.glow(for: state), HearthPalette.Scene.roast, inkBlend))
+        }
         let glint = linearized(mix(HearthPalette.Scene.honey, HearthPalette.Scene.fluff, 0.75))
 
         var params = FaceParams(
