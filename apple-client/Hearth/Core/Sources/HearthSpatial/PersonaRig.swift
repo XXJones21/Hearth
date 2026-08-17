@@ -84,13 +84,17 @@ public final class PersonaRig: ObservableObject {
 
     /// The shell the face is painted on, and the director that decides the pose.
     ///
-    /// The shell BILLBOARDS, which is the body look-at layer for the volume. The
-    /// design describes that layer as a smoothed slerp toward the user's head
-    /// anchor, and that is right for the immersive house in phase 4 -- but a
-    /// head anchor needs a world-tracking ARKit session, which the Shared Space
-    /// does not grant a volumetric window. `BillboardComponent` is the platform's
-    /// own answer to the same question and it is already what the glow uses, so
-    /// the volume gets the intended behaviour by the means available to it.
+    /// The shell faces FORWARD and stays there. Neither look-at layer exists
+    /// yet, and that is deliberate rather than deferred work: the design's body
+    /// layer is a slerp toward the user's head anchor, a head anchor needs a
+    /// world-tracking ARKit session, and the Shared Space does not grant one to
+    /// a volumetric window. A volume is a box you look into from the front, so
+    /// a fixed forward anchor is not an approximation of the intended behaviour
+    /// -- it is the whole of it at this scale.
+    ///
+    /// Phase 4 is where looking-at earns its keep, because that is where the
+    /// orb roams a room and the person moves around it. Both layers land there,
+    /// against the real anchor the immersive space provides.
     private var faceShell: ModelEntity?
     private var faceTexture: PersonaFaceTexture?
     private var faceDirector: FaceDirector?
@@ -102,37 +106,6 @@ public final class PersonaRig: ObservableObject {
     /// faceless.
     public var hasComputeFace: Bool { faceTexture != nil }
 
-    /// Where the eyes should look, in the director's gaze space, or nil to let
-    /// the playlist and its saccades own the gaze.
-    ///
-    /// This is the second look-at layer, and it is deliberately separate from
-    /// the first: the body turns, and the eyes lead the turn. Feed it through
-    /// `lookAt(worldPosition:)` rather than setting it raw.
-    private var lookTarget: LookTarget?
-
-    /// Point the eyes at something in the scene.
-    ///
-    /// Projects a world position into the face's own gaze space, which is the
-    /// same arithmetic PersonaFaceView does against the composer's frame on the
-    /// phone: a delta, normalised by the face's size, clamped to the head. Pass
-    /// nil to hand the gaze back to the playlist.
-    public func lookAt(worldPosition: SIMD3<Float>?) {
-        guard let worldPosition, let faceShell else {
-            lookTarget = nil
-            return
-        }
-        // Into the shell's own space, so the projection follows the billboard
-        // rather than fighting it.
-        let local = faceShell.convert(position: worldPosition, from: nil)
-        // The shell's radius is the natural normaliser: one radius off-centre is
-        // the edge of the head, which is exactly what gaze space calls 1.
-        let r = max(sphereRadius, 1e-4)
-        lookTarget = LookTarget(
-            x: Double(min(1, max(-1, local.x / r))),
-            // Gaze space is y-DOWN, matching the flat renderer.
-            y: Double(min(1, max(-1, -local.y / r))),
-            focus: 0.5)
-    }
 
     /// Set by the immersive host in phase 4. `BloomComponent` has no effect in
     /// the Shared Space, which is exactly why the billboard exists for the
@@ -272,8 +245,9 @@ public final class PersonaRig: ObservableObject {
         let shell = ModelEntity(mesh: .generateSphere(radius: sphereRadius * 1.02),
                                 materials: [material])
         shell.name = "PersonaFace"
-        // The body look-at layer. See the note on `faceShell`.
-        shell.components.set(BillboardComponent())
+        // No BillboardComponent, and the absence is the decision: the face is
+        // painted at the front of this shell and the shell does not turn, so
+        // the face looks forward out of the volume. See the note on `faceShell`.
         sphereEntity.addChild(shell)
         faceShell = shell
     }
@@ -548,7 +522,10 @@ public final class PersonaRig: ObservableObject {
             cue: feed.cue,
             speechLevel: feed.speechLevel,
             reduceMotion: false,
-            lookTarget: lookTarget)
+            // No look target in a volume. The playlist and its saccades own the
+            // gaze, which is what the director does when nothing is named --
+            // the eyes still move, they just are not tracking anything.
+            lookTarget: nil)
 
         faceTexture.draw(pose: pose, palette: palette, state: hearthState)
     }

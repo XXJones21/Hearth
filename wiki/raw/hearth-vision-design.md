@@ -313,22 +313,26 @@ first said:
   Parameterising the phone's for both would serve neither. They stay in the
   iOS target until something actually wants them twice.
 
-**Phase 2, the face.** WRITTEN 2026-08-17, unverified. `PersonaFaceTexture` and
-`face_kernel`, the `FacePose` params bridge, the material binding, the
-attachment fallback. Body and gaze look-at.
+**Phase 2, the face.** WRITTEN 2026-08-17, unverified on the headset.
+`PersonaFaceTexture` and `face_kernel`, the `FacePose` params bridge, the
+material binding, the attachment fallback. Look-at moved out; see below.
 *Headset gate 2: the face alive on the orb, expressions firing on
 `tts_chunk_start`.* This is also the first on-device proof of the
 `LowLevelTexture` pattern.
 
 Three things this section assumed that turned out otherwise:
 
-- **The head anchor is not available.** The body look-at layer was specified as
-  a smoothed slerp toward the user's head anchor, which needs a world-tracking
-  ARKit session -- and the Shared Space does not grant one to a volumetric
-  window. The face shell carries a `BillboardComponent` instead: the platform's
-  own answer to the same question, and already what the glow billboard uses.
-  Phase 4's immersive space CAN have the real anchor, and swapping it in is a
-  change to one component rather than to the layer's design.
+- **Neither look-at layer belongs in the volume, and both move to phase 4.**
+  The body layer was specified as a smoothed slerp toward the user's head
+  anchor; a head anchor needs a world-tracking ARKit session, and the Shared
+  Space does not grant one to a volumetric window. The first fix was a
+  `BillboardComponent`, and it was the wrong instinct -- a volume is a box you
+  look into from the front, so the face simply faces forward and stays there.
+  That is not an approximation of the intended behaviour at this scale; it is
+  the whole of it. Looking-at earns its keep in the immersive house, where the
+  orb roams a room and the person moves around it, and it lands there against
+  the real anchor rather than a stand-in for one. (Operator's call,
+  2026-08-17.)
 - **The kernel draws no head.** Section 3 says the kernel draws "the
   established capsule-and-squircle ink language", but the squircle is the
   phone's head, and on the orb the bead already is one. The kernel writes
@@ -341,10 +345,10 @@ Three things this section assumed that turned out otherwise:
   root. `PersonaFaceTexture` searches for it rather than assuming, and still
   returns nil -- into the fallback -- if it is genuinely absent.
 
-The gaze layer is live but modestly used: the orb glances at the newest card it
-produced, which is the spatial version of the phone's composer-tracking. Phase
-3's behaviour director takes the same input and aims it at whatever a cue
-names.
+So section 3's "look-at, two layers" is phase 4 work in full. Nothing of it
+ships here, deliberately: the director's own playlist and saccades keep the
+eyes alive without anything to track, and machinery that cannot be judged in
+the scene it lives in is machinery nobody can tell is broken.
 
 **Phase 3, choreography and journals.** `BehaviorDirector`, primitives, the
 `state_update` fallback producer. `JournalBook`, `JournalShelf`, both open

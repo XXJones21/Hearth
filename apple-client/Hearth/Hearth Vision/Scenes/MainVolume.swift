@@ -208,19 +208,5 @@ struct MainVolume: View {
             if face.parent == nil { content.add(face) }
             face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
         }
-
-        // The eyes lead: the orb glances at the newest card it produced, which
-        // is the spatial version of the composer-tracking the phone already
-        // does. Nil hands the gaze back to the director's own playlist, so an
-        // empty stage still has a face that looks around the room.
-        //
-        // Phase 3 takes this over: the behaviour director will aim it at
-        // whatever a cue names, and a shelf or a book is the same kind of
-        // target as a card.
-        if let newest = cards.last, let entity = attachments.entity(for: newest.id) {
-            rig.lookAt(worldPosition: entity.position(relativeTo: nil))
-        } else {
-            rig.lookAt(worldPosition: nil)
-        }
     }
 }
