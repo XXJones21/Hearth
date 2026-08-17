@@ -65,6 +65,8 @@ enum HouseSurface: String, CaseIterable, Identifiable {
 struct HouseSurfacePanel: View {
     @ObservedObject var viewModel: ChatViewModel
     let surface: HouseSurface
+    /// A journal the house named, for the library to open on arrival.
+    let pendingJournalTitle: String?
     let onClose: () -> Void
 
     var body: some View {
@@ -108,7 +110,9 @@ struct HouseSurfacePanel: View {
     private var content: some View {
         switch surface {
         case .sessions: SessionsView(viewModel: viewModel)
-        case .journal:  JournalView()
+        // The library, not the phone's JournalView: shelves of real books you
+        // scroll, which is what a volume is for. See LibraryPanel.
+        case .journal:  LibraryPanel(viewModel: viewModel, pendingTitle: pendingJournalTitle)
         case .persona:  PersonaView(viewModel: viewModel)
         case .apps:     AppsView(viewModel: viewModel)
         case .settings: HearthSettingsView(viewModel: viewModel)

@@ -13,8 +13,11 @@
 //
 //  Ported in shape from Valinor's SulivanVolumeView, which was device-validated
 //  on this path. What is NOT here yet: the pinch-and-hold that promotes the orb
-//  into the room (phase 4 -- the rig carries the flourish already, dormant), the
-//  journal shelf (phase 3), and the face (phase 2).
+//  into the room (phase 4 -- the rig carries the flourish already, dormant).
+//
+//  The journals are NOT here. Books loose in the volume floated with nothing to
+//  stand on and cluttered a stage meant to hold a persona; they live in the
+//  Journal panel now, on shelves, where they can be scrolled. See LibraryPanel.
 //
 
 import SwiftUI
@@ -27,16 +30,6 @@ struct MainVolume: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var rig: PersonaRig
     @ObservedObject private var cardStore: CardStore
-    @StateObject private var library = JournalLibrary()
-
-    /// The shelf's entities outlive body re-evaluation, so they are built once
-    /// and held rather than rebuilt: a shelf rebuilt on every redraw would
-    /// restart every hinge animation on it.
-    @State private var shelf = JournalShelf()
-
-    /// Which book is open, mirrored into view state so the page attachment can
-    /// be built for it. The shelf owns the truth; this is the redraw trigger.
-    @State private var openBook: JournalBook?
 
     /// The open destination, or nil for the plain stage.
     ///
@@ -44,6 +37,10 @@ struct MainVolume: View {
     /// the middle: the desktop's three-slot frame, which a volume is the one
     /// Apple surface with room for.
     @State private var surface: HouseSurface?
+
+    /// A journal the house named while consulting one, for the library to open
+    /// when it opens. Design section 5's second path.
+    @State private var pendingJournalTitle: String?
 
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
@@ -85,10 +82,13 @@ struct MainVolume: View {
             // scene. Design section 4's targets "are entities, and the entities
             // are simply closer" in the volume: these are that, at desk scale.
             rig.homePosition = SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
-            // Toward the shelf's corner of the box. Phase 3's journal work
-            // replaces this with the shelf entity's real position.
+            // Toward the library. There is no shelf ENTITY in the stage any
+            // more -- the books live in the Journal panel, where they can be
+            // scrolled -- so this names where that panel opens. The orb flying
+            // toward the library it is about to open is the point; whether the
+            // books are already on screen is not.
             rig.behavior.setTarget("shelf",
-                at: SIMD3<Float>(0.20, CardOrbitLayout.orbY + 0.06, -0.06))
+                at: SIMD3<Float>(0.16, CardOrbitLayout.orbY + 0.05, 0.02))
             // Out over the cards, where work is visible.
             rig.behavior.setTarget("workspace",
                 at: SIMD3<Float>(CardOrbitLayout.leftX * 0.55, CardOrbitLayout.orbY + 0.05, 0.02))
@@ -97,19 +97,6 @@ struct MainVolume: View {
             rig.behavior.setTarget("recall",
                 at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
 
-            // The compact shelf: a hint of the library, off to the right at the
-            // orb's height. The library volume shows the same entities at full
-            // size, which is why the shelf is scaled here rather than built
-            // small -- one shelf, three sizes.
-            shelf.columns = 4
-            shelf.root.transform = Transform(
-                scale: SIMD3<Float>(repeating: 0.72),
-                rotation: simd_quatf(angle: -.pi * 0.12, axis: SIMD3<Float>(0, 1, 0)),
-                translation: SIMD3<Float>(0.20, CardOrbitLayout.orbY + 0.07, -0.06))
-            content.add(shelf.root)
-            // Now the shelf exists, the placeholder target above becomes the
-            // real thing: the orb flies to where the books actually are.
-            rig.behavior.setTarget("shelf", at: shelf.root.position)
 
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
@@ -174,23 +161,13 @@ struct MainVolume: View {
                         .frame(width: 220, height: 220)
                 }
             }
-            // The open book's pages, and the whole reason the books are objects
-            // rather than pictures of objects: this is `JournalBookView`, the
-            // view the phone renders, mounted inside the thing it describes.
-            // Nothing about the reading experience is reimplemented here.
-            if let openBook {
-                Attachment(id: Self.bookPagesID) {
-                    JournalBookView(book: openBook)
-                        .frame(width: 380, height: 460)
-                        .background(HearthPalette.cream)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-            }
             // The centre slot. Every panel is a shared HearthUI surface, the
             // same one the phone renders.
             if let surface {
                 Attachment(id: Self.surfaceID) {
-                    HouseSurfacePanel(viewModel: viewModel, surface: surface) {
+                    HouseSurfacePanel(viewModel: viewModel,
+                                      surface: surface,
+                                      pendingJournalTitle: pendingJournalTitle) {
                         self.surface = nil
                     }
                 }
@@ -207,50 +184,6 @@ struct MainVolume: View {
                     viewModel.toggleListening()
                 }
         )
-        // The first of design section 5's two open paths: gaze at a book and
-        // pinch it. A person should be able to take a book down without asking
-        // the house to do it for them.
-        //
-        // Targeted at `shelf.root` rather than each book, so books appearing
-        // and disappearing under a live library never leave a gesture pointing
-        // at an entity that has gone; the shelf resolves the hit to a book.
-        .gesture(
-            SpatialTapGesture()
-                .targetedToEntity(shelf.root)
-                .onEnded { value in
-                    guard let hit = shelf.book(for: value.entity) else { return }
-                    if shelf.openBookID == hit.book.id {
-                        shelf.closeOpenBook()
-                        openBook = nil
-                    } else {
-                        shelf.open(hit.book.id)
-                        openBook = hit.book
-                    }
-                }
-        )
-        .task {
-            await library.load()
-        }
-        .onChange(of: library.allBooks.map(\.id)) { _, _ in
-            shelf.apply(books: library.allBooks, palette: viewModel.personaPalette)
-        }
-        .onChange(of: viewModel.personaPalette) { _, palette in
-            shelf.apply(books: library.allBooks, palette: palette)
-        }
-        // The second open path: the house opens the book itself.
-        //
-        // `consulting_journal` is the cue, and the orb is already flying to the
-        // shelf by the time this runs -- the director took care of that. What
-        // is left is choosing WHICH book, and the only honest source for that
-        // is the reply the house is giving, matched against the titles on the
-        // shelf. A search that names no journal opens none, which is correct:
-        // better a closed shelf than the wrong book held open.
-        .onChange(of: viewModel.liveTranscript) { _, text in
-            guard rig.behavior.isPerforming, openBook == nil, !text.isEmpty else { return }
-            guard let found = shelf.book(matchingTitle: firstQuotedTitle(in: text)) else { return }
-            shelf.open(found.book.id)
-            openBook = found.book
-        }
         .onChange(of: viewModel.hearthState) { _, state in
             rig.updateState(PersonaState(state))
         }
@@ -279,7 +212,18 @@ struct MainVolume: View {
         // so moving it moves the orb's whole notion of where it lives -- a
         // performance mid-flight lands in the new place rather than snapping
         // back to the old one afterwards.
+        // Design section 5's second open path, now that the books live in a
+        // panel: `consulting_journal` opens the library, and the title the house
+        // mentions is handed along for it to open once its shelves have loaded.
+        .onChange(of: viewModel.liveTranscript) { _, text in
+            guard rig.behavior.isPerforming, !text.isEmpty else { return }
+            let title = firstQuotedTitle(in: text)
+            guard !title.isEmpty else { return }
+            pendingJournalTitle = title
+            if surface == nil { surface = .journal }
+        }
         .onChange(of: surface) { _, open in
+            if open != .journal { pendingJournalTitle = nil }
             withAnimation(.easeInOut(duration: 0.35)) {
                 rig.homePosition = SIMD3<Float>(
                     open == nil ? 0 : Self.stageLeftX,
@@ -314,7 +258,6 @@ struct MainVolume: View {
 
     private static let liveTextID = "hearth.live-text"
     private static let faceFallbackID = "hearth.face-fallback"
-    private static let bookPagesID = "hearth.book-pages"
     private static let surfaceID = "hearth.surface"
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
@@ -362,25 +305,5 @@ struct MainVolume: View {
             face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
         }
 
-        // The open book's pages, parented to the BOOK rather than the scene, so
-        // they travel with it: the book tips toward the reader as it opens, and
-        // pages that stayed put would slide off the object they belong to.
-        // The centre slot, standing a little forward so it reads as being in
-        // front of the stage rather than embedded in it.
-        if let panel = attachments.entity(for: Self.surfaceID) {
-            if panel.parent == nil { content.add(panel) }
-            panel.position = SIMD3<Float>(0.09, 0.02, 0.10)
-        }
-
-        if let pages = attachments.entity(for: Self.bookPagesID), let book = shelf.openBook {
-            if pages.parent !== book.root {
-                pages.removeFromParent()
-                book.root.addChild(pages)
-            }
-            pages.position = book.pageAnchor
-            // Small: a 380pt view at a book's scale would be a billboard. This
-            // is the reading size the shelf's own proportions imply.
-            pages.scale = SIMD3<Float>(repeating: 0.00042)
-        }
     }
 }

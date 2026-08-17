@@ -642,13 +642,20 @@ public final class PersonaRig: ObservableObject {
         particleField.scale = SIMD3<Float>(repeating: 1.0 + 0.5 * motion + 0.3 * pulse)
         for i in particleEntities.indices {
             particleEntities[i].position = particleBasePositions[i]
-            // A raised sine: mostly dim, briefly bright, never a hard edge.
-            // OpacityComponent rather than per-particle materials -- 96 material
+            // A raised sine, floored at ZERO. Each dot is genuinely absent for
+            // half its cycle rather than merely dim.
+            //
+            // The floor was 0.12 and that was the whole failure: a hundred dots
+            // at a tenth opacity are still a hundred dots, so the field read as
+            // cluttered haze instead of fireflies. Vanishing outright is what
+            // declutters WITHOUT losing particles -- the same field, a third of
+            // it visible at any moment.
+            //
+            // OpacityComponent rather than per-particle materials: 96 material
             // assignments a frame to change one number would be absurd, and
             // this is the component that exists for exactly this.
             let wave = sin(animationTime * particleTwinkleSpeeds[i] + particleTwinklePhases[i])
-            let opacity = 0.12 + 0.88 * max(0, wave)
-            particleEntities[i].components.set(OpacityComponent(opacity: opacity))
+            particleEntities[i].components.set(OpacityComponent(opacity: max(0, wave)))
         }
         twinkling = true
     }

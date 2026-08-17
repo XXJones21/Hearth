@@ -45,11 +45,15 @@ public final class JournalBookEntity {
     /// book's own space. The host reads this rather than guessing.
     public var pageAnchor: SIMD3<Float> { SIMD3<Float>(0, Self.height * 0.52, 0) }
 
-    // Sized for a shelf you can take in at a glance, not for realism: a book
-    // at true scale beside a palm-sized orb would be a wall.
-    static let width: Float = 0.052
-    static let height: Float = 0.072
-    static let thickness: Float = 0.014
+    // A book's proportions, not a slab's. Roughly a hardback: taller than it
+    // is wide, and thin. The first cut had these near-square and the shelf read
+    // as a stack of tiles rather than a row of books.
+    //
+    // These are the entity's OWN units. The library panel scales the whole row
+    // to fit, so what matters here is the ratio between them and the plank.
+    public static let width: Float = 0.030
+    public static let height: Float = 0.046
+    public static let thickness: Float = 0.009
 
     public init(book: JournalBook, palette: PersonaPalette) {
         self.book = book
@@ -160,6 +164,42 @@ public final class JournalBookEntity {
         // whole meaning made visible.
         let t: Float = book.isSeedling ? 0.55 : 0.18
         return color(base * (1 - t) + HearthPalette.Scene.cream * t)
+    }
+
+    private static func color(_ c: SIMD3<Float>) -> UIColor {
+        UIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1)
+    }
+}
+
+// MARK: - The shelf plank
+
+/// One shelf: a plank for books to stand on.
+///
+/// Separate from the books so a row can be laid out and scaled as one thing.
+/// Plain geometry, warm wood from the brand's own journal tokens -- the same
+/// two colours the phone's journal covers use, so the library reads as the same
+/// library in both places.
+@MainActor
+public enum JournalShelfPlank {
+    /// A plank `width` long, sized in the book's own units.
+    public static func make(width: Float) -> Entity {
+        let thickness: Float = JournalBookEntity.thickness * 1.6
+        let depth: Float = JournalBookEntity.thickness * 4.2
+
+        var material = PhysicallyBasedMaterial()
+        material.baseColor = .init(tint: color(HearthPalette.Scene.roast))
+        material.roughness = .init(floatLiteral: 0.85)
+        material.metallic = .init(floatLiteral: 0.0)
+
+        let plank = ModelEntity(
+            mesh: .generateBox(size: SIMD3<Float>(width, thickness, depth),
+                               cornerRadius: 0.0012),
+            materials: [material])
+        plank.name = "shelf.plank"
+        // Books stand ON it, so the plank sits below their origin by half a
+        // book plus half a plank.
+        plank.position = SIMD3<Float>(0, -(JournalBookEntity.height + thickness) * 0.5, 0)
+        return plank
     }
 
     private static func color(_ c: SIMD3<Float>) -> UIColor {
