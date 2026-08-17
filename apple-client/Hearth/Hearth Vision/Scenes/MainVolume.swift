@@ -27,6 +27,16 @@ struct MainVolume: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var rig: PersonaRig
     @ObservedObject private var cardStore: CardStore
+    @StateObject private var library = JournalLibrary()
+
+    /// The shelf's entities outlive body re-evaluation, so they are built once
+    /// and held rather than rebuilt: a shelf rebuilt on every redraw would
+    /// restart every hinge animation on it.
+    @State private var shelf = JournalShelf()
+
+    /// Which book is open, mirrored into view state so the page attachment can
+    /// be built for it. The shelf owns the truth; this is the redraw trigger.
+    @State private var openBook: JournalBook?
 
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
@@ -79,6 +89,20 @@ struct MainVolume: View {
             // think, which is what the face's thinking beats already do.
             rig.behavior.setTarget("recall",
                 at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
+
+            // The compact shelf: a hint of the library, off to the right at the
+            // orb's height. The library volume shows the same entities at full
+            // size, which is why the shelf is scaled here rather than built
+            // small -- one shelf, three sizes.
+            shelf.columns = 4
+            shelf.root.transform = Transform(
+                scale: SIMD3<Float>(repeating: 0.72),
+                rotation: simd_quatf(angle: -.pi * 0.12, axis: SIMD3<Float>(0, 1, 0)),
+                translation: SIMD3<Float>(0.20, CardOrbitLayout.orbY + 0.07, -0.06))
+            content.add(shelf.root)
+            // Now the shelf exists, the placeholder target above becomes the
+            // real thing: the orb flies to where the books actually are.
+            rig.behavior.setTarget("shelf", at: shelf.root.position)
 
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
@@ -143,6 +167,18 @@ struct MainVolume: View {
                         .frame(width: 220, height: 220)
                 }
             }
+            // The open book's pages, and the whole reason the books are objects
+            // rather than pictures of objects: this is `JournalBookView`, the
+            // view the phone renders, mounted inside the thing it describes.
+            // Nothing about the reading experience is reimplemented here.
+            if let openBook {
+                Attachment(id: Self.bookPagesID) {
+                    JournalBookView(book: openBook)
+                        .frame(width: 380, height: 460)
+                        .background(HearthPalette.cream)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+            }
         }
         // A plain pinch on the bead starts a voice turn. Phase 4 adds the
         // two-second hold on the same target for the immersive switch, which is
@@ -155,6 +191,50 @@ struct MainVolume: View {
                     viewModel.toggleListening()
                 }
         )
+        // The first of design section 5's two open paths: gaze at a book and
+        // pinch it. A person should be able to take a book down without asking
+        // the house to do it for them.
+        //
+        // Targeted at `shelf.root` rather than each book, so books appearing
+        // and disappearing under a live library never leave a gesture pointing
+        // at an entity that has gone; the shelf resolves the hit to a book.
+        .gesture(
+            SpatialTapGesture()
+                .targetedToEntity(shelf.root)
+                .onEnded { value in
+                    guard let hit = shelf.book(for: value.entity) else { return }
+                    if shelf.openBookID == hit.book.id {
+                        shelf.closeOpenBook()
+                        openBook = nil
+                    } else {
+                        shelf.open(hit.book.id)
+                        openBook = hit.book
+                    }
+                }
+        )
+        .task {
+            await library.load()
+        }
+        .onChange(of: library.allBooks.map(\.id)) { _, _ in
+            shelf.apply(books: library.allBooks, palette: viewModel.personaPalette)
+        }
+        .onChange(of: viewModel.personaPalette) { _, palette in
+            shelf.apply(books: library.allBooks, palette: palette)
+        }
+        // The second open path: the house opens the book itself.
+        //
+        // `consulting_journal` is the cue, and the orb is already flying to the
+        // shelf by the time this runs -- the director took care of that. What
+        // is left is choosing WHICH book, and the only honest source for that
+        // is the reply the house is giving, matched against the titles on the
+        // shelf. A search that names no journal opens none, which is correct:
+        // better a closed shelf than the wrong book held open.
+        .onChange(of: viewModel.liveTranscript) { _, text in
+            guard rig.behavior.isPerforming, openBook == nil, !text.isEmpty else { return }
+            guard let found = shelf.book(matchingTitle: firstQuotedTitle(in: text)) else { return }
+            shelf.open(found.book.id)
+            openBook = found.book
+        }
         .onChange(of: viewModel.hearthState) { _, state in
             rig.updateState(PersonaState(state))
         }
@@ -203,6 +283,24 @@ struct MainVolume: View {
 
     private static let liveTextID = "hearth.live-text"
     private static let faceFallbackID = "hearth.face-fallback"
+    private static let bookPagesID = "hearth.book-pages"
+
+    /// The first quoted or title-cased run in the house's reply.
+    ///
+    /// Crude on purpose. The house says "I found it in *Seedlings* --" and the
+    /// shelf matches loosely from there; getting this wrong costs a book that
+    /// does not open, which is the same as today. When `behavior_cue` grows a
+    /// payload -- and it should, because the harness KNOWS which journal it
+    /// read -- this whole function is deleted rather than improved.
+    private func firstQuotedTitle(in text: String) -> String {
+        for quote in ["\u{201C}", "\"", "'"] {
+            let parts = text.components(separatedBy: quote)
+            if parts.count >= 2, !parts[1].isEmpty, parts[1].count < 60 {
+                return parts[1]
+            }
+        }
+        return ""
+    }
 
     /// Parent each attachment to the volume and place it. Cards appearing and
     /// expiring under CardStore's TTL show up here as the attachment set
@@ -225,6 +323,20 @@ struct MainVolume: View {
         if let face = attachments.entity(for: Self.faceFallbackID) {
             if face.parent == nil { content.add(face) }
             face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
+        }
+
+        // The open book's pages, parented to the BOOK rather than the scene, so
+        // they travel with it: the book tips toward the reader as it opens, and
+        // pages that stayed put would slide off the object they belong to.
+        if let pages = attachments.entity(for: Self.bookPagesID), let book = shelf.openBook {
+            if pages.parent !== book.root {
+                pages.removeFromParent()
+                book.root.addChild(pages)
+            }
+            pages.position = book.pageAnchor
+            // Small: a 380pt view at a book's scale would be a billboard. This
+            // is the reading size the shelf's own proportions imply.
+            pages.scale = SIMD3<Float>(repeating: 0.00042)
         }
     }
 }

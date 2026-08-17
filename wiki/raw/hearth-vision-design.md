@@ -387,13 +387,37 @@ ships here, deliberately: the director's own playlist and saccades keep the
 eyes alive without anything to track, and machinery that cannot be judged in
 the scene it lives in is machinery nobody can tell is broken.
 
-**Phase 3, choreography and journals.** `BehaviorDirector`, primitives, the
-`state_update` fallback producer. `JournalBook`, `JournalShelf`, both open
-paths, the library volume. In parallel on the backend: `behavior_cue` lands
-in Valar in Valinor, then merges to the Hearth backend; the client swaps
+**Phase 3, choreography and journals.** WRITTEN 2026-08-17, unverified on the
+headset. `BehaviorDirector`, primitives, the fallback producer. `JournalBook`,
+`JournalShelf`, both open paths. In parallel on the backend: `behavior_cue`
+lands in Valar in Valinor, then merges to the Hearth backend; the client swaps
 producers with no change.
 *Gate 3: a journal-search turn makes the orb fly to the shelf, and the found
 entry is readable in the opened book.*
+
+Three departures worth knowing:
+
+- **The fallback producer reads the TOOL LIST, not `state_update`.** This
+  section says `state_update`, but that message carries a coarse stage
+  (transcribing, deciding, acting) that cannot tell a journal search from a
+  file read -- so every turn would produce the same generic hover. The
+  `pipeline_stage` message already carries actual tool names, so the derived
+  cues are matched loosely against those. Both producers post through one
+  funnel and the director cannot tell them apart, which is what the design
+  actually asked for; the moment a real `behavior_cue` arrives the derived one
+  goes quiet for the session, because two producers running at once would
+  fight and the harness is always better informed.
+- **Which book to open is a guess, and it should not stay one.** The cue names
+  a performance, not a journal, so the client matches a quoted title out of the
+  house's own reply against the shelf. It works and it is embarrassing. The
+  harness KNOWS which journal it read, so `behavior_cue` should grow a payload
+  -- `{name, phase, subject}` -- and that guess should be deleted rather than
+  improved. Worth landing with the Valar change.
+- **The library volume is not built.** The shelf is one set of entities scaled
+  by its host, so the compact shelf in the main volume is the whole mechanism;
+  the library volume is that same shelf in a bigger box, and it is a scene
+  declaration rather than new machinery. Deferred so gate 3 can be judged on
+  the thing it is actually about.
 
 **Phase 4, the immersive house.** The `ImmersiveSpace(.mixed)` host, entity
 re-hosting between volume and room, the `realBloomActive` switch,

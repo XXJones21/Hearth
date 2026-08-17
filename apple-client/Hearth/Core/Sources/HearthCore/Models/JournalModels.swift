@@ -133,6 +133,14 @@ public final class JournalLibrary: ObservableObject {
 
     public var isEmpty: Bool { heart.isEmpty && life.isEmpty && projects.isEmpty && seedlings.isEmpty }
 
+    /// Every book, in the shelves' own order.
+    ///
+    /// The flat view the spatial shelf lays out from. The four arrays are the
+    /// phone's structure -- it draws four labelled sections -- while a shelf in
+    /// a room is one run of books whose shelf shows in the cover's colour, so
+    /// it wants the order without the sections.
+    public var allBooks: [JournalBook] { heart + life + projects + seedlings }
+
     public func load() async {
         guard !isLoading else { return }
         isLoading = true
