@@ -100,19 +100,30 @@ public final class PersonaFaceTexture {
     /// eyes rather than shrinking them. (An earlier version of this comment
     /// said the opposite, which was simply wrong.)
     ///
-    /// 0.82 is 0.62 stepped up a tenth and then a fifth, both on the operator's
-    /// read of a device run -- the second judged against a hand held up beside
-    /// the orb, which is the only scale reference that means anything here. A
-    /// bead the size of a palm needs eyes you can read at a glance, and the
-    /// numbers carried from a flat 130pt phone view were never going to be it.
+    /// 0.68 is 0.62 stepped up a tenth, on the operator's read of the first
+    /// correctly-oriented device run: the face was in the right place and sat a
+    /// little small on a bead the size of a palm.
     ///
-    /// This scales the WHOLE face, not the eyes alone, and that is deliberate:
-    /// the proportions come from FaceGeometry, which the phone shares, and
-    /// growing one feature here would be the headset quietly drawing a
-    /// different Sulivan. If the eyes should be larger *relative to the face*,
-    /// that is `eyeSize` in the persona's own geometry and it belongs to both
-    /// clients.
-    public var extent: Float = 0.82
+    /// This scales the WHOLE face and leaves its proportions alone. Making the
+    /// eyes bigger *relative* to everything else is `eyeScale`.
+    public var extent: Float = 0.68
+
+    /// Multiplier on the persona's own `eyeSize`.
+    ///
+    /// A TEST KNOB, and the shape of it is the point. The geometry still comes
+    /// from the persona file through FaceGeometry, exactly as it does on the
+    /// phone -- this only scales what arrives, so the persona stays the source
+    /// of truth and nothing here forks it.
+    ///
+    /// 1.2 is the operator's read against a hand held up beside the orb, which
+    /// is the only scale reference that means anything here: eyes tuned for a
+    /// flat 130pt phone view are small on a bead you can hold.
+    ///
+    /// If it survives testing the multiplier should GO, and the number should
+    /// move into the persona file where both clients read it. A headset that
+    /// permanently multiplies a shared value is a headset quietly drawing a
+    /// different Sulivan; a persona whose eyes are simply bigger is Sulivan.
+    public var eyeScale: Float = 1.2
 
     /// How far the ink leans toward `roast` from the state's glow colour.
     ///
@@ -219,7 +230,10 @@ public final class PersonaFaceTexture {
         var params = FaceParams(
             headWidth: Float(pose.headWidth),
             headHeight: Float(pose.headHeight),
-            eyeSize: Float(pose.eyeSize),
+            // The one pose channel that is not passed through verbatim. See
+            // `eyeScale`: the persona still owns the value, this only scales it
+            // while the right number is being found.
+            eyeSize: Float(pose.eyeSize) * eyeScale,
             eyeSpacing: Float(pose.eyeSpacing),
             eyeHeight: Float(pose.eyeHeight),
             eyeLength: Float(pose.eyeLength),
