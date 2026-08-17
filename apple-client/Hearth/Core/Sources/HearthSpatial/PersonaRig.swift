@@ -127,6 +127,25 @@ public final class PersonaRig: ObservableObject {
     /// the pinch-and-hold builds.
     public var transitionProgress: Float = 0
 
+    /// Where the orb goes and why.
+    ///
+    /// Owned here so the rig ticks it on the same frame it ticks everything
+    /// else, but it decides only POSITION -- what the bead looks like while it
+    /// travels stays the rig's business, and what its eyes do stays the face's.
+    /// Three things that never argue because they never overlap.
+    public let behavior = BehaviorDirector()
+
+    /// The rig's resting place, in its parent's space.
+    ///
+    /// The host sets this to wherever it put the orb; the director's offsets
+    /// are applied on top. Kept separate from the entity's own position because
+    /// a behaviour has to know what "home" means to return to it, and reading
+    /// it back off an entity mid-flight would return wherever the flight had
+    /// got to.
+    public var homePosition: SIMD3<Float> = .zero {
+        didSet { behavior.home = homePosition }
+    }
+
     private let particleField = Entity()
     private var particleEntities: [ModelEntity] = []
     private var particleBasePositions: [SIMD3<Float>] = []
@@ -502,6 +521,12 @@ public final class PersonaRig: ObservableObject {
         }
 
         tickFace(dt: dt)
+
+        // Where the orb is. Speech recalls a behaviour that does not hold its
+        // ground, which is why the director is told the state rather than
+        // inferring it: only the rig knows whether the house is talking.
+        let offset = behavior.tick(dt: dt, speaking: currentState == .speaking)
+        rootEntity.position = homePosition + offset
 
         // The switch flourish overrides the per-state choreography while the
         // hold builds. Dormant until phase 4 ramps `transitionProgress`.

@@ -62,6 +62,24 @@ struct MainVolume: View {
             )
             content.add(rig.rootEntity)
 
+            // Where the orb lives, and the three places a behaviour can send
+            // it. Registered by the host because only the host knows where it
+            // put things -- the director resolves names, it does not survey the
+            // scene. Design section 4's targets "are entities, and the entities
+            // are simply closer" in the volume: these are that, at desk scale.
+            rig.homePosition = SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
+            // Toward the shelf's corner of the box. Phase 3's journal work
+            // replaces this with the shelf entity's real position.
+            rig.behavior.setTarget("shelf",
+                at: SIMD3<Float>(0.20, CardOrbitLayout.orbY + 0.06, -0.06))
+            // Out over the cards, where work is visible.
+            rig.behavior.setTarget("workspace",
+                at: SIMD3<Float>(CardOrbitLayout.leftX * 0.55, CardOrbitLayout.orbY + 0.05, 0.02))
+            // Up and back a little: the spatial version of looking away to
+            // think, which is what the face's thinking beats already do.
+            rig.behavior.setTarget("recall",
+                at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
+
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
             rig.updateState(PersonaState(viewModel.hearthState))

@@ -91,7 +91,17 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
     /// the server pushes every segment of a reply within a second or two while
     /// speaking them takes far longer, so both have to wait for their audio.
     var onFaceCue: ((String, Int) -> Void)? // (expressionName, segIdx)
-    
+
+    /// A named performance the harness is starting or ending, emitted at tool
+    /// boundaries. The same seam as onFaceCue one level up: the house names
+    /// what it is doing, the client decides what that looks like.
+    ///
+    /// NOT delivered per segment, and that is the difference from onFaceCue: a
+    /// face expression belongs to a sentence and has to wait for that
+    /// sentence's audio, while a behaviour belongs to the turn and should start
+    /// the moment the house starts doing the thing.
+    var onBehaviorCue: ((String, String) -> Void)? // (name, phase)
+
     private let serverURL: String
     
     init(serverURL: String) {
@@ -419,6 +429,23 @@ class HearthWebSocketClient: NSObject, URLSessionWebSocketDelegate {
                 // Server-announced state machine transition (Valar Phase B).
                 if let state = json.state {
                     onStateUpdate?(state, json.stage)
+                }
+
+            case "behavior_cue":
+                // A named performance at a tool boundary. Tolerant on purpose,
+                // in both directions: an unknown NAME is the client's problem
+                // to resolve (it falls through to a generic behaviour rather
+                // than being dropped here), and a missing PHASE is read as a
+                // start, because a house that says it is doing something and
+                // forgets to say when it stopped should still be seen to
+                // begin. The director's own rules end it.
+                if let rawData = text.data(using: .utf8),
+                   let jsonObj = try? JSONSerialization.jsonObject(with: rawData) as? [String: Any] {
+                    let name = jsonObj.optString("name")
+                    if !name.isEmpty {
+                        let phase = jsonObj["phase"] as? String ?? "start"
+                        onBehaviorCue?(name, phase)
+                    }
                 }
 
             case "session_ended":

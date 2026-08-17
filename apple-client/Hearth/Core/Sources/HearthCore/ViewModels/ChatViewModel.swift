@@ -572,6 +572,15 @@ public class ChatViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard stage == "tools" else { return }
                 self?.activeTools = tools
+                self?.deriveBehaviorCue(fromTools: tools)
+            }
+        }
+
+        webSocketClient?.onBehaviorCue = { [weak self] name, phase in
+            Task { @MainActor [weak self] in
+                self?.postBehaviorCue(name: name,
+                                      phase: phase == "end" ? .end : .start,
+                                      derived: false)
             }
         }
 
@@ -1138,6 +1147,10 @@ public class ChatViewModel: ObservableObject {
         cancelThinkingWatchdog()
         thinkingStage = nil
         activeTools = []
+        // The reply is here, so whatever the house was doing to produce it is
+        // done. Ended here rather than on the tool list emptying, because the
+        // list going quiet is not a signal the server actually sends.
+        endDerivedBehavior()
         currentPersonaName = personaName
         // Finalize: if the reply streamed in sentence-by-sentence, replace that
         // line with the canonical full text; otherwise append it fresh.
@@ -1150,6 +1163,76 @@ public class ChatViewModel: ObservableObject {
         }
         streamingMessageId = nil
         isWaitingForResponse = false
+    }
+
+    // MARK: - Behaviour cues
+
+    /// True once a real `behavior_cue` has arrived from the house.
+    ///
+    /// The moment one does, the derived producer goes quiet for the rest of the
+    /// session. Two producers running at once would fight -- the harness naming
+    /// `consulting_journal` while the tool list independently derives
+    /// `working` -- and the harness is always the better informed of the two.
+    private var hasHarnessBehaviorCues = false
+
+    /// The name currently believed to be running, so an `end` can be paired.
+    private var derivedBehaviorName: String?
+
+    /// Post a cue to the feed the spatial director reads.
+    ///
+    /// One funnel for both producers, which is what lets the director be unable
+    /// to tell them apart -- the design's requirement, and the reason headset
+    /// work never had to wait for the backend.
+    private func postBehaviorCue(name: String, phase: BehaviorCue.Phase, derived: Bool) {
+        if derived && hasHarnessBehaviorCues { return }
+        if !derived { hasHarnessBehaviorCues = true }
+        BehaviorFeed.shared.post(
+            BehaviorCue(name: name, phase: phase,
+                        at: Date().timeIntervalSinceReferenceDate * 1000))
+    }
+
+    /// The fallback producer: coarse cues derived from the tool list.
+    ///
+    /// Until `behavior_cue` lands in Valar -- and on any turn that arrives
+    /// without one -- this is where choreography comes from. The mapping is
+    /// deliberately crude, because the point is not to guess well: it is that
+    /// the orb is never inert while the house is working, and that the client
+    /// half of this could be built and judged before the server half existed.
+    ///
+    /// Tool names are matched loosely on purpose. A house is free to call its
+    /// journal search anything, and a substring match that occasionally lands
+    /// on the generic behaviour is better than an exact table that usually
+    /// does.
+    private func deriveBehaviorCue(fromTools tools: [String]) {
+        guard !hasHarnessBehaviorCues else { return }
+        guard let first = tools.first?.lowercased() else {
+            endDerivedBehavior()
+            return
+        }
+        let name: String
+        if first.contains("journal") {
+            name = "consulting_journal"
+        } else if first.contains("search") || first.contains("file") || first.contains("read") {
+            name = "searching_files"
+        } else if first.contains("engram") || first.contains("memor") || first.contains("recall") {
+            name = "remembering"
+        } else {
+            name = "working"
+        }
+        guard name != derivedBehaviorName else { return }
+        endDerivedBehavior()
+        derivedBehaviorName = name
+        postBehaviorCue(name: name, phase: .start, derived: true)
+    }
+
+    /// End whatever the derived producer last started.
+    ///
+    /// Called from the turn's own endings rather than from a timer: the tool
+    /// list going quiet is not a signal, but a turn closing is.
+    private func endDerivedBehavior() {
+        guard let name = derivedBehaviorName else { return }
+        derivedBehaviorName = nil
+        postBehaviorCue(name: name, phase: .end, derived: true)
     }
 
     // MARK: - Server State Machine + Generative UI (Valar)
@@ -1258,6 +1341,7 @@ public class ChatViewModel: ObservableObject {
         expressionsBySegment.removeAll()
         captionSegment = -1
         activeTools = []
+        endDerivedBehavior()
         isWaitingForResponse = false
         FaceFeed.shared.speechLevel = 0
         ttsAmplitude = 0
