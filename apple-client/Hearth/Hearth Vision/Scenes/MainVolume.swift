@@ -38,6 +38,13 @@ struct MainVolume: View {
     /// be built for it. The shelf owns the truth; this is the redraw trigger.
     @State private var openBook: JournalBook?
 
+    /// The open destination, or nil for the plain stage.
+    ///
+    /// Opening one slides the orb to the left of the box and puts the view in
+    /// the middle: the desktop's three-slot frame, which a volume is the one
+    /// Apple surface with room for.
+    @State private var surface: HouseSurface?
+
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
 
@@ -179,6 +186,15 @@ struct MainVolume: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
             }
+            // The centre slot. Every panel is a shared HearthUI surface, the
+            // same one the phone renders.
+            if let surface {
+                Attachment(id: Self.surfaceID) {
+                    HouseSurfacePanel(viewModel: viewModel, surface: surface) {
+                        self.surface = nil
+                    }
+                }
+            }
         }
         // A plain pinch on the bead starts a voice turn. Phase 4 adds the
         // two-second hold on the same target for the immersive switch, which is
@@ -254,7 +270,22 @@ struct MainVolume: View {
             HouseStatusOrnament(viewModel: viewModel)
         }
         .ornament(attachmentAnchor: .scene(.bottom)) {
-            ComposerOrnament(viewModel: viewModel)
+            VStack(spacing: 8) {
+                ComposerOrnament(viewModel: viewModel)
+                HouseShelfOrnament(active: $surface)
+            }
+        }
+        // The slide. `homePosition` is what the behaviour director returns to,
+        // so moving it moves the orb's whole notion of where it lives -- a
+        // performance mid-flight lands in the new place rather than snapping
+        // back to the old one afterwards.
+        .onChange(of: surface) { _, open in
+            withAnimation(.easeInOut(duration: 0.35)) {
+                rig.homePosition = SIMD3<Float>(
+                    open == nil ? 0 : Self.stageLeftX,
+                    CardOrbitLayout.orbY,
+                    0)
+            }
         }
     }
 
@@ -284,6 +315,12 @@ struct MainVolume: View {
     private static let liveTextID = "hearth.live-text"
     private static let faceFallbackID = "hearth.face-fallback"
     private static let bookPagesID = "hearth.book-pages"
+    private static let surfaceID = "hearth.surface"
+
+    /// Where the orb stands when a destination is open. The volume is 0.8m
+    /// wide, so this is a little left of the box's own left third -- far enough
+    /// to clear a 560pt panel, close enough to still be in the room with it.
+    private static let stageLeftX: Float = -0.26
 
     /// The first quoted or title-cased run in the house's reply.
     ///
@@ -328,6 +365,13 @@ struct MainVolume: View {
         // The open book's pages, parented to the BOOK rather than the scene, so
         // they travel with it: the book tips toward the reader as it opens, and
         // pages that stayed put would slide off the object they belong to.
+        // The centre slot, standing a little forward so it reads as being in
+        // front of the stage rather than embedded in it.
+        if let panel = attachments.entity(for: Self.surfaceID) {
+            if panel.parent == nil { content.add(panel) }
+            panel.position = SIMD3<Float>(0.09, 0.02, 0.10)
+        }
+
         if let pages = attachments.entity(for: Self.bookPagesID), let book = shelf.openBook {
             if pages.parent !== book.root {
                 pages.removeFromParent()

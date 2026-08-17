@@ -153,6 +153,14 @@ public final class PersonaRig: ObservableObject {
     private var particleOrbitSpeeds: [Float] = []
     private var particleAnimSpeeds: [Float] = []
     private var particleVerticalSpeeds: [Float] = []
+    /// Per-particle twinkle offsets, so the idle field breathes out of step
+    /// with itself rather than pulsing as one lamp.
+    private var particleTwinklePhases: [Float] = []
+    private var particleTwinkleSpeeds: [Float] = []
+    /// True while the field is carrying per-particle opacity. Lets the other
+    /// states clear it exactly once instead of writing 96 components a frame to
+    /// say "still fully visible".
+    private var twinkling = false
 
     #if !os(visionOS)
     // iOS only, and the comment is a warning rather than an explanation: on
@@ -366,6 +374,8 @@ public final class PersonaRig: ObservableObject {
             particleOrbitSpeeds.append(0.10 + pseudoRandom(i + 101) * 0.30)
             particleAnimSpeeds.append(0.10 + pseudoRandom(i + 211) * 0.50)
             particleVerticalSpeeds.append((pseudoRandom(i + 307) - 0.5) * 0.40)
+            particleTwinklePhases.append(pseudoRandom(i + 401) * .pi * 2)
+            particleTwinkleSpeeds.append(0.55 + pseudoRandom(i + 509) * 0.75)
 
             let particle = ModelEntity(mesh: mesh, materials: [particleMaterial()])
             particle.position = pos
@@ -618,41 +628,87 @@ public final class PersonaRig: ObservableObject {
 
     // MARK: - Per-state choreography
 
-    /// Resting: particles ride their base shell; the field spins and expands.
+    /// Resting: particles ride their base shell, the field spins and expands,
+    /// and each dot fades in and out on its own clock.
+    ///
+    /// The twinkle is what turns a swarm into fireflies. At rest the field's job
+    /// is to say the house is alive, and 96 dots all present at once say it by
+    /// crowding the face -- the one thing on the orb worth looking at. Fading
+    /// each in and out means the field is never fully in front of the face and
+    /// never fully absent either.
     private func updateShellParticles(pulse: Float) {
         spinAngle += spinSpeed * lastDt * Float.pi * 2
         particleField.orientation = simd_quatf(angle: spinAngle, axis: SIMD3<Float>(0, 1, 0))
         particleField.scale = SIMD3<Float>(repeating: 1.0 + 0.5 * motion + 0.3 * pulse)
         for i in particleEntities.indices {
             particleEntities[i].position = particleBasePositions[i]
+            // A raised sine: mostly dim, briefly bright, never a hard edge.
+            // OpacityComponent rather than per-particle materials -- 96 material
+            // assignments a frame to change one number would be absurd, and
+            // this is the component that exists for exactly this.
+            let wave = sin(animationTime * particleTwinkleSpeeds[i] + particleTwinklePhases[i])
+            let opacity = 0.12 + 0.88 * max(0, wave)
+            particleEntities[i].components.set(OpacityComponent(opacity: opacity))
+        }
+        twinkling = true
+    }
+
+    /// Put every particle back to full opacity, once.
+    ///
+    /// Called by the states that do not twinkle. Guarded because it only needs
+    /// to happen on the way out of idle, and writing 96 components a frame to
+    /// say "still fully visible" is work for nothing.
+    private func clearTwinkle() {
+        guard twinkling else { return }
+        twinkling = false
+        for entity in particleEntities {
+            entity.components.set(OpacityComponent(opacity: 1))
         }
     }
 
-    /// Listening: a 3D firefly swirl that widens with the mic level.
+    /// Listening: a firefly swirl in the VERTICAL plane, widening with the mic.
+    ///
+    /// Turned a quarter from Valinor's, and the reason is the face. The
+    /// original swirls around the Y axis, which on a bead with no face is a
+    /// pleasing halo and on a bead WITH one is a curtain drawn across it. Swung
+    /// into the plane the viewer faces, the same motion frames the face instead
+    /// of crossing it. The z jitter is what keeps it from reading as a flat
+    /// sticker: the dots still have depth, they just no longer orbit through
+    /// the eyes.
     private func updateListeningParticles() {
         particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         particleField.scale = .one
+        clearTwinkle()
         let maxD = particleMaxDistance
         for i in particleEntities.indices {
             particleOrbitAngles[i] += particleOrbitSpeeds[i] * lastDt * 4
             let angle = particleOrbitAngles[i]
             let pulsing = 0.5 + 0.5 * sin(animationTime * particleAnimSpeeds[i])
             let dist = maxD * min(1, 0.6 + 0.4 * pulsing)
-            let bobY = sin(animationTime * particleVerticalSpeeds[i]) * 0.15 * maxD
-            let swirlY = sin(animationTime * 0.5 + angle) * 0.05 * maxD
-            particleEntities[i].position = SIMD3<Float>(cos(angle) * dist, bobY + swirlY, sin(angle) * dist)
+            let breathe = sin(animationTime * 0.5 + angle) * 0.05 * maxD
+            let jitterZ = sin(animationTime * particleVerticalSpeeds[i]) * 0.18 * maxD
+            particleEntities[i].position = SIMD3<Float>(
+                cos(angle) * (dist + breathe),
+                sin(angle) * (dist + breathe),
+                jitterZ)
         }
     }
 
-    /// Thinking: a flat Saturn ring at the bead's height, roughly twice as fast.
+    /// Thinking: the ring stood upright, roughly twice as fast.
+    ///
+    /// Valinor's is a flat Saturn ring at the bead's height, which from the
+    /// front is a line straight through the eyes. Stood up into the viewer's
+    /// plane it becomes a halo around the face -- the same shape, doing the
+    /// opposite thing to the one feature that matters.
     private func updateThinkingParticles() {
         particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         particleField.scale = .one
-        let ringD = particleMaxDistance * 0.8
+        clearTwinkle()
+        let ringD = particleMaxDistance * 0.86
         for i in particleEntities.indices {
             particleOrbitAngles[i] += particleOrbitSpeeds[i] * lastDt * 8
             let angle = particleOrbitAngles[i]
-            particleEntities[i].position = SIMD3<Float>(cos(angle) * ringD, 0, sin(angle) * ringD)
+            particleEntities[i].position = SIMD3<Float>(cos(angle) * ringD, sin(angle) * ringD, 0)
         }
     }
 
@@ -661,6 +717,7 @@ public final class PersonaRig: ObservableObject {
     private func updateSwitchParticles(progress: Float) {
         particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         particleField.scale = .one
+        clearTwinkle()
         let n = particleEntities.count
         let ringD = particleMaxDistance * (1.0 - 0.3 * progress)
         let tilt: Float = 0.6
@@ -681,6 +738,7 @@ public final class PersonaRig: ObservableObject {
     private func updateSpeakingParticles(level: Float) {
         particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         particleField.scale = .one
+        clearTwinkle()
         let n = particleEntities.count
         let width = particleMaxDistance * 1.8
         let halfW = width / 2
