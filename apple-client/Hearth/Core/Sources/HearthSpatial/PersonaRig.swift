@@ -251,6 +251,22 @@ public final class PersonaRig: ObservableObject {
         let shell = ModelEntity(mesh: .generateSphere(radius: sphereRadius * 1.02),
                                 materials: [material])
         shell.name = "PersonaFace"
+
+        // A quarter turn, and it is measured rather than reasoned.
+        //
+        // The kernel paints the face where its own longitude is zero, but which
+        // world direction that lands on depends on where RealityKit's sphere
+        // generator puts its UV seam -- a property of a mesh we did not author
+        // and Apple does not document. On the device the face came up looking
+        // along -X, a quarter turn to the viewer's left, so the shell turns a
+        // quarter the other way and the face looks out of the volume.
+        //
+        // Turning the SHELL rather than the kernel's `longitudeOffset` on
+        // purpose: this is a fact about the mesh, and it is worth stating in
+        // the units the observation was made in. `longitudeOffset` stays free
+        // for tuning the face's own placement.
+        shell.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 1, 0))
+
         // No BillboardComponent, and the absence is the decision: the face is
         // painted at the front of this shell and the shell does not turn, so
         // the face looks forward out of the volume. See the note on `faceShell`.

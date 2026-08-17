@@ -142,7 +142,7 @@ kernel void face_kernel(texture2d<float, access::write> out [[texture(0)]],
 
     // Only the front. Everything behind the orb stays clear, which is what
     // keeps the face a face rather than a band wrapped around the bead.
-    if (dir.z <= 0.15) {
+    if (dir.z <= 0.05) {
         out.write(float4(0.0), gid);
         return;
     }
@@ -159,9 +159,16 @@ kernel void face_kernel(texture2d<float, access::write> out [[texture(0)]],
     // would alias badly at the edges of the face.
     float px = (2.0 * M_PI_F / float(f.width)) / ext;
 
-    // Fade the ink out near the limb so a face that drifts wide does not end in
-    // a hard cut at the horizon of the sphere.
-    float limb = smoothstep(0.15, 0.42, dir.z);
+    // Fade the ink out near the limb so the face does not end in a hard cut at
+    // the horizon of the sphere.
+    //
+    // Narrowed from (0.15, 0.42) after the first device run. Those numbers were
+    // chosen to be safe and were the reason the face looked washed out rather
+    // than merely misplaced: the face was landing a quarter turn off, so the
+    // eyes sat near the limb where this term had already dimmed them to a
+    // smudge. The fade is a limb treatment, not a vignette over the whole face,
+    // and it should only bite in the last few degrees before the horizon.
+    float limb = smoothstep(0.06, 0.20, dir.z);
 
     // MARK: Eyes -- the whole character lives here.
 

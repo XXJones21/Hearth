@@ -97,6 +97,14 @@ public final class PersonaFaceTexture {
     /// face on a bigger head.
     public var extent: Float = 0.62
 
+    /// How far the ink leans toward `roast` from the state's glow colour.
+    ///
+    /// The flat renderer uses 0.62 and gets away with it, because it draws its
+    /// ink on a parchment head. Here the ink sits on a bead that is emissive,
+    /// bright, and blooming, so the same mix reads as a smudge rather than an
+    /// eye. Raised on the evidence of the first device run.
+    public var inkBlend: Float = 0.78
+
     public init?(size: Int = 512, kernelName: String = "face_kernel") {
         guard let device = MTLCreateSystemDefaultDevice() else {
             log.error("no Metal device -- falling back to the SwiftUI face")
@@ -152,7 +160,7 @@ public final class PersonaFaceTexture {
     /// its own colours would drift from the orb it sits on.
     public func draw(pose: FacePose, palette: PersonaPalette, state: HearthState) {
         let glow = palette.glow(for: state)
-        let ink = mix(glow, HearthPalette.Scene.roast, 0.62)
+        let ink = mix(glow, HearthPalette.Scene.roast, inkBlend)
         let glint = mix(HearthPalette.Scene.honey, HearthPalette.Scene.fluff, 0.75)
 
         var params = FaceParams(
