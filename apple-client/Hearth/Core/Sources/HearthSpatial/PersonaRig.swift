@@ -231,7 +231,13 @@ public final class PersonaRig: ObservableObject {
     /// material shape the glow billboard already uses, which is the one
     /// alpha-textured material in this file proven to composite correctly.
     private func buildFace() {
-        guard let texture = PersonaFaceTexture() else { return }
+        guard let texture = PersonaFaceTexture() else {
+            // Said out loud, because the visible symptom of this -- a flat face
+            // billboarded in front of the bead instead of painted on it -- is
+            // subtle enough to be mistaken for a texture bug.
+            log.error("compute face unavailable; the host should mount the SwiftUI fallback")
+            return
+        }
         faceTexture = texture
         faceDirector = FaceDirector(geometry: faceGeometry, now: 0)
 

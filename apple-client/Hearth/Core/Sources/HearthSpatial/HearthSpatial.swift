@@ -20,10 +20,25 @@
 //  rewrite.
 //
 
-/// Namespace marker. Replaced by real entities in phase 1; a target with no
-/// sources does not build, and an empty file is a clearer placeholder than a
-/// premature type.
+import os
+
+/// Namespace marker, and the target's logging subsystem.
 public enum HearthSpatial {
     /// The design document this target is built against.
     public static let designDocument = "wiki/raw/hearth-vision-design.md"
+
+    public static let subsystem = "com.joshuajones.HearthVision"
 }
+
+/// The spatial layer's log.
+///
+/// `os.Logger` rather than `print`, and on this target that is not a style
+/// preference. The Vision scheme runs WITHOUT a debugger attached, because
+/// attaching one wedges launch on the device -- and with no debugger there is
+/// no Xcode console, because `print` writes to stdout and stdout is not the
+/// unified log. Anything worth reading on a headset has to go here, where
+/// Console.app and `xcrun devicectl device console` can both see it.
+///
+/// Read it with:
+///   xcrun devicectl device console --device <name> | grep HearthSpatial
+let log = Logger(subsystem: HearthSpatial.subsystem, category: "HearthSpatial")

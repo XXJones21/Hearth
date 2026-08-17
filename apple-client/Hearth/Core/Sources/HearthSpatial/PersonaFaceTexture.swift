@@ -26,6 +26,7 @@
 //
 
 import Foundation
+import os
 import RealityKit
 import Metal
 import simd
@@ -98,23 +99,23 @@ public final class PersonaFaceTexture {
 
     public init?(size: Int = 512, kernelName: String = "face_kernel") {
         guard let device = MTLCreateSystemDefaultDevice() else {
-            print("[PersonaFace] no Metal device -- falling back to the SwiftUI face")
+            log.error("no Metal device -- falling back to the SwiftUI face")
             return nil
         }
         guard let queue = device.makeCommandQueue() else {
-            print("[PersonaFace] makeCommandQueue nil -- falling back to the SwiftUI face")
+            log.error("makeCommandQueue nil -- falling back to the SwiftUI face")
             return nil
         }
         guard let library = Self.loadLibrary(device: device) else {
-            print("[PersonaFace] no Metal library anywhere -- falling back to the SwiftUI face")
+            log.error("no Metal library anywhere -- falling back to the SwiftUI face")
             return nil
         }
         guard let function = library.makeFunction(name: kernelName) else {
-            print("[PersonaFace] \(kernelName) not in the library (has: \(library.functionNames)) -- falling back")
+            log.error("\(kernelName, privacy: .public) not in the library (has: \(library.functionNames, privacy: .public)) -- falling back")
             return nil
         }
         guard let pipeline = try? device.makeComputePipelineState(function: function) else {
-            print("[PersonaFace] makeComputePipelineState threw -- falling back to the SwiftUI face")
+            log.error("makeComputePipelineState threw -- falling back to the SwiftUI face")
             return nil
         }
 
@@ -127,11 +128,11 @@ public final class PersonaFaceTexture {
         descriptor.textureUsage = [.shaderRead, .shaderWrite]
 
         guard let lowLevelTexture = try? LowLevelTexture(descriptor: descriptor) else {
-            print("[PersonaFace] LowLevelTexture(descriptor:) threw -- falling back to the SwiftUI face")
+            log.error("LowLevelTexture(descriptor:) threw -- falling back to the SwiftUI face")
             return nil
         }
         guard let resource = try? TextureResource(from: lowLevelTexture) else {
-            print("[PersonaFace] TextureResource(from:) threw -- falling back to the SwiftUI face")
+            log.error("TextureResource(from:) threw -- falling back to the SwiftUI face")
             return nil
         }
 
@@ -140,7 +141,7 @@ public final class PersonaFaceTexture {
         self.lowLevelTexture = lowLevelTexture
         self.textureResource = resource
         self.size = size
-        print("[PersonaFace] ready -- \(size)x\(size) rgba16Float, \(kernelName) bound")
+        log.notice("ready -- \(size)x\(size) rgba16Float, \(kernelName, privacy: .public) bound")
     }
 
     /// Serialise one pose and redraw. Called once per frame from the rig.
@@ -245,7 +246,7 @@ public final class PersonaFaceTexture {
 
         for bundle in candidates {
             if let library = try? device.makeDefaultLibrary(bundle: bundle) {
-                print("[PersonaFace] kernel found in \(bundle.bundleURL.lastPathComponent)")
+                log.notice("kernel found in \(bundle.bundleURL.lastPathComponent, privacy: .public)")
                 return library
             }
         }

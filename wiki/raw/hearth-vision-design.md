@@ -290,11 +290,24 @@ window live against the house. Cards as attachments through the ported
 *Headset gate 1: a full voice turn in the volume.* Pinch the orb, speech
 recognized, reply spoken, a card beside the orb.
 
-On the device the first launch still hung at "Configuring Debugger Actions"
-with LLDB reading device memory to resolve symbols; closing the app and
-relaunching cleared it and the turn ran end to end. Worth knowing that the
-scheme change is not always enough on a cold launch, and that a relaunch is the
-cheap next move rather than a reason to start bisecting.
+On the device, Build-and-Run hung at "Configuring Debugger Actions" with LLDB
+reading device memory to resolve symbols; killing the app and launching it from
+the Home View cleared it every time, and the turn then ran end to end.
+
+**Disabling the two checkers was not enough.** That was the first fix and it
+left the hang in place, because removing the injected dylibs does not remove the
+dyld-to-LLDB notify path they wedge in. The Vision scheme now runs with no
+debugger at all -- "Debug executable" unchecked -- which is what the Valinor log
+concluded in the first place. The checkers stay disabled underneath so that
+ticking the debugger back on to chase something does not immediately re-arm the
+trap, and GPU validation and frame capture are off as well, since frame capture
+auto-enables for a Metal binary under the debugger and this target links Metal
+as of phase 2.
+
+The cost is the console: `print` writes to stdout, stdout is not the unified
+log, and with no debugger Xcode shows neither. Anything worth reading on the
+headset goes through `os.Logger` and is read with `xcrun devicectl device
+console` or Console.app.
 
 Two decisions taken during the port, both departures from what this document
 first said:
