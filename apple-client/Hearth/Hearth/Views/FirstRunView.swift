@@ -22,6 +22,7 @@
 
 import SwiftUI
 import HearthCore
+import HearthUI
 import UIKit
 
 struct FirstRunView: View {

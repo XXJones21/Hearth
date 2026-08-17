@@ -18,9 +18,19 @@
 #   generated  does not exist in Valinor; authored here
 #   excluded   deliberately did not cross; see the `excluded` section
 #
-# `target` is one of: core | ios | visionos | widgets
-#   core is the local Swift package HearthCore, which all three targets depend
-#   on. That is what replaces Valinor's membershipExceptions mechanism, and it
+# `target` is one of: core | ui | spatial | ios | visionos | widgets
+#   The first three are libraries in the local Swift package; the last three are
+#   Xcode targets. The layer is the library:
+#     core     HearthCore -- models, transport, audio, config, view models, and
+#              the brand palette, which is here rather than in ui because it is
+#              the single source for both the SwiftUI Color and the SIMD3 scene
+#              value, and PersonaPalette in this layer reads the latter.
+#     ui       HearthUI -- the SwiftUI both platforms render: the card library,
+#              the persona chrome, and the surfaces (settings, persona, apps,
+#              journal, timeline, sessions).
+#     spatial  HearthSpatial -- the RealityKit both platforms will render.
+#              Empty until phase 1 of the Vision design.
+#   That split is what replaces Valinor's membershipExceptions mechanism, and it
 #   is why sharing a new type here is a `public` keyword rather than a
 #   project-file edit.
 #
@@ -134,11 +144,20 @@ components:
     disposition: generated
     note: >-
       The local package manifest. platforms: iOS 26.0, visionOS 27.0 -- stated
-      once here rather than restated across build configurations. Swift 6
-      language mode for this package only; the app targets stay on Swift 5 until
-      the audio path has been audited, because adopting strict concurrency
-      across an AVAudioEngine tap, a player node and a recogniser callback as
-      part of a migration is how a migration becomes a rewrite.
+      once here rather than restated across build configurations.
+
+      Swift 5 language mode, NOT Swift 6, and the file says why at length: the
+      split this manifest drew put ChatViewModel, TTSStreamPlayer,
+      SpeechRecognitionManager and AudioSessionManager all in the package, so
+      Swift 6 here would apply strict concurrency to precisely the audio path
+      the plan says to leave alone until it has been audited. This note used to
+      claim Swift 6; the code was always the correction.
+
+      THREE libraries as of the Vision phase 0, which is the split the original
+      "one library to start, not three" note anticipated: HearthCore (logic),
+      HearthUI (the SwiftUI both platforms render), HearthSpatial (the
+      RealityKit both platforms will render). See the `target` vocabulary at the
+      head of this file.
 
   - name: bundled-persona
     destination: Core/Sources/HearthCore/Resources/Personas/sulivan.json
@@ -230,11 +249,32 @@ components:
           Already correct. Writes each token once as a hex literal and decodes
           it into both a SwiftUI Color and a SIMD3<Float>, so the flat and
           RealityKit renderers cannot drift. Only the access modifiers change.
+  - name: brand-ui
+    source: Valinor/Shared/
+    destination: Core/Sources/HearthUI/Brand/
+    area: 1
+    target: ui
+    kind: directory
+    disposition: edits
+    files:
       - from: HearthIcons.swift
         to: HearthIcons.swift
         lines: 133
         disposition: edits
         note: "the desktop's icons.tsx redrawn as SwiftUI shapes on the same 24-unit grid"
+      - to: NavigationCompat.swift
+        disposition: generated
+        note: >-
+          The one compatibility shim in HearthUI, and it should stay the only
+          one. navigationBarTitleDisplayMode is iOS and tvOS only and appeared
+          ten times across the surfaces; the guard is written once here and the
+          call sites say .hearthNavigationTitleInline() instead of naming a
+          platform. A SECOND shim in this file is the signal that the surface
+          asking for it is iOS-shaped and belongs back in the app target.
+    note: >-
+      Split from `brand` when the package became three libraries. Shapes are
+      view code and land in ui; ColorHex and HearthPalette stay in core because
+      PersonaPalette reads HearthPalette.Scene and core cannot reach up.
 
   - name: persona
     source: Valinor/Shared/
@@ -244,7 +284,6 @@ components:
     kind: directory
     disposition: edits
     files:
-      - {from: PersonaOrb.swift, to: PersonaOrb.swift, lines: 231, disposition: edits}
       - from: PersonaPalette.swift
         to: PersonaPalette.swift
         lines: 103
@@ -261,6 +300,24 @@ components:
           The renderer switch is properly data-driven: it decodes
           visualization.type and nothing anywhere says "if Selene". Preserve
           exactly.
+
+  - name: persona-ui
+    source: Valinor/Shared/
+    destination: Core/Sources/HearthUI/Persona/
+    area: 1
+    target: ui
+    kind: directory
+    disposition: edits
+    files:
+      - {from: PersonaOrb.swift, to: PersonaOrb.swift, lines: 231, disposition: edits}
+    note: >-
+      Split from `persona` when the package became three libraries. The flat
+      Canvas renderer is view code; the palette and the visualization decoder it
+      reads are model code and stay in core.
+
+      One subtraction on the way out: the `Color.rgba` extension went down to
+      core's ColorHex.swift, because HearthPalette.mixed(with:amount:) needs it
+      and core cannot reach up into ui.
 
   - name: client-profile
     source: Valinor/Shared/ClientProfile.swift
@@ -447,6 +504,34 @@ components:
           Note there are TWO commissioned types, not one: the cards row below
           names choam_portfolio_dashboard and misses ticker_insight_card sitting
           on the next line. Both are gone, and DynamicComponent dispatched both.
+
+          One addition since the move: `.hearthChoicePicked` is declared at the
+          foot of this file. It was in ActionCards.swift, which is now in ui,
+          and the observer is ChatViewModel here in core -- a notification name
+          is the contract between poster and observer and belongs to the layer
+          both can see. That also matches where the other two names live,
+          beside ServerConfig and SessionModels.
+      - {from: EaselStore.swift, to: EaselStore.swift, lines: 165, disposition: edits}
+    note: >-
+      Split when the package became three libraries: the store, the descriptor
+      and the easel are model code and stay in core. The card VIEWS moved to
+      `cards-ui` below.
+
+      The drawing card (ImageCard, EaselStore, ImageViewer, ImageActions) is IN.
+      It is on the tip, was device-tested, and reaches ComfyUI through the
+      gateway origin like everything else, so if the backend decision goes the
+      other way the card renders nothing -- which is the tolerant-descriptor
+      behaviour and is correct. Excluding it now would be a client answer to a
+      backend question.
+
+  - name: cards-ui
+    source: Valinor/Views/Dynamic/
+    destination: Core/Sources/HearthUI/Cards/
+    area: 3
+    target: ui
+    kind: directory
+    disposition: edits
+    files:
       - from: DynamicComponent.swift
         to: DynamicComponent.swift
         lines: 334
@@ -463,23 +548,19 @@ components:
         disposition: edits
         note: "shared by the slideshow and the drawing card; stays either way"
       - {from: ImageCard.swift, to: ImageCard.swift, lines: 186, disposition: edits}
-      - {from: EaselStore.swift, to: EaselStore.swift, lines: 165, disposition: edits}
       - {from: ImageViewer.swift, to: ImageViewer.swift, lines: 159, disposition: edits}
       - {from: ImageActions.swift, to: ImageActions.swift, lines: 124, disposition: edits}
       - {from: CommissionedCards.swift, to: null, lines: 235, disposition: excluded}
     note: >-
-      The drawing card (ImageCard, EaselStore, ImageViewer, ImageActions) is IN.
-      It is on the tip, was device-tested, and reaches ComfyUI through the
-      gateway origin like everything else, so if the backend decision goes the
-      other way the card renders nothing -- which is the tolerant-descriptor
-      behaviour and is correct. Excluding it now would be a client answer to a
-      backend question.
+      The renderers. EaselStore sits in `cards` above rather than here: it is a
+      store, not a view, and ImageCard reads it across the boundary -- which is
+      why its Outcome members had to become public when the package split.
 
   - name: persona-model-view
     source: Valinor/Visualization/PersonaModelView.swift
-    destination: Core/Sources/HearthCore/Persona/PersonaModelView.swift
+    destination: Core/Sources/HearthUI/Persona/PersonaModelView.swift
     area: 3
-    target: core
+    target: ui
     lines: 335
     disposition: edits
     note: >-
@@ -540,18 +621,18 @@ components:
 
   - name: timeline
     source: Valinor/Views/Timeline/TimelineFeed.swift
-    destination: Hearth/Views/Timeline/TimelineFeed.swift
+    destination: Core/Sources/HearthUI/Surfaces/Timeline/TimelineFeed.swift
     area: 4
-    target: ios
+    target: ui
     lines: 283
     disposition: edits
     note: "the interleaved transcript feed; transcript history is the card model. One 'Sulivan' fallback."
 
   - name: settings-surface
     source: Valinor/Views/Settings/HearthSettingsView.swift
-    destination: Hearth/Views/Settings/HearthSettingsView.swift
+    destination: Core/Sources/HearthUI/Surfaces/Settings/HearthSettingsView.swift
     area: 4
-    target: ios
+    target: ui
     lines: 402
     disposition: edits
     note: >-
@@ -563,9 +644,9 @@ components:
 
   - name: apps-surface
     source: Valinor/Views/Apps/
-    destination: Hearth/Views/Apps/
+    destination: Core/Sources/HearthUI/Surfaces/Apps/
     area: 4
-    target: ios
+    target: ui
     kind: directory
     disposition: edits
     files:
@@ -598,9 +679,9 @@ components:
 
   - name: persona-surface
     source: Valinor/Views/Persona/
-    destination: Hearth/Views/Persona/
+    destination: Core/Sources/HearthUI/Surfaces/Persona/
     area: 4
-    target: ios
+    target: ui
     kind: directory
     disposition: edits
     files:
@@ -609,9 +690,9 @@ components:
 
   - name: journal
     source: Valinor/Views/Journal/
-    destination: Hearth/Views/Journal/
+    destination: Core/Sources/HearthUI/Surfaces/Journal/
     area: 4
-    target: ios
+    target: ui
     kind: directory
     disposition: edits
     files:
@@ -726,11 +807,20 @@ components:
     note: "the second of three copies of the app group; reads $(HEARTH_APP_GROUP)"
 
 # ---------------------------------------------------------------------------
-# Area 6 -- Visualization and visionOS
+# Area 6 -- The Vision client
 #
-# Last, because it is the only area needing a second device to verify. What
-# crosses is what has been validated on device; the immersive caustics mode has
-# not been, and is the whole of the excluded set here.
+# Last, because it is the only area needing a second device to verify.
+#
+# SUPERSEDED IN PLACE, 2026-08-17. This area used to land the visionOS files
+# flat inside the Vision app target, with RealityKitSceneManager.swift beside
+# the scenes. wiki/raw/hearth-vision-design.md section 2 settled it differently
+# and this area now follows it: the rig, the face, the behaviours and the book
+# entities are HearthSpatial, and the Vision target holds scenes, hosts, plist
+# and entitlements and nothing else -- thin by design, as the iOS target is.
+#
+# The excluded set did not change. The immersive caustics mode was never
+# validated on a device and is still the whole of it; the face borrows the
+# LowLevelTexture PATTERN from CausticsTexture in phase 2 and never its files.
 # ---------------------------------------------------------------------------
   - name: visionos-app-entry
     destination: Hearth Vision/HearthVisionApp.swift
@@ -742,42 +832,45 @@ components:
       The visionOS scenes currently behind `#if os(visionOS)` in ValinorApp,
       lifted into their own target's entry point. This is where the topology
       change pays: the guards go away because the target boundary does the same
-      job, and RealityKitSceneManager stays hoisted here so the same orb entity
-      can reparent between scenes.
+      job, and the scene manager stays hoisted here so the same entity world can
+      reparent between the volume and the immersive space.
 
-  - name: reality-kit-scene
-    source: Valinor/Visualization/RealityKitSceneManager.swift
-    destination: Hearth Vision/RealityKitSceneManager.swift
-    area: 6
-    target: visionos
-    lines: 611
-    disposition: edits
-    note: >-
-      The renderer. Loses the immersive mode switch and the bloom changes that
-      belong to the caustics work; keeps the volumetric path, which is
-      device-validated.
+      Five scenes per design section 1: pairing window, main volume, library
+      volume, immersive house, transcript window.
 
-  - name: visionos-views
-    source: Valinor/VisionOS/
-    destination: Hearth Vision/Views/
+  - name: visionos-scenes
+    destination: Hearth Vision/Scenes/
     area: 6
     target: visionos
     kind: directory
-    disposition: edits
-    files:
-      - from: SulivanVolumeView.swift
-        to: PersonaVolumeView.swift
-        lines: 231
-        disposition: edits
-        note: "hosts the volumetric window; scene ids sulivan-volume -> hearth.persona-volume"
-      - from: CardOrbitLayout.swift
-        to: CardOrbitLayout.swift
-        lines: 46
-        disposition: edits
-        note: "places cards around the orb; device-validated 2026-06-12"
-      - {from: LiveTranscriptCardView.swift, to: LiveTranscriptCardView.swift, lines: 61, disposition: edits}
-      - {from: SessionGalleryView.swift, to: SessionGalleryView.swift, lines: 108, disposition: edits}
-      - {from: CausticsImmersiveView.swift, to: null, lines: 423, disposition: excluded}
+    disposition: generated
+    note: >-
+      The hosts, and only the hosts. Each attaches or releases the shared entity
+      root on appear and dismiss -- the one-scene rule of design section 1 --
+      and holds no state worth keeping.
+
+  - name: spatial-rig
+    destination: Core/Sources/HearthSpatial/
+    area: 6
+    target: spatial
+    kind: directory
+    disposition: generated
+    note: >-
+      Was `reality-kit-scene`, landing Valinor's RealityKitSceneManager.swift
+      (611 lines) flat in the app target. It lands here instead, decomposed into
+      PersonaRig and its parts, keeping the volumetric path that is
+      device-validated and losing the immersive mode switch and bloom changes
+      that belong to the caustics work.
+
+      Also here, all `generated` and all phase 1 or later: PersonaFaceTexture
+      and its face_kernel, BehaviorDirector and its primitive library,
+      JournalBook, JournalShelf, and CardOrbitLayout ported from
+      Valinor/VisionOS/CardOrbitLayout.swift (46 lines, device-validated
+      2026-06-12).
+
+      Empty in phase 0 apart from the namespace marker. The target builds for
+      iOS as well as visionOS deliberately: that gate is what keeps the later
+      iOS adoption of the RealityKit orb a target change rather than a rewrite.
 
   - name: visionos-plist
     source: Info-visionOS.plist
@@ -793,13 +886,17 @@ components:
       present in the other, and ARKit hard-crashes on the authorization request
       when it is absent. Diff this against iOS/Info.plist deliberately.
 
+      Phase 0 puts microphone, speech, local networking and ATS in. It does NOT
+      put NSWorldSensingUsageDescription in: that key is parked until phase 4,
+      when surface placement actually lands, and it comes OUT of the iOS plist
+      in the same pass.
+
   - name: visionos-entitlements
     destination: Hearth Vision/HearthVision.entitlements
     area: 6
     target: visionos
     disposition: generated
     note: "the third copy of the app group; reads $(HEARTH_APP_GROUP)"
-
 # ---------------------------------------------------------------------------
 # Not an area: the project layer
 #

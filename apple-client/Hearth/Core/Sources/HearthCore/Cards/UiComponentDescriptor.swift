@@ -144,3 +144,16 @@ public extension Dictionary where Key == String, Value == Any {
         return arr.compactMap { $0 as? [String: Any] }
     }
 }
+
+// MARK: - Card notifications
+
+public extension Notification.Name {
+    /// A choice_card chip was tapped. The hosting surface decides what
+    /// sending means -- ChatViewModel sends the label as the user's turn,
+    /// exactly as if they had typed it (the desktop feed's contract).
+    ///
+    /// Declared here rather than beside the chip that posts it: the poster is
+    /// in HearthUI, the observer is ChatViewModel in HearthCore, and the name
+    /// is the contract between them. It belongs to the layer both can see.
+    static let hearthChoicePicked = Notification.Name("hearth.choicePicked")
+}

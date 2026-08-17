@@ -187,13 +187,13 @@ public enum HearthPalette {
     // MARK: - RealityKit / scene tokens (SIMD3<Float>, sRGB components 0...1)
 
     public enum Scene {
-        static let cream  = simd(Hex.cream)
-        static let fluff  = simd(Hex.fluff)
-        static let fennec = simd(Hex.fennec)
-        static let ember  = simd(Hex.ember)
-        static let honey  = simd(Hex.honey)
-        static let roast  = simd(Hex.roast)
-        static let linen  = simd(Hex.linen)
+        public static let cream  = simd(Hex.cream)
+        public static let fluff  = simd(Hex.fluff)
+        public static let fennec = simd(Hex.fennec)
+        public static let ember  = simd(Hex.ember)
+        public static let honey  = simd(Hex.honey)
+        public static let roast  = simd(Hex.roast)
+        public static let linen  = simd(Hex.linen)
     }
 
     // MARK: - Decoders (one hex -> Color and SIMD3<Float>)

@@ -15,6 +15,7 @@
 
 import SwiftUI
 import HearthCore
+import HearthUI
 import UIKit
 
 struct HearthMainView: View {

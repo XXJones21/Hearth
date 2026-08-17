@@ -10,6 +10,11 @@
 		DF8513B33027B55E00F0D2D5 /* Dev.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF8513B23027B55E00F0D2D5 /* Dev.xcconfig */; };
 		DF8513B53027B56C00F0D2D5 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = DF8513B43027B56C00F0D2D5 /* Release.xcconfig */; };
 		DF8513B83027B5A300F0D2D5 /* HearthCore in Frameworks */ = {isa = PBXBuildFile; productRef = DF8513B73027B5A300F0D2D5 /* HearthCore */; };
+		DFAA000230279D0300F0D2D5 /* HearthUI in Frameworks */ = {isa = PBXBuildFile; productRef = DFAA000130279D0300F0D2D5 /* HearthUI */; };
+		DFAA000430279D0300F0D2D5 /* HearthSpatial in Frameworks */ = {isa = PBXBuildFile; productRef = DFAA000330279D0300F0D2D5 /* HearthSpatial */; };
+		DFAA001230279D0300F0D2D5 /* HearthCore in Frameworks */ = {isa = PBXBuildFile; productRef = DFAA001130279D0300F0D2D5 /* HearthCore */; };
+		DFAA001430279D0300F0D2D5 /* HearthUI in Frameworks */ = {isa = PBXBuildFile; productRef = DFAA001330279D0300F0D2D5 /* HearthUI */; };
+		DFAA001630279D0300F0D2D5 /* HearthSpatial in Frameworks */ = {isa = PBXBuildFile; productRef = DFAA001530279D0300F0D2D5 /* HearthSpatial */; };
 		DF8513DE3027B5E400F0D2D5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF8513DD3027B5E400F0D2D5 /* WidgetKit.framework */; };
 		DF8513E03027B5E400F0D2D5 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DF8513DF3027B5E400F0D2D5 /* SwiftUI.framework */; };
 		DF8513F13027B5E700F0D2D5 /* Hearth WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DF8513DB3027B5E400F0D2D5 /* Hearth WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -106,11 +111,16 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				DF8513B83027B5A300F0D2D5 /* HearthCore in Frameworks */,
+				DFAA000230279D0300F0D2D5 /* HearthUI in Frameworks */,
+				DFAA000430279D0300F0D2D5 /* HearthSpatial in Frameworks */,
 			);
 		};
 		DF8513BA3027B5C400F0D2D5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				DFAA001230279D0300F0D2D5 /* HearthCore in Frameworks */,
+				DFAA001430279D0300F0D2D5 /* HearthUI in Frameworks */,
+				DFAA001630279D0300F0D2D5 /* HearthSpatial in Frameworks */,
 			);
 		};
 		DF8513D83027B5E400F0D2D5 /* Frameworks */ = {
@@ -178,6 +188,8 @@
 			name = Hearth;
 			packageProductDependencies = (
 				DF8513B73027B5A300F0D2D5 /* HearthCore */,
+				DFAA000130279D0300F0D2D5 /* HearthUI */,
+				DFAA000330279D0300F0D2D5 /* HearthSpatial */,
 			);
 			productName = Hearth;
 			productReference = DF85138C30279D0300F0D2D5 /* Hearth.app */;
@@ -197,6 +209,11 @@
 				DF8513BE3027B5C400F0D2D5 /* Hearth Vision */,
 			);
 			name = "Hearth Vision";
+			packageProductDependencies = (
+				DFAA001130279D0300F0D2D5 /* HearthCore */,
+				DFAA001330279D0300F0D2D5 /* HearthUI */,
+				DFAA001530279D0300F0D2D5 /* HearthSpatial */,
+			);
 			productName = "Hearth Vision";
 			productReference = DF8513BD3027B5C400F0D2D5 /* Hearth.app */;
 			productType = "com.apple.product-type.application";
@@ -689,6 +706,26 @@
 		DF8513B73027B5A300F0D2D5 /* HearthCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HearthCore;
+		};
+		DFAA000130279D0300F0D2D5 /* HearthUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HearthUI;
+		};
+		DFAA000330279D0300F0D2D5 /* HearthSpatial */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HearthSpatial;
+		};
+		DFAA001130279D0300F0D2D5 /* HearthCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HearthCore;
+		};
+		DFAA001330279D0300F0D2D5 /* HearthUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HearthUI;
+		};
+		DFAA001530279D0300F0D2D5 /* HearthSpatial */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = HearthSpatial;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

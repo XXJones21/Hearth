@@ -17,6 +17,7 @@
 
 import SwiftUI
 import HearthCore
+import HearthUI
 
 struct HouseShelf: View {
     @ObservedObject var viewModel: ChatViewModel

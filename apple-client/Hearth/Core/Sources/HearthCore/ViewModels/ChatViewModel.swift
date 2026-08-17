@@ -20,11 +20,23 @@ public enum ConnectionStatus {
 
 /// One tap's worth of touch feedback, for a voice-first surface used without
 /// looking at the screen: listening began, words went out, something failed.
+///
+/// Silent on visionOS, and that is the whole of the platform difference. The
+/// generators are unavailable there because the headset has nothing to buzz --
+/// there is no device in the hand to feel it. The call sites are unguarded on
+/// purpose: a turn starting is a turn starting on both platforms, and which
+/// ones can express it in touch is this type's business, not theirs.
 @MainActor
 enum Haptics {
+    #if os(visionOS)
+    static func listenStart() {}
+    static func commit() {}
+    static func error() {}
+    #else
     static func listenStart() { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
     static func commit() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
     static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+    #endif
 }
 
 @MainActor

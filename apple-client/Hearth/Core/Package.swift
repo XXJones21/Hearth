@@ -27,9 +27,18 @@ let package = Package(
         .visionOS("27.0"),
     ],
     products: [
-        // One library to start, not three. Splitting inside a package later is
-        // cheap; splitting across packages is not.
+        // Three now, and this is the split the original note anticipated: "one
+        // library to start, not three. Splitting inside a package later is
+        // cheap; splitting across packages is not." Later arrived with the
+        // Vision target, which needs the surfaces the iOS app target was
+        // holding privately.
+        //
+        // The layer is the library. HearthCore is logic; HearthUI is the
+        // SwiftUI both platforms render; HearthSpatial is the RealityKit both
+        // platforms will render. The app targets hold scenes and nothing else.
         .library(name: "HearthCore", targets: ["HearthCore"]),
+        .library(name: "HearthUI", targets: ["HearthUI"]),
+        .library(name: "HearthSpatial", targets: ["HearthSpatial"]),
     ],
     // Deliberately empty, and it is a standing policy rather than an accident:
     // dependencies attach to targets, never to the project. Valinor's project
@@ -67,6 +76,33 @@ let package = Package(
                 // against a client that already compiles. Not during the move.
                 .swiftLanguageMode(.v5),
             ]
+        ),
+        // The SwiftUI both platforms render: the card library, the brand and
+        // persona chrome, and the surfaces -- settings, persona, apps, journal,
+        // timeline, sessions -- which lived in the iOS app target until the
+        // Vision target needed them and could not see them.
+        //
+        // Nothing here is iOS-shaped by construction. The one visionOS-hostile
+        // modifier in the set, navigationBarTitleDisplayMode, is behind
+        // `hearthNavigationTitleInline()` in Brand/NavigationCompat.swift.
+        .target(
+            name: "HearthUI",
+            dependencies: ["HearthCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        // The RealityKit both platforms will render: the persona rig, the face
+        // texture, the behavior system, the book and shelf entities, the card
+        // orbit layout.
+        //
+        // Empty until phase 1 fills it, and declared now so the dependency
+        // arrows are settled before there is code to argue about. It builds for
+        // iOS as well as visionOS deliberately: that build gate is what keeps
+        // the later iOS adoption of the RealityKit orb a target change rather
+        // than a rewrite.
+        .target(
+            name: "HearthSpatial",
+            dependencies: ["HearthCore", "HearthUI"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         // The face director is time-injected -- `now` is an argument, never a
         // clock read inside -- precisely so its playlists, blink tiers and

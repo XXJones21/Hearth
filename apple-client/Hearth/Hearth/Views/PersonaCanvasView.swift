@@ -16,6 +16,7 @@
 
 import SwiftUI
 import HearthCore
+import HearthUI
 
 struct PersonaCanvasView: View {
     let state: HearthState

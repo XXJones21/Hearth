@@ -35,12 +35,22 @@ import Foundation
 public final class EaselStore: ObservableObject {
     public static let shared = EaselStore()
 
+    /// Public in full because ImageCard renders it from HearthUI. Members were
+    /// internal while the card views lived in this module; the package split
+    /// moved them out, and a struct whose renderer is in another target has to
+    /// say so.
     public struct Outcome {
-        var status: String
-        var src: String
-        var note: String
+        public var status: String
+        public var src: String
+        public var note: String
 
-        var isSettled: Bool { status == "done" || status == "error" }
+        public init(status: String, src: String, note: String) {
+            self.status = status
+            self.src = src
+            self.note = note
+        }
+
+        public var isSettled: Bool { status == "done" || status == "error" }
     }
 
     /// Settled and in-flight outcomes by job. Small and bounded: the server

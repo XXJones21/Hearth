@@ -51,4 +51,21 @@ public extension Color {
         return nil
         #endif
     }
+
+    /// Approximate RGBA components, for blending.
+    ///
+    /// Lived in PersonaOrb.swift until the package split moved that file to
+    /// HearthUI. `HearthPalette.mixed(with:amount:)` is here in HearthCore and
+    /// cannot reach up into HearthUI, so the helper comes down to the layer
+    /// that needs it and PersonaOrb reads it back across the boundary.
+    var rgba: (r: Double, g: Double, b: Double, a: Double) {
+        #if canImport(UIKit)
+        let ui = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Double(r), Double(g), Double(b), Double(a))
+        #else
+        return (0, 0, 0, 1)
+        #endif
+    }
 }

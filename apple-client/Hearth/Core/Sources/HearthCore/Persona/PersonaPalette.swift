@@ -17,25 +17,29 @@
 import SwiftUI
 import simd
 
+// Public in full, members included. The renderers that read this -- PersonaOrb
+// and PersonaFaceView in HearthUI today, the RealityKit rig in HearthSpatial
+// next -- all live outside this module now, so every accessor crosses a target
+// boundary. It was internal only because the views used to live here.
 public struct PersonaPalette: Equatable {
-    var sphere: SIMD3<Float>       // core bead body
-    var particle: SIMD3<Float>     // orbiting particle field
-    var idle: SIMD3<Float>         // per-state glow accents
-    var listening: SIMD3<Float>
-    var thinking: SIMD3<Float>
-    var speaking: SIMD3<Float>
+    public var sphere: SIMD3<Float>       // core bead body
+    public var particle: SIMD3<Float>     // orbiting particle field
+    public var idle: SIMD3<Float>         // per-state glow accents
+    public var listening: SIMD3<Float>
+    public var thinking: SIMD3<Float>
+    public var speaking: SIMD3<Float>
 
     // MARK: - SwiftUI Color accessors (2D canvas + widgets)
 
-    var sphereColor: Color    { Self.color(sphere) }
-    var particleColor: Color  { Self.color(particle) }
-    var idleColor: Color      { Self.color(idle) }
-    var listeningColor: Color { Self.color(listening) }
-    var thinkingColor: Color  { Self.color(thinking) }
-    var speakingColor: Color  { Self.color(speaking) }
+    public var sphereColor: Color    { Self.color(sphere) }
+    public var particleColor: Color  { Self.color(particle) }
+    public var idleColor: Color      { Self.color(idle) }
+    public var listeningColor: Color { Self.color(listening) }
+    public var thinkingColor: Color  { Self.color(thinking) }
+    public var speakingColor: Color  { Self.color(speaking) }
 
     /// The glow accent for a turn state (mirrors RealityKitSceneManager).
-    func glow(for state: HearthState) -> SIMD3<Float> {
+    public func glow(for state: HearthState) -> SIMD3<Float> {
         switch state {
         case .LISTENING: return listening
         case .THINKING:  return thinking
