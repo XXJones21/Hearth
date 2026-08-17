@@ -39,6 +39,27 @@ public final class JournalLibraryEntity {
 
     private var booksByID: [String: JournalBookEntity] = [:]
 
+    /// One of Selene's rooms, and the board its label hangs over.
+    ///
+    /// The labels are the phone's, verbatim -- "The Curator's Alcove, the
+    /// person before the works" -- because they are the library's own voice and
+    /// a headset paraphrasing them would be a second library speaking
+    /// differently about the same books.
+    public struct Room: Identifiable, Sendable {
+        public let id: String
+        public let label: String
+        public let caption: String
+        /// Where its label belongs, in the scroller's space.
+        public let anchor: SIMD3<Float>
+    }
+
+    /// The rooms laid out, top to bottom. Read by the host to build one text
+    /// attachment per room.
+    public private(set) var rooms: [Room] = []
+
+    /// Where the library's own masthead belongs.
+    public private(set) var mastheadAnchor: SIMD3<Float> = .zero
+
     /// Metres between one board and the next.
     private let shelfPitch: Float = JournalBookEntity.height * 1.75
     /// Metres of gap between neighbouring spines. The phone uses 9pt against a
@@ -74,15 +95,25 @@ public final class JournalLibraryEntity {
         for child in scroller.children.map({ $0 }) { child.removeFromParent() }
         booksByID.removeAll()
 
-        let rooms: [[JournalBook]] = [heart, life, projects, seedlings].filter { !$0.isEmpty }
+        rooms = []
         var row = 0
-        for room in rooms {
+
+        // The masthead sits above everything, a room's worth of gap up.
+        mastheadAnchor = SIMD3<Float>(0, labelRise, 0)
+        row = 1
+
+        for (books, label, caption) in Self.roomOrder(heart: heart, life: life,
+                                                      projects: projects, seedlings: seedlings) {
+            rooms.append(Room(id: label,
+                              label: label,
+                              caption: caption,
+                              anchor: SIMD3<Float>(0, -Float(row) * shelfPitch + labelRise, 0)))
             // A room longer than a board wraps onto the next one rather than
             // running off the side: there is no horizontal scroll here, because
             // a volume scrolls one way and asking it to do both is how a person
             // loses a shelf.
-            for chunk in stride(from: 0, to: room.count, by: booksPerBoard) {
-                let slice = Array(room[chunk..<min(chunk + booksPerBoard, room.count)])
+            for chunk in stride(from: 0, to: books.count, by: booksPerBoard) {
+                let slice = Array(books[chunk..<min(chunk + booksPerBoard, books.count)])
                 scroller.addChild(board(slice, palette: palette, atRow: row))
                 row += 1
             }
@@ -93,6 +124,31 @@ public final class JournalLibraryEntity {
     }
 
     private let booksPerBoard = 8
+
+    /// How far a label floats above the books it names.
+    private var labelRise: Float { JournalBookEntity.height * 0.78 }
+
+    /// Selene's locked order, with the phone's own words for each room. Empty
+    /// rooms are absent rather than shown as an empty board, which is what the
+    /// phone does too.
+    private static func roomOrder(heart: [JournalBook],
+                                  life: [JournalBook],
+                                  projects: [JournalBook],
+                                  seedlings: [JournalBook]) -> [([JournalBook], String, String)] {
+        [
+            (heart, "The Heart of the Library", "on display, the volumes that live and grow"),
+            (life, "The Curator's Alcove", "the person before the works"),
+            (projects, "The Active Forge", "works in motion"),
+            (seedlings, "The Glass Conservatory", "seedlings, one page each"),
+        ].filter { !$0.0.isEmpty }
+    }
+
+    /// Where a label should hang, once the library has been scrolled.
+    ///
+    /// Labels are parented to the scroller like the boards, so they travel with
+    /// the shelves they name rather than sitting still while the books move
+    /// past -- which would be a caption for whatever happened to be underneath.
+    public var scrollerEntity: Entity { scroller }
 
     private func board(_ books: [JournalBook],
                        palette: PersonaPalette,

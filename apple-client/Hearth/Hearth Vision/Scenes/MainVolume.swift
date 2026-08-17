@@ -54,6 +54,10 @@ struct MainVolume: View {
     @State private var scrollAtGestureStart: Float = 0
     @State private var hasScrolled = false
 
+    /// The rooms the library laid out, mirrored so the attachment builder can
+    /// see them. The entity owns the truth; this is the redraw trigger.
+    @State private var libraryRooms: [JournalLibraryEntity.Room] = []
+
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
 
@@ -207,9 +211,37 @@ struct MainVolume: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
-            // The centre slot. Every panel is a shared HearthUI surface, the
-            // same one the phone renders.
-            if let surface {
+            // The room labels, floating over the shelves they name. Parented
+            // to the SCROLLER, so a caption travels with its books rather than
+            // sitting still while they move past underneath it.
+            ForEach(libraryRooms) { room in
+                Attachment(id: room.id) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(room.label)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(HearthPalette.roast)
+                        Text(room.caption)
+                            .font(.system(size: 9.5))
+                            .italic()
+                            .foregroundStyle(HearthPalette.fawn)
+                    }
+                }
+            }
+            Attachment(id: Self.mastheadID) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Journal")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(HearthPalette.roast)
+                    Text("kept by Selene")
+                        .font(.system(size: 10))
+                        .italic()
+                        .foregroundStyle(HearthPalette.fawn)
+                }
+            }
+            // The centre slot, for the four FLAT destinations. Journal is not
+            // one: its centre slot is the library's entities, and a panel
+            // behind them was a plane standing in front of the shelves.
+            if let surface, surface != .journal {
                 Attachment(id: Self.surfaceID) {
                     HouseSurfacePanel(viewModel: viewModel, surface: surface) {
                         self.surface = nil
@@ -337,6 +369,12 @@ struct MainVolume: View {
     private static let faceFallbackID = "hearth.face-fallback"
     private static let surfaceID = "hearth.surface"
     private static let readerID = "hearth.journal-reader"
+    private static let mastheadID = "hearth.journal-masthead"
+
+    /// Attachments render in points and the library is measured in metres, so a
+    /// label built at a readable font size arrives enormous. This is the one
+    /// number that reconciles them.
+    private static let labelScale: Float = 0.00055
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough
@@ -387,6 +425,25 @@ struct MainVolume: View {
             page.position = SIMD3<Float>(0.09, 0.02, 0.14)
         }
         libraryEntity.root.isEnabled = (surface == .journal && reading == nil)
+
+        // Labels ride with the shelves.
+        if let masthead = attachments.entity(for: Self.mastheadID) {
+            if masthead.parent !== libraryEntity.scrollerEntity {
+                masthead.removeFromParent()
+                libraryEntity.scrollerEntity.addChild(masthead)
+            }
+            masthead.position = libraryEntity.mastheadAnchor
+            masthead.scale = SIMD3<Float>(repeating: Self.labelScale)
+        }
+        for room in libraryRooms {
+            guard let label = attachments.entity(for: room.id) else { continue }
+            if label.parent !== libraryEntity.scrollerEntity {
+                label.removeFromParent()
+                libraryEntity.scrollerEntity.addChild(label)
+            }
+            label.position = room.anchor
+            label.scale = SIMD3<Float>(repeating: Self.labelScale)
+        }
     }
 
     /// Rebuild the shelves from the house's library.
@@ -396,6 +453,7 @@ struct MainVolume: View {
                             projects: library.projects,
                             seedlings: library.seedlings,
                             palette: viewModel.personaPalette)
+        libraryRooms = libraryEntity.rooms
     }
 
     /// The first quoted run in the house's reply. See

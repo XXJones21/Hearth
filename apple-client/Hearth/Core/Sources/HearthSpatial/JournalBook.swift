@@ -45,12 +45,19 @@ public final class JournalBookEntity {
 
     private let spine: ModelEntity
 
-    /// A book's height on the shelf, in the library's own units. Everything
-    /// else is a proportion of this, exactly as the phone's spine is a
-    /// proportion of its 132pt height.
-    public static let height: Float = 0.046
-    /// How far a book reaches back into the shelf.
-    public static let depth: Float = 0.034
+    /// A book's height on the shelf, in metres. Everything else is a
+    /// proportion of this, exactly as the phone's spine is a proportion of its
+    /// 132pt height.
+    ///
+    /// A NOTEBOOK, not a matchbox. These were 0.046 by 0.034 and read as too
+    /// small and slightly square on the device; up about a third and squared to
+    /// a real book's proportions, they are roughly a large Moleskine -- around
+    /// 21cm by 13cm, which is 1.58 tall to wide. That ratio is the reason a
+    /// book looks like a book rather than a block, and it costs nothing to get
+    /// right.
+    public static let height: Float = 0.060
+    /// How far a book reaches back into the shelf: its width, closed.
+    public static let depth: Float = 0.038
 
     /// How thick THIS book is, from its page count.
     public var thickness: Float { Self.height * JournalLeather.spineFraction(pages: book.pages) }
