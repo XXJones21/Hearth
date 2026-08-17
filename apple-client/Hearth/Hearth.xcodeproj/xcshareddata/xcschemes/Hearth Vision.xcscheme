@@ -30,6 +30,23 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
    </TestAction>
+   <!--
+      disableMainThreadChecker and disablePerformanceAntipatternChecker are set
+      deliberately, and only on this scheme.
+
+      Both checkers work by DYLD_INSERT_LIBRARIES injection. On a visionOS
+      device the injected dylib's load notification to LLDB is where launch
+      wedges: the main thread hangs in dyld BEFORE main(), in
+      loadInsertedLibraries -> registerInsertedLibrary -> notifyDebuggerLoad ->
+      triggerNotifications. It presents as the app hanging or crashing at
+      launch, which is why it cost the Valinor client a multi-day bisection
+      through audio, interaction, scene declaration and the orb before the
+      cause turned out to be the debugger's own launch path. See
+      /Users/jones/Valinor/tasks/visionos-crash-debug.md.
+
+      The iOS scheme deliberately keeps both. They are genuinely useful there,
+      and the failure is specific to launching on a visionOS device.
+   -->
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
@@ -39,7 +56,9 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
+      allowLocationSimulation = "YES"
+      disableMainThreadChecker = "YES"
+      disablePerformanceAntipatternChecker = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference

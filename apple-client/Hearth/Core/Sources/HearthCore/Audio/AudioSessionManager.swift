@@ -50,6 +50,30 @@ public final class AudioSessionManager {
     public func configure(echoCancellation: Bool = false) {
         do {
             let session = AVAudioSession.sharedInstance()
+
+            #if os(visionOS)
+            // Every routing option above is a phone's concern, and none of them
+            // mean anything to a headset: there is no speaker route to prefer,
+            // and the microphone is a fixed array rather than something that
+            // might be a paired earpiece. `.mixWithOthers` is the one that
+            // still says something -- the house should not silence the room.
+            //
+            // This matters more than a tidy-up. `setCategory` throwing here
+            // would be swallowed by the catch below, `setActive` would never
+            // run, and the microphone would be silently dead while everything
+            // else looked healthy -- a pinch on the orb that does nothing, with
+            // no error anywhere. Valinor cleared this as a crash cause but kept
+            // the visionOS-safe session as a deliberate improvement; this is
+            // that same change.
+            //
+            // The mode split carries: `.default` leaves the signal alone, and
+            // speech is what this app is for.
+            try session.setCategory(.playAndRecord,
+                                    mode: echoCancellation ? .videoChat : .default,
+                                    options: [.mixWithOthers])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            // No overrideOutputAudioPort: there is no speaker port to take.
+            #else
             if echoCancellation {
                 try session.setCategory(.playAndRecord, mode: .videoChat,
                     options: [.allowBluetoothHFP, .mixWithOthers, .defaultToSpeaker])
@@ -71,6 +95,7 @@ public final class AudioSessionManager {
             if !echoCancellation, !Self.isExternalRoute(session) {
                 try? session.overrideOutputAudioPort(.speaker)
             }
+            #endif
         } catch {
             print("[AudioSessionManager] Failed to setup audio session: \(error)")
         }
