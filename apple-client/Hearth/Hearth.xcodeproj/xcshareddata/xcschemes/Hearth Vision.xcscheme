@@ -34,46 +34,53 @@
       THE DEBUGGER IS OFF FOR RUN ON THIS SCHEME, deliberately, and this is the
       whole of the fix rather than half of it.
 
-      Empty selectedDebuggerIdentifier + the PosixSpawn launcher is Edit Scheme
-      -> Run -> Info -> "Debug executable" unchecked. Xcode builds, installs and
-      launches; LLDB never attaches.
+      An EMPTY selectedDebuggerIdentifier is Edit Scheme, Run, Info, "Debug
+      executable" unchecked. Xcode builds, installs and launches; LLDB never
+      attaches.
+
+      The LAUNCHER stays LLDB and must. It is the thing that installs onto and
+      starts a process on a remote device, and that is independent of whether a
+      debugger then attaches. Setting it to
+      Xcode.IDEFoundation.Launcher.PosixSpawn, which looks like the obvious
+      partner for "no debugger" and is what Xcode writes for a Mac target, makes
+      the scheme Mac only: every visionOS destination vanishes from the picker
+      with no error saying why.
 
       Why nothing less works. The checkers below inject through
-      DYLD_INSERT_LIBRARIES, and on a visionOS device the injected dylib's load
-      NOTIFICATION TO LLDB is where launch wedges -- the main thread hangs in
-      dyld before main(), in loadInsertedLibraries -> registerInsertedLibrary ->
-      notifyDebuggerLoad -> triggerNotifications. Disabling the checkers removes
-      the dylibs but not the notify path itself, and the observed symptom with
-      them off was still an infinite "Configuring Debugger Actions" that only
-      cleared by killing the app and launching it from the Home View. The
-      resolution recorded in /Users/jones/Valinor/tasks/visionos-crash-debug.md
-      is exactly this: run without the debugger, and the app launches in about a
-      second.
+      DYLD_INSERT_LIBRARIES, and on a visionOS device the wedge is the injected
+      dylib's load NOTIFICATION TO LLDB. The main thread hangs in dyld before
+      main(), inside loadInsertedLibraries, registerInsertedLibrary,
+      notifyDebuggerLoad, triggerNotifications. Disabling the checkers removes
+      the dylibs but not the notify path, and with them off the observed symptom
+      was still an endless "Configuring Debugger Actions" that cleared only by
+      killing the app and launching it from the Home View. The resolution
+      recorded in the Valinor client's visionos-crash-debug.md is exactly this:
+      run without the debugger, and the app launches in about a second.
 
       The checkers stay disabled anyway, because they are what re-arms the trap
       the moment anyone ticks "Debug executable" back on to chase something.
 
-      GPU validation and frame capture are off for the same reason and are newer
-      than the rest of this comment: the target links Metal as of the face
+      GPU validation and frame capture are off for the same reason, and are
+      newer than the rest of this note: the target links Metal as of the face
       kernel, and frame capture AUTO-ENABLES for a Metal binary under the
-      debugger. That is another launch-time layer on the one path that has
-      already proven fragile here.
+      debugger. That is one more launch-time layer on the path that has already
+      proven fragile here.
 
-      WHAT THIS COSTS. No breakpoints, and `print` no longer reaches Xcode's
-      console -- stdout is not the unified log. Everything worth reading on
-      device therefore goes through os.Logger, which Console.app and
-      `xcrun devicectl device console` both show with the debugger detached.
-      To debug for real, tick "Debug executable" on and expect the first launch
-      to be slow while LLDB builds its symbol cache.
+      WHAT THIS COSTS. No breakpoints, and print no longer reaches Xcode's
+      console, because stdout is not the unified log. Everything worth reading
+      on device therefore goes through os.Logger, which Console.app and
+      "xcrun devicectl device console" both show with the debugger detached. To
+      debug for real, tick "Debug executable" on and expect a slow first launch
+      while LLDB builds its symbol cache.
 
-      The iOS scheme keeps its debugger and both checkers. They are genuinely
-      useful there, and the failure is specific to launching on a visionOS
-      device.
+      NOTE FOR ANYONE EDITING THIS COMMENT: no double hyphens. XML forbids them
+      inside a comment, Xcode then fails to parse the whole scheme, and the
+      symptom is an EMPTY destination picker rather than any kind of error.
    -->
    <LaunchAction
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = ""
-      selectedLauncherIdentifier = "Xcode.IDEFoundation.Launcher.PosixSpawn"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
