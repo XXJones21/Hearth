@@ -80,6 +80,60 @@ public final class PersonaRig: ObservableObject {
     private var glowBillboard: ModelEntity?
     private var glowTexture: TextureResource?
 
+    // MARK: - The face
+
+    /// The shell the face is painted on, and the director that decides the pose.
+    ///
+    /// The shell BILLBOARDS, which is the body look-at layer for the volume. The
+    /// design describes that layer as a smoothed slerp toward the user's head
+    /// anchor, and that is right for the immersive house in phase 4 -- but a
+    /// head anchor needs a world-tracking ARKit session, which the Shared Space
+    /// does not grant a volumetric window. `BillboardComponent` is the platform's
+    /// own answer to the same question and it is already what the glow uses, so
+    /// the volume gets the intended behaviour by the means available to it.
+    private var faceShell: ModelEntity?
+    private var faceTexture: PersonaFaceTexture?
+    private var faceDirector: FaceDirector?
+    private var faceGeometry = FaceGeometry()
+    private var faceClock: Double = 0
+
+    /// True when the compute face is live. False means the host should mount
+    /// `PersonaFaceView` as a billboard attachment instead -- degraded, never
+    /// faceless.
+    public var hasComputeFace: Bool { faceTexture != nil }
+
+    /// Where the eyes should look, in the director's gaze space, or nil to let
+    /// the playlist and its saccades own the gaze.
+    ///
+    /// This is the second look-at layer, and it is deliberately separate from
+    /// the first: the body turns, and the eyes lead the turn. Feed it through
+    /// `lookAt(worldPosition:)` rather than setting it raw.
+    private var lookTarget: LookTarget?
+
+    /// Point the eyes at something in the scene.
+    ///
+    /// Projects a world position into the face's own gaze space, which is the
+    /// same arithmetic PersonaFaceView does against the composer's frame on the
+    /// phone: a delta, normalised by the face's size, clamped to the head. Pass
+    /// nil to hand the gaze back to the playlist.
+    public func lookAt(worldPosition: SIMD3<Float>?) {
+        guard let worldPosition, let faceShell else {
+            lookTarget = nil
+            return
+        }
+        // Into the shell's own space, so the projection follows the billboard
+        // rather than fighting it.
+        let local = faceShell.convert(position: worldPosition, from: nil)
+        // The shell's radius is the natural normaliser: one radius off-centre is
+        // the edge of the head, which is exactly what gaze space calls 1.
+        let r = max(sphereRadius, 1e-4)
+        lookTarget = LookTarget(
+            x: Double(min(1, max(-1, local.x / r))),
+            // Gaze space is y-DOWN, matching the flat renderer.
+            y: Double(min(1, max(-1, -local.y / r))),
+            focus: 0.5)
+    }
+
     /// Set by the immersive host in phase 4. `BloomComponent` has no effect in
     /// the Shared Space, which is exactly why the billboard exists for the
     /// volume; with real bloom running it is redundant and would double up.
@@ -187,11 +241,41 @@ public final class PersonaRig: ObservableObject {
         rootEntity.addChild(sphereEntity)
 
         buildGlowBillboard()
+        buildFace()
 
         rootEntity.addChild(particleField)
         buildParticles()
 
         applyStateVisuals(animated: false)
+    }
+
+    /// The face shell: a sphere a hair larger than the bead, wearing the
+    /// compute texture, blended on that texture's own alpha.
+    ///
+    /// Unlit rather than physically based, and that is the "emissive-weighted"
+    /// binding the design asks for: the ink is not lit by the room, it glows
+    /// with the body and clears the bloom threshold along with it. The same
+    /// material shape the glow billboard already uses, which is the one
+    /// alpha-textured material in this file proven to composite correctly.
+    private func buildFace() {
+        guard let texture = PersonaFaceTexture() else { return }
+        faceTexture = texture
+        faceDirector = FaceDirector(geometry: faceGeometry, now: 0)
+
+        var material = UnlitMaterial()
+        material.color = .init(tint: .white, texture: .init(texture.textureResource))
+        material.blending = .transparent(opacity: 1.0)
+
+        // 1.02: clear of the bead's own surface so the two do not z-fight, and
+        // close enough that the ink reads as painted ON the orb rather than
+        // floating in front of it.
+        let shell = ModelEntity(mesh: .generateSphere(radius: sphereRadius * 1.02),
+                                materials: [material])
+        shell.name = "PersonaFace"
+        // The body look-at layer. See the note on `faceShell`.
+        shell.components.set(BillboardComponent())
+        sphereEntity.addChild(shell)
+        faceShell = shell
     }
 
     // MARK: - Build
@@ -334,6 +418,7 @@ public final class PersonaRig: ObservableObject {
             configureSphereMaterial()
             particleField.isEnabled = true
             glowBillboard?.isEnabled = !realBloomActive
+            faceShell?.isEnabled = true
             applyStateVisuals(animated: false)
         } else {
             applyDeadLook()
@@ -345,6 +430,9 @@ public final class PersonaRig: ObservableObject {
     private func applyDeadLook() {
         particleField.isEnabled = false
         glowBillboard?.isEnabled = false
+        // The face goes with the light. A dead bead that still blinks at you is
+        // worse than a dead bead: it says the house is there when it is not.
+        faceShell?.isEnabled = false
         sphereEntity.scale = .one
         sphereMaterial.baseColor = .init(tint: rigColor(deadColor, alpha: 1.0))
         sphereMaterial.metallic = .init(floatLiteral: 0.0)
@@ -417,6 +505,8 @@ public final class PersonaRig: ObservableObject {
             billboard.scale = SIMD3<Float>(repeating: swell * (1.0 + 0.12 * pulse))
         }
 
+        tickFace(dt: dt)
+
         // The switch flourish overrides the per-state choreography while the
         // hold builds. Dormant until phase 4 ramps `transitionProgress`.
         if transitionProgress > 0.01 {
@@ -430,6 +520,76 @@ public final class PersonaRig: ObservableObject {
         case .speaking:  updateSpeakingParticles(level: smoothedLevel)
         case .resting:   updateShellParticles(pulse: 0)
         }
+    }
+
+    // MARK: - The face, per frame
+
+    /// Tick the director and redraw the texture.
+    ///
+    /// `FaceFeed` is the same singleton the phone's face reads, which is what
+    /// makes `tts_chunk_start` land as an expression here without a second wire:
+    /// the view model posts a cue and a speech level to the feed, and both
+    /// renderers pick them up. The headset does not subscribe to anything the
+    /// phone does not.
+    ///
+    /// The clock is accumulated from the frame delta rather than read from
+    /// `Date()`. The director takes milliseconds and clamps its own dt, so any
+    /// monotonic source works -- and this one cannot jump backwards when the
+    /// system clock is adjusted, which is a failure mode the director's own
+    /// comments describe having been bitten by.
+    private func tickFace(dt: Float) {
+        guard let faceTexture, let faceDirector else { return }
+        faceClock += Double(dt) * 1000
+
+        let feed = FaceFeed.shared
+        let pose = faceDirector.tick(
+            now: faceClock,
+            state: faceState,
+            cue: feed.cue,
+            speechLevel: feed.speechLevel,
+            reduceMotion: false,
+            lookTarget: lookTarget)
+
+        faceTexture.draw(pose: pose, palette: palette, state: hearthState)
+    }
+
+    /// The face's reading of the turn.
+    ///
+    /// The rig speaks in `PersonaState` and the director in `FaceState`; they
+    /// are the same four beats under different names, and this is the one place
+    /// that has to know both.
+    private var faceState: FaceState {
+        switch currentState {
+        case .listening: return .listening
+        case .thinking:  return .thinking
+        case .speaking:  return .speaking
+        case .resting:   return .idle
+        }
+    }
+
+    /// The turn state the face's COLOUR wash reads.
+    ///
+    /// `PersonaPalette.glow(for:)` is keyed on HearthState, so the rig has to
+    /// hand one back. Kept alongside `currentState` rather than stored, because
+    /// two fields that must agree are two fields that will not.
+    private var hearthState: HearthState {
+        switch currentState {
+        case .listening: return .LISTENING
+        case .thinking:  return .THINKING
+        case .speaking:  return .SPEAKING
+        case .resting:   return .IDLE
+        }
+    }
+
+    /// Swap in a persona's face geometry, rebuilding the director around it.
+    ///
+    /// The director caches its playlist against the geometry it was built for,
+    /// exactly as the phone's DirectorBox does, so a geometry that arrives late
+    /// from `persona_config` reshapes the face rather than being ignored.
+    public func apply(faceGeometry newGeometry: FaceGeometry) {
+        guard newGeometry != faceGeometry else { return }
+        faceGeometry = newGeometry
+        faceDirector = FaceDirector(geometry: newGeometry, now: faceClock)
     }
 
     // MARK: - Per-state choreography

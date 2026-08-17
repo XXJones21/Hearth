@@ -921,10 +921,33 @@ components:
       - to: HearthSpatial.swift
         disposition: generated
         note: "namespace marker, and the phase 0 placeholder that let the target build empty"
+      - to: PersonaFaceTexture.swift
+        disposition: generated
+        note: >-
+          Phase 2. Structurally a sibling of Valinor's CausticsTexture (same
+          fallible init, same replace-then-encode ordering) but NOT a port: it
+          borrows the pattern and none of the files, which is the line the
+          excluded caustics set draws. This is that pattern's first proof on a
+          device.
+
+          One real difference from Valinor, and it is a build-system one: the
+          kernel ships in a package target, so the build links its metallib into
+          HearthCore_HearthSpatial.bundle, nested inside the app rather than at
+          its root, where makeDefaultLibrary() alone will not find it. The
+          lookup searches instead. Not Bundle.module, which does exist here but
+          traps at runtime when the bundle is missing -- turning "no face" into
+          "no app" on exactly the build where the graceful nil matters most.
+      - to: FaceKernel.metal
+        disposition: generated
+        note: >-
+          The same ink language PersonaFaceView draws with Core Graphics paths,
+          re-expressed as SDFs. Every constant traces to that file. What is
+          deliberately absent is the HEAD: on a flat screen the squircle has to
+          be drawn, and here the bead is the head, so the kernel writes
+          transparent everywhere it is not laying ink.
     note: >-
-      Still to land here, all `generated`: PersonaFaceTexture and its
-      face_kernel (phase 2), BehaviorDirector and its primitive library, and
-      JournalBook and JournalShelf (phase 3).
+      Still to land here, all `generated`: BehaviorDirector and its primitive
+      library, and JournalBook and JournalShelf (phase 3).
 
       The target builds for iOS as well as visionOS deliberately, and the iOS
       app links it from phase 0 so the gate is real rather than notional: that

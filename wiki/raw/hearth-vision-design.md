@@ -281,17 +281,20 @@ the simulator rather than by reading:
   headset's mode and say so in the palette, or give visionOS its own
   resolution path.
 
-**Phase 1, the compact house core.** LANDED 2026-08-17, gate outstanding.
+**Phase 1, the compact house core.** LANDED 2026-08-17. **Gate 1 PASSED**
+2026-08-17 on the device: paired, connected, a full voice turn with reply
+playback. Parity with what the Valinor client reached.
 Port `RealityKitSceneManager` (volume path only) into `PersonaRig`. Pairing
 window live against the house. Cards as attachments through the ported
 `CardOrbitLayout`. Composer and status ornaments.
 *Headset gate 1: a full voice turn in the volume.* Pinch the orb, speech
 recognized, reply spoken, a card beside the orb.
 
-What the simulator can and cannot say: the rig renders, the field animates,
-both ornaments live, and the pairing window runs its two steps against the real
-`Pairing.pair`. Gate 1 itself needs the headset and a running house, and
-nothing below the gate line has been proven by this.
+On the device the first launch still hung at "Configuring Debugger Actions"
+with LLDB reading device memory to resolve symbols; closing the app and
+relaunching cleared it and the turn ran end to end. Worth knowing that the
+scheme change is not always enough on a cold launch, and that a relaunch is the
+cheap next move rather than a reason to start bisecting.
 
 Two decisions taken during the port, both departures from what this document
 first said:
@@ -310,12 +313,38 @@ first said:
   Parameterising the phone's for both would serve neither. They stay in the
   iOS target until something actually wants them twice.
 
-**Phase 2, the face.** `PersonaFaceTexture` and `face_kernel`, the `FacePose`
-params bridge, hemisphere material binding, the attachment fallback. Body and
-gaze look-at with the head anchor.
+**Phase 2, the face.** WRITTEN 2026-08-17, unverified. `PersonaFaceTexture` and
+`face_kernel`, the `FacePose` params bridge, the material binding, the
+attachment fallback. Body and gaze look-at.
 *Headset gate 2: the face alive on the orb, expressions firing on
 `tts_chunk_start`.* This is also the first on-device proof of the
 `LowLevelTexture` pattern.
+
+Three things this section assumed that turned out otherwise:
+
+- **The head anchor is not available.** The body look-at layer was specified as
+  a smoothed slerp toward the user's head anchor, which needs a world-tracking
+  ARKit session -- and the Shared Space does not grant one to a volumetric
+  window. The face shell carries a `BillboardComponent` instead: the platform's
+  own answer to the same question, and already what the glow billboard uses.
+  Phase 4's immersive space CAN have the real anchor, and swapping it in is a
+  change to one component rather than to the layer's design.
+- **The kernel draws no head.** Section 3 says the kernel draws "the
+  established capsule-and-squircle ink language", but the squircle is the
+  phone's head, and on the orb the bead already is one. The kernel writes
+  transparent everywhere it is not laying ink and the shell blends over the
+  body.
+- **The metallib does not live where Valinor's did.** Valinor's kernel sat in
+  the app target, where `makeDefaultLibrary()` finds it. This one ships in a
+  package target: the build compiles it and copies a `default.metallib` into
+  `HearthCore_HearthSpatial.bundle`, nested inside the app rather than at its
+  root. `PersonaFaceTexture` searches for it rather than assuming, and still
+  returns nil -- into the fallback -- if it is genuinely absent.
+
+The gaze layer is live but modestly used: the orb glances at the newest card it
+produced, which is the spatial version of the phone's composer-tracking. Phase
+3's behaviour director takes the same input and aims it at whatever a cue
+names.
 
 **Phase 3, choreography and journals.** `BehaviorDirector`, primitives, the
 `state_update` fallback producer. `JournalBook`, `JournalShelf`, both open

@@ -73,10 +73,13 @@ struct MainVolume: View {
             // closure returns immediately and a local would be released with it.
             rig.updateSubscription = content.subscribe(to: SceneEvents.Update.self) { event in
                 rig.update(deltaTime: event.deltaTime)
-                // Cheap: `apply` early-returns when the palette is unchanged,
+                // Cheap: both `apply` calls early-return when nothing changed,
                 // which is what lets the rig pick up a persona_config that
                 // arrives long after the scene was built.
                 rig.apply(viewModel.personaPalette)
+                if let geometry = viewModel.personaVisualization.faceGeometry {
+                    rig.apply(faceGeometry: geometry)
+                }
             }
         } update: { content, attachments in
             layoutAttachments(content: content, attachments: attachments)
@@ -105,6 +108,22 @@ struct MainVolume: View {
             // job (design section 1), not a mode of the stage.
             Attachment(id: Self.liveTextID) {
                 LiveText(viewModel: viewModel)
+            }
+            // The face, when the compute path could not start.
+            //
+            // Degraded, never faceless: a device without a usable Metal
+            // pipeline, or a build whose metallib did not make it into the
+            // bundle, gets the same SwiftUI face the phone draws, billboarded
+            // in front of the bead. It is flat and it does not bloom, but it is
+            // the SAME director driving it, so it blinks and talks correctly.
+            if !rig.hasComputeFace {
+                Attachment(id: Self.faceFallbackID) {
+                    PersonaFaceView(
+                        geometry: viewModel.personaVisualization.faceGeometry ?? FaceGeometry(),
+                        state: viewModel.hearthState,
+                        palette: viewModel.personaPalette)
+                        .frame(width: 220, height: 220)
+                }
             }
         }
         // A plain pinch on the bead starts a voice turn. Phase 4 adds the
@@ -165,6 +184,7 @@ struct MainVolume: View {
     // MARK: - Placement
 
     private static let liveTextID = "hearth.live-text"
+    private static let faceFallbackID = "hearth.face-fallback"
 
     /// Parent each attachment to the volume and place it. Cards appearing and
     /// expiring under CardStore's TTL show up here as the attachment set
@@ -180,6 +200,27 @@ struct MainVolume: View {
         if let live = attachments.entity(for: Self.liveTextID) {
             if live.parent == nil { content.add(live) }
             live.position = SIMD3<Float>(0, CardOrbitLayout.orbY + 0.2, -0.02)
+        }
+
+        // The fallback face rides just in front of the bead, at the bead's own
+        // height. Only ever present when the compute path failed.
+        if let face = attachments.entity(for: Self.faceFallbackID) {
+            if face.parent == nil { content.add(face) }
+            face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
+        }
+
+        // The eyes lead: the orb glances at the newest card it produced, which
+        // is the spatial version of the composer-tracking the phone already
+        // does. Nil hands the gaze back to the director's own playlist, so an
+        // empty stage still has a face that looks around the room.
+        //
+        // Phase 3 takes this over: the behaviour director will aim it at
+        // whatever a cue names, and a shelf or a book is the same kind of
+        // target as a card.
+        if let newest = cards.last, let entity = attachments.entity(for: newest.id) {
+            rig.lookAt(worldPosition: entity.position(relativeTo: nil))
+        } else {
+            rig.lookAt(worldPosition: nil)
         }
     }
 }
