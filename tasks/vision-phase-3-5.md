@@ -1,5 +1,11 @@
 # Phase 3.5 -- finishing the volumetric window
 
+**CLOSED 2026-08-18.** All four items landed, plus three corrections the device
+turned up that the desk could not have. Phase 4 is scoped in
+[vision-phase-4.md](vision-phase-4.md), and three things built here are carried
+into it deliberately: `modelPresentationScale`, `modelVerticalOffset` and
+`personaAnchor`.
+
 The volume is nearly done and the immersive house is a different kind of work.
 These are the things that should be true of the box before phase 4 starts,
 collected 2026-08-17 after gate 3.

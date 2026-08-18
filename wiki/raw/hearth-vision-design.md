@@ -453,17 +453,64 @@ desktop's fabricated rows. Opening it squeezes the centre slot instead of
 covering it, which is what the desktop's grid does. Scoped and recorded in
 [tasks/vision-phase-3-5.md](../../tasks/vision-phase-3-5.md).
 
+Two more things landed with it, neither in the original scope and both found by
+running the thing. **The app icon**: a visionOS icon is three parallaxed layers
+masked to a circle, so the phone's flat hearth was SPLIT by colour rather than
+resized. **Persona switching**, which turned out to be two features wearing one
+name -- the status ornament became a menu, and then choosing Selene proved the
+stage had never asked a persona what it wanted to be. `PersonaRig` now dispatches
+on `visualization.type`, by type and never by name, so a `glb_animated` persona
+gets her model where a `procedural_face` persona gets the bead, and travel, tap
+targets, palette and state all keep working because none of them were ever the
+bead's.
+
+The device then corrected three things the desk could not have: a model was
+being fitted in SCENE space and arrived life-size in an 80cm box with a
+collision box that swallowed every pinch in the volume; a figure standing on the
+floor of the box stands in the ornaments hanging along its bottom edge; and her
+head stands exactly where the live caption was. The last one reversed a call
+from 2026-08-17 -- work is now ANCHORED to the persona rather than placed on the
+stage, which is what section 6 asked for on day one and what
+`CardOrbitLayout.offsetFromOrb` had been waiting for.
+
 Phase 4 DISMISSES this volume and returns to it, which is why these were worth
 fixing first: anything broken in the box is broken in both places and harder to
-see in one of them.
+see in one of them. It also inherits three things phase 3.5 built for it --
+`modelPresentationScale` and `modelVerticalOffset`, whose defaults are already
+the room's answer, and `personaAnchor`, which is how work travels.
 
-**Phase 4, the immersive house.** The `ImmersiveSpace(.mixed)` host, entity
-re-hosting between volume and room, the `realBloomActive` switch,
+**Phase 4, the immersive house.** RE-SCOPED 2026-08-18, because phases 3 and
+3.5 changed what is being carried into the room. The sketch below was written
+when the persona was a bead and the volume had almost no chrome; both are now
+false. Scoped in full in
+[tasks/vision-phase-4.md](../../tasks/vision-phase-4.md).
+
+The original list still stands as far as it goes: the `ImmersiveSpace(.mixed)`
+host, entity re-hosting between volume and room, the `realBloomActive` switch,
 pinch-and-hold in both directions, `NSWorldSensingUsageDescription` into the
-Vision plist when surface placement lands. Room-scale choreography falls out
-of the same behavior library.
+Vision plist when surface placement lands, and room-scale choreography out of
+the same behavior library.
+
+What it did not anticipate, in the order it will bite:
+
+- **The controls are all ORNAMENTS, and an `ImmersiveSpace` has none.** House
+  status and persona switching, the composer and its mic, the four-icon house
+  shelf and the right rail are every one of them ornaments on the volume's
+  window. Dismissing the volume takes the whole client interface with it and
+  leaves a persona standing in a room with no way to reach anything. This is
+  the phase's largest open question and it is a DESIGN decision, not a port.
+- **The persona may have a body.** Everything phase 4 assumed about the orb --
+  that it is small, that it hovers, that a halo can bloom around it -- is false
+  for Selene. A life-size figure stands on the floor and needs one; a 10cm bead
+  in a room is a marble.
+- **Cards already travel, and that is not the same as following.** Section 6
+  asks for "a soft spring lag"; `personaAnchor` is rigid parenting. In a box
+  where the orb never moved the difference was invisible. At room scale, with
+  motion switched on, it will not be.
+
 *Gate 4: the immersive round trip.* Hold to enter, the room furnishes, hold
-to leave, the volume returns.
+to leave, the volume returns -- with BOTH persona kinds, because a bead and a
+figure are re-hosted by the same code and fail differently.
 
 **Phase 5, surfaces and polish.** Settings, Persona, Apps, Transcript
 windows; the shelf ornament that opens them.
