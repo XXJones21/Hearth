@@ -199,3 +199,63 @@ timescales, and they should stay distinguishable.
   out that works.
 - The status ornament reads only connection and persona name. The desktop shows
   more of the house's state and there is room for it.
+
+## 6. Persona switching had to reach the visualization -- LANDED 2026-08-18
+
+Item 4 gave the volume a way to CHOOSE Selene. It did not give it a way to draw
+her: the stage mounted `PersonaRig` unconditionally, so switching persona
+changed the colours of a bead that stayed a bead. The phone has answered this
+since Selene shipped -- `HearthMainView.personaStage` picks between
+`PersonaFaceView`, `PersonaModelView` and `PersonaCanvasView` on the persona's
+own `visualization.type` -- and the headset was simply not asking.
+
+**The dispatch lives in the rig, not in the host.** The phone chooses between
+three VIEWS; a spatial host would be choosing between three ENTITY TREES and
+would then have to re-teach each one about travel, tap targets, palette and
+state. `PersonaRig` already owns all four. So a host hands over the config --
+`rig.apply(visualization:)`, beside the palette and geometry calls it already
+makes every frame -- and the rig decides. Phase 4's immersive room gets it for
+the same one line rather than growing a second copy.
+
+Chosen by `type`, never by name, which is the contract `PersonaVisualization`
+already states. Nothing in the rig says "if Selene".
+
+What the rig does with a `glb_animated` persona:
+
+- Loads through `PersonaModelLoader`, the SAME loader the phone uses. It moved
+  from internal to public and grew three things it did not need when its only
+  host was a view rebuilt around it: `unload()`, so switching away does not
+  leave Selene standing behind the bead and switching back does not stack a
+  second copy; a `fitHeight`/`fitWidth` pair, because the phone's 1.34 frames a
+  full-length mirror in a view with its own camera and a volume is not that;
+  and `onFramed`, because framing is a delayed one-shot and anything measured
+  when `load` returns is measured against the un-fitted model.
+- Hides the bead, its particle field, its glow and its face shell -- toggled,
+  not removed, so switching back is instant.
+- Keeps travel. The behaviour director moves `rootEntity`, and the model hangs
+  off it, so a figure walks to the shelf exactly as a bead flies to it. The
+  per-frame guard is placed BELOW the travel block for that reason.
+- Moves the tap target. `tapTarget` returns the model host, and `modelActive`
+  is @Published for that one line: a host's gesture is built with its body, so
+  the body has to be told the answer changed. A USDZ carries no collision
+  shape, so one is generated from what actually loaded -- the bead's
+  `tapTargetRadius` is a sphere around a sphere and a standing person is
+  neither.
+- Says the state with a CLIP. Same four names the orb's choreography uses, and
+  the loader already falls back to idle for a state a persona did not ship.
+- Falls back honestly. A model that will not load keeps the bead rather than
+  showing an empty stage, which is the contract `canRenderModel` was written
+  for.
+
+Still to judge on the device, and none of it is knowable from here:
+
+- **`modelFitHeight` is 1.34**, the phone's number, and the rig then sits inside
+  the volume's own 0.22 scale -- so Selene lands about 29cm tall, centred on
+  `CardOrbitLayout.orbY`. That is a guess about how big a figure should read in
+  a box, and the first thing to change if she is too large or too small.
+- **Whether she faces out.** Selene's config carries `rotation.y = 0`; the rig
+  root is also turned by the behaviour director's yaw. Correct on the phone
+  does not guarantee correct in a volume.
+- **Whether the framing centres her well.** The phone centres the model on its
+  bounds, which for a standing figure in a box may read better standing on the
+  floor of it instead.

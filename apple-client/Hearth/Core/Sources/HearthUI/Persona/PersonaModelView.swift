@@ -78,7 +78,22 @@ public struct PersonaModelView: View {
 @Observable
 @MainActor
 public final class PersonaModelLoader {
-    private(set) var isLoaded = false
+    /// Public because the SPATIAL rig hosts this too, not just the phone's
+    /// view: `PersonaRig` keeps its orb on screen until the model is actually
+    /// standing, so a slow download shows a bead rather than an empty stage.
+    public private(set) var isLoaded = false
+
+    public init() {}
+
+    /// Called once the one-shot framing pass has run and the model's size is
+    /// FINAL.
+    ///
+    /// Framing happens 800ms after the model is added, so anything measured at
+    /// `load`'s return is measured against the un-fitted model -- which for the
+    /// rig's collision box meant a pinch target several times the size of the
+    /// figure standing in it. The phone leaves this nil: its view has nothing
+    /// to re-measure.
+    public var onFramed: (() -> Void)?
 
     private var model: Entity?
     /// Where clips are played: the loaded root, where their bind paths start.
@@ -89,7 +104,18 @@ public final class PersonaModelLoader {
     private var playback: AnimationPlaybackController?
     private var loopTask: Task<Void, Never>?
 
-    public func load(visualization: PersonaVisualization, into root: Entity) async {
+    /// - Parameters:
+    ///   - fitHeight: how tall the model should end up, in the host's own
+    ///     units. The phone's stage is a RealityView of its own with a default
+    ///     camera, where 1.34 is full-length-mirror framing; a volume hosts the
+    ///     model inside the persona rig, which carries a scale of its own, so
+    ///     the number that frames it there is a different number. It was a
+    ///     literal in `scheduleFraming` until the headset needed a second one.
+    ///   - fitWidth: the guard that stops a wide pose overflowing.
+    public func load(visualization: PersonaVisualization,
+                     into root: Entity,
+                     fitHeight: Float = 1.34,
+                     fitWidth: Float = 1.15) async {
         guard let idleURL = visualization.clipURL(for: "idle") else { return }
 
         // The idle file carries the mesh and skeleton; everything else is
@@ -163,7 +189,26 @@ public final class PersonaModelLoader {
         Self.describeAnimations(library)
 
         play(state: .IDLE)
-        scheduleFraming(entity: entity)
+        scheduleFraming(entity: entity, fitHeight: fitHeight, fitWidth: fitWidth)
+    }
+
+    /// Take the model down and forget it.
+    ///
+    /// Needed the moment a persona can be switched WHILE the stage is up:
+    /// without it, choosing Selene and then Sulivan leaves Selene standing in
+    /// the scene behind the orb, and choosing Selene again stacks a second
+    /// copy on the first. The phone never needed this because its host view is
+    /// rebuilt around a fresh loader; the rig outlives the persona.
+    public func unload() {
+        framingTask?.cancel(); framingTask = nil
+        loopTask?.cancel(); loopTask = nil
+        playback?.stop(); playback = nil
+        model?.removeFromParent()
+        model = nil
+        animationTarget = nil
+        animations = [:]
+        current = nil
+        isLoaded = false
     }
 
     /// Swap the playing clip. Falls back to idle for any state the persona did
@@ -269,7 +314,7 @@ public final class PersonaModelLoader {
     /// skeleton every frame, and measuring during the T-pose catches spread
     /// arms and under-frames. Wait for the pose to settle, then measure the
     /// joints themselves.
-    private func scheduleFraming(entity: Entity) {
+    private func scheduleFraming(entity: Entity, fitHeight: Float, fitWidth: Float) {
         framingTask?.cancel()
         framingTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 800_000_000)
@@ -288,11 +333,13 @@ public final class PersonaModelLoader {
             // whole rig onto the origin and the fit scale explodes. Composing
             // them properly needs the joint parent table; the mesh bounds
             // already account for the pose and cost nothing.
-            let scale = min(1.34 / size.y, 1.15 / max(size.x, 0.0001))
+            let scale = min(fitHeight / size.y, fitWidth / max(size.x, 0.0001))
             entity.scale *= SIMD3<Float>(repeating: scale)
 
             let center = bounds.center * scale
             entity.position -= SIMD3<Float>(center.x, center.y, 0)
+
+            onFramed?()
         }
     }
 

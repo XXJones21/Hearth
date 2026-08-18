@@ -38,6 +38,7 @@ import RealityKit
 import simd
 import Combine
 import HearthCore
+import HearthUI
 
 #if canImport(UIKit)
 import UIKit
@@ -158,6 +159,33 @@ public final class PersonaRig: ObservableObject {
         didSet { behavior.home = homePosition }
     }
 
+    // MARK: - The model personas
+
+    /// Where a `glb_animated` persona stands. A child of the rig root, so a
+    /// model travels, turns and returns home exactly as the bead does -- the
+    /// behaviour director never learns which one it is moving.
+    private let modelHost = Entity()
+    private var modelLoader: PersonaModelLoader?
+    private var visualization: PersonaVisualization = .fallback
+    private var modelLoadToken = 0
+
+    /// True once a model is actually STANDING, not merely asked for.
+    ///
+    /// Published because the host's tap gesture targets a different entity in
+    /// each mode, and a gesture is rebuilt with the body. Nothing else in this
+    /// file needs to notify, which is why the flag is the only new @Published.
+    @Published public private(set) var modelActive = false
+
+    /// How tall a model persona ends up INSIDE THE RIG, before the host's own
+    /// scale. The bead is `sphereRadius * 2` across, so this makes a figure
+    /// read as about two and a half times the bead -- a person beside where a
+    /// bead was, rather than a bead-sized person. Judged against the phone's
+    /// own 1.34, which frames a full-length mirror in a view with its own
+    /// camera; a volume is not that, so the number is stated here rather than
+    /// inherited.
+    private let modelFitHeight: Float = 1.34
+    private let modelFitWidth: Float = 1.15
+
     private let particleField = Entity()
     private var particleEntities: [ModelEntity] = []
     private var particleBasePositions: [SIMD3<Float>] = []
@@ -257,6 +285,9 @@ public final class PersonaRig: ObservableObject {
 
         rootEntity.addChild(particleField)
         buildParticles()
+
+        modelHost.name = "PersonaModelHost"
+        rootEntity.addChild(modelHost)
 
         applyStateVisuals(animated: false)
     }
@@ -438,12 +469,126 @@ public final class PersonaRig: ObservableObject {
         return try? TextureResource(image: cg, options: .init(semantic: .color))
     }
 
+    // MARK: - The visualization
+
+    /// Which renderer this persona asked for.
+    ///
+    /// The dispatch lives HERE rather than in each host, and that is the whole
+    /// point: the phone chooses between three views in `HearthMainView`, but a
+    /// spatial host would have to choose between three ENTITY TREES and then
+    /// re-teach each one about travel, tap targets, palette and state. The rig
+    /// already owns all four. So a host hands over the config and the rig
+    /// decides, which is what keeps the volume and phase 4's immersive room
+    /// from each growing their own copy of this.
+    ///
+    /// Chosen by `type`, never by name -- the same contract `PersonaVisualization`
+    /// states. Nothing here says "if Selene".
+    ///
+    /// Cheap to call every frame: it early-returns when nothing changed, which
+    /// is what lets a host put it beside the palette and geometry calls in one
+    /// per-frame block rather than wiring an observer.
+    public func apply(visualization newValue: PersonaVisualization) {
+        guard newValue != visualization else { return }
+        visualization = newValue
+
+        guard newValue.canRenderModel else {
+            // Includes the honest fallbacks `PersonaVisualization` already
+            // defines: a glb persona whose clips have not reached the server
+            // shows the bead rather than an empty stage.
+            teardownModel()
+            return
+        }
+        loadModel(newValue)
+    }
+
+    private func loadModel(_ newValue: PersonaVisualization) {
+        modelLoadToken += 1
+        let token = modelLoadToken
+
+        // The old one goes NOW, not when the new one arrives: switching away
+        // from Selene should not leave her standing while Sage downloads.
+        modelLoader?.unload()
+        let loader = PersonaModelLoader()
+        modelLoader = loader
+        // The collision box is measured AFTER the fit, not when `load` returns.
+        // Framing is a delayed one-shot inside the loader, so a box measured on
+        // return is a box around the un-fitted model -- a pinch target several
+        // times the size of the figure standing in it.
+        loader.onFramed = { [weak self] in
+            guard let self, token == self.modelLoadToken else { return }
+            self.applyModelCollision()
+        }
+
+        Task { @MainActor [weak self] in
+            await loader.load(visualization: newValue,
+                              into: self?.modelHost ?? Entity(),
+                              fitHeight: self?.modelFitHeight ?? 1.34,
+                              fitWidth: self?.modelFitWidth ?? 1.15)
+            guard let self, token == self.modelLoadToken else {
+                // A third persona was chosen while this one was downloading.
+                loader.unload()
+                return
+            }
+            guard loader.isLoaded else {
+                // A model that would not load is not a reason to show nothing.
+                log.error("model persona failed to load; keeping the bead")
+                self.teardownModel()
+                return
+            }
+            self.modelActive = true
+            self.setOrbVisible(false)
+            // A provisional box, so she is pinchable during the second before
+            // the fit lands. `onFramed` above replaces it with the real one.
+            self.applyModelCollision()
+            loader.play(state: self.hearthState)
+        }
+    }
+
+    private func teardownModel() {
+        modelLoadToken += 1
+        modelLoader?.unload()
+        modelLoader = nil
+        guard modelActive else { return }
+        modelActive = false
+        setOrbVisible(true)
+    }
+
+    /// The bead and everything that belongs to it. Toggled rather than removed
+    /// so a switch back is instant and keeps its animation state.
+    private func setOrbVisible(_ visible: Bool) {
+        sphereEntity.isEnabled = visible
+        particleField.isEnabled = visible && isAlive
+        glowBillboard?.isEnabled = visible && isAlive && !realBloomActive
+        faceShell?.isEnabled = visible && isAlive
+    }
+
+    /// A figure has to be pinchable too, and a USDZ arrives with no collision
+    /// shape of its own. Sized from what actually loaded rather than from a
+    /// constant: the bead's `tapTargetRadius` is a sphere around a sphere, and
+    /// a standing person is neither.
+    private func applyModelCollision() {
+        #if os(visionOS)
+        let bounds = modelHost.visualBounds(relativeTo: modelHost)
+        guard bounds.extents.y > 0.0001 else { return }
+        let shape = ShapeResource.generateBox(size: bounds.extents)
+            .offsetBy(translation: bounds.center)
+        modelHost.components.set(CollisionComponent(shapes: [shape]))
+        modelHost.components.set(InputTargetComponent())
+        modelHost.components.set(HoverEffectComponent())
+        #endif
+    }
+
     // MARK: - State
 
     public func updateState(_ newState: PersonaState) {
         guard newState != currentState else { return }
         currentState = newState
         applyStateVisuals(animated: true)
+        // A model persona says the state with a CLIP rather than with colour.
+        // Same four names the orb's choreography uses, so a persona that ships
+        // three of them falls back to idle for the fourth exactly as the phone
+        // does.
+        modelLoader?.play(state: hearthState)
     }
 
     /// Alive or dead, from the connection status. Independent of the turn
@@ -453,9 +598,9 @@ public final class PersonaRig: ObservableObject {
         isAlive = connected
         if connected {
             configureSphereMaterial()
-            particleField.isEnabled = true
-            glowBillboard?.isEnabled = !realBloomActive
-            faceShell?.isEnabled = true
+            // Through setOrbVisible rather than directly, so reviving under a
+            // model persona does not raise the bead through the middle of her.
+            setOrbVisible(!modelActive)
             applyStateVisuals(animated: false)
         } else {
             applyDeadLook()
@@ -523,26 +668,32 @@ public final class PersonaRig: ObservableObject {
         motion = lerp(motion, visualTarget.motion, k)
         spinSpeed = lerp(spinSpeed, visualTarget.spin, k)
 
-        // Breathing, plus the speaking "wavelength" which is the REAL TTS
-        // amplitude rather than a synthetic wobble.
-        let breathe = 1.0 + 0.04 * sin(animationTime * 1.2)
-        let pulse: Float = (currentState == .speaking) ? smoothedLevel : 0
-        let swell = breathe + 0.18 * pulse
+        // The bead's own look, and only the bead's. A model persona says every
+        // one of these things with a clip instead -- breath, glow, the swell on
+        // a spoken syllable -- so driving them under her would be spending a
+        // frame's work on hidden geometry.
+        if !modelActive {
+            // Breathing, plus the speaking "wavelength" which is the REAL TTS
+            // amplitude rather than a synthetic wobble.
+            let breathe = 1.0 + 0.04 * sin(animationTime * 1.2)
+            let pulse: Float = (currentState == .speaking) ? smoothedLevel : 0
+            let swell = breathe + 0.18 * pulse
 
-        sphereEntity.scale = SIMD3<Float>(repeating: swell)
-        sphereMaterial.emissiveColor = .init(color: rigColor(glow))
-        sphereMaterial.emissiveIntensity = intensity * 1.3 + 0.3 * pulse
-        sphereMaterial.baseColor = .init(tint: rigColor(sphereBaseColor, alpha: sphereAlpha))
-        sphereEntity.model?.materials = [sphereMaterial]
+            sphereEntity.scale = SIMD3<Float>(repeating: swell)
+            sphereMaterial.emissiveColor = .init(color: rigColor(glow))
+            sphereMaterial.emissiveIntensity = intensity * 1.3 + 0.3 * pulse
+            sphereMaterial.baseColor = .init(tint: rigColor(sphereBaseColor, alpha: sphereAlpha))
+            sphereEntity.model?.materials = [sphereMaterial]
 
-        let bloom = min(1.0, intensity * 0.5)
-        if let billboard = glowBillboard {
-            billboard.model?.materials = [glowBillboardMaterial(color: glow,
-                                                                opacity: 0.4 + 0.4 * bloom + 0.3 * pulse)]
-            billboard.scale = SIMD3<Float>(repeating: swell * (1.0 + 0.12 * pulse))
+            let bloom = min(1.0, intensity * 0.5)
+            if let billboard = glowBillboard {
+                billboard.model?.materials = [glowBillboardMaterial(color: glow,
+                                                                    opacity: 0.4 + 0.4 * bloom + 0.3 * pulse)]
+                billboard.scale = SIMD3<Float>(repeating: swell * (1.0 + 0.12 * pulse))
+            }
+
+            tickFace(dt: dt)
         }
-
-        tickFace(dt: dt)
 
         // Where the orb is. Speech recalls a behaviour that does not hold its
         // ground, which is why the director is told the state rather than
@@ -558,6 +709,11 @@ public final class PersonaRig: ObservableObject {
         if behavior.performing != performingBehavior {
             performingBehavior = behavior.performing
         }
+
+        // Everything below is the particle field, which a model persona does
+        // not have. The travel above it is deliberately NOT guarded: a figure
+        // walks to the shelf exactly as a bead flies to it.
+        guard !modelActive else { return }
 
         // The switch flourish overrides the per-state choreography while the
         // hold builds. Dormant until phase 4 ramps `transitionProgress`.
@@ -789,8 +945,11 @@ public final class PersonaRig: ObservableObject {
     /// the `RealityView` make closure.
     public var updateSubscription: EventSubscription?
 
-    /// What gaze and pinch gestures target.
-    public var tapTarget: Entity { sphereEntity }
+    /// What gaze and pinch gestures target: whichever persona is on stage.
+    ///
+    /// `modelActive` is @Published for this one line -- a host's gesture is
+    /// built with its body, so the body has to be told when the answer changes.
+    public var tapTarget: Entity { modelActive ? modelHost : sphereEntity }
 
     /// Make the bead gaze-targetable and pinchable.
     ///

@@ -214,6 +214,13 @@ struct MainVolume: View {
                 // which is what lets the rig pick up a persona_config that
                 // arrives long after the scene was built.
                 rig.apply(viewModel.personaPalette)
+                // WHICH persona is on stage, not just what colour they are.
+                // Switching to Selene from the status ornament arrives here as
+                // a new `personaVisualization`, and the rig swaps the bead for
+                // her model -- travel, tap target and state all keep working,
+                // because they were never the bead's to begin with. See
+                // PersonaRig.apply(visualization:).
+                rig.apply(visualization: viewModel.personaVisualization)
                 if let geometry = viewModel.personaVisualization.faceGeometry {
                     rig.apply(faceGeometry: geometry)
                 }
@@ -267,7 +274,10 @@ struct MainVolume: View {
             // bundle, gets the same SwiftUI face the phone draws, billboarded
             // in front of the bead. It is flat and it does not bloom, but it is
             // the SAME director driving it, so it blinks and talks correctly.
-            if !rig.hasComputeFace {
+            // ...and only for a persona who HAS a face. A model persona wears
+            // her own; billboarding Sulivan's in front of Selene would be two
+            // personas on one stage.
+            if !rig.hasComputeFace, !rig.modelActive {
                 Attachment(id: Self.faceFallbackID) {
                     PersonaFaceView(
                         geometry: viewModel.personaVisualization.faceGeometry ?? FaceGeometry(),
