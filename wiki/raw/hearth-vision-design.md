@@ -244,6 +244,13 @@ Cards stay the shared SwiftUI library, mounted as RealityView attachments.
 position, take their slot in the column, and billboard toward the user
 continuously. They anchor to the rig, not the scene, so when the orb travels
 its cards follow with a soft spring lag: the orb reads as carrying its work.
+
+**Amended 2026-08-17: that anchoring is the IMMERSIVE house's, not the
+volume's.** In a room the orb genuinely travels and its work should go with it.
+In a box a metre wide the cards have nowhere to go, and prose that slides while
+you are reading it is worse than prose that sits still. The volume uses the
+absolute `position(index:count:)`; `offsetFromOrb` stays unused until phase 4,
+deliberately rather than by omission.
 Lifecycle, types, and rendering are `CardStore` unchanged. Nothing forks from
 iOS, which is deliberate: the card library stays universal across Apple
 devices.

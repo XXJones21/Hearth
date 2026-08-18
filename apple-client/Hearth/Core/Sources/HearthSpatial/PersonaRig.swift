@@ -549,6 +549,10 @@ public final class PersonaRig: ObservableObject {
         // inferring it: only the rig knows whether the house is talking.
         let offset = behavior.tick(dt: dt, speaking: currentState == .speaking)
         rootEntity.position = homePosition + offset
+        // The rig turns, which is what makes the face look at anything: the
+        // face is painted on the front of a shell that does not billboard, so
+        // it looks wherever the rig is pointed.
+        rootEntity.orientation = simd_quatf(angle: behavior.yaw, axis: SIMD3<Float>(0, 1, 0))
         // Edges only: this is inside a per-frame tick, and assigning an equal
         // value to a @Published still notifies.
         if behavior.performing != performingBehavior {

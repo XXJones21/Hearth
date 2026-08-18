@@ -53,3 +53,43 @@ At `eyeScale` 1.2 the eyes eat gaze travel: the kernel clamps horizontal gaze to
 drift before they would cross the head's outline. If the eyes start reading as
 fixed rather than alive, that clamp is why, and the fix is `eyeSpacing` in the
 persona geometry rather than anything in the Vision client.
+
+## 4. The choreography is switched off, and wants tuning before it comes back
+
+`BehaviorDirector.motion` is `.none` as of 2026-08-17. Cues still resolve, the
+library prop still stages, the face still reacts -- only the flying stops. It is
+off by choice rather than unbuilt, because the travel is good and it fights
+everything else in the volume for the same space while the layout is still
+being settled.
+
+Turning it back on is one line. What wants doing first:
+
+- **Scale the travel to the stage, not the room.** `.subtle` exists for this and
+  multiplies every offset by 0.45; the right number is whatever keeps the orb
+  inside the volume and below the live text card, which sits near the box's
+  middle. The orb currently flies well above it.
+- **Match the travel to the library.** When the persona consults a journal the
+  prop appears beside it, so the flight's top and bottom should be bounded by
+  where that prop actually is rather than by numbers picked in isolation.
+- **The prop is too small.** `MainVolume.propScale` is 0.10, which came from a
+  first guess and has never been judged on the device. It reads as a token
+  rather than a bookshelf.
+
+`orientTo` is implemented and wired into `consulting_journal`, so the orb turns
+to face the shelf rather than arriving and continuing to look at the person.
+That part is worth keeping when motion comes back.
+
+## 5. Cards do not travel with the orb, and in the volume that is now deliberate
+
+Design section 6 says cards "anchor to the rig, not the scene, so when the orb
+travels its cards follow with a soft spring lag". `CardOrbitLayout.offsetFromOrb`
+exists for exactly that and has no callers; the volume uses the absolute
+`position(index:count:)` instead.
+
+Operator's call 2026-08-17: parenting belongs in the IMMERSIVE space, not the
+volumetric window. In a room the orb genuinely travels and its work should go
+with it; in a box a metre wide the cards have nowhere to go, and prose that
+slides while you are reading it is worse than prose that sits still.
+
+So this is phase 4 work rather than a bug. `offsetFromOrb` stays unused until
+then, deliberately.

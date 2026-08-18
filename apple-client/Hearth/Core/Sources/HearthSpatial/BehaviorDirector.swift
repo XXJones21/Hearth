@@ -45,6 +45,41 @@ public enum BehaviorPrimitive: Sendable, Equatable {
     case dwell(seconds: Float)
     /// Travel back to where the orb lives.
     case returnHome(seconds: Float)
+    /// Turn to face a named target without moving toward it.
+    ///
+    /// The design asks for this and phase 3 shipped without it, which is why
+    /// the orb arrived at the shelf still looking at the person: it travelled
+    /// and never turned. A face painted on the front of a shell that does not
+    /// billboard only looks at what the RIG is pointed at.
+    case orientTo(target: String, seconds: Float)
+}
+
+/// How much the orb is allowed to move.
+///
+/// A switch rather than a constant, because the choreography is a a feature
+/// that can be in the way: a stage still being laid out does not want the
+/// persona wandering out of frame every time the house reaches for a tool.
+///
+/// Extend this rather than commenting out a behaviour. A named mode that the
+/// whole rig reads is one decision in one place; a disabled primitive is a
+/// decision scattered across a table.
+public enum MotionStyle: String, Sendable, CaseIterable {
+    /// The orb holds home. Cues still resolve, props still stage, nothing
+    /// travels and nothing turns.
+    case none
+    /// Reduced travel, scaled to the stage rather than the room.
+    case subtle
+    /// The design's full choreography.
+    case full
+
+    /// What a behaviour's offsets are multiplied by.
+    var travel: Float {
+        switch self {
+        case .none:   return 0
+        case .subtle: return 0.45
+        case .full:   return 1
+        }
+    }
 }
 
 /// A named performance: what to do, and how it behaves when interrupted.
@@ -90,6 +125,21 @@ public final class BehaviorDirector {
 
     /// What the generic answer is. Every unknown cue lands here.
     public var fallbackBehavior: Behavior = BehaviorDirector.working
+
+    /// How much the orb may move.
+    ///
+    /// `.none` while the volume's layout is still being settled: the travel is
+    /// good and it fights everything else for the same space, so it is off by
+    /// choice rather than unbuilt. The cues, the library prop and the face all
+    /// still respond -- only the flying stops.
+    public var motion: MotionStyle = .none
+
+    /// The heading the rig should face, in radians about Y. Zero is forward.
+    ///
+    /// Separate from the position offset because turning and travelling are
+    /// different things a behaviour can ask for independently: `orientTo` turns
+    /// without moving, and `flyTo` moves without turning unless told.
+    public private(set) var yaw: Float = 0
 
     private var running: Behavior?
     private var runningName: String?
@@ -152,9 +202,20 @@ public final class BehaviorDirector {
 
         bobPhase += dt
 
+        // Off means off, but it means off at the OUTPUT rather than the input:
+        // cues are still consumed, so a host staging a prop for a performance
+        // still learns one is running, and turning motion back on mid-turn
+        // picks up wherever the behaviour had got to.
+        guard motion != .none else {
+            position = approach(position, .zero, dt: dt, tau: 0.45)
+            yaw = approach(yaw, 0, dt: dt, tau: 0.45)
+            return position
+        }
+
         guard let running else {
             // Nothing playing: ease back to home and stay there.
             position = approach(position, .zero, dt: dt, tau: 0.45)
+            yaw = approach(yaw, 0, dt: dt, tau: 0.5)
             return position
         }
 
@@ -191,10 +252,31 @@ public final class BehaviorDirector {
 
         case let .returnHome(seconds):
             position = ease(from: stepStart, to: .zero, t: progress(stepElapsed, seconds))
+            yaw = approach(yaw, 0, dt: dt, tau: 0.4)
+            advanceIfDone(stepElapsed, seconds)
+
+        case let .orientTo(target, seconds):
+            yaw = approach(yaw, heading(toward: resolve(target)), dt: dt, tau: 0.3)
             advanceIfDone(stepElapsed, seconds)
         }
 
         return position
+    }
+
+    /// The heading that points the rig's front at `offset`.
+    ///
+    /// Measured from where the orb IS, not from home: an orb halfway to the
+    /// shelf should already be turning toward it rather than aiming at where
+    /// the flight began.
+    private func heading(toward offset: SIMD3<Float>) -> Float {
+        let delta = offset - position
+        guard simd_length(delta) > 1e-4 else { return yaw }
+        return atan2(delta.x, delta.z)
+    }
+
+    private func approach(_ a: Float, _ b: Float, dt: Float, tau: Float) -> Float {
+        let k = 1 - exp(-dt / max(tau, 1e-3))
+        return a + (b - a) * k
     }
 
     // MARK: - Cues
@@ -227,7 +309,7 @@ public final class BehaviorDirector {
     // MARK: - Geometry
 
     private func resolve(_ target: String) -> SIMD3<Float> {
-        targets[target].map { $0 - home } ?? .zero
+        (targets[target].map { $0 - home } ?? .zero) * motion.travel
     }
 
     private func progress(_ elapsed: Float, _ seconds: Float) -> Float {
@@ -280,6 +362,10 @@ public extension BehaviorDirector {
         "consulting_journal": Behavior(
             primitives: [
                 .flyTo(target: "shelf", seconds: 0.9),
+                // Turn to it. Without this the orb arrives at the shelf and
+                // carries on looking at the person, which reads as ignoring the
+                // thing it flew across the room to read.
+                .orientTo(target: "shelf", seconds: 0.4),
                 .hoverAt(target: "shelf", seconds: 3.0, bob: 0.010),
             ],
             speakInPlace: true),
