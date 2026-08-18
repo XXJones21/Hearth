@@ -65,15 +65,21 @@ public final class JournalLibraryEntity {
     /// Metres of gap between neighbouring spines. The phone uses 9pt against a
     /// 132pt spine; this is that ratio.
     private let spineGap: Float = JournalBookEntity.height * 0.068
-    /// How many boards the box shows at once, and therefore how much of the
-    /// library does NOT need scrolling to.
+    /// How tall the whole library is, in its own units.
+    private var contentHeight: Float = 0
+
+    /// The invisible surface a drag can grab.
     ///
-    /// Two, not three. At life size a board's pitch is a third of a metre and a
-    /// volume is 0.8 tall, so three was a shelf's worth of optimism: it left
-    /// `maxScroll` short by a whole board and the last shelf could never be
-    /// reached. Under-counting costs a little empty travel at the bottom;
-    /// over-counting costs a shelf you cannot see at all.
-    private let visibleRows: Float = 2
+    /// Without it the only things in the library with a collision shape are the
+    /// book spines, so `targetedToEntity` found nothing in the gaps between
+    /// them and a scroll only started if the drag began exactly on a book. A
+    /// bookcase you can only scroll by grabbing a book is a bookcase that does
+    /// not scroll.
+    ///
+    /// A child of `root` rather than the scroller, so it stays put while the
+    /// shelves move past it, and interactive only -- the persona's prop must
+    /// not be grabbable at all.
+    private let dragSurface = Entity()
 
     /// How far the shelves can travel. Zero when everything already fits.
     public private(set) var maxScroll: Float = 0
@@ -90,6 +96,39 @@ public final class JournalLibraryEntity {
         self.interactive = interactive
         root.name = interactive ? "JournalLibrary" : "JournalLibrary.prop"
         root.addChild(scroller)
+        if interactive {
+            dragSurface.name = "JournalLibrary.dragSurface"
+            root.addChild(dragSurface)
+        }
+    }
+
+    /// How much of the library the box actually shows, in the library's own
+    /// units: from its origin down to the clip floor.
+    private var visibleHeight: Float {
+        guard let clipBelowInParent else { return contentHeight }
+        return max(0, (root.position.y - clipBelowInParent) / max(presentationScale, 0.0001))
+    }
+
+    /// Re-measure the travel and the surface a drag can grab.
+    ///
+    /// Both depend on the same three things -- how tall the content is, where
+    /// the library sits, and where the floor is -- so both are recomputed
+    /// together whenever any of them moves.
+    private func recomputeTravel() {
+        maxScroll = max(0, contentHeight - visibleHeight)
+        scroll = min(scroll, maxScroll)
+
+        guard interactive else { return }
+        let height = max(visibleHeight, JournalBookEntity.height)
+        dragSurface.components.set(CollisionComponent(
+            shapes: [.generateBox(size: SIMD3<Float>(boardWidth * 1.15,
+                                                     height,
+                                                     JournalBookEntity.depth * 0.5))]))
+        dragSurface.components.set(InputTargetComponent())
+        // Behind the books, centred on the band the box shows, so a drag
+        // anywhere over the shelves is caught while a pinch still finds the
+        // nearer spine first.
+        dragSurface.position = SIMD3<Float>(0, -height * 0.5, -JournalBookEntity.depth * 0.8)
     }
 
     /// How large the library is presented, with 1 being life size.
@@ -105,6 +144,7 @@ public final class JournalLibraryEntity {
     public var presentationScale: Float = 1 {
         didSet {
             root.scale = SIMD3<Float>(repeating: presentationScale)
+            recomputeTravel()
             applyClip()
         }
     }
@@ -122,7 +162,7 @@ public final class JournalLibraryEntity {
     /// composer and the button shelf are in the VOLUME; it should not also have
     /// to know the library's own position and scale to say "not below here".
     public var clipBelowInParent: Float? {
-        didSet { applyClip() }
+        didSet { recomputeTravel(); applyClip() }
     }
 
     /// How far a shelf fades over as it crosses the plane.
@@ -207,17 +247,24 @@ public final class JournalLibraryEntity {
         // empty air between the title and the first shelf -- a gap that reads
         // as a shelf that failed to load rather than as breathing room. It gets
         // a masthead's worth of clearance and no more.
-        let mastheadY = labelRise + JournalBookEntity.height * 0.34
+        // NOTHING SITS ABOVE THE ORIGIN.
+        //
+        // The masthead used to, and so did every room's first label, while
+        // `scroll` is clamped to 0...maxScroll -- downward only. So the top of
+        // the library was above the box's ceiling with no way to bring it back:
+        // clipped on arrival and unreachable by scrolling. Everything hangs
+        // BELOW y = 0 now, and the origin is the top of the content.
+        let topDrop = JournalBookEntity.height * 0.34
         scroller.addChild(Self.text("Journal", size: JournalBookEntity.height * 0.115,
-                                    at: SIMD3<Float>(-boardWidth * 0.5, mastheadY, 0)))
+                                    at: SIMD3<Float>(-boardWidth * 0.5, 0, 0)))
         scroller.addChild(Self.text("kept by Selene", size: JournalBookEntity.height * 0.062,
                                     at: SIMD3<Float>(-boardWidth * 0.5,
-                                                     mastheadY - JournalBookEntity.height * 0.15, 0),
+                                                     -JournalBookEntity.height * 0.15, 0),
                                     muted: true))
 
         for (books, label, caption) in Self.roomOrder(heart: heart, life: life,
                                                       projects: projects, seedlings: seedlings) {
-            let labelY = -Float(row) * shelfPitch + labelRise
+            let labelY = -topDrop - Float(row) * shelfPitch + labelRise
             rooms.append(Room(id: label,
                               label: label,
                               caption: caption,
@@ -240,7 +287,7 @@ public final class JournalLibraryEntity {
             // loses a shelf.
             for chunk in stride(from: 0, to: books.count, by: booksPerBoard) {
                 let slice = Array(books[chunk..<min(chunk + booksPerBoard, books.count)])
-                scroller.addChild(board(slice, palette: palette, atRow: row))
+                scroller.addChild(board(slice, palette: palette, atRow: row, topDrop: topDrop))
                 row += 1
             }
         }
@@ -255,7 +302,12 @@ public final class JournalLibraryEntity {
             bottomOffsets[ObjectIdentifier(child)] = bounds.min.y - child.position.y
         }
 
-        maxScroll = max(0, (Float(row) - visibleRows) * shelfPitch + labelRise)
+        // Travel is the content that does not fit, measured rather than
+        // guessed from a row count -- and the library already knows both terms:
+        // how tall it is, and how much of it the box shows between its origin
+        // and the clip floor.
+        contentHeight = topDrop + Float(row) * shelfPitch
+        recomputeTravel()
         scroll = 0
         applyClip()
     }
@@ -298,9 +350,10 @@ public final class JournalLibraryEntity {
     /// already do.
     private func board(_ books: [JournalBook],
                        palette: PersonaPalette,
-                       atRow row: Int) -> Entity {
+                       atRow row: Int,
+                       topDrop: Float) -> Entity {
         let shelf = Entity()
-        shelf.position = SIMD3<Float>(0, -Float(row) * shelfPitch, 0)
+        shelf.position = SIMD3<Float>(0, -topDrop - Float(row) * shelfPitch, 0)
 
         // Spines left to right, each taking its own thickness. Books are not
         // evenly spaced because books are not evenly thick, which is most of

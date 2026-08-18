@@ -154,6 +154,9 @@ struct MainVolume: View {
             // authored at life size, so this is only how big the bookcase is
             // shown -- the books have not stopped being 21cm books.
             libraryEntity.presentationScale = 0.765
+            // Position first: the travel is measured from where the library
+            // sits down to the floor, so the floor has to be set last.
+
             // 0.36, and the number is the settled one rather than a first
             // guess: 0.32 crowded the composer, 0.40 pushed the masthead into
             // the ceiling, and this is the half-way point that was judged on
