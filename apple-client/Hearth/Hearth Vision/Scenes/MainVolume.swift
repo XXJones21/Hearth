@@ -39,6 +39,19 @@ struct MainVolume: View {
     /// Apple surface with room for.
     @State private var surface: HouseSurface?
 
+    /// The open rail tab, or nil for no rail.
+    ///
+    /// The desktop's third column, collapsible. It is separate state from
+    /// `surface` on purpose: at the desk the rail and the centre view are open
+    /// AT THE SAME TIME, and folding them into one selection would make mission
+    /// control a destination you leave your work to visit.
+    @State private var rail: HouseRailTab?
+
+    /// How far the bookcase sits from the centre slot's own centre. It was
+    /// authored at 0.10 against a slot at 0.09, and the difference is what
+    /// keeps the shelves' left edge clear of the orb.
+    private static let libraryOffsetFromSlot: Float = 0.01
+
     /// The library, built once and held. Shelves of spine-out books that live
     /// in this volume's centre slot -- see JournalLibraryEntity for why they are
     /// not a window of their own.
@@ -303,8 +316,20 @@ struct MainVolume: View {
             // behind them was a plane standing in front of the shelves.
             if let surface, surface != .journal {
                 Attachment(id: Self.surfaceID) {
-                    HouseSurfacePanel(viewModel: viewModel, surface: surface) {
+                    HouseSurfacePanel(viewModel: viewModel,
+                                      surface: surface,
+                                      width: Self.surfaceWidth(railOpen: rail != nil)) {
                         self.surface = nil
+                    }
+                }
+            }
+            // The right rail. Docked rather than floating: it takes width from
+            // the centre slot the way the desktop's grid column does, which is
+            // what `surfaceWidth` above is answering.
+            if let rail {
+                Attachment(id: Self.railID) {
+                    HouseRailPanel(viewModel: viewModel, tab: rail) {
+                        self.rail = nil
                     }
                 }
             }
@@ -343,6 +368,13 @@ struct MainVolume: View {
                 ComposerOrnament(viewModel: viewModel)
                 HouseShelfOrnament(active: $surface)
             }
+        }
+        // Mission control, on the right face. An ornament rather than something
+        // inside the box for the same reason the bottom shelf is one: it hangs
+        // OUTSIDE the volume, so a shelf of three icons costs the stage no
+        // width at all and only the opened panel takes any.
+        .ornament(attachmentAnchor: .scene(.trailing)) {
+            HouseRailOrnament(active: $rail)
         }
         // The slide. `homePosition` is what the behaviour director returns to,
         // so moving it moves the orb's whole notion of where it lives -- a
@@ -408,6 +440,12 @@ struct MainVolume: View {
                     reading = libraryEntity.book(for: value.entity)
                 }
         )
+        // Opening the rail moves the same two things opening a destination
+        // does -- the orb and the centre slot -- so it runs the same code
+        // rather than a second copy of it.
+        .onChange(of: rail) { _, _ in
+            withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
+        }
         .onChange(of: surface) { _, open in
             // Journal fills the centre slot with ENTITIES rather than a panel:
             // its books are three-dimensional and an attachment is a SwiftUI
@@ -415,12 +453,7 @@ struct MainVolume: View {
             // destination, because it is one.
             libraryEntity.root.isEnabled = (open == .journal)
             if open != .journal { reading = nil }
-            withAnimation(.easeInOut(duration: 0.35)) {
-                rig.homePosition = SIMD3<Float>(
-                    open == nil ? 0 : Self.stageLeftX,
-                    CardOrbitLayout.orbY,
-                    0)
-            }
+            withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
         }
         }
     }
@@ -452,6 +485,7 @@ struct MainVolume: View {
     private static let faceFallbackID = "hearth.face-fallback"
     private static let surfaceID = "hearth.surface"
     private static let readerID = "hearth.journal-reader"
+    private static let railID = "hearth.rail"
 
     /// How big the persona's investigation prop is against life size. Small
     /// enough that its spine lettering is present but unreadable, which is
@@ -480,6 +514,52 @@ struct MainVolume: View {
     /// wide, so this is a little left of the box's own left third -- far enough
     /// to clear a 560pt panel, close enough to still be in the room with it.
     private static let stageLeftX: Float = -0.26
+
+    /// And where it stands when the rail is open too.
+    ///
+    /// Three columns in the width that held two: the centre slot narrows and
+    /// slides left, so the orb has to give up its last few centimetres or the
+    /// panel's left edge arrives on top of it. This is the only number in the
+    /// squeeze that was judged rather than derived -- the rest fall out of the
+    /// panel widths below.
+    private static let stageLeftXWithRail: Float = -0.30
+
+    /// Where the rail's panel sits: hard against the box's right face.
+    ///
+    /// A 320pt panel is 0.235m at visionOS's 1360 points to the metre, so its
+    /// centre is half of that in from the right edge at +0.4, less a couple of
+    /// centimetres so it reads as being IN the box rather than bolted to it.
+    private static let stageRightX: Float = 0.26
+
+    /// Where the centre slot sits, with and without the rail beside it.
+    private static func surfaceX(railOpen: Bool) -> Float {
+        railOpen ? -0.04 : 0.09
+    }
+
+    /// How wide the centre slot may be, with and without the rail beside it.
+    ///
+    /// 440pt against 560pt, and the difference is close to the rail's own
+    /// width: this is the desktop's grid doing its arithmetic, not a panel
+    /// choosing to be smaller. Every surface in it is a single column of
+    /// stacked rows, so narrowing reflows rather than clipping.
+    private static func surfaceWidth(railOpen: Bool) -> CGFloat {
+        railOpen ? 440 : 560
+    }
+
+    /// Put the orb and the centre slot where the current combination of open
+    /// things says they go.
+    ///
+    /// One function because there are two switches -- a destination and a rail
+    /// tab -- and four combinations between them. Two independent `onChange`
+    /// closures each setting a position would each be right about their own
+    /// half and wrong about the other's.
+    private func slideStage() {
+        let anythingOpen = surface != nil || rail != nil
+        rig.homePosition = SIMD3<Float>(
+            anythingOpen ? (rail != nil ? Self.stageLeftXWithRail : Self.stageLeftX) : 0,
+            CardOrbitLayout.orbY,
+            0)
+    }
 
 
     /// Parent each attachment to the volume and place it. Cards appearing and
@@ -514,8 +594,21 @@ struct MainVolume: View {
         // an unrelated one, and the panel simply did not show.
         if let panel = attachments.entity(for: Self.surfaceID) {
             if panel.parent !== stageRoot { stageRoot.addChild(panel) }
-            panel.position = SIMD3<Float>(0.09, 0.02, 0.10)
+            panel.position = SIMD3<Float>(Self.surfaceX(railOpen: rail != nil), 0.02, 0.10)
         }
+
+        // The rail, against the right face.
+        if let panel = attachments.entity(for: Self.railID) {
+            if panel.parent !== stageRoot { stageRoot.addChild(panel) }
+            panel.position = SIMD3<Float>(Self.stageRightX, 0.02, 0.10)
+        }
+
+        // The library is the Journal destination's centre slot, so it moves
+        // with the centre slot. Entities rather than a panel, but the same
+        // column: a bookcase that stayed put while every flat surface stepped
+        // aside would be the one thing in the box the rail could cover.
+        libraryEntity.root.position.x =
+            Self.surfaceX(railOpen: rail != nil) + Self.libraryOffsetFromSlot
 
         // An opened journal stands in front of the shelves it came off, and
         // the shelves go dark behind it: a library still visible behind the

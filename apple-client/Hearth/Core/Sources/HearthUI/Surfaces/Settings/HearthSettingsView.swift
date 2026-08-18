@@ -33,7 +33,7 @@ public struct HearthSettingsView: View {
     }
 
     public var body: some View {
-        NavigationStack {
+        HearthSurfaceShell {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
@@ -58,14 +58,6 @@ public struct HearthSettingsView: View {
             }
             .task { await surface.load() }
             .background(HearthPalette.cream.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Hearth") { dismiss() }
-                        .tint(HearthPalette.ember)
-                }
-            }
-            .toolbarBackground(HearthPalette.parchment, for: .navigationBar)
-            .hearthNavigationTitleInline()
         }
     }
 

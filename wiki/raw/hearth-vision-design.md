@@ -432,13 +432,30 @@ Three departures worth knowing:
   declaration rather than new machinery. Deferred so gate 3 can be judged on
   the thing it is actually about.
 
-**Phase 3.5, finishing the volume.** Added 2026-08-17, after gate 3. Persona,
-Apps and Settings render blank -- almost certainly because those shared
-surfaces carry a phone's navigation chrome that an attachment cannot host -- and
-the desktop's third slot, the right rail, has no equivalent here yet. Phase 4
-DISMISSES this volume and returns to it, so anything broken in the box is
-broken in both places and harder to see in one of them. Scoped in
+**Phase 3.5, finishing the volume. LANDED 2026-08-18.** Added 2026-08-17, after
+gate 3, for two things: the shared surfaces were unusable in the box, and the
+desktop's third slot had no equivalent here. Both are done.
+
+The surfaces were not blank -- they rendered, behind a glass slab that visionOS
+draws for a navigation container and that ate every pinch. The cause was the
+suspected one, the phone's navigation chrome inside an attachment, and the fix
+is the split rather than the fork: `HearthSurfaceChrome` in the environment
+picks `.navigation` or `.bare`, `HearthSurfaceShell` draws or omits the stack
+accordingly, and `hearthSurfaceClose` gives an unpresented surface a real way
+out. One implementation of what each screen SAYS; only the shell differs.
+
+The rail is the desktop's `AppFrame` third column, made collapsible for a
+smaller box: a VERTICAL button shelf on the right face mirroring the bottom
+one, opening a docked panel with the desktop's three tabs. Sessions moved off
+the bottom shelf into it, where the desktop keeps it; Memory reads
+`/journal/facts`; Routines says it has nothing rather than porting the
+desktop's fabricated rows. Opening it squeezes the centre slot instead of
+covering it, which is what the desktop's grid does. Scoped and recorded in
 [tasks/vision-phase-3-5.md](../../tasks/vision-phase-3-5.md).
+
+Phase 4 DISMISSES this volume and returns to it, which is why these were worth
+fixing first: anything broken in the box is broken in both places and harder to
+see in one of them.
 
 **Phase 4, the immersive house.** The `ImmersiveSpace(.mixed)` host, entity
 re-hosting between volume and room, the `realBloomActive` switch,

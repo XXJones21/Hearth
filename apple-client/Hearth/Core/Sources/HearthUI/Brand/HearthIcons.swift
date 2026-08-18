@@ -157,6 +157,46 @@ public struct GearIcon: Shape {
     }
 }
 
+/// Memory. Desktop's IconHeart, whose SVG arcs become cubics here for the
+/// reason stated at the top of this file.
+public struct HeartIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
+        let g = Grid(rect: rect)
+        var path = Path()
+        path.move(to: g.p(12, 21))
+        path.addCurve(to: g.p(2.5, 9.5), control1: g.p(7, 17.5), control2: g.p(2.5, 14))
+        path.addCurve(to: g.p(12, 8), control1: g.p(2.5, 5.5), control2: g.p(9, 4.5))
+        path.addCurve(to: g.p(21.5, 9.5), control1: g.p(15, 4.5), control2: g.p(21.5, 5.5))
+        path.addCurve(to: g.p(12, 21), control1: g.p(21.5, 14), control2: g.p(17, 17.5))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Routines. Constructed rather than ported, exactly as BubbleIcon was and for
+/// the same reason: the desktop rail labels its tabs in words and has no
+/// drawing to copy. A dial and two hands, on the same 24-unit grid.
+public struct ClockIcon: Shape {
+    /// Explicit: a public struct's memberwise init is internal.
+    public init() {}
+
+    public func path(in rect: CGRect) -> Path {
+        let g = Grid(rect: rect)
+        var path = Path()
+        path.addEllipse(in: CGRect(x: g.p(3, 3).x, y: g.p(3, 3).y,
+                                   width: g.v(18), height: g.v(18)))
+        // Ten past ten, which is where a clock in a drawing always sits: the
+        // hands frame the dial instead of hiding behind each other.
+        path.move(to: g.p(12, 6.5))
+        path.addLine(to: g.p(12, 12))
+        path.addLine(to: g.p(15.5, 14))
+        return path
+    }
+}
+
 /// One shelf icon at the desktop's weight. `size` is the box; the stroke
 /// scales with it so a larger icon does not read as a thinner one.
 public struct HearthIcon<S: Shape>: View {

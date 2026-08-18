@@ -45,7 +45,7 @@ public struct PersonaView: View {
     private var hasEdits: Bool { draftPrompt != nil || draftColors != nil }
 
     public var body: some View {
-        NavigationStack {
+        HearthSurfaceShell {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -68,14 +68,6 @@ public struct PersonaView: View {
             .background(HearthPalette.cream.ignoresSafeArea())
             .overlay { if loader.isSaving { restartingOverlay } }
             .task { await loader.load() }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Hearth") { dismiss() }
-                        .tint(HearthPalette.ember)
-                }
-            }
-            .toolbarBackground(HearthPalette.parchment, for: .navigationBar)
-            .hearthNavigationTitleInline()
             .sheet(isPresented: $showPromptEditor) {
                 if let persona {
                     PromptEditor(

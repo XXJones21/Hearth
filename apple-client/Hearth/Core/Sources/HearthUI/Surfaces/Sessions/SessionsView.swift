@@ -19,6 +19,10 @@ import HearthCore
 public struct SessionsView: View {
     @ObservedObject var viewModel: ChatViewModel
     @Environment(\.dismiss) private var dismiss
+    /// The host's way out, when there is no presentation to dismiss. Starting
+    /// or resuming a session puts this screen away, and in a volume that has to
+    /// go through the host or the panel simply stays open over a live turn.
+    @Environment(\.hearthSurfaceClose) private var close
     @StateObject private var store = SessionsStore()
     @State private var expandedRow: String?
 
@@ -32,8 +36,13 @@ public struct SessionsView: View {
         viewModel.connectionStatus == .connected && !viewModel.isWaitingForResponse
     }
 
+    /// Put this screen away, however the host put it up.
+    private func leave() {
+        if let close { close() } else { dismiss() }
+    }
+
     public var body: some View {
-        NavigationStack {
+        HearthSurfaceShell {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
@@ -54,14 +63,6 @@ public struct SessionsView: View {
             .task { await store.load() }
             .refreshable { await store.load() }
             .background(HearthPalette.cream.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Hearth") { dismiss() }
-                        .tint(HearthPalette.ember)
-                }
-            }
-            .toolbarBackground(HearthPalette.parchment, for: .navigationBar)
-            .hearthNavigationTitleInline()
         }
     }
 
@@ -89,7 +90,7 @@ public struct SessionsView: View {
                 .fixedSize(horizontal: false, vertical: true)
             Button {
                 viewModel.startNewSession()
-                dismiss()
+                leave()
             } label: {
                 Text("New session")
                     .font(.system(size: 13.5, weight: .semibold))
@@ -222,7 +223,7 @@ public struct SessionsView: View {
                     case .record: viewModel.resumeSession(recordId: row.rowId)
                     case .journal: viewModel.resumeSession(slug: row.rowId)
                     }
-                    dismiss()
+                    leave()
                 } label: {
                     Text("Resume")
                         .font(.system(size: 12.5, weight: .semibold))

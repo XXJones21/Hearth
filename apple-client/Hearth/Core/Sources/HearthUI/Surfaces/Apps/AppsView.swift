@@ -36,7 +36,14 @@ public struct AppsView: View {
     }
 
     public var body: some View {
-        NavigationStack {
+        HearthSurfaceShell {
+            // The card library is reachable from nowhere else, so it rides the
+            // shell's trailing slot: a toolbar button on the phone, a strip
+            // above the content in a volume.
+            Button("Cards") { showLibrary = true }
+                .tint(HearthPalette.ember)
+                .disabled(surface.surface == nil)
+        } content: {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
@@ -70,19 +77,6 @@ public struct AppsView: View {
             }
             .task { await surface.load() }
             .background(HearthPalette.cream.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Hearth") { dismiss() }
-                        .tint(HearthPalette.ember)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cards") { showLibrary = true }
-                        .tint(HearthPalette.ember)
-                        .disabled(surface.surface == nil)
-                }
-            }
-            .toolbarBackground(HearthPalette.parchment, for: .navigationBar)
-            .hearthNavigationTitleInline()
             .sheet(isPresented: $showLibrary) {
                 CardLibraryView(cards: surface.surface?.cards ?? [])
             }

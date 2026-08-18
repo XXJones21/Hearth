@@ -4,10 +4,16 @@
 //
 //  The house's destinations, and the shelf that opens them.
 //
-//  The same five the phone's HouseShelf carries, because they are the same
-//  house: Sessions, Journal, Persona, Apps, Settings. The phone puts them in a
-//  drawer that slides over the stage; here they get the desktop's arrangement
-//  instead, and that is a deliberate borrow rather than a third invention.
+//  Four of the five the phone's HouseShelf carries: Journal, Persona, Apps,
+//  Settings. The phone puts them in a drawer that slides over the stage; here
+//  they get the desktop's arrangement instead, and that is a deliberate borrow
+//  rather than a third invention.
+//
+//  SESSIONS IS NOT HERE, and its absence is the borrow being taken seriously.
+//  On the desktop, Sessions is the right rail's first tab and has never been a
+//  centre-column destination -- so putting it on the bottom shelf as well would
+//  be the same content in two places, reached two ways, with two ideas about
+//  where it lives. It moved to HouseRail, which is where the desktop keeps it.
 //
 //  THE DESKTOP'S SHAPE. `AppFrame` is three slots -- the persona stage on the
 //  left, the active view in the centre, the rail on the right -- and a volume
@@ -29,7 +35,6 @@ import HearthUI
 
 /// One destination off the shelf.
 enum HouseSurface: String, CaseIterable, Identifiable {
-    case sessions
     case journal
     case persona
     case apps
@@ -39,7 +44,6 @@ enum HouseSurface: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .sessions: return "Sessions"
         case .journal:  return "Journal"
         case .persona:  return "Persona"
         case .apps:     return "Apps"
@@ -52,7 +56,6 @@ enum HouseSurface: String, CaseIterable, Identifiable {
     @ViewBuilder
     var icon: some View {
         switch self {
-        case .sessions: HearthIcon(shape: BubbleIcon())
         case .journal:  HearthIcon(shape: BookIcon())
         case .persona:  HearthIcon(shape: PersonIcon())
         case .apps:     HearthIcon(shape: GridIcon())
@@ -65,18 +68,27 @@ enum HouseSurface: String, CaseIterable, Identifiable {
 struct HouseSurfacePanel: View {
     @ObservedObject var viewModel: ChatViewModel
     let surface: HouseSurface
+    /// How wide the centre slot is allowed to be.
+    ///
+    /// The desktop's three columns are a grid: opening the right rail takes its
+    /// width out of the centre rather than covering it. A volume has the same
+    /// finite width and no scrollbar to hide behind, so the centre narrows for
+    /// the rail exactly as it does at the desk -- otherwise the rail either
+    /// stands in front of the panel or pushes past the box's right face.
+    var width: CGFloat = 560
     let onClose: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             // The panel's own way out.
             //
-            // The shared views each carry a "Hearth" back button wired to
-            // SwiftUI's `dismiss`, which does nothing in a RealityView
-            // attachment -- there is no presentation to dismiss. Rather than
-            // fork five views to teach them about volumes, the panel wears its
-            // own header and the inert button below is simply one control that
-            // does not apply here.
+            // The shared views used to carry their own "Hearth" back button
+            // inside a NavigationStack, which in an attachment was worse than
+            // useless: `dismiss` had no presentation to pop, and visionOS drew
+            // the navigation container's material as a glass slab IN FRONT of
+            // the content that swallowed every pinch. The panel now asks for
+            // `.bare` chrome and wears this header instead. See
+            // HearthUI/Surfaces/SurfaceChrome.swift.
             HStack {
                 Text(surface.title)
                     .font(.system(size: 15, weight: .semibold))
@@ -99,15 +111,18 @@ struct HouseSurfacePanel: View {
 
             content
         }
-        .frame(width: 560, height: 720)
+        .frame(width: width, height: 720)
         .background(HearthPalette.cream)
         .clipShape(RoundedRectangle(cornerRadius: 18))
+        // The two halves of the fix: draw no navigation chrome, and give the
+        // shared views a way out that works here.
+        .environment(\.hearthSurfaceChrome, .bare)
+        .environment(\.hearthSurfaceClose, onClose)
     }
 
     @ViewBuilder
     private var content: some View {
         switch surface {
-        case .sessions: SessionsView(viewModel: viewModel)
         // Journal never reaches here: it opens the library VOLUME instead, so
         // its books can be real entities on real shelves. MainVolume
         // intercepts it. This case exists so the switch stays exhaustive and
@@ -120,7 +135,7 @@ struct HouseSurfacePanel: View {
     }
 }
 
-/// The shelf: five icons, and which one is lit.
+/// The shelf: four icons, and which one is lit.
 struct HouseShelfOrnament: View {
     @Binding var active: HouseSurface?
 
