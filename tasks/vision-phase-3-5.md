@@ -276,9 +276,12 @@ and a window resize cannot change the answer. Two things went in with the fix:
   claiming she is twice her own life height.
 
 Still to judge on the device, and none of it is knowable from here:
-- **Whether she faces out.** Selene's config carries `rotation.y = 0`; the rig
-  root is also turned by the behaviour director's yaw. Correct on the phone
-  does not guarantee correct in a volume.
-- **Whether the framing centres her well.** The phone centres the model on its
-  bounds, which for a standing figure in a box may read better standing on the
-  floor of it instead.
+- ~~**Whether the framing centres her well.**~~ Answered on the device
+  2026-08-18: the grounding is right -- she stands on the floor of the box --
+  but the box's floor is where the composer and the button shelf are, both
+  ornaments hanging along the bottom edge and both in front of her, so she stood
+  with her legs through them. `modelVerticalOffset` lifts her clear; the volume
+  sets 8cm, judged by eye on the headset. Zero is the rig's default and is right
+  for the immersive room, where nothing hangs along the bottom of a real floor.
+- **Whether she faces out** was also answered: she does, with her config's
+  `rotation.y = 0` and no correction needed.

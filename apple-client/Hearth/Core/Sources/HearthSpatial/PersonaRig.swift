@@ -200,6 +200,22 @@ public final class PersonaRig: ObservableObject {
         didSet { applyModelScale() }
     }
 
+    /// How far a model persona is lifted off where the rig sits, in METRES of
+    /// the host's own space.
+    ///
+    /// Zero by default, and that is right for a room: a person standing on your
+    /// floor stands on your floor. A volumetric window is the exception -- its
+    /// composer and button shelf are ornaments hanging along the bottom edge,
+    /// and a figure grounded in the box stands with her legs through both of
+    /// them. So the host that put controls there says how far to clear them.
+    ///
+    /// Stated in the host's metres rather than the rig's units, for the same
+    /// reason `modelPresentationScale` is: 8cm should mean 8cm, not 8cm
+    /// multiplied by however big the bead happens to be.
+    public var modelVerticalOffset: Float = 0 {
+        didSet { applyModelScale() }
+    }
+
     private let particleField = Entity()
     private var particleEntities: [ModelEntity] = []
     private var particleBasePositions: [SIMD3<Float>] = []
@@ -592,6 +608,9 @@ public final class PersonaRig: ObservableObject {
     private func applyModelScale() {
         let rigScale = max(rootEntity.scale.x, 0.0001)
         modelHost.scale = SIMD3<Float>(repeating: modelPresentationScale / rigScale)
+        // The same division, for the same reason: a child's position is in its
+        // PARENT's units, and the parent here is the rig root the host scaled.
+        modelHost.position = SIMD3<Float>(0, modelVerticalOffset / rigScale, 0)
     }
 
     /// A figure has to be pinchable too, and a USDZ arrives with no collision

@@ -204,6 +204,7 @@ struct MainVolume: View {
             // because that scale says how big the BEAD is and a person is not
             // sized by a bead. See PersonaRig.modelPresentationScale.
             rig.modelPresentationScale = Self.personaModelScale
+            rig.modelVerticalOffset = Self.personaModelLift
 
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
@@ -510,6 +511,15 @@ struct MainVolume: View {
     /// 80cm wide, so a life-size Selene filled it and stood through the walls
     /// of it -- 0.4 puts her at about half a metre, a figure on a table.
     private static let personaModelScale: Float = 0.4
+
+    /// And how far she is lifted off it, in metres.
+    ///
+    /// A figure grounded in the box stands with her legs through the composer
+    /// and the button shelf -- both ornaments along the bottom edge, both in
+    /// front of her. 8cm clears them, judged on the device. Zero is the rig's
+    /// default and is what the immersive room wants: nothing hangs along the
+    /// bottom of a real floor.
+    private static let personaModelLift: Float = 0.08
 
     /// How big the persona's investigation prop is against life size. Small
     /// enough that its spine lettering is present but unreadable, which is
