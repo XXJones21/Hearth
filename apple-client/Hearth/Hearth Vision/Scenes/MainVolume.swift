@@ -54,6 +54,24 @@ struct MainVolume: View {
     @State private var scrollAtGestureStart: Float = 0
     @State private var hasScrolled = false
 
+    /// EVERYTHING in the box hangs off this, and this is what scales.
+    ///
+    /// A volumetric window is USER-RESIZABLE, and every number in this file --
+    /// where the orb lives, where the library sits, where the clip floor is --
+    /// was authored against one assumed box. Resize the window and all of them
+    /// are wrong at once, silently: content drifts out of the volume or huddles
+    /// in a corner of it, and nothing reports an error.
+    ///
+    /// So the stage is authored once at `designWidth` and the root carries the
+    /// difference. It is the same trick the library already uses for its own
+    /// presentation scale, one level up: author at a known size, present at any
+    /// size, and let one transform reconcile them.
+    @State private var stageRoot = Entity()
+
+    /// The stage's scale, tracked so gestures measured in the real world can be
+    /// converted back into the stage's own units.
+    @State private var stageScale: Float = 1
+
     /// The persona's investigation prop: the same library at a tenth scale,
     /// spines turned toward the orb, untouchable.
     ///
@@ -87,7 +105,9 @@ struct MainVolume: View {
     // MARK: - The stage
 
     private var stage: some View {
+        GeometryReader3D { geometry in
         RealityView { content, _ in
+            content.add(stageRoot)
             // Palm-sized and low in the box. The full transform is set rather
             // than just the position because in phase 4 the rig may be
             // returning from the room, carrying a world transform of its own.
@@ -96,7 +116,7 @@ struct MainVolume: View {
                 rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0)),
                 translation: SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
             )
-            content.add(rig.rootEntity)
+            stageRoot.addChild(rig.rootEntity)
 
             // Where the orb lives, and the three places a behaviour can send
             // it. Registered by the host because only the host knows where it
@@ -148,7 +168,7 @@ struct MainVolume: View {
             // number means what it says -- this is where the ornaments begin.
             libraryEntity.clipBelowInParent = Self.clipFloorY
             libraryEntity.root.isEnabled = false
-            content.add(libraryEntity.root)
+            stageRoot.addChild(libraryEntity.root)
 
             // The prop, beside where the orb flies to consult a journal. Spines
             // turned a quarter to face the orb, so the house reads it side-on
@@ -161,7 +181,7 @@ struct MainVolume: View {
             // repeated in the transform that reveals it.
             propLibrary.presentationScale = Self.propScale
             propLibrary.root.scale = .zero
-            content.add(propLibrary.root)
+            stageRoot.addChild(propLibrary.root)
 
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
@@ -183,6 +203,15 @@ struct MainVolume: View {
                 }
             }
         } update: { content, attachments in
+            // The whole reason this is in the update closure and not `make`:
+            // resizing the window does not rebuild the scene, it re-runs this.
+            let viewBounds = content.convert(geometry.frame(in: .local),
+                                             from: .local, to: .scene)
+            let scale = Float(viewBounds.extents.x) / Self.designWidth
+            if abs(scale - stageScale) > 0.001 {
+                stageScale = scale
+            }
+            stageRoot.scale = SIMD3<Float>(repeating: scale)
             layoutAttachments(content: content, attachments: attachments)
         } attachments: {
             ForEach(cardStore.cards) { card in
@@ -355,7 +384,7 @@ struct MainVolume: View {
                     // library in its own.
                     libraryEntity.scroll = scrollAtGestureStart
                         + Float(value.translation.height) * -0.0024
-                        / max(libraryEntity.presentationScale, 0.01)
+                        / max(libraryEntity.presentationScale * stageScale, 0.01)
                 }
                 .onEnded { _ in scrollAtGestureStart = libraryEntity.scroll }
         )
@@ -384,6 +413,7 @@ struct MainVolume: View {
                     CardOrbitLayout.orbY,
                     0)
             }
+        }
         }
     }
 
@@ -431,6 +461,13 @@ struct MainVolume: View {
     /// enough to hold them.
     private static let clipFloorY: Float = -0.32
 
+    /// The box every number in this file was authored against.
+    ///
+    /// It matches `.defaultSize` in HearthVisionApp, and it is the ONLY place
+    /// the two have to agree: the stage root reconciles whatever the window
+    /// actually is against this.
+    private static let designWidth: Float = 0.8
+
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough
     /// to clear a 560pt panel, close enough to still be in the room with it.
@@ -444,19 +481,19 @@ struct MainVolume: View {
         let cards = cardStore.cards
         for (index, card) in cards.enumerated() {
             guard let entity = attachments.entity(for: card.id) else { continue }
-            if entity.parent == nil { content.add(entity) }
+            if entity.parent !== stageRoot { stageRoot.addChild(entity) }
             entity.position = CardOrbitLayout.position(index: index, count: cards.count)
         }
 
         if let live = attachments.entity(for: Self.liveTextID) {
-            if live.parent == nil { content.add(live) }
+            if live.parent !== stageRoot { stageRoot.addChild(live) }
             live.position = SIMD3<Float>(0, CardOrbitLayout.orbY + 0.2, -0.02)
         }
 
         // The fallback face rides just in front of the bead, at the bead's own
         // height. Only ever present when the compute path failed.
         if let face = attachments.entity(for: Self.faceFallbackID) {
-            if face.parent == nil { content.add(face) }
+            if face.parent !== stageRoot { stageRoot.addChild(face) }
             face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
         }
 
@@ -468,7 +505,7 @@ struct MainVolume: View {
         // nothing appears. That is what happened here: this block was lost with
         // an unrelated one, and the panel simply did not show.
         if let panel = attachments.entity(for: Self.surfaceID) {
-            if panel.parent == nil { content.add(panel) }
+            if panel.parent !== stageRoot { stageRoot.addChild(panel) }
             panel.position = SIMD3<Float>(0.09, 0.02, 0.10)
         }
 
@@ -476,7 +513,7 @@ struct MainVolume: View {
         // the shelves go dark behind it: a library still visible behind the
         // page you are reading is a library competing with it.
         if let page = attachments.entity(for: Self.readerID) {
-            if page.parent == nil { content.add(page) }
+            if page.parent !== stageRoot { stageRoot.addChild(page) }
             page.position = SIMD3<Float>(0.09, 0.02, 0.14)
         }
         libraryEntity.root.isEnabled = (surface == .journal && reading == nil)
