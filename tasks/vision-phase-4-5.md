@@ -38,22 +38,43 @@ So the work is naming rather than building:
   device-tuned look survives as something selectable rather than as the default
   everything else has to argue with.
 
-## 2. A warm effect for the house Sulivan actually is
+## 2. Sulivan becomes a small fire
 
-The new one. Brief, in the brand's own terms rather than in shader terms:
-`cream` and `fennec` and `ember`, firelight rather than poolside -- something
-that reads as a hearth throwing light on the walls of a room. Slow, low
-contrast, no hard caustic filaments.
+The reference, given 2026-08-18: **Calcifer**. A hearth-fire the size of a
+candle flame, sitting in its own light -- orange at the heart, going to ember
+and cream at the edges, with the room lit by it rather than by a lamp pointed at
+the room. The name Hearth has been asking for this since the first commit.
 
-Two things to decide on the device rather than at the desk:
+What that changes, mechanically:
 
-- **Where it is aimed.** Valinor aims straight down (-90 degrees about X) and
-  gets a pool on the floor. Firelight on the WALLS is a different rig -- likely
-  a wider cone or more than one -- and the operator's ask is the walls.
-- **Whether it is one light or the room's ambient.** `SurroundingsLight` alone
-  adds flat illumination with no pattern; the pattern needs geometry to land on,
-  which is what the reconstructed mesh is for. A warm wash may want less pattern
-  and more light than caustics did.
+- **A POINT light, not a spotlight.** The other projection map visionOS
+  supports. A spotlight aims, and a fire does not aim -- it sits somewhere and
+  the room falls off around it. This is what puts the glow on the walls AND the
+  floor from one source instead of a cone that has to be pointed at each.
+- **The texture generator draws fire.** The kernel writes an animated flame
+  rather than caustic filaments, and the SAME texture is both what the bead
+  looks like and what the room is lit by: the fire is the light, so its glow on
+  the walls is its own texture projected.
+- **The particle field goes with it.** The idle twinkles were fireflies around a
+  bead; around a flame they want to be embers -- rising, brief, warmer at the
+  bottom. This is `PersonaRig`'s particle choreography, not a new system, and
+  it is the piece most likely to look wrong first because the current field
+  orbits rather than rises.
+
+## 2a. What the texture class actually becomes
+
+Not "caustics with more presets". The right frame, and the precedent is already
+in this codebase: `PersonaFaceTexture` is a `LowLevelTexture` that a Metal
+kernel rewrites every frame, and it was built by reusing exactly the pattern
+`CausticsTexture` established. Two consumers of one idea is a class, and this
+is the third.
+
+So it becomes a general **animated texture generator** -- a kernel name, a
+handful of uniforms, a `LowLevelTexture`, a `tick` -- and caustics, smoke, and
+fire are each just a kernel and a set of numbers. Which means the face texture
+should eventually sit on top of the same base rather than beside it, and that
+is the check on whether the abstraction is real: if the face cannot use it, it
+is not a texture generator, it is caustics wearing a different name.
 
 ## 3. Who gets effects at all
 
