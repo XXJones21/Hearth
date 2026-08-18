@@ -176,15 +176,29 @@ public final class PersonaRig: ObservableObject {
     /// file needs to notify, which is why the flag is the only new @Published.
     @Published public private(set) var modelActive = false
 
-    /// How tall a model persona ends up INSIDE THE RIG, before the host's own
-    /// scale. The bead is `sphereRadius * 2` across, so this makes a figure
-    /// read as about two and a half times the bead -- a person beside where a
-    /// bead was, rather than a bead-sized person. Judged against the phone's
-    /// own 1.34, which frames a full-length mirror in a view with its own
-    /// camera; a volume is not that, so the number is stated here rather than
-    /// inherited.
-    private let modelFitHeight: Float = 1.34
-    private let modelFitWidth: Float = 1.15
+    /// Life size, in metres, and it is the phone's own number: 1.34 is a
+    /// standing figure framed full-length. `modelPresentationScale` is a
+    /// fraction OF THIS, which is what makes 1.0 mean "as tall as she would
+    /// really be".
+    private let modelLifeHeight: Float = 1.34
+    private let modelLifeWidth: Float = 1.15
+
+    /// How big a model persona is SHOWN, as a fraction of life size.
+    ///
+    /// The library's trick, applied to a person: author at life size, present
+    /// at any size. 1.0 is the default and is what an immersive room wants --
+    /// a person standing in your room is a person-sized person. A volumetric
+    /// window is 80cm wide and wants a figure on a table instead, so its host
+    /// sets a fraction and nothing else in the rig has to know about boxes.
+    ///
+    /// Independent of the bead's scale on purpose. The host scales
+    /// `rootEntity` to say how big SULIVAN'S BEAD is in this box -- a fact
+    /// about a bead -- and a person is not sized by it. So the model host
+    /// divides that scale back out and this number is measured against the
+    /// room, not against the orb.
+    public var modelPresentationScale: Float = 1.0 {
+        didSet { applyModelScale() }
+    }
 
     private let particleField = Entity()
     private var particleEntities: [ModelEntity] = []
@@ -288,6 +302,7 @@ public final class PersonaRig: ObservableObject {
 
         modelHost.name = "PersonaModelHost"
         rootEntity.addChild(modelHost)
+        applyModelScale()
 
         applyStateVisuals(animated: false)
     }
@@ -505,6 +520,12 @@ public final class PersonaRig: ObservableObject {
         modelLoadToken += 1
         let token = modelLoadToken
 
+        // Recomputed here rather than trusted from init: the host sets the rig
+        // root's scale after constructing the rig, and this number is measured
+        // against it. Doing it at the moment a model actually arrives makes the
+        // host's ordering irrelevant.
+        applyModelScale()
+
         // The old one goes NOW, not when the new one arrives: switching away
         // from Selene should not leave her standing while Sage downloads.
         modelLoader?.unload()
@@ -522,8 +543,8 @@ public final class PersonaRig: ObservableObject {
         Task { @MainActor [weak self] in
             await loader.load(visualization: newValue,
                               into: self?.modelHost ?? Entity(),
-                              fitHeight: self?.modelFitHeight ?? 1.34,
-                              fitWidth: self?.modelFitWidth ?? 1.15)
+                              fitHeight: self?.modelLifeHeight ?? 1.34,
+                              fitWidth: self?.modelLifeWidth ?? 1.15)
             guard let self, token == self.modelLoadToken else {
                 // A third persona was chosen while this one was downloading.
                 loader.unload()
@@ -537,9 +558,12 @@ public final class PersonaRig: ObservableObject {
             }
             self.modelActive = true
             self.setOrbVisible(false)
-            // A provisional box, so she is pinchable during the second before
-            // the fit lands. `onFramed` above replaces it with the real one.
-            self.applyModelCollision()
+            // NO collision yet, deliberately. The first cut set a provisional
+            // box here from the un-fitted model, which for a USDZ authored at
+            // a hundred times its final size is a box around the whole room --
+            // and for the second before the fit lands, every pinch in the
+            // scene landed on it instead of on what was aimed at. She is not
+            // pinchable until `onFramed` says how big she actually is.
             loader.play(state: self.hearthState)
         }
     }
@@ -562,14 +586,30 @@ public final class PersonaRig: ObservableObject {
         faceShell?.isEnabled = visible && isAlive
     }
 
+    /// The model host's own scale: the presentation fraction, with the rig
+    /// root's scale divided back out so the fraction is measured against the
+    /// room rather than against the bead.
+    private func applyModelScale() {
+        let rigScale = max(rootEntity.scale.x, 0.0001)
+        modelHost.scale = SIMD3<Float>(repeating: modelPresentationScale / rigScale)
+    }
+
     /// A figure has to be pinchable too, and a USDZ arrives with no collision
     /// shape of its own. Sized from what actually loaded rather than from a
     /// constant: the bead's `tapTargetRadius` is a sphere around a sphere, and
     /// a standing person is neither.
+    ///
+    /// Only ever called once the fit has landed -- see `onFramed`. A box
+    /// measured before then is a box around the raw USDZ, which is the size the
+    /// artist exported and has nothing to do with the size on screen.
     private func applyModelCollision() {
         #if os(visionOS)
         let bounds = modelHost.visualBounds(relativeTo: modelHost)
-        guard bounds.extents.y > 0.0001 else { return }
+        guard bounds.extents.y > 0.0001,
+              // A last guard against measuring at the wrong moment: a person is
+              // never twice her own life height, so anything that says she is
+              // has measured something other than her.
+              bounds.extents.y < modelLifeHeight * 2 else { return }
         let shape = ShapeResource.generateBox(size: bounds.extents)
             .offsetBy(translation: bounds.center)
         modelHost.components.set(CollisionComponent(shapes: [shape]))

@@ -105,11 +105,11 @@ public final class PersonaModelLoader {
     private var loopTask: Task<Void, Never>?
 
     /// - Parameters:
-    ///   - fitHeight: how tall the model should end up, in the host's own
-    ///     units. The phone's stage is a RealityView of its own with a default
-    ///     camera, where 1.34 is full-length-mirror framing; a volume hosts the
-    ///     model inside the persona rig, which carries a scale of its own, so
-    ///     the number that frames it there is a different number. It was a
+    ///   - fitHeight: how tall the model should end up, IN THE UNITS OF THE
+    ///     ENTITY IT IS ADDED TO. The phone's stage is a RealityView of its own
+    ///     whose root sits at identity, where 1.34 is full-length-mirror
+    ///     framing; a spatial host parents this inside a rig with a scale of
+    ///     its own, and the fit has to mean the same thing there. It was a
     ///     literal in `scheduleFraming` until the headset needed a second one.
     ///   - fitWidth: the guard that stops a wide pose overflowing.
     public func load(visualization: PersonaVisualization,
@@ -320,7 +320,21 @@ public final class PersonaModelLoader {
             try? await Task.sleep(nanoseconds: 800_000_000)
             guard !Task.isCancelled else { return }
 
-            let bounds = entity.visualBounds(relativeTo: nil)
+            // IN THE PARENT'S SPACE, not the scene's.
+            //
+            // `relativeTo: nil` measures in SCENE space, which is identical
+            // here only while the chain above the model is at identity -- true
+            // of the phone's own RealityView and of nothing else. In the
+            // headset's volume the model hangs inside a rig scaled to 0.22
+            // inside a stage root that rescales with the window, so a scene-
+            // space fit solved for "1.34 metres in the ROOM" and put a
+            // life-size person inside a box 80cm wide. Her collision box came
+            // with her, which is why every pinch in the volume stopped landing
+            // on anything else.
+            //
+            // Measured against the parent, `fitHeight` means what its caller
+            // said it meant, and a window resize cannot change the answer.
+            let bounds = entity.visualBounds(relativeTo: entity.parent)
             let size = bounds.extents
             guard size.y > 0.0001 else { return }
 

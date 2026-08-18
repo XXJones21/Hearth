@@ -199,6 +199,12 @@ struct MainVolume: View {
             propLibrary.root.scale = .zero
             stageRoot.addChild(propLibrary.root)
 
+            // A model persona is shown at a fraction of life size in here.
+            // Set on the rig rather than folded into the rig root's own scale,
+            // because that scale says how big the BEAD is and a person is not
+            // sized by a bead. See PersonaRig.modelPresentationScale.
+            rig.modelPresentationScale = Self.personaModelScale
+
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
             rig.updateState(PersonaState(viewModel.hearthState))
@@ -496,6 +502,14 @@ struct MainVolume: View {
     private static let surfaceID = "hearth.surface"
     private static let readerID = "hearth.journal-reader"
     private static let railID = "hearth.rail"
+
+    /// How big a model persona stands in the box, against life size.
+    ///
+    /// 1.0 is the rig's default and is what phase 4's immersive room will want:
+    /// a person in your room should be person-sized. A volumetric window is
+    /// 80cm wide, so a life-size Selene filled it and stood through the walls
+    /// of it -- 0.4 puts her at about half a metre, a figure on a table.
+    private static let personaModelScale: Float = 0.4
 
     /// How big the persona's investigation prop is against life size. Small
     /// enough that its spine lettering is present but unreadable, which is

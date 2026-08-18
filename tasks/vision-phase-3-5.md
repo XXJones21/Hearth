@@ -247,12 +247,35 @@ What the rig does with a `glb_animated` persona:
   showing an empty stage, which is the contract `canRenderModel` was written
   for.
 
-Still to judge on the device, and none of it is knowable from here:
+**What the device found, 2026-08-18: one bug wearing two faces.** Selene came
+up life-size in an 80cm box, and once she did, nothing in the volume could be
+pinched at all -- the menus, the shelf, the rail, none of it.
 
-- **`modelFitHeight` is 1.34**, the phone's number, and the rig then sits inside
-  the volume's own 0.22 scale -- so Selene lands about 29cm tall, centred on
-  `CardOrbitLayout.orbY`. That is a guess about how big a figure should read in
-  a box, and the first thing to change if she is too large or too small.
+Both were `visualBounds(relativeTo: nil)` in the loader's framing pass. `nil`
+means SCENE space, which equals local space only while everything above the
+model sits at identity -- true of the phone's own RealityView and of nothing
+else. In the volume the model hangs inside a rig scaled to 0.22 inside a stage
+root that rescales with the window, so the fit was solving for "1.34 metres in
+the ROOM" and delivering exactly that. Her collision box was fitted to the same
+wrong answer, which is why every pinch in the scene landed on her instead of on
+what it was aimed at.
+
+Measured against the PARENT, `fitHeight` means what its caller said it meant,
+and a window resize cannot change the answer. Two things went in with the fix:
+
+- **`modelPresentationScale`**, the library's trick applied to a person: author
+  at life size, present at any size. 1.0 is the default and is what the
+  immersive room will want -- a person in your room should be person-sized. The
+  volume sets 0.4, about half a metre, a figure on a table. It divides the rig
+  root's scale back out, because that scale says how big SULIVAN'S BEAD is and
+  a person is not sized by a bead.
+- **No collision until the fit lands.** The provisional box was measured from
+  the raw USDZ, which is the size the artist exported; for the second before
+  framing it was a box around the room. She is simply not pinchable until
+  `onFramed` says how big she is, plus a sanity guard that refuses any measure
+  claiming she is twice her own life height.
+
+Still to judge on the device, and none of it is knowable from here:
 - **Whether she faces out.** Selene's config carries `rotation.y = 0`; the rig
   root is also turned by the behaviour director's yaw. Correct on the phone
   does not guarantee correct in a volume.
