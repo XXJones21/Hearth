@@ -101,6 +101,18 @@ public final class PersonaRig: ObservableObject {
     private var faceGeometry = FaceGeometry()
     private var faceClock: Double = 0
 
+    /// The behaviour currently playing, mirrored so SwiftUI can see it.
+    ///
+    /// BehaviorDirector is a plain class -- deliberately, because it is ticked
+    /// from a render loop and an ObservableObject that published sixty times a
+    /// second would push the whole stage through SwiftUI's diff. But a host
+    /// staging a prop for a particular performance needs to KNOW when one
+    /// starts, and `onChange` on a plain property only samples when the body
+    /// re-renders for some unrelated reason. So the rig, which is already an
+    /// ObservableObject, mirrors the one field a view has to react to, and
+    /// publishes only on the edges.
+    @Published public private(set) var performingBehavior: String?
+
     /// True when the compute face is live. False means the host should mount
     /// `PersonaFaceView` as a billboard attachment instead -- degraded, never
     /// faceless.
@@ -537,6 +549,11 @@ public final class PersonaRig: ObservableObject {
         // inferring it: only the rig knows whether the house is talking.
         let offset = behavior.tick(dt: dt, speaking: currentState == .speaking)
         rootEntity.position = homePosition + offset
+        // Edges only: this is inside a per-frame tick, and assigning an equal
+        // value to a @Published still notifies.
+        if behavior.performing != performingBehavior {
+            performingBehavior = behavior.performing
+        }
 
         // The switch flourish overrides the per-state choreography while the
         // hold builds. Dormant until phase 4 ramps `transitionProgress`.

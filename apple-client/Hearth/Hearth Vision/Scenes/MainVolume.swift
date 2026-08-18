@@ -54,8 +54,6 @@ struct MainVolume: View {
     @State private var scrollAtGestureStart: Float = 0
     @State private var hasScrolled = false
 
-    /// The rooms the library laid out, mirrored so the attachment builder can
-    /// see them. The entity owns the truth; this is the redraw trigger.
     /// The persona's investigation prop: the same library at a tenth scale,
     /// spines turned toward the orb, untouchable.
     ///
@@ -122,13 +120,18 @@ struct MainVolume: View {
                 at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
 
 
-            // The centre slot's 3D half. Hidden until the Journal button asks
+            // The centre slot's 3D half, hidden until the Journal button asks
             // for it; the orb slides left to make room.
+            //
             // Life size, which is what `scale = 1` now means: a bookcase of
             // 21cm journals. It reaches past the volume's bounds and that is
             // accepted -- it can be scrolled and selected, which is the whole
             // reason to open it.
-            libraryEntity.root.position = SIMD3<Float>(0.10, 0.02, 0.02)
+            // Up, not centred. The shelves hang DOWNWARD from their own
+            // origin, so an origin near the middle of the box put the lowest
+            // board over the composer and the shelf ornament. This lifts the
+            // whole carcass so it starts high and grows into the space it has.
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.30, 0.02)
             libraryEntity.root.isEnabled = false
             content.add(libraryEntity.root)
 
@@ -305,7 +308,7 @@ struct MainVolume: View {
         // about what it found. Scale is the whole animation -- nothing, to a
         // tenth, and back -- because a bookcase that faded would read as a
         // ghost, and one that grows reads as being fetched.
-        .onChange(of: rig.behavior.performing) { _, name in
+        .onChange(of: rig.performingBehavior) { _, name in
             let wanted = (name == "consulting_journal")
             guard wanted != propVisible else { return }
             propVisible = wanted

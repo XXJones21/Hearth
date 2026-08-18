@@ -148,15 +148,29 @@ public final class JournalBookEntity {
         var ink = UnlitMaterial()
         ink.color = .init(tint: Self.color(JournalLeather.letteringScene))
 
-        let label = ModelEntity(mesh: mesh, materials: [ink])
+        // CENTRED ON THE SPINE, measured rather than guessed.
+        //
+        // `generateText` lays out from its own baseline-left origin, so a
+        // rotated label sits wherever that origin lands -- which for a thick
+        // book put the lettering off the leather entirely. The first cut nudged
+        // it by a fraction of the book's WIDTH, which cannot be right for both
+        // a thin seedling and a fat archive.
+        //
+        // The mesh knows its own extent. Centre the glyphs on their own origin
+        // first, then the wrapper's placement is exact for any thickness: the
+        // label is on the spine because it is put where the spine is.
+        let glyphs = ModelEntity(mesh: mesh, materials: [ink])
+        let bounds = mesh.bounds
+        glyphs.position = -bounds.center
+
+        let label = Entity()
         label.name = "title"
-        // Turn it up the spine, then push it just clear of the leather.
+        label.addChild(glyphs)
+        // Turn it up the spine: bottom-to-top, as almost every
+        // English-language spine reads and as the phone's -90 degrees does.
         label.orientation = simd_quatf(angle: .pi / 2, axis: SIMD3<Float>(0, 0, 1))
-        // generateText lays out from its own origin, so the rotated text has to
-        // be walked back into the middle of the face by hand.
-        label.position = SIMD3<Float>(width * 0.30,
-                                      -usable * 0.5,
-                                      Self.depth * 0.5 + Self.height * 0.002)
+        // Just proud of the leather, dead centre of the face.
+        label.position = SIMD3<Float>(0, 0, Self.depth * 0.5 + Self.height * 0.002)
         root.addChild(label)
     }
 

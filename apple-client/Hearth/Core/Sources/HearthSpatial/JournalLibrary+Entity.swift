@@ -110,14 +110,20 @@ public final class JournalLibraryEntity {
         rooms = []
         var row = 0
 
-        // The masthead sits above everything, a room's worth of gap up.
+        // The masthead sits just above the first room's label, NOT a whole
+        // shelf higher.
+        //
+        // It used to take row 0 for itself, which left a full board's pitch of
+        // empty air between the title and the first shelf -- a gap that reads
+        // as a shelf that failed to load rather than as breathing room. It gets
+        // a masthead's worth of clearance and no more.
+        let mastheadY = labelRise + JournalBookEntity.height * 0.34
         scroller.addChild(Self.text("Journal", size: JournalBookEntity.height * 0.115,
-                                    at: SIMD3<Float>(-boardWidth * 0.5, labelRise, 0)))
+                                    at: SIMD3<Float>(-boardWidth * 0.5, mastheadY, 0)))
         scroller.addChild(Self.text("kept by Selene", size: JournalBookEntity.height * 0.062,
                                     at: SIMD3<Float>(-boardWidth * 0.5,
-                                                     labelRise - JournalBookEntity.height * 0.15, 0),
+                                                     mastheadY - JournalBookEntity.height * 0.15, 0),
                                     muted: true))
-        row = 1
 
         for (books, label, caption) in Self.roomOrder(heart: heart, life: life,
                                                       projects: projects, seedlings: seedlings) {
