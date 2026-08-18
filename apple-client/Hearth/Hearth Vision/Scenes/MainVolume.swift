@@ -280,6 +280,19 @@ struct MainVolume: View {
             // of a live drag. The entity already knows its own scale, so
             // anything that needs it reads `stageRoot.scale` instead.
             stageRoot.scale = SIMD3<Float>(repeating: scale)
+            // THE PERSONA COMES HOME HERE, not in `make`.
+            //
+            // Closing a window BACKGROUNDS its scene rather than destroying it,
+            // so returning from the room re-shows this same RealityView and
+            // `make` never runs again. Meanwhile the rig was re-parented into
+            // the immersive scene on the way out and is not a child of anything
+            // here any more -- which is why the box came back empty with its
+            // ornaments still on it.
+            //
+            // Re-parenting is idempotent and costs a pointer comparison, so it
+            // belongs in the closure that always runs rather than the one that
+            // runs once.
+            adoptPersona()
             layoutAttachments(content: content, attachments: attachments)
         } attachments: {
             ForEach(cardStore.cards) { card in
@@ -750,6 +763,26 @@ struct MainVolume: View {
         }
         libraryEntity.root.isEnabled = (surface == .journal && reading == nil)
 
+    }
+
+    /// Put the persona back in the box, in the box's own terms.
+    ///
+    /// Everything reset here is something the ROOM changed: it scales the bead
+    /// up, it stands the persona somewhere in real space, and it takes the
+    /// entity out of this scene entirely. None of that should survive the trip
+    /// home, and none of it is reset by the room on its way out -- the room
+    /// does not know it is leaving.
+    private func adoptPersona() {
+        guard rig.rootEntity.parent !== stageRoot else { return }
+        stageRoot.addChild(rig.rootEntity)
+        rig.setRigScale(Self.beadScale)
+        rig.modelPresentationScale = Self.personaModelScale
+        rig.modelVerticalOffset = Self.personaModelLift
+        rig.configure(for: .volumetric)
+        let home = SIMD3<Float>(surface == nil ? 0 : Self.stageLeftX,
+                                CardOrbitLayout.orbY, 0)
+        rig.homePosition = home
+        rig.rootEntity.position = home
     }
 
     /// Rebuild the shelves from the house's library.

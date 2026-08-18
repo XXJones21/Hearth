@@ -20,8 +20,10 @@
 //  elapsed time decide.
 //
 //  Valinor arrived at the same shape for the same reason, and its third meaning
-//  -- drag past a threshold to reposition the orb in the room -- fits here
-//  later without changing the arbitration.
+//  is here now: drag past a threshold and the pinch becomes a reposition, which
+//  is how you move the persona somewhere else in a room. It fits the same
+//  arbitration because all three are decided from the SAME press -- time for the
+//  hold, distance for the drag, neither for the tap.
 //
 
 import SwiftUI
@@ -35,13 +37,18 @@ extension View {
     ///   - progress: the ramp, 0 to 1, while the hold builds. The rig drives its
     ///     switch flourish from this, so the persona shows the crossing coming
     ///     rather than snapping at the end of a silent two seconds.
+    ///   - onDrag: where the persona was dragged to, in scene coordinates. Nil
+    ///     disables repositioning -- which is right in a box, where there is
+    ///     nowhere to put her that the stage has not already decided.
     func personaHold(target: Entity,
                      onTap: (() -> Void)?,
                      onHold: @escaping () -> Void,
+                     onDrag: ((SIMD3<Float>) -> Void)? = nil,
                      progress: @escaping (Float) -> Void) -> some View {
         modifier(PersonaHoldModifier(target: target,
                                      onTap: onTap,
                                      onHold: onHold,
+                                     onDrag: onDrag,
                                      progress: progress))
     }
 }
@@ -50,12 +57,26 @@ private struct PersonaHoldModifier: ViewModifier {
     let target: Entity
     let onTap: (() -> Void)?
     let onHold: () -> Void
+    let onDrag: ((SIMD3<Float>) -> Void)?
     let progress: (Float) -> Void
 
     /// Two seconds, from Valinor, judged on a headset.
     private static let holdDuration: TimeInterval = 2.0
 
+    /// How far a press has to travel, in metres, before it stops being a press.
+    /// Valinor's number, judged on a headset: small enough that a deliberate
+    /// move registers immediately, large enough that the hand drift in a
+    /// two-second hold does not cancel the hold.
+    private static let dragThreshold: Float = 0.03
+
     @State private var pressStarted: Date?
+    /// Where the persona was when the press landed, and the offset from the
+    /// pinch to her centre. Kept so she moves WITH the hand rather than
+    /// snapping her centre onto it.
+    @State private var grabOffset: SIMD3<Float>?
+    /// Set once a press has travelled far enough to be a drag. From then on it
+    /// is a drag and nothing else -- no hold, no tap.
+    @State private var dragging = false
     /// Set the moment the hold completes, so releasing afterwards does not also
     /// fire a tap and start a voice turn on the way out of the room.
     @State private var committed = false
@@ -65,20 +86,47 @@ private struct PersonaHoldModifier: ViewModifier {
         content.gesture(
             DragGesture(minimumDistance: 0)
                 .targetedToEntity(target)
-                .onChanged { _ in
-                    guard pressStarted == nil else { return }
-                    pressStarted = Date()
-                    committed = false
-                    startRamp()
+                .onChanged { value in
+                    let hit = value.convert(value.location3D, from: .local, to: .scene)
+                    let here = SIMD3<Float>(hit)
+
+                    if pressStarted == nil {
+                        pressStarted = Date()
+                        committed = false
+                        dragging = false
+                        grabOffset = target.position(relativeTo: nil) - here
+                        startRamp()
+                    }
+
+                    guard let grabOffset, onDrag != nil else { return }
+                    let start = value.convert(value.startLocation3D, from: .local, to: .scene)
+                    let travelled = simd_length(here - SIMD3<Float>(start))
+                    if !dragging, travelled > Self.dragThreshold {
+                        // It is a drag from here on. The hold ramp stops, because
+                        // holding still is what a hold IS -- a person moving the
+                        // persona across a room should not fall through into
+                        // another space two seconds in.
+                        dragging = true
+                        stopRamp()
+                        progress(0)
+                    }
+                    if dragging {
+                        onDrag?(here + grabOffset)
+                    }
                 }
                 .onEnded { _ in
                     stopRamp()
                     let held = pressStarted.map { Date().timeIntervalSince($0) } ?? 0
+                    let wasDragging = dragging
                     pressStarted = nil
+                    grabOffset = nil
+                    dragging = false
                     progress(0)
-                    // A completed hold has already acted. Releasing after it is
-                    // just letting go, and must not also be a tap.
+                    // A completed hold has already acted, and a drag has been
+                    // acting the whole time. Releasing after either is just
+                    // letting go, and must not also start a voice turn.
                     guard !committed else { committed = false; return }
+                    guard !wasDragging else { return }
                     guard held < Self.holdDuration else { return }
                     onTap?()
                 }
