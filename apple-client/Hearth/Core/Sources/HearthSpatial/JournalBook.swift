@@ -45,24 +45,33 @@ public final class JournalBookEntity {
 
     private let spine: ModelEntity
 
-    /// A book's height on the shelf, in metres. Everything else is a
-    /// proportion of this, exactly as the phone's spine is a proportion of its
-    /// 132pt height.
+    /// A book's height, IN METRES AND AT LIFE SIZE. Everything else in the
+    /// library is a proportion of this, exactly as the phone's spine is a
+    /// proportion of its 132pt height.
     ///
-    /// A NOTEBOOK, not a matchbox. These were 0.046 by 0.034 and read as too
-    /// small and slightly square on the device; up about a third and squared to
-    /// a real book's proportions, they are roughly a large Moleskine -- around
-    /// 21cm by 13cm, which is 1.58 tall to wide. That ratio is the reason a
-    /// book looks like a book rather than a block, and it costs nothing to get
-    /// right.
-    public static let height: Float = 0.060
+    /// A large Moleskine: 21cm by 13cm. Twice this file has claimed those
+    /// proportions and set numbers far short of them -- 0.046, then 0.060, both
+    /// about the height of a thumb. RealityKit's unit IS the metre, so a book
+    /// that should be 0.21 was authored at a quarter of that and every derived
+    /// number, the spine lettering worst of all, came out a quarter too small
+    /// with it.
+    ///
+    /// AUTHOR AT LIFE SIZE, PRESENT AT ANY SIZE. Nothing in the library scales
+    /// itself now; the library's root does, so `scale = 1` is a real bookcase
+    /// and the persona's investigation prop is the same tree at 0.10. Anything
+    /// that hard-codes a smaller number here takes that choice away again.
+    public static let height: Float = 0.21
     /// How far a book reaches back into the shelf: its width, closed.
-    public static let depth: Float = 0.038
+    public static let depth: Float = 0.13
 
     /// How thick THIS book is, from its page count.
     public var thickness: Float { Self.height * JournalLeather.spineFraction(pages: book.pages) }
 
-    public init(book: JournalBook, palette: PersonaPalette) {
+    /// - Parameter interactive: give the book a collision shape and an input
+    ///   target. False for the persona's investigation prop, which is scenery:
+    ///   a person reaching past the orb to pinch a 2cm book the house is
+    ///   reading would be reaching for something that is about to vanish.
+    public init(book: JournalBook, palette: PersonaPalette, interactive: Bool = true) {
         self.book = book
         root = Entity()
         root.name = "JournalBook.\(book.id)"
@@ -94,7 +103,7 @@ public final class JournalBookEntity {
             mesh: .generateBox(size: SIMD3<Float>(width * 0.72,
                                                   Self.height * 0.92,
                                                   Self.depth * 0.94),
-                               cornerRadius: 0.0004),
+                               cornerRadius: Self.height * 0.002),
             materials: [paper])
         pages.name = "pages"
         // Pushed back so it peeks out behind the leather rather than through it.
@@ -108,10 +117,12 @@ public final class JournalBookEntity {
         // reason. A generous box on a shelf of thin books means the wrong book
         // opens.
         #if os(visionOS)
-        root.components.set(CollisionComponent(
-            shapes: [.generateBox(size: SIMD3<Float>(width, Self.height, Self.depth))]))
-        root.components.set(InputTargetComponent())
-        root.components.set(HoverEffectComponent())
+        if interactive {
+            root.components.set(CollisionComponent(
+                shapes: [.generateBox(size: SIMD3<Float>(width, Self.height, Self.depth))]))
+            root.components.set(InputTargetComponent())
+            root.components.set(HoverEffectComponent())
+        }
         #endif
     }
 
@@ -126,8 +137,10 @@ public final class JournalBookEntity {
         let usable = Self.height * 0.86
         let mesh = MeshResource.generateText(
             book.title,
-            extrusionDepth: 0.0002,
-            font: .systemFont(ofSize: 0.0092, weight: .semibold),
+            extrusionDepth: Self.height * 0.001,
+            // Derived from the book, never a literal: lettering that does not
+            // move with the geometry is the bug this file has already had.
+            font: .systemFont(ofSize: CGFloat(Self.height * 0.052), weight: .semibold),
             containerFrame: CGRect(x: 0, y: 0, width: CGFloat(usable), height: CGFloat(width)),
             alignment: .left,
             lineBreakMode: .byTruncatingTail)
@@ -143,7 +156,7 @@ public final class JournalBookEntity {
         // be walked back into the middle of the face by hand.
         label.position = SIMD3<Float>(width * 0.30,
                                       -usable * 0.5,
-                                      Self.depth * 0.5 + 0.0004)
+                                      Self.depth * 0.5 + Self.height * 0.002)
         root.addChild(label)
     }
 

@@ -113,6 +113,11 @@ public final class BehaviorDirector {
     /// whether the orb is available for anything else.
     public var isPerforming: Bool { running != nil }
 
+    /// WHICH performance is playing, or nil. A host that stages props for
+    /// particular behaviours -- the library the orb reads from while consulting
+    /// a journal -- needs the name and not just the fact.
+    public var performing: String? { runningName }
+
     /// Stop whatever is running and come back. The single exit, so every reason
     /// to abandon a performance -- an `end` cue, a new turn, an error, speech
     /// beginning under a behaviour that does not hold its ground -- leaves the

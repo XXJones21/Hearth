@@ -56,7 +56,15 @@ struct MainVolume: View {
 
     /// The rooms the library laid out, mirrored so the attachment builder can
     /// see them. The entity owns the truth; this is the redraw trigger.
-    @State private var libraryRooms: [JournalLibraryEntity.Room] = []
+    /// The persona's investigation prop: the same library at a tenth scale,
+    /// spines turned toward the orb, untouchable.
+    ///
+    /// A SECOND entity rather than the same one shrunk, because the two are
+    /// different objects with different rules -- one is a bookcase a person
+    /// browses, the other is scenery the house reads from -- and sharing one
+    /// would let a scroll offset or an open book leak between them.
+    @State private var propLibrary = JournalLibraryEntity(interactive: false)
+    @State private var propVisible = false
 
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
@@ -116,9 +124,22 @@ struct MainVolume: View {
 
             // The centre slot's 3D half. Hidden until the Journal button asks
             // for it; the orb slides left to make room.
-            libraryEntity.root.position = SIMD3<Float>(0.10, 0.06, 0.02)
+            // Life size, which is what `scale = 1` now means: a bookcase of
+            // 21cm journals. It reaches past the volume's bounds and that is
+            // accepted -- it can be scrolled and selected, which is the whole
+            // reason to open it.
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.02, 0.02)
             libraryEntity.root.isEnabled = false
             content.add(libraryEntity.root)
+
+            // The prop, beside where the orb flies to consult a journal. Spines
+            // turned a quarter to face the orb, so the house reads it side-on
+            // the way a person reads a shelf. Starts at nothing.
+            propLibrary.root.position = SIMD3<Float>(0.30, CardOrbitLayout.orbY + 0.04, 0.02)
+            propLibrary.root.orientation = simd_quatf(angle: -.pi / 2,
+                                                      axis: SIMD3<Float>(0, 1, 0))
+            propLibrary.root.scale = .zero
+            content.add(propLibrary.root)
 
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
@@ -211,33 +232,13 @@ struct MainVolume: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
-            // The room labels, floating over the shelves they name. Parented
-            // to the SCROLLER, so a caption travels with its books rather than
-            // sitting still while they move past underneath it.
-            ForEach(libraryRooms) { room in
-                Attachment(id: room.id) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(room.label)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(HearthPalette.roast)
-                        Text(room.caption)
-                            .font(.system(size: 9.5))
-                            .italic()
-                            .foregroundStyle(HearthPalette.fawn)
-                    }
-                }
-            }
-            Attachment(id: Self.mastheadID) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Journal")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(HearthPalette.roast)
-                    Text("kept by Selene")
-                        .font(.system(size: 10))
-                        .italic()
-                        .foregroundStyle(HearthPalette.fawn)
-                }
-            }
+            // The room labels are GEOMETRY now, inside the library, not
+            // attachments here. An attachment renders in points and needed its
+            // own scale factor reconciled against the library's metres -- which
+            // is why they never appeared, and which would break again the
+            // moment the library is presented at two sizes. See
+            // JournalLibraryEntity.text.
+
             // The centre slot, for the four FLAT destinations. Journal is not
             // one: its centre slot is the library's entities, and a panel
             // behind them was a plane standing in front of the shelves.
@@ -298,6 +299,23 @@ struct MainVolume: View {
             guard !title.isEmpty, let found = libraryEntity.book(matchingTitle: title) else { return }
             surface = .journal
             reading = found
+        }
+        // The prop rides the PERFORMANCE, not the turn: it appears when the
+        // house starts consulting a journal and goes when it starts talking
+        // about what it found. Scale is the whole animation -- nothing, to a
+        // tenth, and back -- because a bookcase that faded would read as a
+        // ghost, and one that grows reads as being fetched.
+        .onChange(of: rig.behavior.performing) { _, name in
+            let wanted = (name == "consulting_journal")
+            guard wanted != propVisible else { return }
+            propVisible = wanted
+            propLibrary.root.move(
+                to: Transform(scale: SIMD3<Float>(repeating: wanted ? 0.10 : 0.0001),
+                              rotation: propLibrary.root.orientation,
+                              translation: propLibrary.root.position),
+                relativeTo: propLibrary.root.parent,
+                duration: wanted ? 0.55 : 0.35,
+                timingFunction: .easeInOut)
         }
         .task { await library.load() }
         .onChange(of: library.allBooks.map(\.id)) { _, _ in rebuildLibrary() }
@@ -369,12 +387,6 @@ struct MainVolume: View {
     private static let faceFallbackID = "hearth.face-fallback"
     private static let surfaceID = "hearth.surface"
     private static let readerID = "hearth.journal-reader"
-    private static let mastheadID = "hearth.journal-masthead"
-
-    /// Attachments render in points and the library is measured in metres, so a
-    /// label built at a readable font size arrives enormous. This is the one
-    /// number that reconciles them.
-    private static let labelScale: Float = 0.00055
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough
@@ -426,24 +438,6 @@ struct MainVolume: View {
         }
         libraryEntity.root.isEnabled = (surface == .journal && reading == nil)
 
-        // Labels ride with the shelves.
-        if let masthead = attachments.entity(for: Self.mastheadID) {
-            if masthead.parent !== libraryEntity.scrollerEntity {
-                masthead.removeFromParent()
-                libraryEntity.scrollerEntity.addChild(masthead)
-            }
-            masthead.position = libraryEntity.mastheadAnchor
-            masthead.scale = SIMD3<Float>(repeating: Self.labelScale)
-        }
-        for room in libraryRooms {
-            guard let label = attachments.entity(for: room.id) else { continue }
-            if label.parent !== libraryEntity.scrollerEntity {
-                label.removeFromParent()
-                libraryEntity.scrollerEntity.addChild(label)
-            }
-            label.position = room.anchor
-            label.scale = SIMD3<Float>(repeating: Self.labelScale)
-        }
     }
 
     /// Rebuild the shelves from the house's library.
@@ -453,7 +447,11 @@ struct MainVolume: View {
                             projects: library.projects,
                             seedlings: library.seedlings,
                             palette: viewModel.personaPalette)
-        libraryRooms = libraryEntity.rooms
+        propLibrary.apply(heart: library.heart,
+                          life: library.life,
+                          projects: library.projects,
+                          seedlings: library.seedlings,
+                          palette: viewModel.personaPalette)
     }
 
     /// The first quoted run in the house's reply. See
