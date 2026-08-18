@@ -123,15 +123,18 @@ struct MainVolume: View {
             // The centre slot's 3D half, hidden until the Journal button asks
             // for it; the orb slides left to make room.
             //
-            // Life size, which is what `scale = 1` now means: a bookcase of
-            // 21cm journals. It reaches past the volume's bounds and that is
-            // accepted -- it can be scrolled and selected, which is the whole
-            // reason to open it.
-            // Up, not centred. The shelves hang DOWNWARD from their own
-            // origin, so an origin near the middle of the box put the lowest
-            // board over the composer and the shelf ornament. This lifts the
-            // whole carcass so it starts high and grows into the space it has.
-            libraryEntity.root.position = SIMD3<Float>(0.10, 0.30, 0.02)
+            // A tenth under life size. The geometry stays authored at 1 --
+            // that is what lets the persona's prop be the same tree at a tenth
+            // -- and this is presentation: a bookcase that fits the box it is
+            // shown in without the books stopping being books. It still reaches
+            // past the volume's bounds, which is accepted: it can be scrolled
+            // and selected, and that is the whole reason to open it.
+            //
+            // Placed HIGH because shelves hang downward from their own origin.
+            // An origin near the middle of the box put the lowest board over
+            // the composer and the shelf ornament.
+            libraryEntity.presentationScale = 0.9
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.32, 0.02)
             libraryEntity.root.isEnabled = false
             content.add(libraryEntity.root)
 
@@ -141,6 +144,10 @@ struct MainVolume: View {
             propLibrary.root.position = SIMD3<Float>(0.30, CardOrbitLayout.orbY + 0.04, 0.02)
             propLibrary.root.orientation = simd_quatf(angle: -.pi / 2,
                                                       axis: SIMD3<Float>(0, 1, 0))
+            // A tenth, declared once. The show and hide animate to and from
+            // this, so the prop's size lives in one place rather than being
+            // repeated in the transform that reveals it.
+            propLibrary.presentationScale = Self.propScale
             propLibrary.root.scale = .zero
             content.add(propLibrary.root)
 
@@ -313,7 +320,7 @@ struct MainVolume: View {
             guard wanted != propVisible else { return }
             propVisible = wanted
             propLibrary.root.move(
-                to: Transform(scale: SIMD3<Float>(repeating: wanted ? 0.10 : 0.0001),
+                to: Transform(scale: SIMD3<Float>(repeating: wanted ? Self.propScale : 0.0001),
                               rotation: propLibrary.root.orientation,
                               translation: propLibrary.root.position),
                 relativeTo: propLibrary.root.parent,
@@ -330,8 +337,13 @@ struct MainVolume: View {
                 .targetedToEntity(libraryEntity.root)
                 .onChanged { value in
                     if abs(value.translation.height) > 6 { hasScrolled = true }
+                    // Divided by the presentation scale so the shelves track
+                    // the finger at whatever size the library is shown: the
+                    // drag is measured in the world, and `scroll` moves the
+                    // library in its own.
                     libraryEntity.scroll = scrollAtGestureStart
-                        + Float(value.translation.height) * -0.0009
+                        + Float(value.translation.height) * -0.0024
+                        / max(libraryEntity.presentationScale, 0.01)
                 }
                 .onEnded { _ in scrollAtGestureStart = libraryEntity.scroll }
         )
@@ -390,6 +402,11 @@ struct MainVolume: View {
     private static let faceFallbackID = "hearth.face-fallback"
     private static let surfaceID = "hearth.surface"
     private static let readerID = "hearth.journal-reader"
+
+    /// How big the persona's investigation prop is against life size. Small
+    /// enough that its spine lettering is present but unreadable, which is
+    /// correct for scenery the house is reading rather than something you are.
+    private static let propScale: Float = 0.10
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough

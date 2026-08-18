@@ -65,8 +65,15 @@ public final class JournalLibraryEntity {
     /// Metres of gap between neighbouring spines. The phone uses 9pt against a
     /// 132pt spine; this is that ratio.
     private let spineGap: Float = JournalBookEntity.height * 0.068
-    /// How many boards are visible before the rest have to be scrolled to.
-    private let visibleRows: Float = 3
+    /// How many boards the box shows at once, and therefore how much of the
+    /// library does NOT need scrolling to.
+    ///
+    /// Two, not three. At life size a board's pitch is a third of a metre and a
+    /// volume is 0.8 tall, so three was a shelf's worth of optimism: it left
+    /// `maxScroll` short by a whole board and the last shelf could never be
+    /// reached. Under-counting costs a little empty travel at the bottom;
+    /// over-counting costs a shelf you cannot see at all.
+    private let visibleRows: Float = 2
 
     /// How far the shelves can travel. Zero when everything already fits.
     public private(set) var maxScroll: Float = 0
@@ -85,7 +92,21 @@ public final class JournalLibraryEntity {
         root.addChild(scroller)
     }
 
-    /// How far down the library is scrolled, in metres. Clamped.
+    /// How large the library is presented, with 1 being life size.
+    ///
+    /// The geometry is authored at life size and never rebuilt; this is the one
+    /// dial that changes how big it comes out. A host that wants a bookcase
+    /// leaves it alone, and one that wants the persona's investigation prop
+    /// turns it down to a tenth.
+    ///
+    /// Note for anyone converting a gesture into a scroll: this scales the
+    /// world the scroller moves in, so a drag measured in real distance has to
+    /// be divided by it or the shelves will not track the finger.
+    public var presentationScale: Float = 1 {
+        didSet { root.scale = SIMD3<Float>(repeating: presentationScale) }
+    }
+
+    /// How far down the library is scrolled, in metres of its OWN space.
     public var scroll: Float = 0 {
         didSet {
             guard interactive else { return }
@@ -155,7 +176,10 @@ public final class JournalLibraryEntity {
             }
         }
 
-        maxScroll = max(0, (Float(row) - visibleRows) * shelfPitch)
+        // The masthead and the room labels take height the boards do not, so
+        // the travel has to clear them too or the bottom shelf stops just out
+        // of reach.
+        maxScroll = max(0, (Float(row) - visibleRows) * shelfPitch + labelRise)
         scroll = 0
     }
 
