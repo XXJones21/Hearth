@@ -1,5 +1,9 @@
 # Phase 4 -- the immersive house
 
+**IN PROGRESS.** Increment 1 landed 2026-08-18: the tick moved off the host, the
+`ImmersiveSpace` exists, and the hold crosses in both directions. What is done
+and what is not is tracked per section below.
+
 Scoped 2026-08-18, after phase 3.5 closed. This supersedes the phase 4 sketch in
 [the design doc](../wiki/raw/hearth-vision-design.md) section 8, which is now a
 summary pointing here.
@@ -41,7 +45,7 @@ Second, smaller: `MainVolume` holds `stageRoot`, `libraryEntity` and
 returning from the room rebuilds the library and re-fetches it. Acceptable, but
 it means the return trip is not free and the journal's scroll position is lost.
 
-### The tick, and why it is not a re-subscribe
+### The tick, and why it is not a re-subscribe -- DONE 2026-08-18
 
 The hazard is real. `rig.updateSubscription` holds a
 `content.subscribe(to: SceneEvents.Update.self)` taken from the VOLUME's
@@ -200,7 +204,7 @@ long-press on the persona herself, or let the status simply not exist in the
 room -- a house that is not answering is visible in the persona's own dead look,
 which is what `setConnected` already draws.
 
-## 4. The toggle
+## 4. The toggle -- DONE 2026-08-18 (reposition still to come)
 
 Pinch-and-hold for two seconds on the persona, both directions. The rig carries
 the machinery already, dormant since the port: `transitionProgress` ramps the

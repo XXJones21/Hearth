@@ -352,6 +352,16 @@ public final class PersonaRig: ObservableObject {
         rootEntity.addChild(personaAnchor)
         layoutPersonaHosts()
 
+        // The rig ticks ITSELF, in whatever scene it is currently in.
+        //
+        // Weak on purpose: the rig owns `rootEntity`, `rootEntity` holds this
+        // component, and the component holds this closure. A strong capture
+        // here is a cycle that keeps the rig, its model, its textures and its
+        // Metal pipeline alive for the life of the process.
+        rootEntity.components.set(ClosureComponent { [weak self] deltaTime in
+            self?.update(deltaTime: deltaTime)
+        })
+
         applyStateVisuals(animated: false)
     }
 
@@ -640,6 +650,33 @@ public final class PersonaRig: ObservableObject {
     /// The model host's own scale: the presentation fraction, with the rig
     /// root's scale divided back out so the fraction is measured against the
     /// room rather than against the bead.
+    /// Whether whoever is on stage has a BODY.
+    ///
+    /// The distinction earns its keep in more than one place, which is why it
+    /// is named rather than open-coded as `modelActive` at each site. A body
+    /// STANDS -- on the floor of a room, on the floor of a box -- where a bead
+    /// floats at a conversational height. And a bead is a LIGHT: it blooms, it
+    /// throws colour on the walls, it carries a particle field. A person
+    /// standing in your room who casts caustics on your ceiling is a different
+    /// and stranger proposition, so effects follow this too.
+    ///
+    /// Derived from the visualization kind rather than from the persona's name,
+    /// like everything else here.
+    public var isCorporeal: Bool { modelActive }
+
+    /// Set how big the BEAD is in this host, and re-derive everything measured
+    /// against it.
+    ///
+    /// Hosts used to write `rootEntity.scale` directly, which was fine while
+    /// there was one host. There are two now, they want different numbers, and
+    /// `modelPresentationScale` and `personaAnchor` are both expressed as
+    /// fractions OF this -- so a host changing it behind their back leaves a
+    /// model at the wrong size and work hanging at the wrong offsets.
+    public func setRigScale(_ scale: Float) {
+        rootEntity.scale = SIMD3<Float>(repeating: scale)
+        layoutPersonaHosts()
+    }
+
     /// How high the top of whoever is on stage sits above the rig's own
     /// origin, in the host's METRES.
     ///
@@ -1064,10 +1101,6 @@ public final class PersonaRig: ObservableObject {
     }
 
     // MARK: - Interaction
-
-    /// Held by the host so the per-frame subscription driving `update` outlives
-    /// the `RealityView` make closure.
-    public var updateSubscription: EventSubscription?
 
     /// What gaze and pinch gestures target: whichever persona is on stage.
     ///

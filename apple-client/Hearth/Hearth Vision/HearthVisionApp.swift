@@ -53,8 +53,14 @@ struct HearthVisionApp: App {
     /// ServerConfig is the store of record; this is the redraw trigger.
     @State private var ready = ServerConfig.shared.isConfigured && ServerConfig.shared.isPaired
 
+    /// Whether the room is open. The volume dismisses while it is, per design
+    /// section 1, and returns on exit.
+    @State private var immersive = false
+
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
 
     var body: some Scene {
         // The launch scene, and deliberately first: design section 1 says the
@@ -62,7 +68,8 @@ struct HearthVisionApp: App {
         // sends for the pairing window, rather than launching into a flat pane
         // and promoting to a volume afterwards.
         WindowGroup(id: SceneID.personaVolume) {
-            MainVolume(viewModel: viewModel, rig: rig, ready: ready)
+            MainVolume(viewModel: viewModel, rig: rig, ready: ready,
+                       onEnterImmersive: enterImmersive)
                 .onAppear {
                     guard !ready else { return }
                     openWindow(id: SceneID.pairing)
@@ -98,7 +105,46 @@ struct HearthVisionApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 460, height: 580)
 
+        // The room. Design section 1's expansion, reached by holding the
+        // persona and left the same way.
+        ImmersiveSpace(id: SceneID.immersiveHouse) {
+            ImmersiveHouse(viewModel: viewModel, rig: rig, onLeave: leaveImmersive)
+        }
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
+    }
 
+    // MARK: - Crossing between the box and the room
+
+    /// ORDER MATTERS, and it is the platform's rule rather than a preference:
+    /// an app cannot close its last scene, so the space has to be open before
+    /// the volume goes. Apple states it directly -- put the dismiss inside the
+    /// task so it waits for the asynchronous open, or the system opens the space
+    /// and leaves the window up.
+    private func enterImmersive() {
+        guard !immersive else { return }
+        Task {
+            switch await openImmersiveSpace(id: SceneID.immersiveHouse) {
+            case .opened:
+                immersive = true
+                dismissWindow(id: SceneID.personaVolume)
+            case .userCancelled, .error:
+                // The person declined, or the system refused. Staying in the box
+                // is the correct outcome and needs no recovery.
+                break
+            @unknown default:
+                break
+            }
+        }
+    }
+
+    /// The same rule mirrored: bring the volume back BEFORE the space closes.
+    private func leaveImmersive() {
+        guard immersive else { return }
+        Task {
+            openWindow(id: SceneID.personaVolume)
+            await dismissImmersiveSpace()
+            immersive = false
+        }
     }
 }
 

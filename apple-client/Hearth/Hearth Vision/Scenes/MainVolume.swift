@@ -117,11 +117,17 @@ struct MainVolume: View {
     /// Paired AND configured. The app owns this; the volume only renders it.
     let ready: Bool
 
-    init(viewModel: ChatViewModel, rig: PersonaRig, ready: Bool) {
+    /// Hold the persona to leave the box for the room. The app owns the
+    /// crossing, because it owns both scenes and the order they open in.
+    let onEnterImmersive: () -> Void
+
+    init(viewModel: ChatViewModel, rig: PersonaRig, ready: Bool,
+         onEnterImmersive: @escaping () -> Void) {
         self.viewModel = viewModel
         self.rig = rig
         self._cardStore = ObservedObject(wrappedValue: viewModel.cardStore)
         self.ready = ready
+        self.onEnterImmersive = onEnterImmersive
     }
 
     var body: some View {
@@ -144,10 +150,16 @@ struct MainVolume: View {
             // than just the position because in phase 4 the rig may be
             // returning from the room, carrying a world transform of its own.
             rig.rootEntity.transform = Transform(
-                scale: SIMD3<Float>(repeating: 0.22),
+                scale: SIMD3<Float>(repeating: Self.beadScale),
                 rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0)),
                 translation: SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
             )
+            // Through the rig rather than by writing the scale above alone: the
+            // model's size and the anchor's offsets are both fractions OF this,
+            // and setting it behind their back leaves them stale. The transform
+            // above still sets position and rotation, which nothing derives
+            // from.
+            rig.setRigScale(Self.beadScale)
             stageRoot.addChild(rig.rootEntity)
 
             // Where the orb lives, and the three places a behaviour can send
@@ -234,26 +246,24 @@ struct MainVolume: View {
             rig.updateState(PersonaState(viewModel.hearthState))
             rig.setConnected(viewModel.connectionAlive)
 
-            // The tick source. visionOS has no CADisplayLink and the volume has
-            // no motion tracker, so the scene's own update event drives the
-            // animator. The subscription is stored ON THE RIG because this
-            // closure returns immediately and a local would be released with it.
-            rig.updateSubscription = content.subscribe(to: SceneEvents.Update.self) { event in
-                rig.update(deltaTime: event.deltaTime)
-                // Cheap: both `apply` calls early-return when nothing changed,
-                // which is what lets the rig pick up a persona_config that
-                // arrives long after the scene was built.
-                rig.apply(viewModel.personaPalette)
-                // WHICH persona is on stage, not just what colour they are.
-                // Switching to Selene from the status ornament arrives here as
-                // a new `personaVisualization`, and the rig swaps the bead for
-                // her model -- travel, tap target and state all keep working,
-                // because they were never the bead's to begin with. See
-                // PersonaRig.apply(visualization:).
-                rig.apply(visualization: viewModel.personaVisualization)
-                if let geometry = viewModel.personaVisualization.faceGeometry {
-                    rig.apply(faceGeometry: geometry)
-                }
+            // No tick source here any more, and its absence is the point.
+            //
+            // This host used to own the rig's heartbeat through
+            // `content.subscribe(to: SceneEvents.Update.self)`. A subscription
+            // belongs to the scene that issued it, so the moment this volume
+            // dismisses for the immersive house the rig would stop ticking and
+            // freeze in the room with nothing reported. The rig ticks itself
+            // now, through a ClosureComponent on its own root -- see that file
+            // for the whole argument.
+            //
+            // The persona reads that closure used to poll sixty times a second
+            // moved to `onChange` below, where they fire when the value
+            // actually changes. They were polling only because there was no
+            // observer to hand.
+            rig.apply(viewModel.personaPalette)
+            rig.apply(visualization: viewModel.personaVisualization)
+            if let geometry = viewModel.personaVisualization.faceGeometry {
+                rig.apply(faceGeometry: geometry)
             }
         } update: { content, attachments in
             // The whole reason this is in the update closure and not `make`:
@@ -374,19 +384,37 @@ struct MainVolume: View {
                 }
             }
         }
-        // A plain pinch on the bead starts a voice turn. Phase 4 adds the
-        // two-second hold on the same target for the immersive switch, which is
-        // why this is a gesture on the entity rather than a button anywhere.
-        .gesture(
-            TapGesture()
-                .targetedToEntity(rig.tapTarget)
-                .onEnded { _ in
-                    guard viewModel.connectionStatus == .connected else { return }
-                    viewModel.toggleListening()
-                }
+        // A plain pinch starts a voice turn; a two-second hold crosses into the
+        // room. One gesture carrying both, because two gestures on one entity
+        // race -- see PersonaHold.
+        .personaHold(
+            target: rig.tapTarget,
+            onTap: {
+                guard viewModel.connectionStatus == .connected else { return }
+                viewModel.toggleListening()
+            },
+            onHold: onEnterImmersive,
+            progress: { rig.transitionProgress = $0 }
         )
         .onChange(of: viewModel.hearthState) { _, state in
             rig.updateState(PersonaState(state))
+        }
+        // The three persona reads, on edges rather than on every frame. All
+        // three still early-return when nothing changed, which is what lets a
+        // `persona_config` arriving long after the scene was built land at all.
+        .onChange(of: viewModel.personaPalette) { _, palette in
+            rig.apply(palette)
+        }
+        // WHICH persona is on stage, not just what colour they are. Switching to
+        // Selene from the status ornament arrives here, and the rig swaps the
+        // bead for her model -- travel, tap target and state all keep working,
+        // because none of them were ever the bead's. See
+        // PersonaRig.apply(visualization:).
+        .onChange(of: viewModel.personaVisualization) { _, visualization in
+            rig.apply(visualization: visualization)
+            if let geometry = visualization.faceGeometry {
+                rig.apply(faceGeometry: geometry)
+            }
         }
         .onChange(of: viewModel.connectionAlive) { _, alive in
             rig.setConnected(alive)
@@ -560,6 +588,11 @@ struct MainVolume: View {
     /// Zero is the rig's default and is what the immersive room wants: nothing
     /// hangs along the bottom of a real floor.
     private static let personaModelLift: Float = 0.16
+
+    /// How big the BEAD is in the box: about 10cm across, a thing you could set
+    /// on a table. The room shows the same bead much larger -- see
+    /// ImmersiveHouse.beadScale.
+    private static let beadScale: Float = 0.22
 
     /// How big the persona's investigation prop is against life size. Small
     /// enough that its spine lettering is present but unreadable, which is
