@@ -352,6 +352,92 @@ else is a tap. `floorClearance` (0.25m) stops the orb being dragged below the
 floor. Phase 4's toggle should start from this rather than from a fresh
 `LongPressGesture`.
 
+## 9. Anchoring, and what Arena already learned
+
+Read 2026-08-18 at `~/Arena/Arena/RedReality/Stadium/Scene/`. Arena places a
+Pokemon arena on a real floor through ARKit plane detection and puts it back in
+the same physical spot on the next launch. It is the same problem phase 4 has
+for panels dragged off a shelf, solved once already, and several of its comments
+are scars.
+
+### The spot the persona crosses at -- DONE 2026-08-18
+
+RealityKit's two named coordinate spaces do this without ARKit at all. `.scene`
+has its origin at the centre-back of the volumetric window; `.immersiveSpace`
+has its origin at the point on the ground below you. `transformMatrix(relativeTo:)`
+converts between them and returns a `simd_float4x4` -- which sidesteps
+`content.transform(from:to:)` entirely, whose double-precision
+`AffineTransform3D` return is risk point 1 in Valinor's handoff.
+
+**There is exactly one moment to call it.** `.immersiveSpace` only means
+anything while a space is open, and it returns nil otherwise -- so the read
+happens after `openImmersiveSpace` has returned and before the window is
+dismissed, in the single instant both scenes are alive. The room's own view
+therefore waits for the value rather than taking the rig on appear, or it would
+have the entity a frame before it could be measured.
+
+Only X and Z are carried. A captured Y is where she was inside a FLOATING BOX,
+which is not where she belongs on a real floor -- a body has to stand on it, and
+a bead has a height at which conversation happens. Height is the room's rule;
+the spot is hers. A carried bead height is clamped, because a volume can be
+dragged to the carpet or above head height.
+
+### Persisting a placed thing -- NOT YET BUILT
+
+Wanted for panels pulled off the shelf and left in the room. The shape, from
+Apple's world-anchor docs and from Arena's working version:
+
+- `WorldAnchor(originFromAnchorTransform:)` plus
+  `worldTracking.addAnchor(_:)`. ARKit persists the anchor's UUID and pose, and
+  redelivers it through `anchorUpdates` on later launches when the person is
+  back in the same place.
+- **ARKit persists the UUID and the pose and NOTHING ELSE.** What the anchor
+  MEANS is ours to store -- which journal, which panel. A dictionary from anchor
+  id to whatever it was carrying, saved beside the anchor.
+- **The visionOS restore path is not the iOS one.** Arena's comment is explicit:
+  it is `WorldTrackingProvider` redelivery matched by id, then
+  `AnchorEntity(.world(transform:))` -- not `AnchorEntity(anchor:)` or
+  `allAnchors`. Getting this wrong is a thing that silently never restores.
+- Anchors are only redelivered for NEARBY places. Someone who opens Hearth in a
+  different room gets nothing, and that is correct rather than broken.
+
+### Finding the floor, and the four traps in it
+
+Arena's `noteFloor` is worth reading in full before writing our own:
+
+- **Classification takes a beat, and the room is full of decoys.** ARKit reports
+  big horizontal planes -- ceilings, tables, slivers -- before `.floor`
+  classification resolves. Committing to the first horizontal plane drops
+  content on the ceiling or at eye level. Arena commits ONLY to a
+  `.floor`-classified plane, and falls back to the lowest horizontal plane seen
+  after a three-second grace window.
+- **visionOS plane geometry lies in the anchor's XY plane with a +Z normal.**
+  Build debug quads with `generatePlane(width:height:)`, not `(width:depth:)`,
+  which renders the floor standing up.
+- **The immersive origin is at FLOOR level**, which Apple's docs also state and
+  which Arena's code carries a corrected comment about: an earlier version
+  assumed head height and buried the arena 1.35m underground. Our
+  `ImmersiveHouse` already assumes floor level, and this is the confirmation.
+- **Degrade deliberately.** `WorldTrackingProvider.isSupported` and
+  `PlaneDetectionProvider.isSupported` are false in the simulator, and
+  `session.requestAuthorization(for: [.worldSensing])` can be declined. Arena
+  has a `.degraded` phase that drops the arena at a fixed spot ahead. Ours
+  already has the equivalent: no capture means a sensible spot in front.
+
+### Controls in a room, revisited
+
+Two Apple samples bear on the shelves, and they change the options written in
+section 3:
+
+- **`ViewAttachmentComponent`** puts a SwiftUI view on an ENTITY as a component,
+  rather than through a `RealityView`'s attachments closure. That is what the
+  persona-mounted shelves want: they hang off `personaAnchor` as entities and
+  carry their own SwiftUI, which means the existing shelf views port nearly
+  unchanged and the hover-reveal keeps working.
+- **`pushWindow`** associates a window with an immersive space so closing either
+  closes both -- the alternative shape, if some surface turns out to want a real
+  window rather than a panel on the persona.
+
 ## Gate 4
 
 The immersive round trip: hold to enter, the room furnishes, hold to leave, the

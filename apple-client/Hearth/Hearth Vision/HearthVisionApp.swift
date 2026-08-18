@@ -57,6 +57,13 @@ struct HearthVisionApp: App {
     /// section 1, and returns on exit.
     @State private var immersive = false
 
+    /// Where the persona was, in the ROOM's coordinates, at the moment of
+    /// crossing. Nil until captured; the room waits for it.
+    ///
+    /// See `enterImmersive` for why the capture has to happen in the one moment
+    /// it does.
+    @State private var spawn: simd_float4x4?
+
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
@@ -108,7 +115,8 @@ struct HearthVisionApp: App {
         // The room. Design section 1's expansion, reached by holding the
         // persona and left the same way.
         ImmersiveSpace(id: SceneID.immersiveHouse) {
-            ImmersiveHouse(viewModel: viewModel, rig: rig, onLeave: leaveImmersive)
+            ImmersiveHouse(viewModel: viewModel, rig: rig,
+                           spawn: spawn, onLeave: leaveImmersive)
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
@@ -126,6 +134,27 @@ struct HearthVisionApp: App {
             switch await openImmersiveSpace(id: SceneID.immersiveHouse) {
             case .opened:
                 immersive = true
+                // THE CAPTURE, and there is exactly one moment it can happen.
+                //
+                // RealityKit's two named coordinate spaces are `.scene`, whose
+                // origin is the centre-back of the volumetric window, and
+                // `.immersiveSpace`, whose origin is the point on the ground
+                // below you. Converting between them is how the persona leaves
+                // the box at the place she was actually standing rather than at
+                // a guess -- and `.immersiveSpace` only means anything WHILE a
+                // space is open.
+                //
+                // So: after the open has returned, while the rig is still in the
+                // volume's scene, and before the window goes. Both scenes are
+                // alive for exactly this instant. The room's own view waits for
+                // this value rather than placing her itself, which is what
+                // keeps it from grabbing the entity before the read.
+                //
+                // Apple's own sample composes `content.transform(from:to:)`
+                // instead, which returns a DOUBLE-precision AffineTransform3D
+                // and is risk point 1 in Valinor's handoff. This overload
+                // returns a float4x4 and skips the conversion entirely.
+                spawn = rig.transformInImmersiveSpace()
                 dismissWindow(id: SceneID.personaVolume)
             case .userCancelled, .error:
                 // The person declined, or the system refused. Staying in the box
@@ -144,6 +173,10 @@ struct HearthVisionApp: App {
             openWindow(id: SceneID.personaVolume)
             await dismissImmersiveSpace()
             immersive = false
+            // The volume places the persona at its own fixed spot, so there is
+            // nothing to carry back. Cleared so a second crossing captures
+            // afresh rather than reusing where she was the first time.
+            spawn = nil
         }
     }
 }

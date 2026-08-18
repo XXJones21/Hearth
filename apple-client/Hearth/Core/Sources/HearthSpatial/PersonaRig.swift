@@ -664,6 +664,38 @@ public final class PersonaRig: ObservableObject {
     /// like everything else here.
     public var isCorporeal: Bool { modelActive }
 
+    /// Where the rig is right now, in the IMMERSIVE SPACE's coordinates.
+    ///
+    /// RealityKit has two named coordinate spaces: `.scene`, whose origin is
+    /// the centre-back of the volumetric window, and `.immersiveSpace`, whose
+    /// origin is the point on the ground below you. This converts between them,
+    /// which is what lets the persona leave the box at the place she was
+    /// actually standing rather than at a guess.
+    ///
+    /// Only meaningful WHILE an immersive space is open, so a host has exactly
+    /// one moment to call it: after the space has opened and before the volume
+    /// goes. NIL is the platform telling you that you called it outside that
+    /// moment -- which is worth passing along rather than papering over, since
+    /// the honest fallback is a sensible spot in front of the person and a
+    /// silently-identity matrix would put her inside the floor.
+    ///
+    /// It lives here rather than at the call site for a dull reason with a real
+    /// cost: this returns a `simd_float4x4` and needs `import RealityKit`, and
+    /// importing RealityKit into a file that declares an `App` makes `Scene`
+    /// ambiguous between RealityKit's and SwiftUI's. The rig knowing how to
+    /// measure itself is also the better shape.
+    /// Guarded because `.immersiveSpace` does not exist on iOS -- there are no
+    /// immersive spaces there -- and this target builds for iOS as a gate. The
+    /// nil an iOS caller gets is the same nil a mistimed visionOS caller gets,
+    /// and means the same thing: no room to measure against.
+    public func transformInImmersiveSpace() -> simd_float4x4? {
+        #if os(visionOS)
+        return rootEntity.transformMatrix(relativeTo: .immersiveSpace)
+        #else
+        return nil
+        #endif
+    }
+
     /// Set how big the BEAD is in this host, and re-derive everything measured
     /// against it.
     ///

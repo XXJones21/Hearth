@@ -39,14 +39,20 @@ struct ImmersiveHouse: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var rig: PersonaRig
 
+    /// Where the persona was standing, in this space's own coordinates, at the
+    /// moment of crossing. Nil until the app has read it.
+    ///
+    /// The room does NOT take the rig until this arrives. That is the whole
+    /// sequencing: the read has to happen while the rig is still in the volume
+    /// and both scenes are open, so a `make` closure that grabbed the entity on
+    /// appear would take it away a frame before it could be measured.
+    let spawn: simd_float4x4?
+
     /// Hold the persona to go back to the box.
     let onLeave: () -> Void
 
     var body: some View {
         RealityView { content in
-            place()
-            content.add(rig.rootEntity)
-
             rig.configure(for: .immersive)   // the billboard halo goes; real bloom takes over
             applyBloom()
             rig.enableInteraction()
@@ -61,6 +67,12 @@ struct ImmersiveHouse: View {
             // RealityKit runs the system in whatever scene the entity is in,
             // which is the whole reason this handover is a re-parent rather than
             // a rebuild.
+        } update: { content in
+            guard rig.rootEntity.parent == nil || !content.entities.contains(rig.rootEntity) else {
+                return
+            }
+            place()
+            content.add(rig.rootEntity)
         }
         .personaHold(
             target: rig.tapTarget,
@@ -105,8 +117,22 @@ struct ImmersiveHouse: View {
     /// bit in front, and a height that depends entirely on whether the persona
     /// has a body.
     private func place() {
+        // The room's own scale, never the box's. `modelPresentationScale`
+        // divides this back out, so a model persona is unaffected by it.
         rig.setRigScale(Self.beadScale)
-        let home = SIMD3<Float>(0, originHeight, -Self.distance)
+
+        // WHERE she stood in the box, if the crossing measured it, and a
+        // sensible spot in front of the person if it did not -- the first run
+        // after a launch, or a capture that could not be taken.
+        //
+        // Only X and Z are carried. The captured Y is where she was inside a
+        // floating box, which is not where she belongs on a real floor: a body
+        // has to stand on it and a bead has its own resting height. Height is
+        // the room's rule; the SPOT is hers.
+        let captured = spawn.map { SIMD3<Float>($0.columns.3.x, $0.columns.3.y, $0.columns.3.z) }
+        let home = SIMD3<Float>(captured?.x ?? 0,
+                                originHeight(carrying: captured?.y),
+                                captured?.z ?? -Self.distance)
         rig.homePosition = home
         rig.rootEntity.position = home
     }
@@ -116,18 +142,30 @@ struct ImmersiveHouse: View {
     /// Two rules, because there are two kinds of persona and no single number
     /// serves both. A model is centred on the rig's origin by its own framing
     /// pass, so putting the origin at `crownHeight` -- half her height -- lands
-    /// her feet on the floor. A bead has no feet and standing on the floor would
-    /// be a marble on the carpet, so it floats at roughly chest height where a
-    /// conversation happens.
-    private var originHeight: Float {
-        rig.isCorporeal ? rig.crownHeight : Self.beadHeight
+    /// her feet on the floor; a captured height would leave her standing in the
+    /// air where a floating window happened to be. A bead has no feet, so it
+    /// keeps the height it was crossed at when there is one, and floats at
+    /// roughly chest height when there is not.
+    private func originHeight(carrying captured: Float?) -> Float {
+        guard !rig.isCorporeal else { return rig.crownHeight }
+        // A box set on a low table would put the bead near the floor; clamp so
+        // it stays somewhere a conversation happens.
+        guard let captured else { return Self.beadHeight }
+        return min(max(captured, Self.beadFloor), Self.beadCeiling)
     }
 
     /// How far in front of where the person was standing.
     private static let distance: Float = 1.35
 
-    /// A bead's resting height, roughly chest-high on a standing adult.
+    /// A bead's resting height, roughly chest-high on a standing adult. Used
+    /// when the crossing carried no height of its own.
     private static let beadHeight: Float = 1.25
+
+    /// And the range a carried height is allowed to land in. A volume can be
+    /// dragged to the floor or above head height, and neither is where a
+    /// conversation happens.
+    private static let beadFloor: Float = 0.7
+    private static let beadCeiling: Float = 1.9
 
     /// How big the BEAD is in a room.
     ///
