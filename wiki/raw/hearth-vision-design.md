@@ -512,6 +512,18 @@ What it did not anticipate, in the order it will bite:
 to leave, the volume returns -- with BOTH persona kinds, because a bead and a
 figure are re-hosted by the same code and fail differently.
 
+**Phase 4.5, the room's light.** Added 2026-08-18. Valinor's immersive scene
+projects animated caustics onto the real room through a `ProjectiveTexture` and
+a `SurroundingsLight`, and it is good work that belongs to a different persona:
+Sulivan's palette has moved to cream and the warm end of the brand, and pool
+caustics under a warm bead reads as two ideas rather than one. So caustics
+becomes a PRESET of a projected-light effect rather than the mechanism itself --
+`CausticsTexture` already takes a kernel name and already ships two -- and a
+warm firelight effect is authored beside it in the brand's own terms. Carries
+the operator's rule that non-corporeal personas get effects and humanoid ones do
+not, which also settles whether Selene blooms. Scoped in
+[tasks/vision-phase-4-5.md](../../tasks/vision-phase-4-5.md).
+
 **Phase 5, surfaces and polish.** Settings, Persona, Apps, Transcript
 windows; the shelf ornament that opens them.
 

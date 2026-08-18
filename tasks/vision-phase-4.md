@@ -61,11 +61,35 @@ creates an instance of every registered system for every scene." So a system
 keyed on a component the rig root carries runs in WHATEVER scene the rig is
 currently in, and the handover costs nothing at all -- no host holds anything,
 nothing needs releasing, and there is no window in which two hosts both tick.
-`SceneUpdateContext.deltaTime` replaces the event's, and
-`entities(matching:updatingSystemWhen: .rendering)` is the query.
 
-Roughly thirty lines: a `PersonaTickComponent` carrying a reference to the rig,
-and a `PersonaTickSystem` whose `update` calls `rig.update(deltaTime:)`.
+**And Apple has already written the shape of it.** `ClosureComponent` in the
+head-tracking sample is NOT a framework type -- it is about twenty lines of
+sample source, and the painting-space sample shows both halves:
+
+```swift
+struct ClosureComponent: Component {
+    let closure: (TimeInterval) -> Void
+    init(closure: @escaping (TimeInterval) -> Void) {
+        self.closure = closure
+        ClosureSystem.registerSystem()
+    }
+}
+
+struct ClosureSystem: System {
+    static let query = EntityQuery(where: .has(ClosureComponent.self))
+    init(scene: RealityKit.Scene) {}
+    func update(context: SceneUpdateContext) {
+        for entity in context.entities(matching: Self.query, updatingSystemWhen: .rendering) {
+            entity.components[ClosureComponent.self]?.closure(context.deltaTime)
+        }
+    }
+}
+```
+
+Write that once and both jobs are done: the rig's tick becomes a
+`ClosureComponent` on the rig root, and the follow below becomes another one on
+each follower. Registering from the component's own initializer is what removes
+the last thing a host had to remember.
 
 One thing it does NOT carry across, and this is an improvement rather than a
 cost: the volume's subscription closure also polls
@@ -229,12 +253,27 @@ to the shelf -- which for a caption you are mid-way through reading is the
 should follow with lag; ORIENTATION should billboard to the viewer rather than
 inherit hers.
 
-So this is one job with three parts, and it is the same system as the tick:
-a `FollowComponent` carrying target, stiffness and damping, integrated each
-frame, plus `BillboardComponent` on the followers. One `PersonaTickSystem` doing
-two things beats a second per-frame mechanism -- and a system rather than a
+**The smoothing is settled, and it is not a spring.** From the operator's own
+Apple sample, "Displaying an entity that follows a person's view":
+
+```swift
+let ratio = Float(pow(0.96, deltaTime / (16 * 1E-3)))
+let newPosition = ratio * sphere.position(relativeTo: nil) + (1 - ratio) * targetPosition
+sphere.setPosition(newPosition, relativeTo: nil)
+```
+
+Exponential smoothing, made frame-rate independent by raising the per-frame
+retention to `dt / 16ms`. One tunable, no overshoot, no oscillation, and no
+velocity state to keep -- which is what "a natural smoothing effect" wants and
+what a real spring, with its stiffness and damping to balance, does not give
+without ringing. 0.96 is the reference number at 60Hz; lower is snappier.
+
+So this is one job with three parts, and it rides the same `ClosureComponent`
+as the tick: a follow closure per follower doing the lerp above against the
+persona's world transform, plus `BillboardComponent` on the followers so they
+face the viewer instead of inheriting her yaw. A component rather than a
 parent-child weld is also what lets the volume keep the rigid behaviour it
-already has, by simply not adding the component.
+already has, by simply not adding it.
 
 ## 6. World sensing
 
@@ -254,6 +293,60 @@ What comes OFF rather than on: `clipBelowInParent` exists because a volume has
 a composer along its bottom edge, and the drag-to-scroll exists because a
 bookcase taller than the box cannot be seen otherwise. A bookcase standing on a
 real floor needs neither -- you walk to it.
+
+## 8. What Valinor's immersive scene already answers
+
+Re-read 2026-08-18 at `~/Valinor/Apple Client/Valinor/Valinor/VisionOS/`.
+`CausticsImmersiveView.swift` is 423 lines and is a working immersive scene for
+this same orb, device-validated. Several things the design doc listed as phase 4
+UNKNOWNS are settled there, and porting the answers is cheaper than rediscovering
+them.
+
+**Bloom is not a preference; it is the only place bloom exists.** From the
+source: "visionOS only blooms in an immersive space (no effect in the volume /
+shared space), which is why the orb falls back to emissive shells in the volume
+and gets real bloom here." That is why `realBloomActive` exists at all. Settings
+that were tuned on device: `BloomComponent` with `scope = .unbounded`,
+`BloomSettingsComponent(strength: 0.9, threshold: 0.5)`. Scope matters --
+`.hierarchical` blooms a bounded region and leaves a hard disc edge, which Apple
+warns about; unbounded blooms the whole screen and the threshold is what keeps
+the passthrough room out of it.
+
+Still open for a MODEL persona: bloom is a fact about a bright bead. Selene has
+no emissive shell to clear a threshold, so she likely gets no bloom and that is
+correct rather than missing. The operator's rule -- non-corporeal personas get
+effects, humanoid ones do not, for now -- is the guide, and it wants writing
+into the rig as a property of the visualization kind rather than as a check at
+each effect.
+
+**World reconstruction is already written.** `CausticsSceneMesh`: an
+`ARKitSession` running a `SceneReconstructionProvider`, turning each anchor into
+`MeshResource(from: anchor)` on a `ModelEntity` with `OcclusionMaterial()`. The
+mesh is invisible on purpose -- it shows passthrough and occludes virtual
+content behind it without painting a surface. This is exactly what phase 4 needs
+for attaching panels to tables and walls, and it confirms the
+`NSWorldSensingUsageDescription` decision.
+
+**The handover has a typed trap in it, already found once.**
+`content.transform(from: .immersiveSpace, to: .scene)` returns a Spatial
+`AffineTransform3D`, which is DOUBLE precision, while the orb-transplant maths
+is `simd_float4x4`. Valinor's handoff lists the wrong assumption here as risk
+point 1 and carries a conversion extension for it. The captured transform rides
+between scenes on the view model (`pendingOrbTransform`), with a fallback
+placement -- 1m up, 1m forward -- when the capture did not happen.
+
+**`causticsRoot` is `personaAnchor`, arrived at independently.** Its comment:
+"The unscaled anchor the spotlight + cards attach to at the orb's world spot, so
+the orb's 0.22 scale doesn't shrink their offsets." Two codebases reaching the
+same structure from opposite directions is the strongest argument the structure
+is right.
+
+**The gesture arbitration is solved and tuned.** One `DragGesture(minimumDistance: 0)`
+on the persona carries all three meanings: a 2-second hold switches spaces, a
+movement past `dragMoveThreshold` (0.03m) becomes a reposition, and anything
+else is a tap. `floorClearance` (0.25m) stops the orb being dragged below the
+floor. Phase 4's toggle should start from this rather than from a fresh
+`LongPressGesture`.
 
 ## Gate 4
 
