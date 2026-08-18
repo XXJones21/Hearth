@@ -126,7 +126,23 @@ public final class JournalLibraryEntity {
     }
 
     /// How far a shelf fades over as it crosses the plane.
-    private var clipFade: Float { JournalBookEntity.height * 0.5 }
+    ///
+    /// Nearly a book tall, so a shelf arrives over a real distance rather than
+    /// switching on. Long enough to read as approaching and short enough that
+    /// nothing spends its life half-there.
+    private var clipFade: Float { JournalBookEntity.height * 0.8 }
+
+    /// Each child's lowest point, in its own parent's space.
+    ///
+    /// Measured once at build time and cached, because the cull DISABLES what
+    /// it hides -- and a disabled entity reports no visual bounds, so measuring
+    /// during the cull would make anything hidden unable to come back.
+    ///
+    /// It has to be measured rather than assumed. A shelf's bottom is its
+    /// board, a room label's is its own baseline, and they sit at different
+    /// heights; culling both by one guessed offset is what let a room's caption
+    /// appear while its books were still hidden.
+    private var bottomOffsets: [ObjectIdentifier: Float] = [:]
 
     /// How far down the library is scrolled, in metres of its OWN space.
     public var scroll: Float = 0 {
@@ -144,9 +160,9 @@ public final class JournalLibraryEntity {
     /// through it. Fading alone would make the plane a lie.
     private func applyClip() {
         guard let clipBelowInParent else {
-            for shelf in scroller.children {
-                shelf.isEnabled = true
-                shelf.components.remove(OpacityComponent.self)
+            for child in scroller.children {
+                child.isEnabled = true
+                child.components.remove(OpacityComponent.self)
             }
             return
         }
@@ -154,12 +170,11 @@ public final class JournalLibraryEntity {
         // The plane, expressed in the scroller's own units.
         let plane = (clipBelowInParent - root.position.y) / scale - scroller.position.y
 
-        for shelf in scroller.children {
-            // A shelf's lowest point is its board, not its origin.
-            let bottom = shelf.position.y - JournalBookEntity.height * 0.6
+        for child in scroller.children {
+            let bottom = child.position.y + (bottomOffsets[ObjectIdentifier(child)] ?? 0)
             let t = Self.smoothstep(plane, plane + clipFade, bottom)
-            shelf.isEnabled = t > 0.01
-            shelf.components.set(OpacityComponent(opacity: t))
+            child.isEnabled = t > 0.01
+            child.components.set(OpacityComponent(opacity: t))
         }
     }
 
@@ -233,6 +248,13 @@ public final class JournalLibraryEntity {
         // The masthead and the room labels take height the boards do not, so
         // the travel has to clear them too or the bottom shelf stops just out
         // of reach.
+        // Measure every child's underside now, while they are all enabled.
+        bottomOffsets.removeAll()
+        for child in scroller.children {
+            let bounds = child.visualBounds(relativeTo: scroller)
+            bottomOffsets[ObjectIdentifier(child)] = bounds.min.y - child.position.y
+        }
+
         maxScroll = max(0, (Float(row) - visibleRows) * shelfPitch + labelRise)
         scroll = 0
         applyClip()

@@ -459,7 +459,7 @@ struct MainVolume: View {
     /// The controls are ornaments and ornaments hang OUTSIDE the box, so the
     /// floor only has to clear them by enough to read as separate -- not by
     /// enough to hold them.
-    private static let clipFloorY: Float = -0.32
+    private static let clipFloorY: Float = -0.38
 
     /// The box every number in this file was authored against.
     ///
