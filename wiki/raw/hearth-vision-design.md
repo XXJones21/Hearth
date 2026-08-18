@@ -394,8 +394,14 @@ ships here, deliberately: the director's own playlist and saccades keep the
 eyes alive without anything to track, and machinery that cannot be judged in
 the scene it lives in is machinery nobody can tell is broken.
 
-**Phase 3, choreography and journals.** WRITTEN 2026-08-17, unverified on the
-headset. `BehaviorDirector`, primitives, the fallback producer. `JournalBook`,
+**Phase 3, choreography and journals.** LANDED 2026-08-17. **Gate 3 PASSED in
+part** on the device: the library opens on the Journal button, its shelves
+scroll, a spine can be pinched and the entry read in the phone's own journal
+view, and the persona's investigation prop stages and clears with the cue. The
+half NOT demonstrated is the orb flying to the shelf, because `motion` is
+`.none` by decision -- the travel fought the volume's layout and was switched
+off rather than tuned under pressure. See
+[tasks/vision-visual-polish.md](../../tasks/vision-visual-polish.md) item 4. `BehaviorDirector`, primitives, the fallback producer. `JournalBook`,
 `JournalShelf`, both open paths. In parallel on the backend: `behavior_cue`
 lands in Valar in Valinor, then merges to the Hearth backend; the client swaps
 producers with no change.
@@ -425,6 +431,14 @@ Three departures worth knowing:
   the library volume is that same shelf in a bigger box, and it is a scene
   declaration rather than new machinery. Deferred so gate 3 can be judged on
   the thing it is actually about.
+
+**Phase 3.5, finishing the volume.** Added 2026-08-17, after gate 3. Persona,
+Apps and Settings render blank -- almost certainly because those shared
+surfaces carry a phone's navigation chrome that an attachment cannot host -- and
+the desktop's third slot, the right rail, has no equivalent here yet. Phase 4
+DISMISSES this volume and returns to it, so anything broken in the box is
+broken in both places and harder to see in one of them. Scoped in
+[tasks/vision-phase-3-5.md](../../tasks/vision-phase-3-5.md).
 
 **Phase 4, the immersive house.** The `ImmersiveSpace(.mixed)` host, entity
 re-hosting between volume and room, the `realBloomActive` switch,
