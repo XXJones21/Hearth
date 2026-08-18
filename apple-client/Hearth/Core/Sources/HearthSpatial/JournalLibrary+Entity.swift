@@ -121,14 +121,16 @@ public final class JournalLibraryEntity {
         guard interactive else { return }
         let height = max(visibleHeight, JournalBookEntity.height)
         dragSurface.components.set(CollisionComponent(
-            shapes: [.generateBox(size: SIMD3<Float>(boardWidth * 1.15,
+            shapes: [.generateBox(size: SIMD3<Float>(boardWidth + reachBeyondBoard,
                                                      height,
                                                      JournalBookEntity.depth * 0.5))]))
         dragSurface.components.set(InputTargetComponent())
-        // Behind the books, centred on the band the box shows, so a drag
-        // anywhere over the shelves is caught while a pinch still finds the
-        // nearer spine first.
-        dragSurface.position = SIMD3<Float>(0, -height * 0.5, -JournalBookEntity.depth * 0.8)
+        // Behind the books, centred on the band the box shows and reaching the
+        // same way the shelves do, so a drag anywhere over or beside the
+        // library is caught while a pinch still finds the nearer spine first.
+        dragSurface.position = SIMD3<Float>(-reachBeyondBoard * 0.5,
+                                            -height * 0.5,
+                                            -JournalBookEntity.depth * 0.8)
     }
 
     /// How large the library is presented, with 1 being life size.
@@ -391,14 +393,32 @@ public final class JournalLibraryEntity {
         if interactive {
             shelf.components.set(CollisionComponent(
                 shapes: [ShapeResource
-                    .generateBox(size: SIMD3<Float>(boardWidth,
+                    .generateBox(size: SIMD3<Float>(boardWidth + reachBeyondBoard,
                                                     shelfPitch * 0.9,
                                                     JournalBookEntity.depth * 0.5))
-                    .offsetBy(translation: SIMD3<Float>(0, 0, -JournalBookEntity.depth * 0.8))]))
+                    // Shifted by half the extension, so the whole of it lands
+                    // on the persona's side rather than splitting the
+                    // difference and hanging off the far edge too.
+                    .offsetBy(translation: SIMD3<Float>(-reachBeyondBoard * 0.5,
+                                                        0,
+                                                        -JournalBookEntity.depth * 0.8))]))
             shelf.components.set(InputTargetComponent())
         }
         return shelf
     }
+
+    /// How far the grab area reaches PAST the carcass, toward the persona.
+    ///
+    /// The gap between the orb and the shelves is dead space, and it is where a
+    /// hand naturally goes to scroll -- nobody reaches into a bookcase to move
+    /// it. Extending the reach into that gap costs nothing and catches the
+    /// drags that were landing on nothing at all.
+    ///
+    /// A quarter of the carcass and no more, and the ceiling is not taste: the
+    /// orb sits just beyond it, with a collision shape of its own for the pinch
+    /// that starts a voice turn. Reach far enough and a drag meant for the
+    /// persona scrolls the library instead.
+    private var reachBeyondBoard: Float { boardWidth * 0.25 }
 
     /// The carcass width: what eight average spines and their gaps come to.
     ///
