@@ -153,7 +153,11 @@ struct MainVolume: View {
             // Placed HIGH because shelves hang downward from their own origin.
             // An origin near the middle of the box put the lowest board over
             // the composer and the shelf ornament.
-            libraryEntity.presentationScale = 0.9
+            // 0.9 less a further fifteenth-and-a-half: 0.765, judged on the
+            // device rather than derived. The geometry underneath is still
+            // authored at life size, so this is only how big the bookcase is
+            // shown -- the books have not stopped being 21cm books.
+            libraryEntity.presentationScale = 0.765
             // 0.36, and the number is the settled one rather than a first
             // guess: 0.32 crowded the composer, 0.40 pushed the masthead into
             // the ceiling, and this is the half-way point that was judged on
