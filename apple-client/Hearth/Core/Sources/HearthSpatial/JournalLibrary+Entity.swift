@@ -254,7 +254,16 @@ public final class JournalLibraryEntity {
         // the library was above the box's ceiling with no way to bring it back:
         // clipped on arrival and unreachable by scrolling. Everything hangs
         // BELOW y = 0 now, and the origin is the top of the content.
-        let topDrop = JournalBookEntity.height * 0.34
+        // How far the first shelf hangs below the masthead.
+        //
+        // It has to clear the masthead block AND the first room's own label,
+        // and the second term is the one that was missed: a room's label sits
+        // `labelRise` ABOVE its board, so a drop shorter than that puts the
+        // first caption above the masthead and the first shelf's books through
+        // it. This was 0.34 against a rise of 0.78, so the top shelf was
+        // printed straight over the title.
+        let mastheadBlock = JournalBookEntity.height * 0.30
+        let topDrop = labelRise + mastheadBlock
         scroller.addChild(Self.text("Journal", size: JournalBookEntity.height * 0.115,
                                     at: SIMD3<Float>(-boardWidth * 0.5, 0, 0)))
         scroller.addChild(Self.text("kept by Selene", size: JournalBookEntity.height * 0.062,
@@ -370,6 +379,24 @@ public final class JournalLibraryEntity {
         }
 
         shelf.addChild(JournalShelfPlank.make(width: boardWidth))
+
+        // The shelf itself is grabbable, behind its books.
+        //
+        // The backing surface catches drags over the library as a whole; this
+        // catches them on a shelf specifically, which is where a hand naturally
+        // goes. Set BEHIND the spines so a pinch still finds the nearer book
+        // first -- the two gestures share the same targets and are told apart
+        // by whether the drag travelled, so the only thing that matters here is
+        // depth order.
+        if interactive {
+            shelf.components.set(CollisionComponent(
+                shapes: [ShapeResource
+                    .generateBox(size: SIMD3<Float>(boardWidth,
+                                                    shelfPitch * 0.9,
+                                                    JournalBookEntity.depth * 0.5))
+                    .offsetBy(translation: SIMD3<Float>(0, 0, -JournalBookEntity.depth * 0.8))]))
+            shelf.components.set(InputTargetComponent())
+        }
         return shelf
     }
 
