@@ -36,19 +36,43 @@ already named in `HearthVisionApp`. The rig and the view model are already
 hoisted to app level for exactly this, so the handover is a re-parent rather
 than a rebuild.
 
-**The hazard that will cost an afternoon if it is not read first.**
-`rig.updateSubscription` holds a `content.subscribe(to: SceneEvents.Update.self)`
-taken from the VOLUME's scene. A subscription is bound to the scene that issued
-it. When the volume dismisses, the rig stops ticking -- no face, no travel, no
-particles -- and nothing reports an error; the persona simply freezes in the
-room. The immersive host must take its own subscription, and whichever host is
-leaving must release the old one, or a brief overlap ticks the rig twice per
-frame and everything runs at double speed.
-
 Second, smaller: `MainVolume` holds `stageRoot`, `libraryEntity` and
 `propLibrary` as `@State`. Those do NOT survive the volume dismissing, so
 returning from the room rebuilds the library and re-fetches it. Acceptable, but
 it means the return trip is not free and the journal's scroll position is lost.
+
+### The tick, and why it is not a re-subscribe
+
+The hazard is real. `rig.updateSubscription` holds a
+`content.subscribe(to: SceneEvents.Update.self)` taken from the VOLUME's
+content, and a subscription belongs to the scene that issued it. Apple's own
+example stores that subscription in `@State` on the view -- its lifetime is
+meant to match the host. Ours is stored on the rig, which outlives the host by
+design, and nothing cancels it. When the volume dismisses, the rig stops
+ticking: no face, no travel, no particles, no error. The persona freezes.
+
+The obvious fix -- each host takes its own subscription and releases it on the
+way out -- works and is wrong, because it makes every future host responsible
+for a lifecycle it cannot see, and a brief overlap ticks the rig twice a frame.
+
+**A registered `System` has no such problem.** From the docs: "register your
+system with RealityKit by calling `registerSystem()`. RealityKit automatically
+creates an instance of every registered system for every scene." So a system
+keyed on a component the rig root carries runs in WHATEVER scene the rig is
+currently in, and the handover costs nothing at all -- no host holds anything,
+nothing needs releasing, and there is no window in which two hosts both tick.
+`SceneUpdateContext.deltaTime` replaces the event's, and
+`entities(matching:updatingSystemWhen: .rendering)` is the query.
+
+Roughly thirty lines: a `PersonaTickComponent` carrying a reference to the rig,
+and a `PersonaTickSystem` whose `update` calls `rig.update(deltaTime:)`.
+
+One thing it does NOT carry across, and this is an improvement rather than a
+cost: the volume's subscription closure also polls
+`rig.apply(viewModel.personaPalette)`, `rig.apply(visualization:)` and
+`rig.apply(faceGeometry:)` sixty times a second, because there was no observer
+to hand. Those are view-model reads and belong in `onChange` handlers on the
+host, where they will fire when the value actually changes.
 
 ## 2. Where the persona stands, and how big
 
@@ -69,35 +93,88 @@ In a room, every one of those numbers is a different question:
   to be floor-relative and in front of the person at a conversational distance,
   which is what world sensing (section 6) is for.
 
-## 3. Controls without ornaments
+## 3. Controls without ornaments -- DECIDED 2026-08-18
 
-The phase's largest open question, and a design decision rather than a port. As
-things stand, entering the room costs the person: house status, persona
-switching, typing, the mic button, Journal, Persona, Apps, Settings, Sessions,
-Memory and Routines.
+Operator's call, and it is better than any of the three options first written
+here: **the controls attach to the PERSONA, not to a window and not to the
+room.** They become part of whoever is on stage, which is the same move already
+made for cards and the caption, and `personaAnchor` is already where they hang.
 
-Three ways out, and they are not exclusive:
+The shape:
 
-1. **The volume does not dismiss.** It stays open as a control panel while the
-   room is furnished around it. Cheapest by far -- everything keeps working
-   untouched -- and it contradicts design section 1, which is worth re-reading
-   rather than merely overruling. The section's argument is the iOS collapsed/
-   expanded discipline; whether that argument survives a client whose controls
-   all live on the collapsed state is exactly the question.
-2. **The controls become entities.** A panel that floats near the persona and
-   travels with her -- `personaAnchor` already exists and already carries work
-   that must stay with her. Most in keeping with "everything is an entity", and
-   the most new work: four surfaces and a rail would need spatial hosts.
-3. **The surfaces become their own windows.** Phase 5 already plans "Settings,
-   Persona, Apps, Transcript windows", and a `.mixed` immersive space coexists
-   with plain windows. This pulls phase 5 forward rather than inventing
-   anything, and leaves only status/persona/mic homeless.
+- **Two shelves, left and right of the persona, about 30cm each way.** The
+  bottom shelf's four destinations go left; the rail's three tabs go right. They
+  stop being edges of a box and become things beside a person, which is why this
+  survives the box going away.
+- **Mostly hidden until looked at.** They fade up on hover and fade back down,
+  so the room holds a persona rather than a persona and a control panel.
+- **Pinch an icon and drag it off the shelf to spawn it**, then leave it
+  somewhere in the room, where it anchors and stays. A journal pulled off the
+  shelf and set on a real table is the room's version of opening a panel.
 
-**Recommendation: 1 for the gate, then 3.** Keep the volume open for the first
-device run so the round trip can be judged on its own terms without a control
-rewrite confounding it; then move the surfaces to windows and revisit whether
-the volume still earns its place. Decide before writing the toggle, because
-whether the volume dismisses is the first line of it.
+### What the platform will and will not give us
+
+**The hover reveal works, and SwiftUI is the cheaper path.** `CustomHoverEffect`
+does exactly this, from Apple's own example:
+
+```swift
+content.hoverEffect { effect, isActive, proxy in
+    effect.animation(.easeOut) { $0.opacity(isActive ? 1 : 0.5) }
+}
+```
+
+and `hoverEffectGroup()` makes a whole shelf light as one -- "hovering anywhere
+over the view will activate the hoverEffects added to" every descendant. So a
+look anywhere near the shelf brings all of its icons up together, which is the
+behaviour wanted and not merely an approximation of it.
+
+Keeping the shelves as SwiftUI attachments parented to `personaAnchor` is
+therefore the recommendation. The RealityKit route exists --
+`HoverEffectComponent`, which needs `InputTargetComponent` and
+`CollisionComponent` and applies down the whole entity hierarchy -- but its
+`.shader` style, the one that could fade real geometry in as ITSELF, requires a
+`ShaderGraphMaterial` authored in Reality Composer Pro. This project has no RCP
+package and builds every material in code. The built-in `.highlight` style with
+`opacityFunction: .full` can reveal a fully transparent entity, but as a
+coloured glow rather than as its own artwork.
+
+**The constraint to design around: the app can never know the shelf is
+showing.** From the docs: hover effects "may be applied to a view
+out-of-process. Therefore an effect's current phase may not be visible within
+your app." Gaze is private and there is no API that reports it. Two
+consequences:
+
+- The fade is purely presentational. The buttons stay hit-testable at opacity
+  zero, and that is fine on visionOS because a pinch lands where you are
+  looking -- but no app logic can branch on "the shelf is open", so nothing else
+  may depend on it.
+- Anything that must actually toggle -- and the pinch-drag-to-spawn does -- has
+  to be driven by a gesture, not by the hover.
+
+**Anchoring a spawned panel has two different costs**, and they are worth
+separating before either is promised:
+
+- **Stays put for this session**: `AnchorEntity(world:)` fixes a transform in
+  the scene. No world sensing, no usage description, no ARKit session. This is
+  enough for "pull the journal out and leave it beside you".
+- **Stays put on that table, or across launches**: `AnchorEntity(.plane(...))`
+  via `SpatialTrackingSession`, which is RealityKit's managed path -- it keeps
+  the anchor aligned without the app running ARKit itself. This is what needs
+  `NSWorldSensingUsageDescription`, and persistence across launches needs ARKit
+  world anchors on top.
+
+Recommend the first for phase 4 and the second only if the device run says the
+panels want to belong to furniture. Shipping a usage-description key for a
+capability that is not used is exactly what the gates script exists to catch.
+
+### What still has no home
+
+Status and persona switching, and the mic. The two shelves account for the
+seven destinations; the top ornament and the composer do not. Options: a third
+element on the persona (a collar or a plinth), fold persona switching into a
+long-press on the persona herself, or let the status simply not exist in the
+room -- a house that is not answering is visible in the persona's own dead look,
+which is what `setConnected` already draws.
 
 ## 4. The toggle
 
@@ -132,10 +209,32 @@ idea being tried in a box.
   yaws `rootEntity`; a bead has no wrong way up, and a walking clip is not what
   it plays. Whether a model should travel at all in v1, or stand and turn, is
   worth deciding before tuning numbers.
-- **The spring lag.** Section 6 asks for cards that follow "with a soft spring
-  lag"; `personaAnchor` is rigid parenting, which was invisible in a box where
-  the orb never moved. With motion on, at room scale, it will not be. This is
-  the remaining half of section 6.
+### Following, INVESTIGATED 2026-08-18
+
+Section 6 asks for cards that follow "with a soft spring lag" and that
+"billboard toward the user". `personaAnchor` delivered the first half of the
+first clause -- work travels -- and neither of the others. Two findings:
+
+**The lag does not exist, and neither does the billboard.** The anchor is a
+plain child entity, so work is welded to the persona with zero lag. And
+`BillboardComponent` appears exactly once in the codebase, on the rig's own glow
+billboard; no card or caption has one. Both were invisible in a box where the
+orb never moved. With motion on, at room scale, neither will be.
+
+**The anchor inherits the rig's YAW, and that is probably wrong.** `update`
+sets `rootEntity.orientation` from `behavior.yaw` so the painted face looks
+where the persona looks. Work parented under it swings around her when she turns
+to the shelf -- which for a caption you are mid-way through reading is the
+"prose that slides while you are reading it" problem in its worst form. Position
+should follow with lag; ORIENTATION should billboard to the viewer rather than
+inherit hers.
+
+So this is one job with three parts, and it is the same system as the tick:
+a `FollowComponent` carrying target, stiffness and damping, integrated each
+frame, plus `BillboardComponent` on the followers. One `PersonaTickSystem` doing
+two things beats a second per-frame mechanism -- and a system rather than a
+parent-child weld is also what lets the volume keep the rigid behaviour it
+already has, by simply not adding the component.
 
 ## 6. World sensing
 
