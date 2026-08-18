@@ -548,12 +548,18 @@ struct MainVolume: View {
 
     /// And how far she is lifted off it, in metres.
     ///
-    /// A figure grounded in the box stands with her legs through the composer
-    /// and the button shelf -- both ornaments along the bottom edge, both in
-    /// front of her. 8cm clears them, judged on the device. Zero is the rig's
-    /// default and is what the immersive room wants: nothing hangs along the
-    /// bottom of a real floor.
-    private static let personaModelLift: Float = 0.08
+    /// A figure grounded in the box stands with her legs through the ornaments
+    /// along the bottom edge. 16cm clears them, and it arrived in two 8cm
+    /// steps for a reason worth remembering: the first cleared the button shelf
+    /// and left her in the composer, and then TAKING THE COMPOSER AWAY put the
+    /// shelf back over her feet. The two share one VStack, so removing the
+    /// taller one moves the other up by its own height. A number measured
+    /// against a stack of ornaments has to be re-measured whenever the stack
+    /// changes.
+    ///
+    /// Zero is the rig's default and is what the immersive room wants: nothing
+    /// hangs along the bottom of a real floor.
+    private static let personaModelLift: Float = 0.16
 
     /// How big the persona's investigation prop is against life size. Small
     /// enough that its spine lettering is present but unreadable, which is
