@@ -60,6 +60,27 @@ public enum ClientPrefs {
         set { UserDefaults.standard.set(min(1.0, max(0.0, newValue)), forKey: voiceVolumeKey) }
     }
 
+    /// Whether the volume's typing bar is up.
+    ///
+    /// OFF by default, which is the opposite of every other preference here and
+    /// is a judgement rather than an oversight: a model persona stands in front
+    /// of the bar, and someone meeting the headset client for the first time
+    /// should see the persona rather than a control across her legs. Voice is
+    /// the headset's primary way in -- a pinch on the persona starts a turn --
+    /// and this brings back typing for the times speaking aloud is the wrong
+    /// move.
+    ///
+    /// The KEY is public because the volume reads it through `@AppStorage`
+    /// rather than through this accessor: the settings panel and the ornament
+    /// are in the same window, so toggling has to take effect on the next frame
+    /// rather than the next launch. One key, stated once, read two ways.
+    public static let stageTypingBarKey = "hearth.stageTypingBar"
+
+    public static var stageTypingBar: Bool {
+        get { UserDefaults.standard.object(forKey: stageTypingBarKey) as? Bool ?? false }
+        set { UserDefaults.standard.set(newValue, forKey: stageTypingBarKey) }
+    }
+
     /// What the player should actually run at, both prefs folded together.
     public static var effectiveVolume: Float {
         speakReplies ? Float(voiceVolume) : 0

@@ -280,12 +280,23 @@ and a window resize cannot change the answer. Two things went in with the fix:
 The 8cm lift cleared the button shelf and left her standing in front of the
 composer, the taller of the two. Lifting further is the wrong answer -- she then
 floats above a box she is meant to be standing in -- so the TYPING BAR goes away
-instead, behind `textEntryShown`. A flag rather than a deletion: typing is a
-real way to talk to the house and it comes back the moment there is somewhere
-sensible to put it, which the right rail has room for and which phase 4 has to
-answer anyway when there is no box at all. The cost worth stating is that the
-MIC lives in the same ornament and goes with it; a pinch on the persona still
-starts a turn, so voice is not lost, but it is the only way in from the stage.
+instead -- off by default, and back on from Settings for anyone who wants it.
+
+That settings row is where the design doc said it would be: section 7 promised
+"a visionOS section for immersive preferences as they accrue", and the typing
+bar is the first thing to accrue. It is gated on a CAPABILITY, `spatialStage`,
+never on a platform check -- a row asks whether there is a stage to furnish, and
+`HearthSettingsView`'s whole doctrine is that it must never ask whether it is on
+a headset.
+
+Naming the Vision client in `ClientProfile` fixed a real bug on the way:
+`current` was the literal `.ios`, so the headset's settings footer told it that
+it was a phone. Which client is running is the one genuine platform fact in that
+file, so it is answered once at the table and never again at a row.
+
+The cost worth stating is that the MIC lives in the same ornament and goes with
+the bar; a pinch on the persona still starts a turn, so voice is not lost, but
+it is the only way in from the stage while the bar is down.
 
 And her head stood in front of the live caption. The fix is the one design
 section 6 asked for on day one: work is ANCHORED to the persona rather than

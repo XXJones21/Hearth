@@ -40,6 +40,15 @@ public struct HearthSettingsView: View {
                     ConnectionSection(viewModel: viewModel)
                     PersonasSection(viewModel: viewModel)
                     VoiceSection()
+                    if ClientProfile.can(.spatialStage) {
+                        // Never renders on iOS, and never asks whether it is on
+                        // a headset -- it asks whether there is a stage to
+                        // furnish. Design section 7 promised this section
+                        // ("plus a visionOS section for immersive preferences
+                        // as they accrue"); the typing bar is the first thing
+                        // to accrue.
+                        SpatialStageSection()
+                    }
                     HistorySection(viewModel: viewModel)
 
                     if ClientProfile.can(.devPane) {
@@ -435,6 +444,27 @@ private struct VoiceSection: View {
                             ClientPrefs.voiceVolume = v
                         }
                 }
+            }
+        }
+    }
+}
+
+// MARK: - The spatial stage (this headset)
+
+/// What is on the stage besides the persona.
+private struct SpatialStageSection: View {
+    @State private var typingBar = ClientPrefs.stageTypingBar
+
+    var body: some View {
+        SettingsSection(title: "Stage", badge: "This headset") {
+            SettingsRow(label: "Typing bar",
+                        hint: "A text field along the bottom of the volume. Off by default: a persona with a body stands in front of it. Speaking still works either way -- pinch the persona to start a turn.") {
+                Toggle("", isOn: $typingBar)
+                    .labelsHidden()
+                    .tint(HearthPalette.fennec)
+                    .onChange(of: typingBar) { _, v in
+                        ClientPrefs.stageTypingBar = v
+                    }
             }
         }
     }

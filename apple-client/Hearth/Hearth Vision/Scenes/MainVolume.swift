@@ -41,22 +41,26 @@ struct MainVolume: View {
 
     /// Whether the typing bar is up.
     ///
-    /// OFF, and this is a stopgap with a date on it. Lifting a model persona
-    /// 8cm cleared the button shelf and left her standing in front of the
-    /// composer, which is the taller of the two -- and the answer is not to
-    /// lift her further, because then she floats above a box she is supposed to
-    /// be standing in.
+    /// OFF by default. Lifting a model persona 8cm cleared the button shelf and
+    /// left her standing in front of the composer, which is the taller of the
+    /// two -- and the answer is not to lift her further, because then she
+    /// floats above a box she is supposed to be standing in.
     ///
-    /// So the bar goes away for now rather than the persona moving. It is a
-    /// flag rather than a deletion because typing is a real way to talk to the
-    /// house and it comes back the moment there is somewhere sensible to put
-    /// it -- the right rail has room, and phase 4 has to answer this anyway
-    /// when there is no box at all.
+    /// So the bar goes away rather than the persona moving, and Settings' Stage
+    /// section brings it back for anyone who wants it. Not a stopgap in the
+    /// end: typing is a real way to talk to the house, and which of the two
+    /// costs more depends on who is on stage -- a bead the size of a plum
+    /// blocks nothing at all.
     ///
     /// The MIC goes with it, which is the cost worth stating: the two live in
     /// one ornament. A pinch on the persona still starts a turn, so voice is
     /// not lost -- but it is now the only way in from the stage.
-    @State private var textEntryShown = false
+    ///
+    /// `@AppStorage` rather than `ClientPrefs.stageTypingBar` directly, and the
+    /// two are the same key: the Settings panel that flips this is an
+    /// attachment in THIS window, so the ornament has to answer on the next
+    /// frame rather than the next launch.
+    @AppStorage(ClientPrefs.stageTypingBarKey) private var textEntryShown = false
 
     /// The open rail tab, or nil for no rail.
     ///

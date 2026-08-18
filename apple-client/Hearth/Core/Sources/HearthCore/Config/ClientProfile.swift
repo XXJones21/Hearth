@@ -11,6 +11,12 @@
 //  line in the table below and zero changes anywhere else. Branching on
 //  platform at each row is how a settings page rots.
 //
+//  visionOS is a SECOND Apple client, not the iOS one in a headset. It links
+//  the same package, so before it was named here `ClientProfile.current` was
+//  the literal `.ios` and the settings footer told the headset it was a phone.
+//  Which client is running is the one genuine platform fact in this file, so it
+//  is answered once, at the table, and never again at a row.
+//
 //  iOS deliberately holds NOTHING:
 //    - files    -- the folders are on the Valar machine. A browser on a phone
 //                  would open the wrong device's storage.
@@ -31,18 +37,34 @@ public enum ClientCapability: String, CaseIterable {
     case inAppTheme = "inapp-theme"
     /// Shows the developer pane.
     case devPane = "devpane"
+    /// Has a three-dimensional stage whose furniture -- the typing bar, and
+    /// whatever else accrues -- can be shown or hidden. A flat client has no
+    /// stage to furnish, which is why this is a capability rather than a row
+    /// that checks for a headset.
+    case spatialStage = "spatial-stage"
 }
 
 public enum ClientId: String {
-    case desktop, ios, echo, quest
+    case desktop, ios, visionos, echo, quest
 }
 
 public enum ClientProfile {
-    public static let current: ClientId = .ios
+    /// The one platform check in the module, and it belongs here: this file
+    /// exists so that nothing ELSE has to ask.
+    public static let current: ClientId = {
+        #if os(visionOS)
+        return .visionos
+        #else
+        return .ios
+        #endif
+    }()
 
     private static let table: [ClientId: Set<ClientCapability>] = [
         .desktop: [.files, .window, .inAppTheme, .devPane],
         .ios: [],
+        // No inAppTheme: visionOS answers `dark` to every appearance query, so
+        // an in-app theme switch there would be a control fighting the OS.
+        .visionos: [.spatialStage],
         .echo: [],
         .quest: [.inAppTheme]
     ]
@@ -56,6 +78,7 @@ public enum ClientProfile {
         switch current {
         case .desktop: return "Hearth desktop"
         case .ios:     return "Hearth iOS"
+        case .visionos: return "Hearth Vision"
         case .echo:    return "Echo"
         case .quest:   return "Quest"
         }
