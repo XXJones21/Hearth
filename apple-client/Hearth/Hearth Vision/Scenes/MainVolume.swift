@@ -422,10 +422,14 @@ struct MainVolume: View {
 
     /// The floor the library may not draw below, in the volume's own space.
     ///
-    /// Just above where the composer and the button shelf sit. The box is 0.8
-    /// tall, so this leaves the lowest fifth of it to the controls and gives
-    /// the rest to the shelves.
-    private static let clipFloorY: Float = -0.22
+    /// Just above where the composer and the button shelf sit.
+    ///
+    /// -0.22 was cautious: on the device it cut a whole shelf while leaving a
+    /// visible band of unused air between the lowest board and the composer.
+    /// The controls are ornaments and ornaments hang OUTSIDE the box, so the
+    /// floor only has to clear them by enough to read as separate -- not by
+    /// enough to hold them.
+    private static let clipFloorY: Float = -0.32
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough
