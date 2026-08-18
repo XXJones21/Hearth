@@ -68,10 +68,6 @@ struct MainVolume: View {
     /// size, and let one transform reconcile them.
     @State private var stageRoot = Entity()
 
-    /// The stage's scale, tracked so gestures measured in the real world can be
-    /// converted back into the stage's own units.
-    @State private var stageScale: Float = 1
-
     /// The persona's investigation prop: the same library at a tenth scale,
     /// spines turned toward the orb, untouchable.
     ///
@@ -212,9 +208,14 @@ struct MainVolume: View {
             let viewBounds = content.convert(geometry.frame(in: .local),
                                              from: .local, to: .scene)
             let scale = Float(viewBounds.extents.x) / Self.designWidth
-            if abs(scale - stageScale) > 0.001 {
-                stageScale = scale
-            }
+            // Written to the ENTITY and nowhere else.
+            //
+            // The first cut also mirrored this into @State so a gesture could
+            // read it, which made resizing unresponsive: writing state from
+            // inside an update closure invalidates the body, the body re-runs
+            // update, and that writes again -- a loop that fires on every frame
+            // of a live drag. The entity already knows its own scale, so
+            // anything that needs it reads `stageRoot.scale` instead.
             stageRoot.scale = SIMD3<Float>(repeating: scale)
             layoutAttachments(content: content, attachments: attachments)
         } attachments: {
@@ -388,7 +389,7 @@ struct MainVolume: View {
                     // library in its own.
                     libraryEntity.scroll = scrollAtGestureStart
                         + Float(value.translation.height) * -0.0024
-                        / max(libraryEntity.presentationScale * stageScale, 0.01)
+                        / max(libraryEntity.presentationScale * stageRoot.scale.x, 0.01)
                 }
                 .onEnded { _ in scrollAtGestureStart = libraryEntity.scroll }
         )
