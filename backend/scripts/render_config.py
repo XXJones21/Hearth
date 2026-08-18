@@ -106,6 +106,7 @@ def render(record: dict, root, home) -> str:
         f"HEARTH_HOME={posix(home)}",
         f"HEARTH_MODELS={posix(weights_dir)}",
         f"HEARTH_ENGRAM={posix(home)}/engram",
+        f"HEARTH_ENGRAM_MCP_PATH={posix(root)}/runtime/backend/vendor/engram-mcp",
         "",
         "# The model",
         f"HEARTH_DEEP_MODEL_OVERRIDE={posix(model_path)}",

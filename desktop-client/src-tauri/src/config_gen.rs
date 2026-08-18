@@ -63,6 +63,10 @@ pub fn render(root: &Path) -> Result<PathBuf, String> {
     line(format!("HEARTH_LLAMA_SERVER_BIN={}", slash(&root.join(d::rel_llama_server()))));
     line(format!("HEARTH_HOME={}", slash(&root.join(d::REL_HOME))));
     line(format!("HEARTH_ENGRAM={}", slash(&root.join(d::REL_ENGRAM))));
+    line(format!(
+        "HEARTH_ENGRAM_MCP_PATH={}",
+        slash(&root.join(d::REL_ENGRAM_MCP))
+    ));
     line(format!("HF_HOME={}", slash(&root.join(d::REL_HF_CACHE))));
     // Symlinks need Developer Mode on Windows; a per-install cache uses
     // plain files instead. Costs duplicate bytes for one model, buys an

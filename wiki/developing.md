@@ -1,7 +1,7 @@
 ---
 title: Developing on Hearth
 status: draft
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-17
 related:
   - _index.md
   - first-run.md
@@ -167,8 +167,11 @@ client with a stale tarball ships old backend code with no error.
 
 Run them in that order, every time backend code changes. `pack_backend.sh`
 stages `backend/harness`, `backend/memory`, `backend/personas`,
-`backend/scripts`, `backend/config`, `backend/manifest.yaml`, and the
-probe's model dictionary into `desktop-client/src-tauri/resources/`, where
+`backend/scripts`, `backend/config`, `backend/manifest.yaml`, the
+probe's model dictionary, and the engram-mcp memory client (vendored into
+`vendor/engram-mcp` from a sibling checkout of
+`https://github.com/XXJones21/engram-mcp.git`; override the source with
+`ENGRAM_MCP_SRC`) into `desktop-client/src-tauri/resources/`, where
 `tauri.conf.json` lists `resources/backend.tar.gz` and
 `resources/hearth-supervisor*` as bundled resources. `npm run tauri build`
 picks up whatever is in that folder at the time it runs, stale or not.

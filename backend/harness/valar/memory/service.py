@@ -54,12 +54,16 @@ class EngramService:
             return self._client
         if self._failed:
             return None
-        # A developer tool that lives outside the product tree. There is no
-        # derived default: an unset variable means the richer memory client
-        # is simply not installed, and the legacy seams carry the load.
+        # Product, not dev tooling (2026-08-17): the installer vendors
+        # engram-mcp into the backend bundle (vendor/engram-mcp) and the
+        # rendered hearth.env points here at it. There is still no derived
+        # default: an unset variable means an install older than the bundling,
+        # or a testbed that has not rendered its config, and the legacy seams
+        # carry the load. That degradation cost weeks of shallow recall on the
+        # first ported house, so it logs as a warning rather than info.
         configured = (os.environ.get("HEARTH_ENGRAM_MCP_PATH") or "").strip()
         if not configured:
-            logger.info("HEARTH_ENGRAM_MCP_PATH unset; using the legacy memory seams")
+            logger.warning("HEARTH_ENGRAM_MCP_PATH unset; using the legacy memory seams")
             self._failed = True
             return None
         pkg = Path(configured).expanduser()
