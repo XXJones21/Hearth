@@ -134,7 +134,11 @@ struct MainVolume: View {
             // An origin near the middle of the box put the lowest board over
             // the composer and the shelf ornament.
             libraryEntity.presentationScale = 0.9
-            libraryEntity.root.position = SIMD3<Float>(0.10, 0.40, 0.02)
+            // 0.36, and the number is the settled one rather than a first
+            // guess: 0.32 crowded the composer, 0.40 pushed the masthead into
+            // the ceiling, and this is the half-way point that was judged on
+            // the device between them.
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.36, 0.02)
             // Nothing draws below this, ever. The composer and the button
             // shelf own the bottom of the box, and a bookcase is not allowed to
             // reach into them: a library that hides the way to talk to the
