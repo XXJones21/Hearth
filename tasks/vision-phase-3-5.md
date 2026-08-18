@@ -275,6 +275,39 @@ and a window resize cannot change the answer. Two things went in with the fix:
   `onFramed` says how big she is, plus a sanity guard that refuses any measure
   claiming she is twice her own life height.
 
+**Two more device findings, 2026-08-18.**
+
+The 8cm lift cleared the button shelf and left her standing in front of the
+composer, the taller of the two. Lifting further is the wrong answer -- she then
+floats above a box she is meant to be standing in -- so the TYPING BAR goes away
+instead, behind `textEntryShown`. A flag rather than a deletion: typing is a
+real way to talk to the house and it comes back the moment there is somewhere
+sensible to put it, which the right rail has room for and which phase 4 has to
+answer anyway when there is no box at all. The cost worth stating is that the
+MIC lives in the same ornament and goes with it; a pinch on the persona still
+starts a turn, so voice is not lost, but it is the only way in from the stage.
+
+And her head stood in front of the live caption. The fix is the one design
+section 6 asked for on day one: work is ANCHORED to the persona rather than
+placed on the stage. `PersonaRig.personaAnchor` is a scale-cancelled child of
+the rig root; cards hang off it at `CardOrbitLayout.offsetFromOrb`, which has
+been sitting unused waiting for exactly this, and the caption hangs at
+`crownHeight` plus a gap.
+
+This reverses the call made on 2026-08-17 -- cards unparented in the volume,
+parented only in the immersive space -- and what changed is what is standing on
+the stage. With a bead the size of a plum, absolute was better: it never moved
+far enough to leave its work behind, and prose that slides while you read it is
+worse than prose that sits still. A figure half a metre tall is a different
+object, and "a bit higher" would be a number right for Selene and wrong for
+Sulivan, wrong again for whoever is third. Anchored, it is one rule.
+
+`crownHeight` measures the top of whoever is on stage, and only once the fit has
+landed -- hence `modelFramed` beside `modelActive`. They answer different
+questions at different moments: the figure is UP a full 800ms before the figure
+is the right SIZE, and a host that measured in between would place work against
+the raw USDZ and never hear that it changed.
+
 Still to judge on the device, and none of it is knowable from here:
 - ~~**Whether the framing centres her well.**~~ Answered on the device
   2026-08-18: the grounding is right -- she stands on the floor of the box --

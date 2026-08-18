@@ -165,6 +165,26 @@ public final class PersonaRig: ObservableObject {
     /// model travels, turns and returns home exactly as the bead does -- the
     /// behaviour director never learns which one it is moving.
     private let modelHost = Entity()
+
+    /// Where a host hangs work that should TRAVEL with the persona: cards, the
+    /// live caption, anything that belongs to whoever is on stage.
+    ///
+    /// Design section 6 asked for this from the start -- "cards anchor to the
+    /// rig, not the scene" -- and `CardOrbitLayout.offsetFromOrb` has been
+    /// sitting unused waiting for it. The volume placed them absolutely
+    /// instead, which was the right call while the persona was a bead the size
+    /// of a plum: it never moved far and it never got in front of anything.
+    /// A standing figure does both, and her head is exactly where the caption
+    /// was.
+    ///
+    /// Scale-cancelled like `modelHost`, so an attachment parented here keeps
+    /// the size its own frame gave it rather than inheriting how big the bead
+    /// is. Positions on its children are therefore in the HOST's metres.
+    ///
+    /// It does inherit the rig's yaw, so work turns when the persona turns.
+    /// That is the design's intent and is currently untested, because
+    /// `BehaviorDirector.motion` is `.none` and the rig never turns.
+    public let personaAnchor = Entity()
     private var modelLoader: PersonaModelLoader?
     private var visualization: PersonaVisualization = .fallback
     private var modelLoadToken = 0
@@ -175,6 +195,16 @@ public final class PersonaRig: ObservableObject {
     /// each mode, and a gesture is rebuilt with the body. Nothing else in this
     /// file needs to notify, which is why the flag is the only new @Published.
     @Published public private(set) var modelActive = false
+
+    /// True once the model's one-shot fit has landed and its size is FINAL.
+    ///
+    /// Published for the same reason `modelActive` is, and it is a second flag
+    /// rather than a refinement of the first because they answer different
+    /// questions at different moments. `modelActive` says the bead is down and
+    /// the figure is up, which is true 800ms before the figure is the right
+    /// size; a host measuring against her -- `crownHeight` -- would otherwise
+    /// place work against the raw USDZ and then never hear that it changed.
+    @Published public private(set) var modelFramed = false
 
     /// Life size, in metres, and it is the phone's own number: 1.34 is a
     /// standing figure framed full-length. `modelPresentationScale` is a
@@ -197,7 +227,7 @@ public final class PersonaRig: ObservableObject {
     /// divides that scale back out and this number is measured against the
     /// room, not against the orb.
     public var modelPresentationScale: Float = 1.0 {
-        didSet { applyModelScale() }
+        didSet { layoutPersonaHosts() }
     }
 
     /// How far a model persona is lifted off where the rig sits, in METRES of
@@ -213,7 +243,7 @@ public final class PersonaRig: ObservableObject {
     /// reason `modelPresentationScale` is: 8cm should mean 8cm, not 8cm
     /// multiplied by however big the bead happens to be.
     public var modelVerticalOffset: Float = 0 {
-        didSet { applyModelScale() }
+        didSet { layoutPersonaHosts() }
     }
 
     private let particleField = Entity()
@@ -318,7 +348,9 @@ public final class PersonaRig: ObservableObject {
 
         modelHost.name = "PersonaModelHost"
         rootEntity.addChild(modelHost)
-        applyModelScale()
+        personaAnchor.name = "PersonaAnchor"
+        rootEntity.addChild(personaAnchor)
+        layoutPersonaHosts()
 
         applyStateVisuals(animated: false)
     }
@@ -537,14 +569,15 @@ public final class PersonaRig: ObservableObject {
         let token = modelLoadToken
 
         // Recomputed here rather than trusted from init: the host sets the rig
-        // root's scale after constructing the rig, and this number is measured
-        // against it. Doing it at the moment a model actually arrives makes the
-        // host's ordering irrelevant.
-        applyModelScale()
+        // root's scale after constructing the rig, and these numbers are
+        // measured against it. Doing it at the moment a model actually arrives
+        // makes the host's ordering irrelevant.
+        layoutPersonaHosts()
 
         // The old one goes NOW, not when the new one arrives: switching away
         // from Selene should not leave her standing while Sage downloads.
         modelLoader?.unload()
+        modelFramed = false
         let loader = PersonaModelLoader()
         modelLoader = loader
         // The collision box is measured AFTER the fit, not when `load` returns.
@@ -554,6 +587,7 @@ public final class PersonaRig: ObservableObject {
         loader.onFramed = { [weak self] in
             guard let self, token == self.modelLoadToken else { return }
             self.applyModelCollision()
+            self.modelFramed = true
         }
 
         Task { @MainActor [weak self] in
@@ -588,6 +622,7 @@ public final class PersonaRig: ObservableObject {
         modelLoadToken += 1
         modelLoader?.unload()
         modelLoader = nil
+        modelFramed = false
         guard modelActive else { return }
         modelActive = false
         setOrbVisible(true)
@@ -605,12 +640,42 @@ public final class PersonaRig: ObservableObject {
     /// The model host's own scale: the presentation fraction, with the rig
     /// root's scale divided back out so the fraction is measured against the
     /// room rather than against the bead.
-    private func applyModelScale() {
+    /// How high the top of whoever is on stage sits above the rig's own
+    /// origin, in the host's METRES.
+    ///
+    /// This is what makes "above their head" mean the same thing for a bead the
+    /// size of a plum and a figure half a metre tall, without a host having to
+    /// know which one it is looking at. A model that has loaded is measured;
+    /// anything else falls back to the nominal size, which is exact for the
+    /// bead and a good guess for a model mid-download.
+    public var crownHeight: Float {
+        let rigScale = max(rootEntity.scale.x, 0.0001)
+        guard modelActive else { return sphereRadius * rigScale }
+        // Only measured once the fit has landed. Before then the model is still
+        // the size the artist exported, and measuring it would throw the
+        // caption metres into the room for the second it takes to settle.
+        guard modelFramed else {
+            return modelVerticalOffset + modelLifeHeight * modelPresentationScale * 0.5
+        }
+        let bounds = modelHost.visualBounds(relativeTo: rootEntity)
+        guard bounds.extents.y > 0.0001 else {
+            return modelVerticalOffset + modelLifeHeight * modelPresentationScale * 0.5
+        }
+        return bounds.max.y * rigScale
+    }
+
+    private func layoutPersonaHosts() {
         let rigScale = max(rootEntity.scale.x, 0.0001)
         modelHost.scale = SIMD3<Float>(repeating: modelPresentationScale / rigScale)
         // The same division, for the same reason: a child's position is in its
         // PARENT's units, and the parent here is the rig root the host scaled.
         modelHost.position = SIMD3<Float>(0, modelVerticalOffset / rigScale, 0)
+        // The anchor sits at the rig's own origin, cancelling only the scale.
+        // Sitting AT the origin rather than at the crown is deliberate: cards
+        // are laid out around the persona's centre by `offsetFromOrb`, and the
+        // caption asks for `crownHeight` explicitly. One anchor, two rules,
+        // rather than an anchor that has already assumed one of them.
+        personaAnchor.scale = SIMD3<Float>(repeating: 1 / rigScale)
     }
 
     /// A figure has to be pinchable too, and a USDZ arrives with no collision

@@ -39,6 +39,25 @@ struct MainVolume: View {
     /// Apple surface with room for.
     @State private var surface: HouseSurface?
 
+    /// Whether the typing bar is up.
+    ///
+    /// OFF, and this is a stopgap with a date on it. Lifting a model persona
+    /// 8cm cleared the button shelf and left her standing in front of the
+    /// composer, which is the taller of the two -- and the answer is not to
+    /// lift her further, because then she floats above a box she is supposed to
+    /// be standing in.
+    ///
+    /// So the bar goes away for now rather than the persona moving. It is a
+    /// flag rather than a deletion because typing is a real way to talk to the
+    /// house and it comes back the moment there is somewhere sensible to put
+    /// it -- the right rail has room, and phase 4 has to answer this anyway
+    /// when there is no box at all.
+    ///
+    /// The MIC goes with it, which is the cost worth stating: the two live in
+    /// one ornament. A pinch on the persona still starts a turn, so voice is
+    /// not lost -- but it is now the only way in from the stage.
+    @State private var textEntryShown = false
+
     /// The open rail tab, or nil for no rail.
     ///
     /// The desktop's third column, collapsible. It is separate state from
@@ -382,7 +401,9 @@ struct MainVolume: View {
         }
         .ornament(attachmentAnchor: .scene(.bottom)) {
             VStack(spacing: 8) {
-                ComposerOrnament(viewModel: viewModel)
+                if textEntryShown {
+                    ComposerOrnament(viewModel: viewModel)
+                }
                 HouseShelfOrnament(active: $surface)
             }
         }
@@ -512,6 +533,15 @@ struct MainVolume: View {
     /// of it -- 0.4 puts her at about half a metre, a figure on a table.
     private static let personaModelScale: Float = 0.4
 
+    /// How far above the persona's crown the live caption floats, in metres.
+    ///
+    /// The one number the anchoring still needs, and it is the old absolute
+    /// placement restated: the caption sat at `orbY + 0.2` and the bead's crown
+    /// is `sphereRadius * 0.22` above `orbY`, so this is what is left over. The
+    /// bead's caption therefore does not move at all; Selene's rises to clear
+    /// her.
+    private static let captionGap: Float = 0.147
+
     /// And how far she is lifted off it, in metres.
     ///
     /// A figure grounded in the box stands with her legs through the composer
@@ -600,23 +630,47 @@ struct MainVolume: View {
     /// expiring under CardStore's TTL show up here as the attachment set
     /// changing, which is why nothing in this file tracks card lifetimes.
     private func layoutAttachments(content: RealityViewContent, attachments: RealityViewAttachments) {
+        // Cards and the caption hang off the PERSONA, not off the stage.
+        //
+        // Reversing a call made on 2026-08-17, and the thing that changed is
+        // what is standing on the stage. With a bead the size of a plum,
+        // absolute placement was better: the orb never moved far enough to
+        // leave its work behind, and prose that slides while you are reading it
+        // is worse than prose that sits still. A model persona is half a metre
+        // tall, and her head is exactly where the caption was -- so "a bit
+        // higher" would be a number that is right for Selene and wrong for
+        // Sulivan, twice over the moment a third persona arrives.
+        //
+        // Anchored, it is one rule: work sits above whoever is there. It is
+        // also what phase 4 needs, where the orb genuinely travels.
+        let anchor = rig.personaAnchor
         let cards = cardStore.cards
         for (index, card) in cards.enumerated() {
             guard let entity = attachments.entity(for: card.id) else { continue }
-            if entity.parent !== stageRoot { stageRoot.addChild(entity) }
-            entity.position = CardOrbitLayout.position(index: index, count: cards.count)
+            if entity.parent !== anchor { anchor.addChild(entity) }
+            // `offsetFromOrb` finally has its caller. It differs from the
+            // absolute form only by `orbY`, which is where the anchor now is,
+            // so the cards do not move -- they merely stop being nailed down.
+            entity.position = CardOrbitLayout.offsetFromOrb(index: index, count: cards.count)
         }
 
         if let live = attachments.entity(for: Self.liveTextID) {
-            if live.parent !== stageRoot { stageRoot.addChild(live) }
-            live.position = SIMD3<Float>(0, CardOrbitLayout.orbY + 0.2, -0.02)
+            if live.parent !== anchor { anchor.addChild(live) }
+            // Measured from the top of whoever is on stage rather than from the
+            // rig's origin. For the bead this lands exactly where the old
+            // absolute number put it; for a figure it clears her head, and for
+            // whatever comes next it will not need revisiting.
+            live.position = SIMD3<Float>(0, rig.crownHeight + Self.captionGap, -0.02)
         }
 
         // The fallback face rides just in front of the bead, at the bead's own
         // height. Only ever present when the compute path failed.
         if let face = attachments.entity(for: Self.faceFallbackID) {
-            if face.parent !== stageRoot { stageRoot.addChild(face) }
-            face.position = SIMD3<Float>(0, CardOrbitLayout.orbY, 0.06)
+            if face.parent !== anchor { anchor.addChild(face) }
+            // Dead centre of the bead, which is the anchor's own origin. Only
+            // ever present when the compute path failed, and never under a
+            // model persona -- she wears her own face.
+            face.position = SIMD3<Float>(0, 0, 0.06)
         }
 
         // The centre slot, standing a little forward so it reads as being in
