@@ -24,7 +24,17 @@ import HearthUI
 
 // MARK: - Status
 
-/// Who is home and whether the house is answering.
+/// Who is home and whether the house is answering -- and the way to change who.
+///
+/// The status strip was already naming the persona, so switching is the label
+/// becoming a menu rather than a new control somewhere else. It is the phone's
+/// arrangement in a shorter space: the drawer lists the personas above the
+/// destinations with a tick on the live one, and tapping one switches. There is
+/// no drawer here, so the name that was already on screen carries the list.
+///
+/// NOT the same thing as Settings' "Start with", which pins a persona for the
+/// NEXT connect and writes `ClientPrefs.startPersona`. This switches the live
+/// session and writes nothing.
 struct HouseStatusOrnament: View {
     @ObservedObject var viewModel: ChatViewModel
 
@@ -44,17 +54,60 @@ struct HouseStatusOrnament: View {
         }
     }
 
+    /// Only a menu when there is something to choose. A disconnected house has
+    /// no list, and a house with one persona has no choice -- in both cases the
+    /// strip stays a label, because a menu that opens onto one disabled row is
+    /// a control that lied about being one.
+    private var canSwitch: Bool {
+        viewModel.connectionStatus == .connected && viewModel.availablePersonas.count > 1
+    }
+
     var body: some View {
+        Group {
+            if canSwitch {
+                Menu {
+                    ForEach(viewModel.availablePersonas, id: \.self) { name in
+                        Button {
+                            viewModel.switchPersona(name)
+                        } label: {
+                            // A tick rather than a highlight: the menu is a
+                            // list of who is HOME, and one of them is answering.
+                            if name == viewModel.selectedPersona {
+                                Label(name, systemImage: "checkmark")
+                            } else {
+                                Text(name)
+                            }
+                        }
+                    }
+                } label: {
+                    strip(showsChevron: true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Persona: \(label). Switch.")
+            } else {
+                strip(showsChevron: false)
+            }
+        }
+        .glassBackgroundEffect()
+    }
+
+    /// The strip itself, identical either way. The chevron is the only thing
+    /// that changes, and it changes because the affordance did.
+    private func strip(showsChevron: Bool) -> some View {
         HStack(spacing: 8) {
             Circle()
                 .fill(dotColor)
                 .frame(width: 8, height: 8)
             Text(label)
                 .font(.system(size: 14, weight: .medium))
+            if showsChevron {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
-        .glassBackgroundEffect()
         // The dot is decoration; the label already says it. Merging them stops
         // VoiceOver reading a colour swatch as a separate element.
         .accessibilityElement(children: .combine)

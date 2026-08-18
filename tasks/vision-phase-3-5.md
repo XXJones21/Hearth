@@ -136,7 +136,62 @@ Still to judge on the device: whether 440pt is enough for Persona's editors, and
 whether the rail wants to be reachable while the immersive house is open (phase
 4 dismisses this volume).
 
-## 3. Smaller things, if they are cheap
+## 3. The app icon -- LANDED 2026-08-18
+
+The Vision target shipped with Xcode's empty `AppIcon.solidimagestack`: three
+layers, no images. Wanted the phone's icon, which is a flat hearth in the brand
+palette.
+
+A visionOS icon is not one image but three, masked to a circle and parallaxed
+against each other, so the phone's single PNG had to be SPLIT rather than
+resized. The art is flat vector with a five-colour palette, so the split is by
+colour -- and the whole difficulty is at the edges, where a pixel is a blend of
+two colours that may belong to different planes. Rounding a blend to whichever
+colour it sits nearest was the first cut and it was visibly wrong: a blend of
+brick and mortar lands nearest to the FLAME colour, which threaded fire along
+every mortar line in the wall. Each blend is now divided between its two planes
+by how much of each it holds.
+
+The planes:
+
+- **Back** is flat cream (`#FAF4EA`), the mortar's own colour, so the wall sits
+  on the same paper its lines are cut from and the system has an opaque plate
+  to mask.
+- **Middle** is the brick wall and the dark firebox and hearthstone.
+- **Front** is the flame, its pale inner tongue, and the log. The last two are
+  the mortar and brick colours respectively, told apart from the wall by falling
+  inside the flame's own bounding box -- there is nothing else brick-coloured in
+  there, because the firebox surrounds it.
+
+The drawing is scaled to 0.94 of the circle's radius about its content centre,
+measured rather than guessed: a square illustration in a round hole loses its
+corners otherwise.
+
+The generator is `scratchpad/icon/layers.swift` -- CoreGraphics, no Pillow or
+ImageMagick on this machine. It is a one-shot and is not in the repo; the three
+1024x1024 PNGs it produced are. If the phone's icon changes, re-run it rather
+than hand-editing the layers.
+
+## 4. Persona switching from the status ornament -- LANDED 2026-08-18
+
+The top ornament already named the live persona, so switching became that label
+turning into a menu rather than a new control somewhere else. It is the phone's
+arrangement in a shorter space: `HouseShelf` lists the personas above the
+destinations with a tick on the live one and switches on tap; there is no drawer
+in a volume, so the name already on screen carries the list.
+
+- `viewModel.switchPersona(name)`, which is the same call the phone's drawer
+  makes. Live session, writes nothing.
+- The tick follows `selectedPersona`, as the phone's rows do.
+- It is only a menu when there is something to choose -- connected, and more
+  than one persona. A menu that opens onto one disabled row is a control that
+  lied about being one.
+
+Worth keeping straight: this is NOT Settings' "Start with", which pins a persona
+for the next connect via `ClientPrefs.startPersona`. Two controls, two
+timescales, and they should stay distinguishable.
+
+## 5. Smaller things, if they are cheap
 
 - ~~The panel's inherited "Hearth" back button is inert in an attachment.~~
   DONE with item 1, and both ways at once: the button goes with the navigation
