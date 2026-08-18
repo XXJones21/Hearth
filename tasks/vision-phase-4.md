@@ -424,6 +424,33 @@ Arena's `noteFloor` is worth reading in full before writing our own:
   has a `.degraded` phase that drops the arena at a fixed spot ahead. Ours
   already has the equivalent: no capture means a sensible spot in front.
 
+### Window life cycle, and the exit that is not ours
+
+From "Handling the window life cycle with multiple scenes", and it found a bug
+the day it was read: **a person can close any scene at any time.** Pressing the
+Digital Crown out of the immersive space does not run our hold gesture, so the
+app was left believing it was still in the room -- flag true, volume never
+returning, and nothing on screen to bring it back with. The fix is
+`onDisappear` on the immersive scene's root view, with the deliberate exit
+clearing its flag BEFORE it awaits so the two paths can be told apart.
+
+Other rules from the same doc, recorded because each is a trap:
+
+- **Closing a window backgrounds it; it is only eliminated if another
+  nonimmersive scene is open.** The last closed nonimmersive scene backgrounds
+  WITHOUT receiving `onDisappear`. So when the volume dismisses for the room,
+  it is probably backgrounded rather than destroyed -- which may mean its
+  `@State` (and the journal's scroll position) survives the round trip after
+  all. Worth checking on the device rather than assuming either way.
+- **`dismissWindow(id:)` with no value dismisses every instance** of that scene.
+  The volume is a `WindowGroup`, so this is what we want and would not be if we
+  ever wanted two.
+- **`restorationBehavior(.disabled)` and `defaultLaunchBehavior(.suppressed)`**
+  for one-time scenes. Applied to the pairing window: restoring it would put a
+  paired headset back in front of a form it has already filled in.
+- **`@SceneStorage`** restores per-scene state across launches -- the open rail
+  tab and the open destination are candidates, once the volume settles.
+
 ### Controls in a room, revisited
 
 Two Apple samples bear on the shelves, and they change the options written in

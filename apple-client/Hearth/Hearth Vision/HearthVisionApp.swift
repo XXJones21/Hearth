@@ -111,12 +111,37 @@ struct HearthVisionApp: App {
         }
         .windowResizability(.contentSize)
         .defaultSize(width: 460, height: 580)
+        // Onboarding, and the platform has names for exactly that. Pairing is
+        // a one-time action: restoring it would put a paired headset back in
+        // front of a form it has already filled in, and launching it would do
+        // the same on every cold start. The volume sends for this window when
+        // it is actually needed, which is the only time it should appear.
+        .restorationBehavior(.disabled)
+        .defaultLaunchBehavior(.suppressed)
 
         // The room. Design section 1's expansion, reached by holding the
         // persona and left the same way.
         ImmersiveSpace(id: SceneID.immersiveHouse) {
             ImmersiveHouse(viewModel: viewModel, rig: rig,
                            spawn: spawn, onLeave: leaveImmersive)
+                .onDisappear {
+                    // THE OTHER WAY OUT, and the one that is not ours.
+                    //
+                    // A person can close any scene at any time -- the Digital
+                    // Crown, the Home button -- and none of that runs the hold
+                    // gesture. Without this the app is left believing it is
+                    // still in the room: the flag stays true, the volume never
+                    // comes back, and there is nothing on screen to bring it
+                    // back with.
+                    //
+                    // `leaveImmersive` clears the flag BEFORE it awaits, so a
+                    // deliberate exit reaches here with it already false and
+                    // this does nothing. Anything else is the system's doing.
+                    guard immersive else { return }
+                    immersive = false
+                    spawn = nil
+                    openWindow(id: SceneID.personaVolume)
+                }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
@@ -169,10 +194,13 @@ struct HearthVisionApp: App {
     /// The same rule mirrored: bring the volume back BEFORE the space closes.
     private func leaveImmersive() {
         guard immersive else { return }
+        // Cleared FIRST, before the await, so the `onDisappear` above can tell
+        // our own exit from the person closing the space themselves. Setting it
+        // after would have both paths firing and two volumes opening.
+        immersive = false
         Task {
             openWindow(id: SceneID.personaVolume)
             await dismissImmersiveSpace()
-            immersive = false
             // The volume places the persona at its own fixed spot, so there is
             // nothing to carry back. Cleared so a second crossing captures
             // afresh rather than reusing where she was the first time.
