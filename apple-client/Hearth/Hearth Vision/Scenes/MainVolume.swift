@@ -134,7 +134,15 @@ struct MainVolume: View {
             // An origin near the middle of the box put the lowest board over
             // the composer and the shelf ornament.
             libraryEntity.presentationScale = 0.9
-            libraryEntity.root.position = SIMD3<Float>(0.10, 0.32, 0.02)
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.40, 0.02)
+            // Nothing draws below this, ever. The composer and the button
+            // shelf own the bottom of the box, and a bookcase is not allowed to
+            // reach into them: a library that hides the way to talk to the
+            // house is a library that has taken the house over.
+            //
+            // Stated in the VOLUME's units rather than the library's, so the
+            // number means what it says -- this is where the ornaments begin.
+            libraryEntity.clipBelowInParent = Self.clipFloorY
             libraryEntity.root.isEnabled = false
             content.add(libraryEntity.root)
 
@@ -407,6 +415,13 @@ struct MainVolume: View {
     /// enough that its spine lettering is present but unreadable, which is
     /// correct for scenery the house is reading rather than something you are.
     private static let propScale: Float = 0.10
+
+    /// The floor the library may not draw below, in the volume's own space.
+    ///
+    /// Just above where the composer and the button shelf sit. The box is 0.8
+    /// tall, so this leaves the lowest fifth of it to the controls and gives
+    /// the rest to the shelves.
+    private static let clipFloorY: Float = -0.22
 
     /// Where the orb stands when a destination is open. The volume is 0.8m
     /// wide, so this is a little left of the box's own left third -- far enough

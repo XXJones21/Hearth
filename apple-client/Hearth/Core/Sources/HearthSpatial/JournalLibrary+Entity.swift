@@ -103,15 +103,69 @@ public final class JournalLibraryEntity {
     /// world the scroller moves in, so a drag measured in real distance has to
     /// be divided by it or the shelves will not track the finger.
     public var presentationScale: Float = 1 {
-        didSet { root.scale = SIMD3<Float>(repeating: presentationScale) }
+        didSet {
+            root.scale = SIMD3<Float>(repeating: presentationScale)
+            applyClip()
+        }
     }
+
+    /// Nothing draws below this height, given in the PARENT's space.
+    ///
+    /// A clipping plane, built the only way RealityKit offers one: there is no
+    /// user clip plane, and a real shader clip would be a whole material for a
+    /// straight line. So each shelf is culled against the plane and faded
+    /// across a short band as it crosses -- per shelf rather than per pixel,
+    /// which is enough because shelves are discrete and a board either belongs
+    /// on screen or does not.
+    ///
+    /// Taken in the parent's space on purpose. The host knows where the
+    /// composer and the button shelf are in the VOLUME; it should not also have
+    /// to know the library's own position and scale to say "not below here".
+    public var clipBelowInParent: Float? {
+        didSet { applyClip() }
+    }
+
+    /// How far a shelf fades over as it crosses the plane.
+    private var clipFade: Float { JournalBookEntity.height * 0.5 }
 
     /// How far down the library is scrolled, in metres of its OWN space.
     public var scroll: Float = 0 {
         didSet {
             guard interactive else { return }
             scroller.position.y = min(maxScroll, max(0, scroll))
+            applyClip()
         }
+    }
+
+    /// Cull every shelf against the plane.
+    ///
+    /// Opacity AND `isEnabled`: a fully transparent entity still answers a hit
+    /// test, so a book faded out under the composer would still open if pinched
+    /// through it. Fading alone would make the plane a lie.
+    private func applyClip() {
+        guard let clipBelowInParent else {
+            for shelf in scroller.children {
+                shelf.isEnabled = true
+                shelf.components.remove(OpacityComponent.self)
+            }
+            return
+        }
+        let scale = max(presentationScale, 0.0001)
+        // The plane, expressed in the scroller's own units.
+        let plane = (clipBelowInParent - root.position.y) / scale - scroller.position.y
+
+        for shelf in scroller.children {
+            // A shelf's lowest point is its board, not its origin.
+            let bottom = shelf.position.y - JournalBookEntity.height * 0.6
+            let t = Self.smoothstep(plane, plane + clipFade, bottom)
+            shelf.isEnabled = t > 0.01
+            shelf.components.set(OpacityComponent(opacity: t))
+        }
+    }
+
+    private static func smoothstep(_ edge0: Float, _ edge1: Float, _ x: Float) -> Float {
+        let t = min(1, max(0, (x - edge0) / max(edge1 - edge0, 1e-4)))
+        return t * t * (3 - 2 * t)
     }
 
     /// Rebuild from the house's shelves.
@@ -181,6 +235,7 @@ public final class JournalLibraryEntity {
         // of reach.
         maxScroll = max(0, (Float(row) - visibleRows) * shelfPitch + labelRise)
         scroll = 0
+        applyClip()
     }
 
     private let booksPerBoard = 8
