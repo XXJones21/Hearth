@@ -260,18 +260,16 @@ public final class PersonaRig: ObservableObject {
     /// unavailable -- no Metal, no compute pipeline, a metallib that did not
     /// make it into the bundle. Deleting it to make room for the new thing
     /// would have left nothing to fall back TO.
-    public enum EffectStyle: String, Sendable, CaseIterable {
-        /// The emissive bead with its firefly field. The default.
-        case fireflies
-        /// The hearth-fire with its embers. Phase 4.5's work.
-        case ember
-    }
+    /// The preset names the whole look -- which core, which swarm -- and lives
+    /// in the package rather than here, because the phone is going to want to
+    /// say `.fire` too. See `ParticleField.swift`.
+    public typealias EffectStyle = ParticlePreset
 
     /// The style this persona is wearing. Changing it re-dresses the rig.
     ///
     /// `fireflies` by default, deliberately: a default is what everyone gets
     /// who never opens a setting.
-    public var effectStyle: EffectStyle = .fireflies {
+    public var effectStyle: ParticlePreset = .fireflies {
         didSet {
             guard effectStyle != oldValue else { return }
             applyEffectStyle()
@@ -286,7 +284,10 @@ public final class PersonaRig: ObservableObject {
     /// bloom and the billboard follow -- effects are a property of the
     /// visualization KIND, never of a name.
     private func applyEffectStyle() {
-        setLantern(effectStyle == .ember && !modelActive)
+        // The core FIRST, because the swarm is measured against it: embers born
+        // on a flame that has not been lit yet would be born on the bead.
+        setLantern(effectStyle == .fire && !modelActive)
+        swapParticles()
     }
 
     // MARK: - The lantern (phase 4.5 experiment)
@@ -1831,21 +1832,20 @@ public final class PersonaRig: ObservableObject {
         didSet { layoutPersonaHosts() }
     }
 
+    /// What the current swarm hangs from.
+    ///
+    /// A rig-owned container rather than the choreography's own root, so that
+    /// `setOrbVisible` has ONE thing to toggle whichever preset is on and the
+    /// visibility rules do not have to be restated per preset. Swapping presets
+    /// swaps this entity's child and nothing else.
     private let particleField = Entity()
-    private var particleEntities: [ModelEntity] = []
-    private var particleBasePositions: [SIMD3<Float>] = []
-    private var particleOrbitAngles: [Float] = []
-    private var particleOrbitSpeeds: [Float] = []
-    private var particleAnimSpeeds: [Float] = []
-    private var particleVerticalSpeeds: [Float] = []
-    /// Per-particle twinkle offsets, so the idle field breathes out of step
-    /// with itself rather than pulsing as one lamp.
-    private var particleTwinklePhases: [Float] = []
-    private var particleTwinkleSpeeds: [Float] = []
-    /// True while the field is carrying per-particle opacity. Lets the other
-    /// states clear it exactly once instead of writing 96 components a frame to
-    /// say "still fully visible".
-    private var twinkling = false
+
+    /// The swarm on stage. See `ParticleField.swift` for why this is a protocol
+    /// rather than four more methods on the rig: the two presets are built on
+    /// genuinely different machinery -- one choreographs named dots, the other
+    /// configures a simulator -- and neither can be written in the other's
+    /// shape.
+    private var particles: (any ParticleChoreography)!
 
     #if !os(visionOS)
     // iOS only, and the comment is a warning rather than an explanation: on
@@ -1874,8 +1874,10 @@ public final class PersonaRig: ObservableObject {
     /// and in a room the room is the authority. If gaze targeting suffers, the
     /// answer is a small margin here -- not a second sphere.
     private var tapTargetRadius: Float { sphereRadius }
-    private let particleCount = 96
-    private let particleRadius: Float = 0.010
+    /// How far out a swarm may reach, in rig units. The count and the dot size
+    /// moved to `FirefliesField` with the field they describe; this one stayed
+    /// because it is the rig's statement about how much room a persona takes
+    /// up, and BOTH presets have to honour it.
     private let particleMaxDistance: Float = 0.48
     /// Disconnected: a dull, blacked-out bead. The orb IS the connection
     /// indicator, so there is no second one to keep in sync.
@@ -1885,12 +1887,10 @@ public final class PersonaRig: ObservableObject {
     /// choreography is identical for every persona; only these change.
     private var palette = PersonaPalette.fallback
     private var sphereBaseColor: SIMD3<Float> { palette.sphere }
-    private var particleColor: SIMD3<Float> { palette.particle }
 
     // MARK: - Animation state
 
     private var animationTime: Float = 0
-    private var spinAngle: Float = 0
     private var lastUpdateTime: TimeInterval = 0
     private var currentState: PersonaState = .resting
 
@@ -1939,7 +1939,7 @@ public final class PersonaRig: ObservableObject {
         buildFace()
 
         rootEntity.addChild(particleField)
-        buildParticles()
+        swapParticles()
 
         modelHost.name = "PersonaModelHost"
         rootEntity.addChild(modelHost)
@@ -2028,22 +2028,6 @@ public final class PersonaRig: ObservableObject {
         sphereEntity.model?.materials = [sphereMaterial]
     }
 
-    /// Factored out so a palette swap can re-tint all 96 particles at once.
-    private func particleMaterial() -> PhysicallyBasedMaterial {
-        var material = PhysicallyBasedMaterial()
-        material.baseColor = .init(tint: rigColor(particleColor))
-        material.metallic = .init(floatLiteral: sphereMetallic)
-        material.roughness = .init(floatLiteral: sphereRoughness)
-        material.clearcoat = .init(floatLiteral: 1.0)
-        material.clearcoatRoughness = .init(floatLiteral: 0.1)
-        material.emissiveColor = .init(color: rigColor(particleColor))
-        // The metallic body darkens the dot, so the emissive has to clear the
-        // bloom threshold (the orb blooms around 1.7 to 2.9). 1.15 was under it
-        // and the field simply did not glow.
-        material.emissiveIntensity = 2.5
-        return material
-    }
-
     // MARK: - Persona palette
 
     /// Swap in a persona's colours. Cheap to call every frame: it early-returns
@@ -2053,11 +2037,10 @@ public final class PersonaRig: ObservableObject {
         guard newPalette != palette else { return }
         palette = newPalette
 
-        // Particles carry their tint in their own materials, so always re-tint.
+        // Particles carry their tint themselves, so always hand the palette on.
         // While disconnected they are hidden rather than recoloured, and pick
         // this up on revive.
-        let mat = particleMaterial()
-        for entity in particleEntities { entity.model?.materials = [mat] }
+        particles?.apply(palette: palette)
 
         // The bead's materials belong to the dead look while disconnected.
         if isAlive {
@@ -2066,34 +2049,53 @@ public final class PersonaRig: ObservableObject {
         }
     }
 
-    private func buildParticles() {
-        // Deterministic Fibonacci shell: the same field every launch, and the
-        // same field every client.
-        let golden = Float.pi * (3.0 - sqrt(5.0))
-        let mesh = MeshResource.generateSphere(radius: particleRadius)
+    // MARK: - The swarm
 
-        for i in 0..<particleCount {
-            let y = 1.0 - (Float(i) / Float(particleCount - 1)) * 2.0
-            let r = sqrt(max(0, 1.0 - y * y))
-            let theta = golden * Float(i)
-            let innerEdge = sphereRadius + 0.04
-            let dist = innerEdge + pseudoRandom(i) * (particleMaxDistance - innerEdge)
-            let pos = SIMD3<Float>(cos(theta) * r * dist, y * dist, sin(theta) * r * dist)
-            particleBasePositions.append(pos)
-
-            particleOrbitAngles.append(theta)
-            particleOrbitSpeeds.append(0.10 + pseudoRandom(i + 101) * 0.30)
-            particleAnimSpeeds.append(0.10 + pseudoRandom(i + 211) * 0.50)
-            particleVerticalSpeeds.append((pseudoRandom(i + 307) - 0.5) * 0.40)
-            particleTwinklePhases.append(pseudoRandom(i + 401) * .pi * 2)
-            particleTwinkleSpeeds.append(0.55 + pseudoRandom(i + 509) * 0.75)
-
-            let particle = ModelEntity(mesh: mesh, materials: [particleMaterial()])
-            particle.position = pos
-            particleField.addChild(particle)
-            particleEntities.append(particle)
+    /// The geometry the swarm arranges itself against.
+    ///
+    /// Measured rather than stated, and it changes underneath the field: with
+    /// the lantern lit the centre is a flame three and a half times the bead's
+    /// height, and the embers have to be born on ITS skin rather than on the
+    /// sphere that is no longer drawn. This is the one place that knows which.
+    private var particleWorld: ParticleWorld {
+        if lanternActive, let flameMesh {
+            return ParticleWorld(coreRadius: flameMesh.radius,
+                                 maxDistance: particleMaxDistance,
+                                 coreHeight: flameMesh.visibleTop)
         }
+        return ParticleWorld(coreRadius: sphereRadius,
+                             maxDistance: particleMaxDistance,
+                             coreHeight: 0)
     }
+
+    /// Put the preset's swarm on stage, building it the first time it is asked
+    /// for.
+    ///
+    /// Fields are built lazily and then KEPT: a persona toggled between presets
+    /// twice should not pay to rebuild 96 entities each way, and the fireflies'
+    /// shell is deterministic, so a rebuilt field would be identical anyway.
+    /// What it would lose is the phase every dot had reached, which is visible
+    /// as the whole swarm snapping back into step.
+    private func swapParticles() {
+        let wanted: any ParticleChoreography
+        switch effectStyle {
+        case .fireflies:
+            if fireflies == nil { fireflies = FirefliesField(world: particleWorld, palette: palette) }
+            wanted = fireflies!
+        case .fire:
+            if embers == nil { embers = EmberField(world: particleWorld, palette: palette) }
+            wanted = embers!
+        }
+        wanted.apply(palette: palette)
+        wanted.reshape(to: particleWorld)
+        guard particles !== wanted else { return }
+        particles?.root.removeFromParent()
+        particles = wanted
+        particleField.addChild(wanted.root)
+    }
+
+    private var fireflies: FirefliesField?
+    private var embers: EmberField?
 
     /// One camera-facing quad with a soft radial-gradient alpha, so it reads as
     /// a round bloom from any angle. Replaced Valinor's layered emissive
@@ -2603,19 +2605,20 @@ public final class PersonaRig: ObservableObject {
         // walks to the shelf exactly as a bead flies to it.
         guard !modelActive else { return }
 
-        // The switch flourish overrides the per-state choreography while the
-        // hold builds. Dormant until phase 4 ramps `transitionProgress`.
-        if transitionProgress > 0.01 {
-            updateSwitchParticles(progress: min(1, transitionProgress))
-            return
-        }
-
-        switch currentState {
-        case .listening: updateListeningParticles()
-        case .thinking:  updateThinkingParticles()
-        case .speaking:  updateSpeakingParticles(level: smoothedLevel)
-        case .resting:   updateShellParticles(pulse: 0)
-        }
+        // ONE HANDOFF, and everything the swarm needs travels in the frame.
+        //
+        // The rig owns the clock, the turn, the palette and the audio level; a
+        // choreography owns its entities and nothing else. It cannot read the
+        // rig and cannot decide when a turn begins -- the same rule the face
+        // director follows, because two things that both decide when something
+        // happens will eventually disagree about it.
+        particles?.update(ParticleFrame(state: currentState,
+                                        time: animationTime,
+                                        dt: lastDt,
+                                        motion: motion,
+                                        spin: spinSpeed,
+                                        level: smoothedLevel,
+                                        transition: transitionProgress))
     }
 
     // MARK: - The face, per frame
@@ -2691,142 +2694,6 @@ public final class PersonaRig: ObservableObject {
         faceDirector = FaceDirector(geometry: newGeometry, now: faceClock)
     }
 
-    // MARK: - Per-state choreography
-
-    /// Resting: particles ride their base shell, the field spins and expands,
-    /// and each dot fades in and out on its own clock.
-    ///
-    /// The twinkle is what turns a swarm into fireflies. At rest the field's job
-    /// is to say the house is alive, and 96 dots all present at once say it by
-    /// crowding the face -- the one thing on the orb worth looking at. Fading
-    /// each in and out means the field is never fully in front of the face and
-    /// never fully absent either.
-    private func updateShellParticles(pulse: Float) {
-        spinAngle += spinSpeed * lastDt * Float.pi * 2
-        particleField.orientation = simd_quatf(angle: spinAngle, axis: SIMD3<Float>(0, 1, 0))
-        particleField.scale = SIMD3<Float>(repeating: 1.0 + 0.5 * motion + 0.3 * pulse)
-        for i in particleEntities.indices {
-            particleEntities[i].position = particleBasePositions[i]
-            // A raised sine, floored at ZERO. Each dot is genuinely absent for
-            // half its cycle rather than merely dim.
-            //
-            // The floor was 0.12 and that was the whole failure: a hundred dots
-            // at a tenth opacity are still a hundred dots, so the field read as
-            // cluttered haze instead of fireflies. Vanishing outright is what
-            // declutters WITHOUT losing particles -- the same field, a third of
-            // it visible at any moment.
-            //
-            // OpacityComponent rather than per-particle materials: 96 material
-            // assignments a frame to change one number would be absurd, and
-            // this is the component that exists for exactly this.
-            let wave = sin(animationTime * particleTwinkleSpeeds[i] + particleTwinklePhases[i])
-            particleEntities[i].components.set(OpacityComponent(opacity: max(0, wave)))
-        }
-        twinkling = true
-    }
-
-    /// Put every particle back to full opacity, once.
-    ///
-    /// Called by the states that do not twinkle. Guarded because it only needs
-    /// to happen on the way out of idle, and writing 96 components a frame to
-    /// say "still fully visible" is work for nothing.
-    private func clearTwinkle() {
-        guard twinkling else { return }
-        twinkling = false
-        for entity in particleEntities {
-            entity.components.set(OpacityComponent(opacity: 1))
-        }
-    }
-
-    /// Listening: a firefly swirl in the VERTICAL plane, widening with the mic.
-    ///
-    /// Turned a quarter from Valinor's, and the reason is the face. The
-    /// original swirls around the Y axis, which on a bead with no face is a
-    /// pleasing halo and on a bead WITH one is a curtain drawn across it. Swung
-    /// into the plane the viewer faces, the same motion frames the face instead
-    /// of crossing it. The z jitter is what keeps it from reading as a flat
-    /// sticker: the dots still have depth, they just no longer orbit through
-    /// the eyes.
-    private func updateListeningParticles() {
-        particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
-        particleField.scale = .one
-        clearTwinkle()
-        let maxD = particleMaxDistance
-        for i in particleEntities.indices {
-            particleOrbitAngles[i] += particleOrbitSpeeds[i] * lastDt * 4
-            let angle = particleOrbitAngles[i]
-            let pulsing = 0.5 + 0.5 * sin(animationTime * particleAnimSpeeds[i])
-            let dist = maxD * min(1, 0.6 + 0.4 * pulsing)
-            let breathe = sin(animationTime * 0.5 + angle) * 0.05 * maxD
-            let jitterZ = sin(animationTime * particleVerticalSpeeds[i]) * 0.18 * maxD
-            particleEntities[i].position = SIMD3<Float>(
-                cos(angle) * (dist + breathe),
-                sin(angle) * (dist + breathe),
-                jitterZ)
-        }
-    }
-
-    /// Thinking: the ring stood upright, roughly twice as fast.
-    ///
-    /// Valinor's is a flat Saturn ring at the bead's height, which from the
-    /// front is a line straight through the eyes. Stood up into the viewer's
-    /// plane it becomes a halo around the face -- the same shape, doing the
-    /// opposite thing to the one feature that matters.
-    private func updateThinkingParticles() {
-        particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
-        particleField.scale = .one
-        clearTwinkle()
-        let ringD = particleMaxDistance * 0.86
-        for i in particleEntities.indices {
-            particleOrbitAngles[i] += particleOrbitSpeeds[i] * lastDt * 8
-            let angle = particleOrbitAngles[i]
-            particleEntities[i].position = SIMD3<Float>(cos(angle) * ringD, sin(angle) * ringD, 0)
-        }
-    }
-
-    /// The switch flourish: a TILTED portal ring, deliberately distinct from
-    /// the flat thinking ring so the two never read as the same event.
-    private func updateSwitchParticles(progress: Float) {
-        particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
-        particleField.scale = .one
-        clearTwinkle()
-        let n = particleEntities.count
-        let ringD = particleMaxDistance * (1.0 - 0.3 * progress)
-        let tilt: Float = 0.6
-        let spin = animationTime * (3.0 + 6.0 * progress)
-        for i in particleEntities.indices {
-            let t = n <= 1 ? 0 : Float(i) / Float(n)
-            let angle = t * Float.pi * 2 + spin
-            let x = cos(angle) * ringD
-            let yFlat = sin(angle) * ringD
-            let y = yFlat * cos(tilt)
-            let z = yFlat * sin(tilt)
-            particleEntities[i].position = mix(particleBasePositions[i], SIMD3<Float>(x, y, z), progress)
-        }
-    }
-
-    /// Speaking: a horizontal waveform line whose height is the real playback
-    /// amplitude, in front of the bead and facing the viewer.
-    private func updateSpeakingParticles(level: Float) {
-        particleField.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
-        particleField.scale = .one
-        clearTwinkle()
-        let n = particleEntities.count
-        let width = particleMaxDistance * 1.8
-        let halfW = width / 2
-        // A small floor keeps the line alive between syllables.
-        let amp = (0.04 + 0.5 * level) * particleMaxDistance
-        let z = sphereRadius + 0.06
-        for i in particleEntities.indices {
-            let t = n <= 1 ? 0 : Float(i) / Float(n - 1)
-            let x = -halfW + t * width
-            // Two components, so it wiggles like a voice rather than a sine.
-            let phase = x * 14.0 + animationTime * 7.0
-            let y = amp * (sin(phase) * 0.7 + sin(phase * 0.5 + animationTime * 3.0) * 0.3)
-            particleEntities[i].position = SIMD3<Float>(x, y, z)
-        }
-    }
-
     // MARK: - Interaction
 
     /// What gaze and pinch gestures target: whichever persona is on stage.
@@ -2891,13 +2758,5 @@ public final class PersonaRig: ObservableObject {
 
     private func lerp(_ a: Float, _ b: Float, _ t: Float) -> Float {
         a + (b - a) * t
-    }
-
-    /// Deterministic per-index pseudo-random in [0,1). Seeded, no allocation,
-    /// and identical on every client -- which is what makes the field the same
-    /// field everywhere rather than merely a similar one.
-    private func pseudoRandom(_ i: Int) -> Float {
-        let x = sin(Float(i) * 12.9898) * 43758.5453
-        return x - floor(x)
     }
 }

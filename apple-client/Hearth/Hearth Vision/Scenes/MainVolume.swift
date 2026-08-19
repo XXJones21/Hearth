@@ -144,6 +144,172 @@ struct MainVolume: View {
 
     private var stage: some View {
         GeometryReader3D { geometry in
+            stageScene(geometry)
+        // A plain pinch starts a voice turn; a two-second hold crosses into the
+        // room. One gesture carrying both, because two gestures on one entity
+        // race -- see PersonaHold.
+        .personaHold(
+            target: rig.tapTarget,
+            onTap: {
+                guard viewModel.connectionStatus == .connected else { return }
+                viewModel.toggleListening()
+            },
+            onHold: onEnterImmersive,
+            progress: { rig.transitionProgress = $0 }
+        )
+        // Belt AND braces, because the two failure modes are different. A
+        // scene that was ELIMINATED runs `make` again and adopts her there; a
+        // scene that was merely BACKGROUNDED does not, and its update closure
+        // may not run until something else invalidates the body. `onAppear`
+        // fires in both cases and is the only one that fires the moment the box
+        // is back on screen. The call is idempotent -- a pointer comparison and
+        // a return.
+        .onAppear { adoptPersona() }
+        .onChange(of: viewModel.hearthState) { _, state in
+            rig.updateState(PersonaState(state))
+        }
+        // The three persona reads, on edges rather than on every frame. All
+        // three still early-return when nothing changed, which is what lets a
+        // `persona_config` arriving long after the scene was built land at all.
+        .onChange(of: viewModel.personaPalette) { _, palette in
+            rig.apply(palette)
+        }
+        // WHICH persona is on stage, not just what colour they are. Switching to
+        // Selene from the status ornament arrives here, and the rig swaps the
+        // bead for her model -- travel, tap target and state all keep working,
+        // because none of them were ever the bead's. See
+        // PersonaRig.apply(visualization:).
+        .onChange(of: viewModel.personaVisualization) { _, visualization in
+            rig.apply(visualization: visualization)
+            if let geometry = visualization.faceGeometry {
+                rig.apply(faceGeometry: geometry)
+            }
+        }
+        .onChange(of: viewModel.connectionAlive) { _, alive in
+            rig.setConnected(alive)
+        }
+        // Two amplitudes, one rig input. The bead does not care which half of
+        // the turn it is in -- the level IS the state's, because only one of
+        // these is moving at a time.
+        .onChange(of: viewModel.ttsAmplitude) { _, level in
+            rig.audioLevel = level
+        }
+        .onChange(of: viewModel.micLevel) { _, level in
+            if viewModel.isListening { rig.audioLevel = level }
+        }
+        .ornament(attachmentAnchor: .scene(.top)) {
+            HouseStatusOrnament(viewModel: viewModel)
+        }
+        .ornament(attachmentAnchor: .scene(.bottom)) {
+            VStack(spacing: 8) {
+                if textEntryShown {
+                    ComposerOrnament(viewModel: viewModel)
+                }
+                HouseShelfOrnament(active: $surface)
+            }
+        }
+        // Mission control, on the right face. An ornament rather than something
+        // inside the box for the same reason the bottom shelf is one: it hangs
+        // OUTSIDE the volume, so a shelf of three icons costs the stage no
+        // width at all and only the opened panel takes any.
+        .ornament(attachmentAnchor: .scene(.trailing)) {
+            HouseRailOrnament(active: $rail)
+        }
+        // The slide. `homePosition` is what the behaviour director returns to,
+        // so moving it moves the orb's whole notion of where it lives -- a
+        // performance mid-flight lands in the new place rather than snapping
+        // back to the old one afterwards.
+        // Design section 5's second open path: consulting a journal opens the
+        // library. WHICH journal is the library's own business -- it watches the
+        // same reply this does, so nothing has to be threaded between two
+        // sibling scenes to say one string.
+        .onChange(of: viewModel.liveTranscript) { _, text in
+            guard rig.behavior.isPerforming, !text.isEmpty else { return }
+            let title = Self.firstQuotedTitle(in: text)
+            guard !title.isEmpty, let found = libraryEntity.book(matchingTitle: title) else { return }
+            surface = .journal
+            reading = found
+        }
+        // The prop rides the PERFORMANCE, not the turn: it appears when the
+        // house starts consulting a journal and goes when it starts talking
+        // about what it found. Scale is the whole animation -- nothing, to a
+        // tenth, and back -- because a bookcase that faded would read as a
+        // ghost, and one that grows reads as being fetched.
+        .onChange(of: rig.performingBehavior) { _, name in
+            let wanted = (name == "consulting_journal")
+            guard wanted != propVisible else { return }
+            propVisible = wanted
+            propLibrary.root.move(
+                to: Transform(scale: SIMD3<Float>(repeating: wanted ? Self.propScale : 0.0001),
+                              rotation: propLibrary.root.orientation,
+                              translation: propLibrary.root.position),
+                relativeTo: propLibrary.root.parent,
+                duration: wanted ? 0.55 : 0.35,
+                timingFunction: .easeInOut)
+        }
+        .task { await library.load() }
+        .onChange(of: library.allBooks.map(\.id)) { _, _ in rebuildLibrary() }
+        .onChange(of: viewModel.personaPalette) { _, _ in rebuildLibrary() }
+        // Drag to scroll the shelves. Clamped by the library itself, because
+        // there is no scroll bar in a volume to show you where you went.
+        .gesture(
+            DragGesture()
+                .targetedToEntity(libraryEntity.root)
+                .onChanged { value in
+                    if abs(value.translation.height) > 6 { hasScrolled = true }
+                    // Divided by the presentation scale so the shelves track
+                    // the finger at whatever size the library is shown: the
+                    // drag is measured in the world, and `scroll` moves the
+                    // library in its own.
+                    libraryEntity.scroll = scrollAtGestureStart
+                        + Float(value.translation.height) * -0.0024
+                        / max(libraryEntity.presentationScale * stageRoot.scale.x, 0.01)
+                }
+                .onEnded { _ in scrollAtGestureStart = libraryEntity.scroll }
+        )
+        // Pinch a spine to read it. Same pinch as the scroll, told apart by
+        // whether it moved -- which is what a ScrollView would have arbitrated
+        // for free and what a RealityView has to do for itself.
+        .gesture(
+            SpatialTapGesture()
+                .targetedToEntity(libraryEntity.root)
+                .onEnded { value in
+                    defer { hasScrolled = false }
+                    guard !hasScrolled else { return }
+                    reading = libraryEntity.book(for: value.entity)
+                }
+        )
+        // Opening the rail moves the same two things opening a destination
+        // does -- the orb and the centre slot -- so it runs the same code
+        // rather than a second copy of it.
+        .onChange(of: rail) { _, _ in
+            withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
+        }
+        .onChange(of: surface) { (_, open: HouseSurface?) in
+            // Journal fills the centre slot with ENTITIES rather than a panel:
+            // its books are three-dimensional and an attachment is a SwiftUI
+            // view rendered onto a plane. The orb slides for it like any other
+            // destination, because it is one.
+            let showingJournal: Bool = open == HouseSurface.journal
+            libraryEntity.root.isEnabled = showingJournal
+            if open != .journal { reading = nil }
+            withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
+        }
+        }
+    }
+
+    /// The RealityView itself, lifted out of `stage`.
+    ///
+    /// SPLIT FOR THE COMPILER. `stage` is one expression as far as type
+    /// inference is concerned -- a RealityView with three closures, then a
+    /// dozen chained gestures and `onChange`s -- and it went over the solver's
+    /// budget the first time the shared package changed underneath it. The
+    /// giveaway was that the reported line MOVED as small edits shifted the
+    /// blame around: that is a body which is too large, not a line which is
+    /// wrong. Cutting it where the scene ends and the modifiers begin is the
+    /// natural seam, and it costs one argument -- the proxy, which only the
+    /// update closure reads.
+    private func stageScene(_ geometry: GeometryProxy3D) -> some View {
         RealityView { content, _ in
             content.add(stageRoot)
             // Palm-sized and low in the box. The full transform is set rather
@@ -297,21 +463,7 @@ struct MainVolume: View {
         } attachments: {
             ForEach(cardStore.cards) { card in
                 Attachment(id: card.id) {
-                    DynamicComponent(descriptor: card)
-                        .frame(maxWidth: 260)
-                        .padding(12)
-                        .overlay(alignment: .topTrailing) {
-                            Button {
-                                cardStore.dismiss(card.id)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(10)
-                        }
-                        .glassBackgroundEffect()
+                    StageCard(card: card) { cardStore.dismiss(card.id) }
                 }
             }
             // What is being said, right now, above the bead. The one piece of
@@ -396,156 +548,6 @@ struct MainVolume: View {
                     }
                 }
             }
-        }
-        // A plain pinch starts a voice turn; a two-second hold crosses into the
-        // room. One gesture carrying both, because two gestures on one entity
-        // race -- see PersonaHold.
-        .personaHold(
-            target: rig.tapTarget,
-            onTap: {
-                guard viewModel.connectionStatus == .connected else { return }
-                viewModel.toggleListening()
-            },
-            onHold: onEnterImmersive,
-            progress: { rig.transitionProgress = $0 }
-        )
-        // Belt AND braces, because the two failure modes are different. A
-        // scene that was ELIMINATED runs `make` again and adopts her there; a
-        // scene that was merely BACKGROUNDED does not, and its update closure
-        // may not run until something else invalidates the body. `onAppear`
-        // fires in both cases and is the only one that fires the moment the box
-        // is back on screen. The call is idempotent -- a pointer comparison and
-        // a return.
-        .onAppear { adoptPersona() }
-        .onChange(of: viewModel.hearthState) { _, state in
-            rig.updateState(PersonaState(state))
-        }
-        // The three persona reads, on edges rather than on every frame. All
-        // three still early-return when nothing changed, which is what lets a
-        // `persona_config` arriving long after the scene was built land at all.
-        .onChange(of: viewModel.personaPalette) { _, palette in
-            rig.apply(palette)
-        }
-        // WHICH persona is on stage, not just what colour they are. Switching to
-        // Selene from the status ornament arrives here, and the rig swaps the
-        // bead for her model -- travel, tap target and state all keep working,
-        // because none of them were ever the bead's. See
-        // PersonaRig.apply(visualization:).
-        .onChange(of: viewModel.personaVisualization) { _, visualization in
-            rig.apply(visualization: visualization)
-            if let geometry = visualization.faceGeometry {
-                rig.apply(faceGeometry: geometry)
-            }
-        }
-        .onChange(of: viewModel.connectionAlive) { _, alive in
-            rig.setConnected(alive)
-        }
-        // Two amplitudes, one rig input. The bead does not care which half of
-        // the turn it is in -- the level IS the state's, because only one of
-        // these is moving at a time.
-        .onChange(of: viewModel.ttsAmplitude) { _, level in
-            rig.audioLevel = level
-        }
-        .onChange(of: viewModel.micLevel) { _, level in
-            if viewModel.isListening { rig.audioLevel = level }
-        }
-        .ornament(attachmentAnchor: .scene(.top)) {
-            HouseStatusOrnament(viewModel: viewModel)
-        }
-        .ornament(attachmentAnchor: .scene(.bottom)) {
-            VStack(spacing: 8) {
-                if textEntryShown {
-                    ComposerOrnament(viewModel: viewModel)
-                }
-                HouseShelfOrnament(active: $surface)
-            }
-        }
-        // Mission control, on the right face. An ornament rather than something
-        // inside the box for the same reason the bottom shelf is one: it hangs
-        // OUTSIDE the volume, so a shelf of three icons costs the stage no
-        // width at all and only the opened panel takes any.
-        .ornament(attachmentAnchor: .scene(.trailing)) {
-            HouseRailOrnament(active: $rail)
-        }
-        // The slide. `homePosition` is what the behaviour director returns to,
-        // so moving it moves the orb's whole notion of where it lives -- a
-        // performance mid-flight lands in the new place rather than snapping
-        // back to the old one afterwards.
-        // Design section 5's second open path: consulting a journal opens the
-        // library. WHICH journal is the library's own business -- it watches the
-        // same reply this does, so nothing has to be threaded between two
-        // sibling scenes to say one string.
-        .onChange(of: viewModel.liveTranscript) { _, text in
-            guard rig.behavior.isPerforming, !text.isEmpty else { return }
-            let title = Self.firstQuotedTitle(in: text)
-            guard !title.isEmpty, let found = libraryEntity.book(matchingTitle: title) else { return }
-            surface = .journal
-            reading = found
-        }
-        // The prop rides the PERFORMANCE, not the turn: it appears when the
-        // house starts consulting a journal and goes when it starts talking
-        // about what it found. Scale is the whole animation -- nothing, to a
-        // tenth, and back -- because a bookcase that faded would read as a
-        // ghost, and one that grows reads as being fetched.
-        .onChange(of: rig.performingBehavior) { _, name in
-            let wanted = (name == "consulting_journal")
-            guard wanted != propVisible else { return }
-            propVisible = wanted
-            propLibrary.root.move(
-                to: Transform(scale: SIMD3<Float>(repeating: wanted ? Self.propScale : 0.0001),
-                              rotation: propLibrary.root.orientation,
-                              translation: propLibrary.root.position),
-                relativeTo: propLibrary.root.parent,
-                duration: wanted ? 0.55 : 0.35,
-                timingFunction: .easeInOut)
-        }
-        .task { await library.load() }
-        .onChange(of: library.allBooks.map(\.id)) { _, _ in rebuildLibrary() }
-        .onChange(of: viewModel.personaPalette) { _, _ in rebuildLibrary() }
-        // Drag to scroll the shelves. Clamped by the library itself, because
-        // there is no scroll bar in a volume to show you where you went.
-        .gesture(
-            DragGesture()
-                .targetedToEntity(libraryEntity.root)
-                .onChanged { value in
-                    if abs(value.translation.height) > 6 { hasScrolled = true }
-                    // Divided by the presentation scale so the shelves track
-                    // the finger at whatever size the library is shown: the
-                    // drag is measured in the world, and `scroll` moves the
-                    // library in its own.
-                    libraryEntity.scroll = scrollAtGestureStart
-                        + Float(value.translation.height) * -0.0024
-                        / max(libraryEntity.presentationScale * stageRoot.scale.x, 0.01)
-                }
-                .onEnded { _ in scrollAtGestureStart = libraryEntity.scroll }
-        )
-        // Pinch a spine to read it. Same pinch as the scroll, told apart by
-        // whether it moved -- which is what a ScrollView would have arbitrated
-        // for free and what a RealityView has to do for itself.
-        .gesture(
-            SpatialTapGesture()
-                .targetedToEntity(libraryEntity.root)
-                .onEnded { value in
-                    defer { hasScrolled = false }
-                    guard !hasScrolled else { return }
-                    reading = libraryEntity.book(for: value.entity)
-                }
-        )
-        // Opening the rail moves the same two things opening a destination
-        // does -- the orb and the centre slot -- so it runs the same code
-        // rather than a second copy of it.
-        .onChange(of: rail) { _, _ in
-            withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
-        }
-        .onChange(of: surface) { _, open in
-            // Journal fills the centre slot with ENTITIES rather than a panel:
-            // its books are three-dimensional and an attachment is a SwiftUI
-            // view rendered onto a plane. The orb slides for it like any other
-            // destination, because it is one.
-            libraryEntity.root.isEnabled = (open == .journal)
-            if open != .journal { reading = nil }
-            withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
-        }
         }
     }
 
@@ -835,5 +837,37 @@ struct MainVolume: View {
             }
         }
         return ""
+    }
+}
+
+/// One card on the stage, with its dismiss affordance.
+///
+/// EXTRACTED FOR THE COMPILER, not for reuse, and that is worth saying plainly.
+/// `MainVolume.stage` is a RealityView with two closures and a dozen chained
+/// gestures, and the whole thing is one expression as far as type inference is
+/// concerned. It went over the solver's budget the first time the package
+/// changed underneath it -- the error moved from line to line as small edits
+/// shifted the blame, which is the signature of a body that is simply too large
+/// rather than one line that is wrong. Lifting the card out is the smallest cut
+/// that brings it back under, and it costs nothing: a view with two inputs and
+/// no state.
+private struct StageCard: View {
+    let card: UiComponentDescriptor
+    let dismiss: () -> Void
+
+    var body: some View {
+        DynamicComponent(descriptor: card)
+            .frame(maxWidth: 260)
+            .padding(12)
+            .overlay(alignment: .topTrailing) {
+                Button(action: dismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(10)
+            }
+            .glassBackgroundEffect()
     }
 }

@@ -790,4 +790,127 @@ and a home in the persona config rather than in client properties. Written up in
 full, with every device correction it took, in
 [tasks/persona-chibi-face.md](persona-chibi-face.md).
 
-Next: the particles.
+Next: the ember field's other three states -- see section 15.
+
+## 15. Two presets, two mechanisms -- 2026-08-19
+
+The particles landed, and the first thing they did was overturn section 12's
+rule.
+
+### The rule that did not survive
+
+Section 12 said: *"the emitter is authoritative for the bead's field and the
+states migrate onto it."* The worry behind it was right -- particles that change
+MECHANISM when the persona starts listening read as a glitch rather than as a
+state change -- but the conclusion was wrong, because it assumed one field.
+
+There are two, and they cannot be built the same way. The fireflies'
+listening, thinking and speaking states are all POSITIONAL: a swirl in the
+viewer's plane, an upright ring, a waveform line whose height is the playback
+amplitude. Every one of those states says where each particular dot goes, and a
+simulator cannot be told to spell something out. Migrating them onto an emitter
+would not have been a port; it would have been deleting them.
+
+So the rule is amended rather than dropped, and the amendment is what makes it
+survivable:
+
+> **One preset, one mechanism.** Fireflies are choreographed for all four
+> states. Embers are simulated for all four states. Nothing switches mechanism
+> mid-turn, which is what section 12 was actually protecting.
+
+### What that needed: a seam
+
+`ParticleChoreography` in `Core/Sources/HearthSpatial/ParticleField.swift`. The
+rig owns the clock, the turn, the palette and the audio level and hands all of
+it over each frame in a `ParticleFrame`; a choreography owns its entities and
+nothing else. It cannot read the rig and cannot decide when a turn begins --
+which is the same division `FaceDirector` lives by, and for the same reason.
+
+Three files, all in the package rather than in the Vision target, because the
+phone is going to want to say `.fire` too:
+
+- **`ParticleField.swift`** -- the preset enum, `ParticleWorld` (the geometry a
+  field arranges itself against), `ParticleFrame`, the protocol, and the shared
+  deterministic noise.
+- **`FirefliesField.swift`** -- a MOVE, not a rewrite. Every number and every
+  comment was judged on a headset across phases 1-4; what changed is that
+  `spinAngle` became field state instead of rig state, because a field that
+  borrows the rig's spin cannot be swapped out without leaving a number behind.
+- **`EmberField.swift`** -- the new one.
+
+`PersonaRig` lost 96 entities, eight arrays and five update methods, and gained
+`particleWorld` (which reports the FLAME's radius and visible top when the
+lantern is lit, and the bead's when it is not) and `swapParticles`.
+
+### `.ember` became `.fire`
+
+The preset names the whole look -- which core, which swarm -- so it is named
+after the thing you see rather than after one part of it. `EffectStyle` is now a
+typealias of `ParticlePreset`, which lives in the package.
+
+### The ember field is a configuration, not a loop
+
+This is the part worth remembering. `ParticleEmitterComponent` is a value type,
+so changing anything means writing the whole component back. `EmberField` is
+therefore EDGE-TRIGGERED: it writes a configuration when the turn changes and
+early-returns on every other frame. There is no halfway house where the rig
+nudges the emitter's output, because a simulated particle that something else is
+also moving belongs to neither system and looks like neither.
+
+Two decisions inside it are worth stating:
+
+- **Born on the flame's SKIN, along its normal, then bent upward by buoyancy.**
+  A `.sphere` emitter with `.surface` birth and `.normal` direction, sized to a
+  fraction of the flame's waist, with `acceleration` doing the lift and
+  `dampingFactor` bleeding off the initial speed. Embers leave a fire in every
+  direction and the ones aimed down simply lose to the rising air a moment
+  later, which is what damping-plus-buoyancy reproduces for free.
+- **Additive blending, and it settles the sorting problem by construction.**
+  Every transparency artefact this phase produced came from two transparent
+  surfaces with no defined order between them. Adding light to light gives the
+  same answer whichever comes first, so the embers can be `.unsorted` and still
+  be correct. It is also simply what fire does.
+
+The hot end of the colour ramp is the persona's own accent for the current
+state, so the fire warms toward the speaking colour and cools toward the
+thinking one without a single extra wire. The cold end is fixed: a dying ember
+is the same deep red whatever was burning. Not black -- an ember that fades to
+black fades through grey, and grey has no business in a fire.
+
+### The scale question, answered by construction
+
+Section 12 asked whether emitter output scales with entity scale, and named the
+failure: a tennis-ball flame throwing metre-long embers. Rather than test and
+then patch, the whole configuration is written for a REFERENCE flame
+(`sphereRadius * 1.05`, Sulivan at full volumetric size) and every metric
+quantity -- speed, size, acceleration, noise -- is multiplied by one
+`sizeFactor`. Which makes the device question binary: if the embers are wrong at
+every size the numbers are wrong; if they are right at one size and wrong at the
+others, the factor is.
+
+`particlesInheritTransform` is TRUE for the first pass. The alternative --
+leaving embers behind in world space as Sulivan is carried across a room -- is
+more physical and genuinely lovely, and it is the wrong trade first: a plume
+that does not scale with him reads as broken in a way a plume that does not
+trail does not.
+
+### Status: idle is drawn
+
+Listening, thinking and speaking are named in `EmberField.update` and currently
+hold the idle configuration, deliberately and visibly, so the first device pass
+judges one thing. What they want, and what the emitter can already express:
+
+- **Listening** -- `attractionStrength` and `attractionCenter` pull the embers
+  back in and hold them, so the fire looks like it is drawing breath.
+- **Thinking** -- `vortexStrength` and `vortexDirection` spin the plume.
+- **Speaking** -- `burst()` on the playback amplitude, which is the emitter's
+  answer to the fireflies' waveform line: not the same shape, the same job.
+
+### One thing fixed on the way past
+
+`MainVolume.stage` went over the type-checker's budget the moment the package
+changed underneath it, with the reported line moving around as small edits
+shifted the blame -- the signature of a body that is too large rather than a
+line that is wrong. Split at the natural seam, where the RealityView ends and
+the modifier chain begins, plus the card attachment lifted into `StageCard`.
+Not part of this work; it was simply in the way.

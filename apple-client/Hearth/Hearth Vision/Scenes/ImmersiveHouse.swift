@@ -1088,7 +1088,7 @@ struct ImmersiveHouse: View {
         // Whether it lands is still the rig's decision: the ember style belongs
         // to a bead, so a switch to Selene puts the fire out without anything
         // here having to know her name.
-        rig.effectStyle = .ember
+        rig.effectStyle = .fire
         // The room is where the effects are allowed to be themselves. This also
         // hands the rig the room's own raycast, so the proximity spotlight can
         // find a wall without HearthSpatial ever importing ARKit.
