@@ -120,6 +120,20 @@ struct HouseStatusOrnament: View {
 /// starts a turn -- so this is for the times speaking aloud is the wrong move.
 struct ComposerOrnament: View {
     @ObservedObject var viewModel: ChatViewModel
+
+    /// Raise the keyboard the moment this appears.
+    ///
+    /// False along the bottom of a volume, where the bar is always up and
+    /// grabbing focus would put a keyboard in front of the stage unasked. True
+    /// in a room, where this appears BECAUSE someone asked to type -- and where
+    /// a text field that then made them look at it and pinch it to begin would
+    /// be asking twice.
+    var autoFocus = false
+
+    /// Shown when the composer is summoned rather than permanent, so there is a
+    /// way to put it away that is not sending something.
+    var onDismiss: (() -> Void)?
+
     @State private var draft = ""
     @FocusState private var focused: Bool
 
@@ -157,11 +171,25 @@ struct ComposerOrnament: View {
             .buttonStyle(.plain)
             .disabled(!canAct && !viewModel.isListening)
             .accessibilityLabel(viewModel.isListening ? "Stop listening" : "Start listening")
+
+            if let onDismiss {
+                Divider().frame(height: 22)
+                Button {
+                    focused = false
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Put the keyboard away")
+            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
         .glassBackgroundEffect()
         .opacity(canAct || viewModel.isListening ? 1 : 0.5)
+        .onAppear { if autoFocus { focused = true } }
     }
 
     private func send() {
@@ -169,5 +197,9 @@ struct ComposerOrnament: View {
         guard !text.isEmpty, canAct else { return }
         viewModel.sendMessage(text)
         draft = ""
+        // A summoned composer has said its piece. A permanent one stays up,
+        // because along the bottom of a box it is furniture rather than a
+        // question that has been answered.
+        onDismiss?()
     }
 }

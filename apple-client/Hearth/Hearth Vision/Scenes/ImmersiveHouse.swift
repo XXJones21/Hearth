@@ -87,6 +87,22 @@ struct ImmersiveHouse: View {
 
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Typing, for the times speaking aloud is not available.
+    ///
+    /// The same preference the box uses, and the same key -- Settings' Stage
+    /// section flips both. It reads differently here because a room reads
+    /// differently: a headset has no keyboard and no controller, so speech is
+    /// the way in and typing is the ACCESSIBILITY path rather than the
+    /// convenience one. Off, the tap starts a turn. On, the tap raises a
+    /// composer with the keyboard already focused, which is the same gesture
+    /// meaning the same thing -- "I want to say something" -- through whichever
+    /// channel is available to the person doing it.
+    @AppStorage(ClientPrefs.stageTypingBarKey) private var typingEnabled = false
+
+    /// Up only while someone is typing. A composer permanently in front of the
+    /// persona in a room is a control standing between you and her.
+    @State private var composing = false
+
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -151,11 +167,25 @@ struct ImmersiveHouse: View {
             Attachment(id: Self.liveTextID) {
                 LiveText(viewModel: viewModel)
             }
+            if composing {
+                Attachment(id: Self.composerID) {
+                    ComposerOrnament(viewModel: viewModel,
+                                     autoFocus: true,
+                                     onDismiss: { composing = false })
+                }
+            }
         }
         .personaHold(
             target: rig.tapTarget,
             onTap: {
                 guard viewModel.connectionStatus == .connected else { return }
+                guard !typingEnabled else {
+                    // Not "as well as": INSTEAD OF. Someone typing because they
+                    // cannot speak should not have a live microphone open while
+                    // they do it.
+                    composing = true
+                    return
+                }
                 viewModel.toggleListening()
             },
             onHold: {
@@ -219,14 +249,27 @@ struct ImmersiveHouse: View {
             if live.parent !== anchor { anchor.addChild(live) }
             live.position = SIMD3<Float>(0, rig.crownHeight + Self.captionGap, -0.02)
         }
+        // Below her and a little forward, where a person's own hands are: the
+        // caption is something she says and sits above her, the composer is
+        // something you say and sits where you would hold it.
+        if let composer = attachments.entity(for: Self.composerID) {
+            if composer.parent !== anchor { anchor.addChild(composer) }
+            composer.position = SIMD3<Float>(0, -(rig.crownHeight + Self.composerDrop), 0.12)
+        }
     }
 
     private static let liveTextID = "hearth.live-text"
+    private static let composerID = "hearth.composer"
 
     /// The caption's clearance above the persona's crown. The volume's number,
     /// and it means the same thing here because both measure from the same
     /// place -- which is the point of measuring from the crown at all.
     private static let captionGap: Float = 0.147
+
+    /// How far below the persona's underside the composer hangs. Measured from
+    /// her rather than from the floor, for the same reason the caption is: it
+    /// then means the same thing whoever is standing there.
+    private static let composerDrop: Float = 0.12
 
     // MARK: - Placement
 

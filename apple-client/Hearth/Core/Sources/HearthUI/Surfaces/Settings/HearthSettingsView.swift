@@ -457,8 +457,8 @@ private struct SpatialStageSection: View {
 
     var body: some View {
         SettingsSection(title: "Stage", badge: "This headset") {
-            SettingsRow(label: "Typing bar",
-                        hint: "A text field along the bottom of the volume. Off by default: a persona with a body stands in front of it. Speaking still works either way -- pinch the persona to start a turn.") {
+            SettingsRow(label: "Type instead of speaking",
+                        hint: "Off by default, because a headset has no keyboard: pinch the persona and speak. On, a text field stands along the bottom of the window, and in the immersive house that same pinch raises the keyboard instead of the microphone.") {
                 Toggle("", isOn: $typingBar)
                     .labelsHidden()
                     .tint(HearthPalette.fennec)

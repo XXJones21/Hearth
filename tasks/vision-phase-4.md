@@ -209,10 +209,16 @@ Still homeless: the connection status, and the mic.
   already visible in the persona herself -- `setConnected` draws the dead look,
   and in a room that is a bead gone cold in front of you rather than a dot in a
   strip. Worth trying nothing before building something.
-- **The mic** is the harder one, because a pinch on the persona already starts a
-  turn and a second control doing the same thing is clutter. The question is
-  whether the room needs a way to type at all, which is the same question
-  `stageTypingBar` asked in the box and answered with a setting.
+- ~~**The mic**~~ SETTLED 2026-08-18, and it turned out not to be about the mic.
+  A headset has no keyboard and no controller, so speech is the way in and
+  typing is the ACCESSIBILITY path rather than the convenience one. The existing
+  `stageTypingBar` preference already says who needs it; the room just spends it
+  differently. Off, a tap starts a turn. On, the SAME tap raises a composer with
+  the keyboard already focused -- one gesture meaning one thing, "I want to say
+  something", through whichever channel is available to the person making it.
+  Instead of listening and never as well: someone typing because they cannot
+  speak should not have a live microphone open while they do. The composer
+  carries the mic, so the mic has a home whenever it has a reason to.
 
 ## 4. The toggle -- DONE 2026-08-18 (reposition still to come)
 

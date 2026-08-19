@@ -60,15 +60,24 @@ public enum ClientPrefs {
         set { UserDefaults.standard.set(min(1.0, max(0.0, newValue)), forKey: voiceVolumeKey) }
     }
 
-    /// Whether the volume's typing bar is up.
+    /// Whether typing is available on the spatial stage.
     ///
     /// OFF by default, which is the opposite of every other preference here and
-    /// is a judgement rather than an oversight: a model persona stands in front
-    /// of the bar, and someone meeting the headset client for the first time
-    /// should see the persona rather than a control across her legs. Voice is
-    /// the headset's primary way in -- a pinch on the persona starts a turn --
-    /// and this brings back typing for the times speaking aloud is the wrong
-    /// move.
+    /// is a judgement rather than an oversight. A headset has no keyboard and
+    /// no controller: speech is the way in, a pinch on the persona starts a
+    /// turn, and a model persona stands in front of any bar you put along the
+    /// bottom of a box. So typing is the ACCESSIBILITY path rather than the
+    /// convenience one, and it is on for the people who need it rather than
+    /// for everyone.
+    ///
+    /// It means slightly different things in the two hosts, and deliberately.
+    /// In the volume the bar is furniture and simply stands along the bottom.
+    /// In the room there is no bottom to stand along, so the same tap that
+    /// would start listening raises a composer with the keyboard already
+    /// focused -- the same gesture meaning the same thing, "I want to say
+    /// something", through whichever channel is available to the person doing
+    /// it. Instead of listening, never as well: someone typing because they
+    /// cannot speak should not have a live microphone open while they do.
     ///
     /// The KEY is public because the volume reads it through `@AppStorage`
     /// rather than through this accessor: the settings panel and the ornament
