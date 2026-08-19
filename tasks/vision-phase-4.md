@@ -197,12 +197,22 @@ capability that is not used is exactly what the gates script exists to catch.
 
 ### What still has no home
 
-Status and persona switching, and the mic. The two shelves account for the
-seven destinations; the top ornament and the composer do not. Options: a third
-element on the persona (a collar or a plinth), fold persona switching into a
-long-press on the persona herself, or let the status simply not exist in the
-room -- a house that is not answering is visible in the persona's own dead look,
-which is what `setConnected` already draws.
+**Persona switching: SETTLED 2026-08-18.** It goes on the LEFT shelf, beside the
+four destinations. It was on the status ornament in the box because the status
+strip was already naming the persona and a menu on that name cost nothing; in a
+room there is no strip, and switching is a thing you go and do rather than a
+thing you notice. The left shelf is where going and doing lives.
+
+Still homeless: the connection status, and the mic.
+
+- **Status** may not need a home at all. A house that is not answering is
+  already visible in the persona herself -- `setConnected` draws the dead look,
+  and in a room that is a bead gone cold in front of you rather than a dot in a
+  strip. Worth trying nothing before building something.
+- **The mic** is the harder one, because a pinch on the persona already starts a
+  turn and a second control doing the same thing is clutter. The question is
+  whether the room needs a way to type at all, which is the same question
+  `stageTypingBar` asked in the box and answered with a setting.
 
 ## 4. The toggle -- DONE 2026-08-18 (reposition still to come)
 
