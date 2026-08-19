@@ -645,9 +645,34 @@ public final class PersonaRig: ObservableObject {
         modelLoader?.unload()
         modelLoader = nil
         modelFramed = false
+        // THE COLLIDER GOES WITH THE MODEL.
+        //
+        // `unload` takes the mesh out of the model host; it does not take the
+        // components off the host itself. Leaving them left a person-sized,
+        // invisible collision box standing exactly where the persona is, with
+        // an InputTargetComponent on it -- so switching from Selene back to
+        // Sulivan gave you a bead you could see and could not touch. Every
+        // pinch aimed at it landed on the ghost of her instead, and neither a
+        // tap nor a hold ever reached the target the gesture was aimed at.
+        //
+        // The other direction worked and hid the bug: the bead is DISABLED
+        // under a model, and a disabled entity does not hit-test.
+        //
+        // Same fault as the un-fitted collision box that once swallowed every
+        // pinch in the volume, and the same lesson: a collider outlives what it
+        // was measured from unless something takes it away.
+        clearModelCollision()
         guard modelActive else { return }
         modelActive = false
         setOrbVisible(true)
+    }
+
+    private func clearModelCollision() {
+        #if os(visionOS)
+        modelHost.components.remove(CollisionComponent.self)
+        modelHost.components.remove(InputTargetComponent.self)
+        modelHost.components.remove(HoverEffectComponent.self)
+        #endif
     }
 
     /// The bead and everything that belongs to it. Toggled rather than removed
@@ -778,6 +803,10 @@ public final class PersonaRig: ObservableObject {
     /// artist exported and has nothing to do with the size on screen.
     private func applyModelCollision() {
         #if os(visionOS)
+        // Only ever while a model is actually up. A late `onFramed` from a
+        // loader whose persona has already been switched away from would
+        // otherwise put the box back after the teardown removed it.
+        guard modelActive else { return }
         let bounds = modelHost.visualBounds(relativeTo: modelHost)
         guard bounds.extents.y > 0.0001,
               // A last guard against measuring at the wrong moment: a person is
