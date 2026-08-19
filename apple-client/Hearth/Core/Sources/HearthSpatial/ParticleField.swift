@@ -179,6 +179,39 @@ public struct ParticleFrame: Sendable {
     }
 }
 
+// MARK: - The one rule every field obeys
+
+// EVERYTHING IS LOCAL TO THE PERSONA. Never the room.
+//
+// A field hangs off the rig's root, and the rig travels: it slides across a
+// volume, it is carried across a room by a pinch, it is scaled from a tennis
+// ball to life size, and it crosses between two scenes entirely. Any quantity a
+// field resolves against the ROOM is a quantity that stops meaning what it meant
+// the moment any of that happens.
+//
+// This is not a style preference. It has already cost one bug: `EmberField`'s
+// listening attraction was aimed at `.zero` without stating a simulation space,
+// and RealityKit resolved it against the world -- so the embers flew at the
+// point where the person happened to be standing when the immersive space
+// opened. Nothing in the file could explain the behaviour, because the file was
+// not the one deciding it. The vortex had the identical fault waiting silently,
+// one strength value away from being seen.
+//
+// So, for any choreography added here:
+//
+//   - `fieldSimulationSpace` is `.local`. State it; the default is not a
+//     promise.
+//   - `particlesInheritTransform` is true, so a moved or resized persona brings
+//     its swarm with it.
+//   - `birthDirection` is `.local` or `.normal`, never `.world`. A persona who
+//     has been turned throws sparks out of HIS top, not the room's.
+//   - Positions are set on entities under `root`, never converted through
+//     `nil`.
+//
+// The one thing a field is allowed to know about the room is what the rig hands
+// it in `ParticleFrame` -- and the rig has already resolved that into the
+// persona's own terms before it arrives.
+
 // MARK: - The contract
 
 /// A swarm that knows how to be four states.

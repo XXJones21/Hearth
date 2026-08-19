@@ -1085,3 +1085,40 @@ braked, because that is the arc a spark makes; brief; and `stretchFactor` up to
 1.8, which is the third time this phase that a fast thing drawn as a dot has
 read as a dot. The continuous bed comes DOWN below idle, since a busy stream
 underneath is what hid the bursts.
+
+### The rule that came out of it: everything is local to the persona
+
+Stated at the top of `ParticleField.swift`, because it is a rule for every
+choreography and not a detail of the ember one.
+
+A field hangs off the rig's root, and the rig travels. It slides across a
+volume, it is carried across a room by a pinch, it is scaled from a tennis ball
+to life size, and it crosses between two scenes entirely. **Any quantity a field
+resolves against the ROOM stops meaning what it meant the moment any of that
+happens.**
+
+- `fieldSimulationSpace` is `.local`. State it -- the default is not a promise.
+- `particlesInheritTransform` is true, so a moved or resized persona brings its
+  swarm with it.
+- `birthDirection` is `.local` or `.normal`, never `.world`.
+- Positions are set on entities under `root`, never converted through `nil`.
+
+The one thing a field may know about the room is what the rig hands it in
+`ParticleFrame`, and the rig has already resolved that into the persona's terms
+before it arrives.
+
+Audited across all three files at the time of writing: no world-space quantity
+remains.
+
+### Gate: the fire does a full turn
+
+Idle, listening, thinking, speaking and the pinch-and-hold crossing, all in the
+ember preset, confirmed on device 2026-08-19. The fireflies preset is unchanged
+and still the default.
+
+Open, and all three want the headset rather than the desk:
+
+- `vortexStrength` 1.4 for thinking, with no documented unit behind it.
+- Whether the syllable refractory (110ms) reads as speech or as a stutter.
+- Whether the exhale survives the window closing, or whether 0.97 needs to be
+  earlier.
