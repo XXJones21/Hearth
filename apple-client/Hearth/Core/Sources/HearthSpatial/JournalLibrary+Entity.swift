@@ -79,7 +79,14 @@ public final class JournalLibraryEntity {
     /// A child of `root` rather than the scroller, so it stays put while the
     /// shelves move past it, and interactive only -- the persona's prop must
     /// not be grabbable at all.
-    private let dragSurface = Entity()
+    /// The invisible slab a pinch lands on.
+    ///
+    /// Public because a room hosts this differently from a box: in the volume a
+    /// drag on it SCROLLS the shelves, and in a room -- where a bookcase stands
+    /// on the floor at life size and there is nothing to scroll -- the same
+    /// surface is what you grab to move the whole thing somewhere else. One
+    /// grabbable surface, two hosts, two meanings.
+    public let dragSurface = Entity()
 
     /// How far the shelves can travel. Zero when everything already fits.
     public private(set) var maxScroll: Float = 0

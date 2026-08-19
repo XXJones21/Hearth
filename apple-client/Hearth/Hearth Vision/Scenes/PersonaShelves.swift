@@ -97,6 +97,12 @@ struct PersonaDestinationShelf: View {
     @ObservedObject var viewModel: ChatViewModel
     @Binding var active: HouseSurface?
 
+    /// Pull the journal off the shelf. See `PersonaShelfDragOut` for why this
+    /// destination works differently from the other three.
+    var onSpawnLibrary: () -> Void = {}
+    /// Whether the bookcase is already standing in the room.
+    var libraryPlaced = false
+
     var body: some View {
         PersonaSideShelf {
             // Persona switching lives here rather than on a status strip.
@@ -111,6 +117,15 @@ struct PersonaDestinationShelf: View {
                 .frame(width: 22)
                 .padding(.vertical, 2)
 
+            // Journal is not a panel and never was: its centre slot is a
+            // BOOKCASE. In a box that had to be a scaled-down thing inside the
+            // window; in a room it is furniture you put somewhere and walk to,
+            // which is what pulling it off the shelf means.
+            PersonaShelfDragOut(icon: HouseSurface.journal.icon,
+                                title: HouseSurface.journal.title,
+                                isActive: libraryPlaced,
+                                onPullOut: onSpawnLibrary)
+
             ForEach(Self.destinations) { surface in
                 PersonaShelfButton(icon: surface.icon,
                                    title: surface.title,
@@ -121,16 +136,61 @@ struct PersonaDestinationShelf: View {
         }
     }
 
-    /// Journal is absent, and absent rather than present-and-dead.
-    ///
-    /// Its centre slot is not a panel: it is the library's ENTITIES, and the
-    /// room has none yet. A bookcase in a room is a different object from a
-    /// bookcase in a box -- life size rather than 0.765, standing on the floor,
-    /// with the clipping and the drag-to-scroll taken OFF because you walk to
-    /// it instead. That is its own piece of work; until it lands, an icon that
-    /// lights and shows nothing would be worse than an icon that is not there.
+    /// The three that open a PANEL. Journal is handled above, because it does
+    /// not open a panel -- it puts a bookcase in your room.
     static var destinations: [HouseSurface] {
         HouseSurface.allCases.filter { $0 != .journal }
+    }
+}
+
+/// An icon you PULL something out of, rather than press.
+///
+/// The gesture the operator described, and the one this whole design has been
+/// building toward: pinch the icon, drag away from the shelf, and once the grab
+/// has left the icon behind, the thing it stands for is spawned into the room
+/// for you to place. A press puts a panel in front of you; a pull puts an
+/// object in your space.
+///
+/// The threshold is measured as DISTANCE DRAGGED rather than as leaving a
+/// collision box, which is the same idea expressed in the units a SwiftUI
+/// attachment actually has. An attachment is a plane hosting a view; its
+/// buttons know how far a drag has travelled and not where its collision shape
+/// ends.
+///
+/// Fires ONCE per gesture. Without the latch a slow drag past the threshold
+/// spawns a bookcase on every frame it keeps moving.
+struct PersonaShelfDragOut<Icon: View>: View {
+    let icon: Icon
+    let title: String
+    let isActive: Bool
+    let onPullOut: () -> Void
+
+    /// How far the pinch has to travel before it counts as pulling out. Far
+    /// enough that a press with a shaky hand is still a press.
+    private static var pullThreshold: CGFloat { 44 }
+
+    @State private var pulled = false
+
+    var body: some View {
+        icon
+            .frame(width: 20, height: 20)
+            .foregroundStyle(isActive ? HearthPalette.ember : HearthPalette.roast)
+            .padding(9)
+            .contentShape(Rectangle())
+            .hoverEffect()
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        guard !pulled else { return }
+                        let travelled = hypot(value.translation.width, value.translation.height)
+                        guard travelled > Self.pullThreshold else { return }
+                        pulled = true
+                        onPullOut()
+                    }
+                    .onEnded { _ in pulled = false }
+            )
+            .accessibilityLabel("\(title). Pull out to place it in the room.")
+            .accessibilityAddTraits(isActive ? [.isSelected] : [])
     }
 }
 

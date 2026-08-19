@@ -111,6 +111,19 @@ struct ImmersiveHouse: View {
     @State private var surface: HouseSurface?
     @State private var rail: HouseRailTab?
 
+    /// The bookcase, once someone has pulled it off the shelf.
+    ///
+    /// PARENTED TO THE ROOM, not to the persona, and that is the difference
+    /// between this and everything else the shelves open. A panel is work she
+    /// is showing you and belongs beside her; a bookcase is FURNITURE. You put
+    /// it somewhere, you walk to it, and it is still there when she has moved
+    /// across the room. It is also why `presentationScale` exists at all: the
+    /// geometry has always been authored at life size, the box showed it at
+    /// 0.765, and a real floor shows it at 1.
+    @State private var library = JournalLibraryEntity()
+    @StateObject private var libraryData = JournalLibrary()
+    @State private var libraryPlaced = false
+
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -120,7 +133,14 @@ struct ImmersiveHouse: View {
         self.onLeave = onLeave
     }
 
-    var body: some View {
+    /// The scene itself, plus the two gestures aimed at things inside it.
+    ///
+    /// Split from `body` because the whole view in one expression stopped
+    /// type-checking in reasonable time -- SwiftUI's modifier chains build one
+    /// enormous generic type, and this one had grown a RealityView, its
+    /// attachments, two gestures and eight observers. Two named halves cost
+    /// nothing at runtime and let the compiler finish.
+    private var stage: some View {
         RealityView { content, _ in
             // `.volumetric`, in a room, deliberately: that mode keeps the
             // billboard halo, and the halo is what the bead's glow IS until
@@ -147,6 +167,11 @@ struct ImmersiveHouse: View {
             if !releasing, !content.entities.contains(rig.rootEntity) {
                 place()
                 content.add(rig.rootEntity)
+            }
+            // The bookcase belongs to the room, so it is added to the room
+            // rather than hung on the persona.
+            if libraryPlaced, !content.entities.contains(library.root) {
+                content.add(library.root)
             }
             layoutWork(attachments: attachments)
         } attachments: {
@@ -185,7 +210,27 @@ struct ImmersiveHouse: View {
             // The controls, which in a room belong to the persona rather than
             // to a window she no longer has. See PersonaShelves.
             Attachment(id: Self.leftShelfID) {
-                PersonaDestinationShelf(viewModel: viewModel, active: $surface)
+                PersonaDestinationShelf(viewModel: viewModel,
+                                        active: $surface,
+                                        onSpawnLibrary: placeLibrary,
+                                        libraryPlaced: libraryPlaced)
+            }
+            // The way to put the bookcase away again, beside it rather than on
+            // it: a control ON a shelf of books would be one more thing among
+            // the spines, and the one thing there that is not a book.
+            if libraryPlaced {
+                Attachment(id: Self.libraryCloseID) {
+                    Button {
+                        removeLibrary()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .semibold))
+                            .padding(12)
+                    }
+                    .buttonStyle(.plain)
+                    .glassBackgroundEffect()
+                    .accessibilityLabel("Put the library away")
+                }
             }
             Attachment(id: Self.rightShelfID) {
                 PersonaRailShelf(active: $rail)
@@ -233,6 +278,10 @@ struct ImmersiveHouse: View {
             },
             progress: { rig.transitionProgress = $0 }
         )
+    }
+
+    var body: some View {
+        stage
         .onChange(of: viewModel.hearthState) { _, state in
             rig.updateState(PersonaState(state))
         }
@@ -255,6 +304,26 @@ struct ImmersiveHouse: View {
             guard phase == .active, let spawnLocation else { return }
             rig.homePosition = spawnLocation
             rig.rootEntity.position = spawnLocation
+        }
+        // The bookcase is a room object, so its own drag is its own gesture --
+        // it does not travel with the persona and must not be moved by her.
+        .gesture(
+            DragGesture()
+                .targetedToEntity(library.dragSurface)
+                .onChanged { value in
+                    guard libraryPlaced else { return }
+                    let here = value.convert(value.location3D, from: .local, to: .scene)
+                    library.root.position.x = Float(here.x)
+                    library.root.position.z = Float(here.z)
+                }
+        )
+        .task {
+            await libraryData.load()
+            library.apply(heart: libraryData.heart,
+                          life: libraryData.life,
+                          projects: libraryData.projects,
+                          seedlings: libraryData.seedlings,
+                          palette: viewModel.personaPalette)
         }
         .onChange(of: viewModel.personaVisualization) { _, visualization in
             rig.apply(visualization: visualization)
@@ -310,6 +379,43 @@ struct ImmersiveHouse: View {
             if panel.parent !== anchor { anchor.addChild(panel) }
             panel.position = SIMD3<Float>(Self.panelReach, Self.panelRise, 0.10)
         }
+
+        // The bookcase's close button rides on the BOOKCASE, so it goes where
+        // the bookcase goes rather than staying where it was first put.
+        if let close = attachments.entity(for: Self.libraryCloseID) {
+            if close.parent !== library.root { library.root.addChild(close) }
+            close.position = SIMD3<Float>(-Self.libraryCloseReach, Self.libraryCloseRise, 0.1)
+        }
+    }
+
+    /// Stand the bookcase in the room, life size, on the floor.
+    private func placeLibrary() {
+        guard !libraryPlaced else { return }
+        libraryPlaced = true
+
+        // Life size. Not a number this host picked -- the geometry has always
+        // been authored at 21cm books and a real bookcase is what that IS.
+        library.presentationScale = 1
+
+        // NO CLIP AND NO SCROLL, and one nil does both. Clipping existed
+        // because a volume has a composer along its bottom edge; the drag
+        // existed because a bookcase taller than the box could not otherwise be
+        // seen. A bookcase standing on a real floor needs neither -- you walk
+        // to it, and you look up.
+        library.clipBelowInParent = nil
+
+        // Beside the persona and a little forward, standing on the floor, so it
+        // arrives somewhere you can see it and then gets dragged where you want
+        // it. `root.position.y` is the floor because the immersive space's
+        // origin is the point on the ground below you.
+        let home = rig.rootEntity.position
+        library.root.position = SIMD3<Float>(home.x - Self.libraryReach, 0, home.z)
+        library.root.isEnabled = true
+    }
+
+    private func removeLibrary() {
+        libraryPlaced = false
+        library.root.removeFromParent()
     }
 
     private static let liveTextID = "hearth.live-text"
@@ -318,6 +424,7 @@ struct ImmersiveHouse: View {
     private static let rightShelfID = "hearth.shelf.right"
     private static let surfacePanelID = "hearth.panel.surface"
     private static let railPanelID = "hearth.panel.rail"
+    private static let libraryCloseID = "hearth.library.close"
 
     /// The caption's clearance above the persona's crown. The volume's number,
     /// and it means the same thing here because both measure from the same
@@ -345,6 +452,16 @@ struct ImmersiveHouse: View {
     /// And how high, so a 720pt panel's middle is near eye level rather than
     /// its top edge.
     private static let panelRise: Float = 0.18
+
+    /// How far to the persona's left the bookcase first stands. Far enough to
+    /// be a separate object rather than something she is holding; near enough
+    /// that it arrives in view rather than behind you.
+    private static let libraryReach: Float = 1.1
+
+    /// Where the bookcase's close button sits: off its left edge, at reading
+    /// height, so it is beside the shelves rather than among the spines.
+    private static let libraryCloseReach: Float = 0.5
+    private static let libraryCloseRise: Float = 1.3
 
     // MARK: - Placement
 

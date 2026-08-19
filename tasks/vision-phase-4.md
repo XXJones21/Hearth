@@ -202,16 +202,33 @@ resting at 0.14 rather than zero -- invisible until looked at means invisible
 until GUESSED at, and a faint presence is a thing you can learn the position of
 once and then find.
 
-NOT built: pinch-an-icon-and-drag-it-off to spawn a panel and leave it in the
-room. Panels open beside the persona and travel with her, which is right until
-there is somewhere real to put them down -- and putting them down is the
-world-anchor work in section 9.
+**Pull-out, and the bookcase it was designed for.** The journal is not a panel
+and never was: its centre slot is a BOOKCASE, and that is the case the whole
+pull-out gesture was imagined around. Pinch the journal icon, drag away from the
+shelf, and once the grab has left the icon behind the library is spawned into
+the room -- life size, standing on the floor, draggable to wherever you want it,
+with an X off its left edge to put it away.
 
-Journal is deliberately absent from the room's shelf rather than present and
-dead. Its centre slot is the library's ENTITIES, and a bookcase in a room is a
-different object from one in a box: life size rather than 0.765, standing on
-the floor, with the clipping and the drag-to-scroll taken off because you walk
-to it. That is section 7's work.
+Three things that fall out of it being furniture rather than a panel:
+
+- **It is parented to the ROOM, not to the persona.** Everything else the
+  shelves open is work she is showing you and belongs beside her. A bookcase is
+  a thing you put somewhere and walk to, and it is still there when she has
+  moved across the room.
+- **`presentationScale` finally does what it was built for.** The geometry has
+  always been authored at 21cm books; the box showed it at 0.765 and a real
+  floor shows it at 1.
+- **Clipping and scrolling both come OFF, and one nil does both.**
+  `clipBelowInParent` existed because a volume has a composer along its bottom
+  edge, and the drag existed because a bookcase taller than the box could not
+  otherwise be seen. On a real floor you walk to it and you look up. Setting it
+  nil also takes `maxScroll` to zero, so the same `dragSurface` that scrolled
+  the shelves in a box now moves the whole bookcase in a room -- one grabbable
+  surface, two hosts, two meanings.
+
+Still not built: ANCHORING what has been placed, so a bookcase left beside the
+sofa is beside the sofa tomorrow. That is the world-anchor work in section 9,
+and the same mechanism will serve every other thing pulled off a shelf.
 
 ### What still has no home
 
