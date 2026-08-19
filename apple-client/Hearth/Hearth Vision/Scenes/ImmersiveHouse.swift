@@ -65,6 +65,28 @@ struct ImmersiveHouse: View {
     /// Hold the persona to go back to the box.
     let onLeave: () -> Void
 
+    /// True from the instant a departure begins until this view is gone.
+    ///
+    /// THE RACE THIS EXISTS FOR. An app cannot close its last scene, so leaving
+    /// has to open the volume BEFORE dismissing this space -- which means both
+    /// are alive for a moment, and in that moment the volume adopts the rig out
+    /// of here. Without this flag the update closure below sees the rig gone,
+    /// decides it must have been lost, and takes it straight back. The space
+    /// then closes with the persona inside it and the box is empty, which is
+    /// the missing-persona bug wearing its second face.
+    @State private var releasing = false
+
+    /// Where the persona was first put in this room.
+    ///
+    /// Kept so she can be found again. Recentring the world -- holding the
+    /// Digital Crown -- moves the origin out from under everything placed in
+    /// it, and a persona who was three metres away is now three metres from
+    /// somewhere else. Re-applying this puts her back where the room started
+    /// rather than leaving her somewhere behind a wall.
+    @State private var spawnLocation: SIMD3<Float>?
+
+    @Environment(\.scenePhase) private var scenePhase
+
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -95,7 +117,10 @@ struct ImmersiveHouse: View {
             // which is the whole reason this handover is a re-parent rather than
             // a rebuild.
         } update: { content, attachments in
-            if !content.entities.contains(rig.rootEntity) {
+            // `releasing` is the whole guard: on the way out the volume has
+            // already taken her, and taking her back would close this space
+            // with the persona still in it.
+            if !releasing, !content.entities.contains(rig.rootEntity) {
                 place()
                 content.add(rig.rootEntity)
             }
@@ -133,7 +158,10 @@ struct ImmersiveHouse: View {
                 guard viewModel.connectionStatus == .connected else { return }
                 viewModel.toggleListening()
             },
-            onHold: onLeave,
+            onHold: {
+                releasing = true
+                onLeave()
+            },
             // Drag her somewhere else in the room. Clamped so she cannot be
             // pushed through the floor, which in a room is a real place rather
             // than an abstraction.
@@ -159,6 +187,14 @@ struct ImmersiveHouse: View {
         }
         .onChange(of: viewModel.personaPalette) { _, palette in
             rig.apply(palette)
+        }
+        // A recentre does not announce itself, but it does take the app through
+        // a phase change, and coming back to `.active` is the one moment worth
+        // checking whether the persona is still somewhere findable.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, let spawnLocation else { return }
+            rig.homePosition = spawnLocation
+            rig.rootEntity.position = spawnLocation
         }
         .onChange(of: viewModel.personaVisualization) { _, visualization in
             rig.apply(visualization: visualization)
@@ -219,6 +255,9 @@ struct ImmersiveHouse: View {
                                 captured?.z ?? -Self.distance)
         rig.homePosition = home
         rig.rootEntity.position = home
+        // Remembered, not recomputed: dragging her somewhere else should not
+        // change where "back to the start" means.
+        if spawnLocation == nil { spawnLocation = home }
     }
 
     /// How high the rig's ORIGIN sits above the floor.

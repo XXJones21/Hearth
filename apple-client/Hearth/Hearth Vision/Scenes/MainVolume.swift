@@ -409,6 +409,14 @@ struct MainVolume: View {
             onHold: onEnterImmersive,
             progress: { rig.transitionProgress = $0 }
         )
+        // Belt AND braces, because the two failure modes are different. A
+        // scene that was ELIMINATED runs `make` again and adopts her there; a
+        // scene that was merely BACKGROUNDED does not, and its update closure
+        // may not run until something else invalidates the body. `onAppear`
+        // fires in both cases and is the only one that fires the moment the box
+        // is back on screen. The call is idempotent -- a pointer comparison and
+        // a return.
+        .onAppear { adoptPersona() }
         .onChange(of: viewModel.hearthState) { _, state in
             rig.updateState(PersonaState(state))
         }
