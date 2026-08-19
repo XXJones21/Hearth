@@ -36,7 +36,7 @@ private struct TextureParams {
     var time: Float
     var scale: Float
     var brightness: Float
-    var flow: Float
+    var origin: Float
     var width: UInt32
     var height: UInt32
 }
@@ -117,11 +117,12 @@ public final class AnimatedTexture {
     public var brightness: Float
     public var speed: Float
 
-    /// Reserved. Was "which way does the pattern move", back when one cookie
-    /// tried to serve walls and floors at once; the answer turned out to be two
-    /// kernels rather than one parameter. Kept because the uniform block is
-    /// shared and removing a field means editing both sides of it.
-    public var flow: Float = 1
+    /// Where a radiating pattern starts, as a fraction of the texture's radius.
+    ///
+    /// Zero radiates from a point. Anything larger radiates from a RING, which
+    /// is what a flame standing on a floor actually does -- the light comes off
+    /// its edge, not from a mathematical centre it does not occupy.
+    public var origin: Float = 0
 
     private var elapsed: Float = 0
 
@@ -212,7 +213,7 @@ public final class AnimatedTexture {
         var params = TextureParams(time: time,
                                    scale: scale,
                                    brightness: brightness,
-                                   flow: flow,
+                                   origin: origin,
                                    width: UInt32(size),
                                    height: UInt32(size))
 

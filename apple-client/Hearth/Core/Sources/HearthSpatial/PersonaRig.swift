@@ -1043,9 +1043,32 @@ public final class PersonaRig: ObservableObject {
         let spot = lanternSpot ?? makeSpot()
         spot.setPosition(.zero, relativeTo: sphereEntity)
 
-        let aim = aimDirection(across: hits, nearest: nearest)
+        var aim = aimDirection(across: hits, nearest: nearest)
+        let surface = Self.surfaceKind(aiming: aim, was: spotSurface)
+        dressSpot(for: surface, on: spot)
+
+        if surface == .wall {
+            // TILTED UP A LITTLE. Aimed dead perpendicular, a wall gets a
+            // symmetrical disc, and a symmetrical disc is the one thing that
+            // never happens with a real fire near a wall -- heat and light go
+            // UP. A few degrees of lift stretches the pool into something that
+            // leans, and the eye reads the lean as rising even when the pattern
+            // is doing the work.
+            //
+            // The aim is tilted rather than the light rolled, so everything
+            // downstream still sees one direction: the cookie's up is still
+            // the wall's up, and the corner blend is untouched.
+            aim = simd_normalize(aim + SIMD3<Float>(0, Self.wallTiltRise, 0))
+        } else {
+            // The pattern radiates from the flame's EDGE, and the edge is a
+            // size that changes: pinch him bigger and the ring grows with him.
+            // Measured against the pool's own radius, because that is what the
+            // cookie's own radius means on the surface.
+            let flameRadius = (flameMesh?.radius ?? sphereRadius) * rootEntity.scale.x
+            spotTexture?.origin = min(flameRadius / max(spotPoolRadius, 0.0001), 0.85)
+        }
+
         let wanted = Self.lookRotation(forward: aim)
-        dressSpot(for: Self.surfaceKind(aiming: aim, was: spotSurface), on: spot)
         let ratio = 1 - pow(Self.spotAimRetention, max(dt, 0.0001) * 60)
         spot.setOrientation(simd_slerp(spot.orientation(relativeTo: nil), wanted, ratio),
                             relativeTo: nil)
@@ -1149,6 +1172,15 @@ public final class PersonaRig: ObservableObject {
     private var spotTintTarget = SIMD3<Float>(1.0, 0.94, 0.86)
 
     private var spotSurface: LitSurface = .wall
+
+    /// How much the wall aim is lifted, as a tangent -- about ten degrees.
+    ///
+    /// NEGATIVE, on the device's word. Adding to the aim's Y ought to tilt the
+    /// beam upward and it put the pool below him instead. Rather than argue
+    /// with the headset a third time about a sign, it is written in the
+    /// direction that was observed to work -- the same way the face shell's
+    /// quarter-turn and the cookie's drift are.
+    private static let wallTiltRise: Float = -0.18
 
     private static let wallTint = SIMD3<Float>(1.0, 0.94, 0.86)
     /// The flame's own orange, for the pool it stands over.

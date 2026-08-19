@@ -24,7 +24,7 @@ struct TextureParams {
     float time;        // seconds, drives the animation
     float scale;       // feature density across the texture
     float brightness;  // output gain
-    float flow;        // 1 = the pattern travels UP, 0 = it radiates OUTWARD
+    float origin;      // radius the pattern starts from, 0-1 across the texture
     uint  width;       // texture width  in texels
     uint  height;      // texture height in texels
 };
@@ -423,8 +423,19 @@ kernel void bloom_cookie_kernel(texture2d<float, access::write> out [[texture(0)
 
     float base = smoothstep(1.05, 0.10, r);
 
+    // IT RADIATES FROM THE FLAME'S EDGE, not from a point.
+    //
+    // `origin` is the flame's own radius measured against the pool's, so the
+    // pattern begins where the fire actually meets the surface rather than at
+    // an infinitely small centre. The caller derives it from the mesh, which
+    // means pinching the persona larger widens the ring it throws light from
+    // without anything here being told -- the alternative was a constant that
+    // would have been right at exactly one size.
+    float inner = clamp(params.origin, 0.0, 0.85);
+    float rr = clamp((r - inner) / max(1.0 - inner, 1e-3), 0.0, 1.0);
+
     float angle = atan2(p.y, p.x);
-    float march = 3.0 + r * params.scale - params.time * 0.62;
+    float march = 3.0 + rr * params.scale - params.time * 0.62;
     float2 q = float2(cos(angle), sin(angle)) * march;
 
     float2 slow = float2(params.time * 0.04, -params.time * 0.03);
@@ -439,7 +450,9 @@ kernel void bloom_cookie_kernel(texture2d<float, access::write> out [[texture(0)
 
     // Gold at the centre, ember at the rim -- the wall's ramp with radius
     // standing in for height, which is the same journey away from the fire.
-    float heat = clamp(r * 0.62 + (1.0 - tongues) * 0.38, 0.0, 1.0);
+    // Measured from the ring too, so the gold sits on the flame's footprint
+    // rather than at a centre the fire does not occupy.
+    float heat = clamp(rr * 0.62 + (1.0 - tongues) * 0.38, 0.0, 1.0);
     const float3 gold  = float3(1.00, 0.74, 0.30);
     const float3 amber = float3(1.00, 0.42, 0.10);
     const float3 ember = float3(0.80, 0.15, 0.05);
