@@ -1,7 +1,7 @@
 ---
 title: The second brain
 status: draft
-last_reviewed: 2026-08-15
+last_reviewed: 2026-08-19
 related:
   - ../first-run.md
   - ../clients/windows.md
@@ -197,9 +197,20 @@ doing to your memory in the same file that controls it.
 The daily review looks at that day's diaries under `Thoughts`, asks Selene
 to summarize what happened and list which projects saw work, then writes
 `Reviews/daily/<date>.md` and appends one line per project under its
-`Key Decisions` heading. It runs on the house's own clock, roughly every
-half hour, and does nothing on a day with no diaries to review or once that
-day already has a review on file.
+`Key Decisions` heading. A session too short to earn a diary still leaves a
+chatlog, and a day of only chatlogs still gets its review; the review reads
+the chatlogs raw. It runs on the house's own clock, roughly every half
+hour, and does nothing on a day with nothing to review or once that day
+already has a review on file.
+
+The reviews shelf is also readable back. A recall that names a day, in any
+form the operator would say it ("yesterday", "August 18", "2026-08-18"),
+skips search ranking entirely and returns that day's review plus its
+session list, so "what did we do yesterday" is answered from the record
+rather than reconstructed. Searches over past sessions also cover
+`Reviews/` as its own scope. When a day has no records, recall says so
+plainly, and the persona is instructed to repeat that honestly instead of
+inventing a plausible day.
 
 All of this stays on your machine. The memory layer that reads and writes
 your second brain is a local filesystem client with no required network

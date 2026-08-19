@@ -52,7 +52,13 @@ def pending_review_days(root: Path, limit: int = _MAX_DAYS_PER_TICK) -> list[str
     days: set[str] = set()
     for entry in thoughts.iterdir():
         m = _DATED_DIR_RE.match(entry.name)
-        if entry.is_dir() and m and (entry / "claude.md").is_file():
+        # A day of short sessions persists as chatlog.md only (below the
+        # diary threshold). Those days still happened: without this, a day
+        # of quick voice turns got no review at all (2026-08-18 was the
+        # first casualty) and "what did we do yesterday" had nothing to read.
+        if entry.is_dir() and m and (
+            (entry / "claude.md").is_file() or (entry / "chatlog.md").is_file()
+        ):
             days.add(m.group(1))
     reviews = Path(root) / "Reviews" / "daily"
     out = [
@@ -62,16 +68,21 @@ def pending_review_days(root: Path, limit: int = _MAX_DAYS_PER_TICK) -> list[str
 
 
 def day_diaries(root: Path, day: str) -> list[tuple[str, str]]:
-    """(slug, bounded text) for each of the day's diaries, name order."""
+    """(slug, bounded text) for each of the day's diaries, name order.
+    Falls back to the raw chatlog when a session was too short for a diary."""
     thoughts = Path(root) / "Thoughts"
     out: list[tuple[str, str]] = []
     for entry in sorted(thoughts.iterdir()):
         if not (entry.is_dir() and entry.name.startswith(f"{day}-")):
             continue
-        path = entry / "claude.md"
-        try:
-            text = path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
+        text = ""
+        for name in ("claude.md", "chatlog.md"):
+            try:
+                text = (entry / name).read_text(encoding="utf-8", errors="replace")
+                break
+            except OSError:
+                continue
+        if not text:
             continue
         out.append((entry.name, text[:_MAX_DIARY_CHARS]))
         if len(out) >= _MAX_DIARIES:

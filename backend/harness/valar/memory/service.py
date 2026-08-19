@@ -39,7 +39,7 @@ from typing import Any
 
 logger = logging.getLogger("valar.memory.service")
 
-_DEFAULT_SCOPES = ["facts", "thoughts", "projects", "knowledge"]
+_DEFAULT_SCOPES = ["facts", "thoughts", "reviews", "projects", "knowledge"]
 
 
 class EngramService:
@@ -95,9 +95,9 @@ class EngramService:
         scope: list[str] | None = None,
         limit: int = 12,
     ) -> list[dict]:
-        """Full-Engram search: facts + thoughts + projects + knowledge
-        (Career/Areas). Returns the raw result dicts ({scope, source, snippet,
-        date}), empty on any failure."""
+        """Full-Engram search: facts + thoughts + reviews + projects +
+        knowledge (Career/Areas). Returns the raw result dicts ({scope,
+        source, snippet, date}), empty on any failure."""
         client = self._ensure()
         if client is None:
             return []
