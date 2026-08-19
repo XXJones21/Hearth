@@ -56,6 +56,17 @@ import HearthSpatial
 @MainActor
 private final class RoomPlacement {
     var spawn: SIMD3<Float>?
+
+    /// The bookcase's transform when the current gesture began, and where the
+    /// hand was when it did.
+    ///
+    /// Captured on the first change and applied as a DELTA rather than
+    /// following the hand outright, so grabbing a shelf at its edge does not
+    /// snap the whole bookcase's centre onto your fingers. Cleared on end,
+    /// which is what makes the next gesture start from where this one left off
+    /// rather than from where the object was first put.
+    var libraryStart: Transform?
+    var libraryGrab: SIMD3<Float>?
 }
 
 struct ImmersiveHouse: View {
@@ -141,6 +152,26 @@ struct ImmersiveHouse: View {
     @StateObject private var libraryData = JournalLibrary()
     @State private var libraryPlaced = false
 
+    /// Where the bookcase STANDS, as opposed to what it looks like.
+    ///
+    /// An empty root, and the same split the persona already has: `rootEntity`
+    /// is where she is, `modelHost` and `personaAnchor` are how big she is and
+    /// what hangs off her. A gesture moves the placement; the presentation is
+    /// nobody's business but the object's.
+    ///
+    /// Without it every gesture writes `library.root` -- which is where the
+    /// entity keeps `presentationScale`, as its own `scale`. A pinch-to-scale
+    /// would then be writing the same field the library writes whenever its
+    /// presentation changes, and whichever wrote last would win. The floor
+    /// offset had the same problem in slower motion: `standLibraryOnFloor`
+    /// wrote a position the entity also considers its own.
+    ///
+    /// So: the placement root sits ON THE FLOOR at the spot the bookcase
+    /// occupies, the library hangs inside it lifted by its own height, and the
+    /// close button hangs beside it unaffected by how big the bookcase is.
+    /// Anchoring, when it lands, anchors THIS -- one transform, one meaning.
+    @State private var libraryPlacement = Entity()
+
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -196,8 +227,8 @@ struct ImmersiveHouse: View {
             }
             // The bookcase belongs to the room, so it is added to the room
             // rather than hung on the persona.
-            if libraryPlaced, !content.entities.contains(library.root) {
-                content.add(library.root)
+            if libraryPlaced, !content.entities.contains(libraryPlacement) {
+                content.add(libraryPlacement)
                 standLibraryOnFloor()
             }
             layoutWork(attachments: attachments)
@@ -339,9 +370,24 @@ struct ImmersiveHouse: View {
                 .targetedToEntity(library.dragSurface)
                 .onChanged { value in
                     guard libraryPlaced else { return }
-                    let here = value.convert(value.location3D, from: .local, to: .scene)
-                    library.root.position.x = Float(here.x)
-                    library.root.position.z = Float(here.z)
+                    let here = SIMD3<Float>(value.convert(value.location3D,
+                                                          from: .local, to: .scene))
+                    if placement.libraryStart == nil {
+                        placement.libraryStart = libraryPlacement.transform
+                        placement.libraryGrab = here
+                    }
+                    guard let start = placement.libraryStart,
+                          let grab = placement.libraryGrab else { return }
+                    // Across the floor only. A bookcase you can lift into the
+                    // air is a bookcase you can lose above the ceiling, and the
+                    // height is already correct -- it is standing on the floor.
+                    let moved = here - grab
+                    libraryPlacement.position = start.translation
+                        + SIMD3<Float>(moved.x, 0, moved.z)
+                }
+                .onEnded { _ in
+                    placement.libraryStart = nil
+                    placement.libraryGrab = nil
                 }
         )
         .task {
@@ -409,8 +455,12 @@ struct ImmersiveHouse: View {
 
         // The bookcase's close button rides on the BOOKCASE, so it goes where
         // the bookcase goes rather than staying where it was first put.
+        // On the PLACEMENT, not on the library: a control that scaled with the
+        // bookcase would be illegible on a small one and enormous on a large
+        // one, and it is not part of the furniture -- it is how you put the
+        // furniture away.
         if let close = attachments.entity(for: Self.libraryCloseID) {
-            if close.parent !== library.root { library.root.addChild(close) }
+            if close.parent !== libraryPlacement { libraryPlacement.addChild(close) }
             close.position = SIMD3<Float>(-Self.libraryCloseReach, Self.libraryCloseRise, 0.1)
         }
     }
@@ -431,11 +481,18 @@ struct ImmersiveHouse: View {
         // to it, and you look up.
         library.clipBelowInParent = nil
 
-        // Beside the persona, and the HEIGHT is set once it is in the scene and
-        // can be measured -- see `standLibraryOnFloor`.
-        let home = rig.rootEntity.position
-        library.root.position = SIMD3<Float>(home.x - Self.libraryReach, 0, home.z)
+        // The library hangs inside the placement; the placement is what stands
+        // in the room.
+        if library.root.parent !== libraryPlacement {
+            libraryPlacement.addChild(library.root)
+        }
         library.root.isEnabled = true
+
+        // Beside the persona, on the floor. The HEIGHT of the library within
+        // the placement is set once it is in the scene and can be measured --
+        // see `standLibraryOnFloor`.
+        let home = rig.rootEntity.position
+        libraryPlacement.position = SIMD3<Float>(home.x - Self.libraryReach, 0, home.z)
     }
 
     /// Lift the bookcase until its lowest shelf rests on the floor.
@@ -453,14 +510,19 @@ struct ImmersiveHouse: View {
     /// and any formula reproducing that here would be a second copy of
     /// arithmetic the entity already does.
     private func standLibraryOnFloor() {
-        let bounds = library.root.visualBounds(relativeTo: nil)
+        // Measured in the PLACEMENT's space and corrected within it, so the
+        // placement root keeps meaning "the spot on the floor this bookcase
+        // occupies" no matter how tall the bookcase turns out to be.
+        let bounds = library.root.visualBounds(relativeTo: libraryPlacement)
         guard bounds.extents.y > 0.0001 else { return }
         library.root.position.y -= bounds.min.y
     }
 
     private func removeLibrary() {
         libraryPlaced = false
-        library.root.removeFromParent()
+        libraryPlacement.removeFromParent()
+        placement.libraryStart = nil
+        placement.libraryGrab = nil
     }
 
     private static let liveTextID = "hearth.live-text"

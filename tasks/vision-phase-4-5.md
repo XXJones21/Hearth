@@ -107,9 +107,23 @@ room, which is the only place it can actually be made.
 first change and cleared on end, is the shape Apple's own interactive-model
 sample uses.
 
-**The trap, and it is the same trap in both cases.** Neither of these objects is
-scaled by writing `entity.scale`. Both already have a knob that other things are
-measured against:
+**The structure that makes all three gestures safe**, settled 2026-08-18 and
+already built: every placeable thing is an empty PLACEMENT ROOT with its
+presentation hanging inside it. The persona has had this from the start --
+`rootEntity` is where she is, `modelHost` and `personaAnchor` are how big she is
+and what travels with her -- and the bookcase now matches: `libraryPlacement`
+stands on the floor, `library.root` hangs inside it lifted by its own height,
+and the close button hangs beside it unaffected by how big the bookcase is.
+
+Gestures write the PLACEMENT and nothing else. Capture its transform on the
+first change, apply the movement as a delta, clear on end -- which is what makes
+a grab at the edge of a shelf move the bookcase rather than snapping its centre
+onto your hand, and what makes the next gesture start from where the last one
+left off. Anchoring, when it lands, anchors the placement: one transform, one
+meaning.
+
+**The trap it avoids.** Neither object is scaled by writing `entity.scale`. Both
+already have a knob that other things are measured against:
 
 - The persona has `setRigScale`, and `modelPresentationScale`, `personaAnchor`
   and `crownHeight` are all fractions or functions OF it. Writing
