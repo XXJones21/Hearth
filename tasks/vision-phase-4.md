@@ -1,8 +1,12 @@
 # Phase 4 -- the immersive house
 
-**IN PROGRESS.** Increment 1 landed 2026-08-18: the tick moved off the host, the
-`ImmersiveSpace` exists, and the hold crosses in both directions. What is done
-and what is not is tracked per section below.
+**CLOSED 2026-08-18. Gate 4 passed on device, with both persona kinds.**
+
+The room exists and is usable: the persona crosses at the spot she was standing,
+carries her work with her, wears her controls, and remembers where you put
+things. Sections below are marked with what landed and what was deliberately
+left -- see the design doc's phase 4 entry for the four lessons worth carrying
+into 4.5.
 
 Scoped 2026-08-18, after phase 3.5 closed. This supersedes the phase 4 sketch in
 [the design doc](../wiki/raw/hearth-vision-design.md) section 8, which is now a

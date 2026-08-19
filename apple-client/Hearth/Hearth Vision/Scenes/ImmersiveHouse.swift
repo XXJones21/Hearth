@@ -622,7 +622,11 @@ struct ImmersiveHouse: View {
     private func openReader(_ book: JournalBook?) {
         reading = book
         guard book != nil else {
-            readerPlacement.returnHome()
+            // Everything the open built comes down with it -- the handle
+            // especially, which is an entity rather than an attachment and
+            // would otherwise hang in the air, still grabbable, with nothing
+            // above it.
+            readerPlacement.retire()
             return
         }
         let shelf = libraryPlacement.root.position
@@ -674,7 +678,6 @@ struct ImmersiveHouse: View {
         libraryPlaced = false
         openReader(nil)
         libraryPlacement.root.removeFromParent()
-        readerPlacement.root.removeFromParent()
         libraryPlacement.endGesture()
         // Put away, not merely moved: the room should not stand it back up
         // tomorrow because it remembers a wall it used to lean against.

@@ -159,6 +159,25 @@ final class PlacedObject {
         root.transform = home
     }
 
+    /// Take it out of the room entirely.
+    ///
+    /// Closing something has to remove what it was made of, not just what it
+    /// was showing. The reader's panel is an attachment and vanishes with the
+    /// state that declared it -- but its grab handle is an ENTITY, built here,
+    /// and nothing else was going to take it away. So closing a book left a bar
+    /// hanging in the air with nothing above it.
+    ///
+    /// The rule for anything built in `spawn`: it is torn down here. A placed
+    /// thing that half-disappears is worse than one that does not disappear at
+    /// all, because the leftovers are still grabbable.
+    func retire() {
+        endGesture()
+        grabHandle?.removeFromParent()
+        grabHandle = nil
+        root.removeFromParent()
+        root.transform = home
+    }
+
     /// Move it by however far the hand has travelled since the grab began.
     ///
     /// - Parameter onFloor: keep it at the height it already has. True for

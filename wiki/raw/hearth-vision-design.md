@@ -479,38 +479,55 @@ see in one of them. It also inherits three things phase 3.5 built for it --
 `modelPresentationScale` and `modelVerticalOffset`, whose defaults are already
 the room's answer, and `personaAnchor`, which is how work travels.
 
-**Phase 4, the immersive house.** RE-SCOPED 2026-08-18, because phases 3 and
-3.5 changed what is being carried into the room. The sketch below was written
-when the persona was a bead and the volume had almost no chrome; both are now
-false. Scoped in full in
+**Phase 4, the immersive house. LANDED 2026-08-18.** Re-scoped first, because
+phases 3 and 3.5 had changed what was being carried into the room: the sketch
+was written when the persona was a bead and the volume had almost no chrome, and
+both had stopped being true. Recorded in full in
 [tasks/vision-phase-4.md](../../tasks/vision-phase-4.md).
 
-The original list still stands as far as it goes: the `ImmersiveSpace(.mixed)`
-host, entity re-hosting between volume and room, the `realBloomActive` switch,
-pinch-and-hold in both directions, `NSWorldSensingUsageDescription` into the
-Vision plist when surface placement lands, and room-scale choreography out of
-the same behavior library.
+*Gate 4 PASSED.* Hold the persona for two seconds and the box gives way to the
+room; hold her again and the box returns. Both persona kinds make the trip, and
+they did fail differently on the way -- a bead and a figure are re-hosted by the
+same code and broke in different places, which is why the gate asked for both.
 
-What it did not anticipate, in the order it will bite:
+**The room, as built.** The `ImmersiveSpace(.mixed)` host with the rig re-hosted
+rather than rebuilt, at her own size and standing on a real floor. A single
+gesture carrying three meanings on one target: pinch to talk, hold to cross,
+drag to move her. Cards and the live caption travel with her on `personaAnchor`.
+The controls became part of the PERSONA -- two shelves, thirty centimetres to
+either side, mostly hidden until looked at, with persona switching on the left.
+The journal is pulled off the shelf as a life-size bookcase you place, move and
+read from, and its books open into a reader you can carry to where you are
+sitting. Everything placed is remembered by a world anchor and is where you left
+it tomorrow.
 
-- **The controls are all ORNAMENTS, and an `ImmersiveSpace` has none.** House
-  status and persona switching, the composer and its mic, the four-icon house
-  shelf and the right rail are every one of them ornaments on the volume's
-  window. Dismissing the volume takes the whole client interface with it and
-  leaves a persona standing in a room with no way to reach anything. This is
-  the phase's largest open question and it is a DESIGN decision, not a port.
-- **The persona may have a body.** Everything phase 4 assumed about the orb --
-  that it is small, that it hovers, that a halo can bloom around it -- is false
-  for Selene. A life-size figure stands on the floor and needs one; a 10cm bead
-  in a room is a marble.
-- **Cards already travel, and that is not the same as following.** Section 6
-  asks for "a soft spring lag"; `personaAnchor` is rigid parenting. In a box
-  where the orb never moved the difference was invisible. At room scale, with
-  motion switched on, it will not be.
+**Four things it taught that the scoping did not predict:**
 
-*Gate 4: the immersive round trip.* Hold to enter, the room furnishes, hold
-to leave, the volume returns -- with BOTH persona kinds, because a bead and a
-figure are re-hosted by the same code and fail differently.
+- **A subscription belongs to the scene that issued it.** The rig ticks itself
+  now, through a `ClosureComponent` that RealityKit runs in whatever scene the
+  entity is in, so the handover costs nothing. Anything else hands every future
+  host a lifecycle it cannot see.
+- **A collider outlives, or overlaps, what it was measured from.** Three
+  separate bugs with one shape: a box measured before the model was fitted, a
+  box left behind after the model was unloaded, and work parented INSIDE a
+  life-size persona's own box, which does not overlap her so much as become
+  unreachable behind her. The rig grew `crownHeight` and `halfWidth` so hosts
+  can place work clear of whoever is standing there.
+- **A room has no ornaments and no presentations.** Both are window features. The
+  first moved the whole client interface onto the persona; the second turned a
+  `Menu` into a shelf that unrolls, and left Persona's editors and Apps' card
+  library still to answer for.
+- **Every placed thing wants the same structure**, which the persona had from
+  the start and everything else was given after breaking it:
+  `PlacedObject` -- an empty root that gestures move, with the presentation
+  hanging inside keeping its own scale. Things you hold face you; things you
+  place stay where they are pointed.
+
+**Deferred out of phase 4 deliberately:** motion at room scale (`.none` still,
+and phase 4.5 is where the travel is judged), the spring lag and billboarding
+that section 6 asks of cards, the library as a room object in the JOURNAL
+destination sense, and scene reconstruction so panels can rest on real tables --
+the world-sensing key that landed here is for anchors, not surfaces.
 
 **Phase 4.5, the room's light.** Added 2026-08-18. Valinor's immersive scene
 projects animated caustics onto the real room through a `ProjectiveTexture` and
