@@ -192,6 +192,44 @@ public final class FlameMesh {
         ])
     }
 
+    /// Where the flame's surface is, at a given height and around a given
+    /// meridian, right now.
+    ///
+    /// EXISTS SO THE FACE CAN RIDE IT. The card sits at a fixed distance in
+    /// front of the flame, and the flame's surface does not stay still -- the
+    /// turbulence swings it in and out by up to a quarter of its radius. Any
+    /// fixed distance is therefore too far for half the cycle and too near for
+    /// the other half, which on the device looked like the fire swallowing one
+    /// eye and giving it back.
+    ///
+    /// Rather than push the card out past the maximum excursion -- which works,
+    /// and floats the face off the fire -- the card asks the flame where its
+    /// skin is this frame, on the meridian the viewer happens to be looking
+    /// down, and sits just clear of THAT. The eyes then keep a constant small
+    /// gap from a moving surface, which is what "on his face" means when the
+    /// face is made of fire.
+    ///
+    /// - Parameters:
+    ///   - y: height in the flame's own space, the same units `rise` returns.
+    ///   - angle: the meridian, in radians, matching `update`'s `angle`.
+    public func surfaceRadius(atY y: Float, angle: Float, phase: Float) -> Float {
+        let v = heightParameter(forY: y)
+        let wobble = 1 + turbulence * Self.noise(angle: angle, height: v, phase: phase)
+        return profile(at: v, phase: phase) * max(wobble, 0.05)
+    }
+
+    /// The `v` that lands at a given height.
+    ///
+    /// Only inverted for the straight section ABOVE the dome, which is where
+    /// anything hung on the flame belongs -- below it the profile is a quarter
+    /// circle and the inversion is both harder and pointless.
+    private func heightParameter(forY y: Float) -> Float {
+        let shoulder = height - radius * Self.domeDepth
+        guard shoulder > 0.0001 else { return Self.domeTop }
+        let t = min(max(y / shoulder, 0), 1)
+        return Self.domeTop + t * (1 - Self.domeTop)
+    }
+
     /// How wide the flame is at a given height.
     ///
     /// REWRITTEN AFTER THE FIRST DEVICE RUN, which produced a light bulb:
@@ -209,7 +247,13 @@ public final class FlameMesh {
     /// - Above it, a long taper to nothing, with the power set so the flame
     ///   thins slowly at first and quickly near the tip.
     private func profile(at v: Float, phase: Float) -> Float {
-        let breath = 1 + 0.06 * sin(phase * 2.3)
+        // BARELY. This was 0.06 and it swelled the whole silhouette enough to
+        // swallow the face card on every cycle -- the eyes sank into the fire
+        // and came back out, which reads as a fault rather than as breathing.
+        // A flame does not pulse as a whole; its EDGES move, and that is the
+        // turbulence's job. What is left here is a slow, almost invisible
+        // change of size, which is all a body-wide breath should ever be.
+        let breath = 1 + 0.012 * sin(phase * 1.6)
 
         if v < Self.domeTop {
             // A quarter circle: full width at the dome's top, zero at its pole,

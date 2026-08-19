@@ -343,6 +343,7 @@ public final class PersonaRig: ObservableObject {
     private var lanternShell: ModelEntity?
     private var flameMesh: FlameMesh?
     private var flameFacePivot: Entity?
+    private var flameFaceCard: ModelEntity?
 
     /// The draw order for the things the lantern is made of.
     ///
@@ -533,6 +534,8 @@ public final class PersonaRig: ObservableObject {
         // two transparent objects' origins.
         card.components.set(ModelSortGroupComponent(group: lanternSortGroup, order: 1))
         // Forward of the pivot, along the direction the pivot is turned to.
+        // A starting value only. From the first tick the card RIDES the
+        // flame's surface -- see `trackFlameSurface`.
         card.position = SIMD3<Float>(0, 0, sphereRadius * Self.flameFaceLift)
 
         let pivot = Entity()
@@ -543,6 +546,7 @@ public final class PersonaRig: ObservableObject {
 
         sphereEntity.addChild(pivot)
         flameFacePivot = pivot
+        flameFaceCard = card
         // Said out loud: "no eyes at all" has three possible causes -- the card
         // was not built, it was built facing away, or it is buried in the fire
         // -- and only the first one can be ruled out from here.
@@ -552,7 +556,34 @@ public final class PersonaRig: ObservableObject {
     private func removeFlameFace() {
         flameFacePivot?.removeFromParent()
         flameFacePivot = nil
+        flameFaceCard = nil
     }
+
+    /// Ride the flame's surface, on the meridian the viewer is looking down.
+    ///
+    /// The card's distance was a constant, and the flame's surface is not: the
+    /// turbulence swings it in and out by up to a quarter of its radius, so any
+    /// fixed distance is behind the fire for part of every cycle. That is what
+    /// was swallowing an eye and handing it back.
+    ///
+    /// The pivot already billboards, so its forward IS the direction the viewer
+    /// is looking from -- which is exactly the meridian to ask about. No head
+    /// pose needed here: the billboard has already done that work.
+    private func trackFlameSurface() {
+        guard let card = flameFaceCard,
+              let pivot = flameFacePivot,
+              let flameMesh else { return }
+        let forward = pivot.convert(direction: SIMD3<Float>(0, 0, 1), to: sphereEntity)
+        let angle = atan2(forward.x, forward.z)
+        let skin = flameMesh.surfaceRadius(atY: pivot.position.y,
+                                           angle: angle,
+                                           phase: lanternPhase)
+        card.position.z = skin + sphereRadius * Self.flameFaceClearance
+    }
+
+    /// How far clear of the flame's skin the eyes ride. Small, and constant --
+    /// that constancy is the point.
+    private static let flameFaceClearance: Float = 0.22
 
     /// The face card's proportions, how high up the flame it sits, and how far
     /// clear of the fire it floats.
@@ -561,7 +592,7 @@ public final class PersonaRig: ObservableObject {
     /// fully transparent, so growing it costs nothing visually and is the
     /// simplest way to make a face that occupies a small part of its texture
     /// occupy a large part of the flame.
-    private static let flameFaceWidth: Float = 3.57
+    private static let flameFaceWidth: Float = 5.15
     private static let flameFaceHeight: Float = 2.42
     private static let flameFaceRise: Float = 0.25
     /// How far the face floats clear of the fire.
@@ -608,6 +639,7 @@ public final class PersonaRig: ObservableObject {
         lanternPhase += dt
         texture.tick(deltaTime: dt)
         flameMesh?.update(phase: lanternPhase)
+        trackFlameSurface()
         guard var component = light.components[PointLightComponent.self] else { return }
         component.intensity = lanternLumens * (0.75 + 0.5 * texture.flicker())
         light.components.set(component)
