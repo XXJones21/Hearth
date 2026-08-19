@@ -362,6 +362,14 @@ public final class PersonaRig: ObservableObject {
         hideCoreForLantern()
         buildFlameFace()
         applyHoverEffect()
+        // PARKED, 2026-08-19. The chibi face got far enough to be worth keeping
+        // and is switched off while the particles land: it still needs brows, a
+        // mouth in its own language, and a counterpart on the phone before any
+        // persona could wear it. Two lines turn it back on, and
+        // tasks/persona-chibi-face.md has the rest.
+        //
+        //     faceTexture?.eyeStyle = .chibi
+        //     faceTexture?.irisAmount = 1
         // Take the face and the halo off, so what you are looking at is the
         // flame and nothing else. This is the "swap the mesh out" the test
         // asked for: same sphere, same size, entirely different surface.
@@ -688,7 +696,17 @@ public final class PersonaRig: ObservableObject {
 
         let widthInMetres = sphereRadius * Self.flameFaceWidth
             * max(rootEntity.scale.x, 0.0001)
-        let wanted = Self.faceTextureSize(forTexels: widthInMetres * adaptive.pixelsPerMeter)
+
+        // DIVIDED BY THE CROP, and this is why the face was soft.
+        //
+        // The card shows only the middle of the texture -- `faceCropWidth` of
+        // its width and `faceCropHeight` of its height, which between them is
+        // about a seventh of its AREA. So the texels the face actually gets are
+        // a fraction of the texels the texture has, and asking for "enough
+        // texels to cover the card" was asking for seven times too few. The
+        // face was being magnified out of a corner of its own image.
+        let visible = widthInMetres / max(Self.faceCropWidth, 0.01)
+        let wanted = Self.faceTextureSize(forTexels: visible * adaptive.pixelsPerMeter)
         guard wanted != faceTextureSize else { return }
         rebuildFaceTexture(size: wanted)
     }
@@ -704,7 +722,10 @@ public final class PersonaRig: ObservableObject {
         return size
     }
 
-    private static let minFaceTexture = 512
+    /// Raised from 512. That was chosen when the face was worn by a bead you
+    /// held in a volume; a flame you stand next to is a different proposition,
+    /// and the crop above means the face only ever gets a share of it.
+    private static let minFaceTexture = 1024
     private static let maxFaceTexture = 4096
 
     /// Swap in a face drawn at a different resolution, keeping every tuning
@@ -721,6 +742,9 @@ public final class PersonaRig: ObservableObject {
         fresh.eyeScale = old.eyeScale
         fresh.inkBlend = old.inkBlend
         fresh.inkStyle = old.inkStyle
+        fresh.irisColor = old.irisColor
+        fresh.irisAmount = old.irisAmount
+        fresh.eyeStyle = old.eyeStyle
         faceTexture = fresh
         faceTextureSize = size
         applyFaceTexture()
@@ -849,8 +873,8 @@ public final class PersonaRig: ObservableObject {
     /// fully transparent, so growing it costs nothing visually and is the
     /// simplest way to make a face that occupies a small part of its texture
     /// occupy a large part of the flame.
-    private static let flameFaceWidth: Float = 1.7
-    private static let flameFaceHeight: Float = 1.25
+    private static let flameFaceWidth: Float = 2.05
+    private static let flameFaceHeight: Float = 1.5
 
     /// How much of the face texture the card shows.
     ///
@@ -869,8 +893,12 @@ public final class PersonaRig: ObservableObject {
     /// horizontally than vertically is what widens the eyes, which is the same
     /// correction the wide card was making, applied where it does not bend
     /// anything.
-    private static let faceCropWidth: Float = 0.32
-    private static let faceCropHeight: Float = 0.44
+    ///
+    /// Widened a little for the chibi eyes, which are broader than the ink ones
+    /// and were running out of room inside the crop. The card grows with it so
+    /// the face still gains size on screen rather than only gaining margin.
+    private static let faceCropWidth: Float = 0.37
+    private static let faceCropHeight: Float = 0.46
     private static let flameFaceRise: Float = 0.25
     /// How far the face floats clear of the fire.
     ///
@@ -895,6 +923,8 @@ public final class PersonaRig: ObservableObject {
 
     /// Give the bead its body back when the lantern goes out.    /// Give the bead its body back when the lantern goes out.
     private func showCoreAfterLantern() {
+        faceTexture?.irisAmount = 0
+        faceTexture?.eyeStyle = .ink
         removeFlameFace()
         applyHoverEffect()
         guard let model = coreModel else { return }
@@ -1175,12 +1205,18 @@ public final class PersonaRig: ObservableObject {
 
     /// How much the wall aim is lifted, as a tangent -- about ten degrees.
     ///
-    /// NEGATIVE, on the device's word. Adding to the aim's Y ought to tilt the
-    /// beam upward and it put the pool below him instead. Rather than argue
-    /// with the headset a third time about a sign, it is written in the
-    /// direction that was observed to work -- the same way the face shell's
-    /// quarter-turn and the cookie's drift are.
-    private static let wallTiltRise: Float = -0.18
+    /// POSITIVE, which is what the arithmetic said in the first place. It was
+    /// briefly flipped on a device read that turned out to be a viewing angle
+    /// rather than a sign: standing off to one side of a leaning pool, the lean
+    /// reads the other way. The flip made it worse, which is the evidence that
+    /// settled it.
+    ///
+    /// Worth the note precisely because three signs in this area HAVE been
+    /// wrong -- the face shell's quarter-turn, the cookie's drift, the card's
+    /// UVs -- so "the headset disagrees, flip it" had become the cheap move. It
+    /// is the right move when the observation is unambiguous and the wrong one
+    /// when the observation is itself a judgement call.
+    private static let wallTiltRise: Float = 0.18
 
     private static let wallTint = SIMD3<Float>(1.0, 0.94, 0.86)
     /// The flame's own orange, for the pool it stands over.

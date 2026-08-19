@@ -770,3 +770,24 @@ numbers.
 
 The proximity spotlight (section 12), the ember particles, and taking the flame
 from an opt-in style to somebody's default.
+
+## 14. A side quest: the chibi face
+
+2026-08-19. The flame turned out well enough that the operator wanted to see
+whether the persona's FACE could go with it -- the ink eyes are a mark ON a
+surface, designed for a small glowing bead, and against a large bright body they
+read as holes rather than as eyes.
+
+It got far enough to be worth keeping: a tapered oval with white sclera, a
+coloured iris, a small pupil, a lash contour and two unequal glints, all cut
+from one distance field so they blink for free. A cool blue iris against a warm
+fire is the strongest this persona has looked.
+
+**Parked, not abandoned.** Sulivan is back on his shipped ink eyes; the whole
+thing sits behind `PersonaFaceTexture.eyeStyle` and draws nothing until asked.
+It still needs brows, a mouth in its own language, a counterpart on the phone,
+and a home in the persona config rather than in client properties. Written up in
+full, with every device correction it took, in
+[tasks/persona-chibi-face.md](persona-chibi-face.md).
+
+Next: the particles.

@@ -68,6 +68,9 @@ private struct FaceParams {
     // Colours
     var ink: SIMD3<Float>
     var glint: SIMD3<Float>
+    var iris: SIMD3<Float>
+    var irisAmount: Float
+    var eyeStyle: Float
     // Projection
     var lonOffset: Float
     var extent: Float
@@ -160,6 +163,40 @@ public final class PersonaFaceTexture {
     /// it may come back once the bead is not the only thing behind it. Revisit
     /// with the phase 5 polish pass.
     public var inkStyle: InkStyle = .flatBlack
+
+    /// The eye's colour inside the ink rim, and how much of it to show.
+    ///
+    /// A TEST, 2026-08-19: the flame turned out warm enough that a cool iris
+    /// reads as a real composition rather than a decoration, and the reference
+    /// is Charmander's blue against its own fire. Nothing about the eye's shape
+    /// or its glint changes -- the iris is the same silhouette eroded inward,
+    /// so it blinks and tilts and narrows with the eye it lives in.
+    ///
+    /// `irisAmount` at zero draws none, which is what every persona that has
+    /// not asked for one gets. It is a knob rather than a constant because the
+    /// eventual home for this is the persona config beside `eye_size` and the
+    /// rest of `FaceGeometry` -- a persona should be able to have blue eyes
+    /// without a client build.
+    /// Charmander's cyan-blue, read off the reference rather than guessed at:
+    /// vivid rather than pastel, which is what holds its own against a fire.
+    /// The kernel darkens it toward the top of the eye and lifts it toward the
+    /// bottom, so this one value becomes the whole gradient.
+    public var irisColor = SIMD3<Float>(0.16, 0.62, 0.88)
+    public var irisAmount: Float = 0
+
+    /// Which eye the kernel draws.
+    ///
+    /// `ink` is the shipped one: a dark capsule with a glint, a mark ON a face,
+    /// letting the persona's own surface show around it. `chibi` is an eye IN a
+    /// face -- a white oval, a coloured iris, a dark pupil, a heavy lash line
+    /// and two unequal highlights.
+    ///
+    /// A VARIANT AND NOT A REPLACEMENT, on the operator's instruction: the ink
+    /// eye is device-tested and correct for the bead, and this exists to be
+    /// looked at on a flame. It changes the eye's SHAPE, so anything measured
+    /// against the old silhouette is expected to want re-tuning.
+    public enum EyeStyle: Sendable { case ink, chibi }
+    public var eyeStyle: EyeStyle = .ink
 
     public init?(size: Int = 512, kernelName: String = "face_kernel") {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -257,6 +294,9 @@ public final class PersonaFaceTexture {
             mouthRound: Float(pose.mouthRound),
             ink: ink,
             glint: glint,
+            iris: irisColor,
+            irisAmount: irisAmount,
+            eyeStyle: eyeStyle == .chibi ? 1 : 0,
             lonOffset: longitudeOffset,
             extent: extent,
             width: UInt32(size),
