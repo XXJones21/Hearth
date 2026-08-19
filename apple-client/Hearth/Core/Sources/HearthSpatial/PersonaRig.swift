@@ -141,10 +141,84 @@ public final class PersonaRig: ObservableObject {
 
     /// Volume or room. The bead and the field are identical in both; only the
     /// glow differs. One place, so the same rig reads the same in both scenes.
-    public enum PresentationMode: Sendable { case volumetric, immersive }
+    /// WHERE the persona is being shown, which decides what she is allowed to
+    /// do to the room around her.
+    ///
+    /// Three kinds of surface, and the effects budget is genuinely different in
+    /// each rather than a matter of degree:
+    ///
+    /// - `.flat` is a 2D window -- the phone, and any Mac or iPad view. There
+    ///   is no room to light and no scene to bloom; the orb is drawn in SwiftUI.
+    ///   Everything spatial is off, and that is the honest answer rather than a
+    ///   degraded one.
+    /// - `.volumetric` is a bounded box in the shared space. A real light DOES
+    ///   reach the room from here, which was the surprise of 2026-08-18 and is
+    ///   the reason this enum needs a middle case at all -- but a box on a desk
+    ///   throwing a hearth's worth of light across the room is a lamp somebody
+    ///   would turn off. Toned down, not switched off.
+    /// - `.immersive` is the room. Everything on, at full.
+    ///
+    /// A host declares which it is; nothing here guesses. Written as a budget
+    /// rather than as checks at each effect site for the same reason the
+    /// effects follow the visualization KIND -- one place to answer the
+    /// question, and a new surface gets a considered answer instead of
+    /// whichever branch happened to be written first.
+    public enum PresentationMode: Sendable, CaseIterable {
+        case flat, volumetric, immersive
+    }
+
+    /// What a surface allows.
+    public struct EffectBudget: Sendable {
+        /// Multiplier on the lantern's lumens.
+        public var lightScale: Float
+        /// Whether a light may reach physical surfaces.
+        public var lightsSurroundings: Bool
+        /// Whether the proximity spotlight may wake near a wall.
+        public var proximitySpot: Bool
+        /// Whether a real post-process bloom is doing the glow, which is what
+        /// decides if the bead still needs its painted halo.
+        public var realBloom: Bool
+
+        public static let flat = EffectBudget(lightScale: 0,
+                                              lightsSurroundings: false,
+                                              proximitySpot: false,
+                                              realBloom: false)
+        /// A quarter, on the reasoning that a desk lamp is not a hearth. The
+        /// number is a starting point and the device will argue with it.
+        public static let volumetric = EffectBudget(lightScale: 0.25,
+                                                    lightsSurroundings: true,
+                                                    proximitySpot: false,
+                                                    realBloom: false)
+        /// `realBloom` is false even here, deliberately: nothing in this client
+        /// adds a `BloomComponent` yet, so the bead still needs its painted
+        /// halo. Turn this on in the same change that adds the real one.
+        public static let immersive = EffectBudget(lightScale: 1.0,
+                                                  lightsSurroundings: true,
+                                                  proximitySpot: true,
+                                                  realBloom: false)
+
+        public static func `for`(_ mode: PresentationMode) -> EffectBudget {
+            switch mode {
+            case .flat: return .flat
+            case .volumetric: return .volumetric
+            case .immersive: return .immersive
+            }
+        }
+    }
+
+    /// The surface this rig is currently being shown on.
+    public private(set) var presentation: PresentationMode = .volumetric
+
+    /// What that surface allows. Read by every effect rather than each one
+    /// asking which host it is in.
+    public private(set) var budget: EffectBudget = .volumetric
 
     public func configure(for mode: PresentationMode) {
-        realBloomActive = (mode == .immersive)
+        presentation = mode
+        budget = .for(mode)
+        realBloomActive = budget.realBloom
+        refreshLanternLight()
+        applyEffectStyle()
     }
 
     /// Drives the volume-to-room switch flourish: 0 is the normal per-state
@@ -251,6 +325,7 @@ public final class PersonaRig: ObservableObject {
             lanternShell?.removeFromParent()
             lanternShell = nil
             flameMesh = nil
+            retireSpot()
             showCoreAfterLantern()
             // Give the face and the halo back, now that nothing is standing in
             // for them.
@@ -265,7 +340,7 @@ public final class PersonaRig: ObservableObject {
         // Dead centre of the bead: a bulb inside a shade, not a lamp beside it.
         light.position = .zero
         light.components.set(PointLightComponent(color: lanternColor,
-                                                 intensity: lanternLumens,
+                                                 intensity: lanternLumens * budget.lightScale,
                                                  attenuationRadius: lanternReach))
         // The part that makes it touch the real room rather than only virtual
         // things. Without this the wall stays exactly as dark as it was.
@@ -276,7 +351,9 @@ public final class PersonaRig: ObservableObject {
         // everywhere, so iOS gets a glowing sphere and no room glow, which is
         // exactly what iOS should get.
         #if os(visionOS)
-        light.components.set(PointLightComponent.SurroundingsLight())
+        if budget.lightsSurroundings {
+            light.components.set(PointLightComponent.SurroundingsLight())
+        }
         #endif
         sphereEntity.addChild(light)
         lanternLight = light
@@ -309,7 +386,7 @@ public final class PersonaRig: ObservableObject {
     /// Still two orders above the candle Apple's table names, which is what a
     /// virtual light costs when it has to compete with passthrough of a lit
     /// room.
-    public var lanternLumens: Float = 1500 {
+    public var lanternLumens: Float = 3200 {
         didSet { refreshLanternLight() }
     }
     public var lanternReach: Float = 10.0 {
@@ -371,7 +448,7 @@ public final class PersonaRig: ObservableObject {
     private func refreshLanternLight() {
         guard let light = lanternLight,
               var component = light.components[PointLightComponent.self] else { return }
-        component.intensity = lanternLumens
+        component.intensity = lanternLumens * budget.lightScale
         component.attenuationRadius = lanternReach
         component.color = lanternColor
         light.components.set(component)
@@ -829,6 +906,361 @@ public final class PersonaRig: ObservableObject {
     /// The bead's own mesh and material, parked while the flame stands alone.
     private var coreModel: ModelComponent?
 
+    // MARK: - The proximity spotlight
+
+    /// A real surface the room found, in world space.
+    public struct SurfaceHit: Sendable {
+        public let point: SIMD3<Float>
+        public let normal: SIMD3<Float>
+        public let distance: Float
+        public init(point: SIMD3<Float>, normal: SIMD3<Float>, distance: Float) {
+            self.point = point
+            self.normal = normal
+            self.distance = distance
+        }
+    }
+
+    /// Ask the room where its nearest surface is, along the given directions.
+    ///
+    /// A CLOSURE, supplied by the host, for the reason `viewerTransform` is:
+    /// HearthSpatial must compile for iOS without ARKit, and the reconstructed
+    /// room belongs to the scene that is running the provider. The rig knows
+    /// WHERE to look and what to do about the answer; the room knows how to
+    /// look.
+    public var nearbySurfaces: (@MainActor (_ from: SIMD3<Float>,
+                                            _ directions: [SIMD3<Float>],
+                                            _ within: Float) -> [SurfaceHit])?
+
+    /// How close a surface has to be before the flame starts casting onto it,
+    /// and how bright that cast gets at its closest.
+    /// How close a surface has to be before the flame lights it at all.
+    ///
+    /// PULLED IN, and it is a decision about meaning rather than only cost: a
+    /// flame floating in the middle of a room is not casting a visible patch on
+    /// a wall a metre and a half away, and seeing one faintly there reads as a
+    /// bug even though the maths is fine. Light that should not be visible is
+    /// worse than no light.
+    ///
+    /// The cone no longer depends on this. Its angle comes from the distance
+    /// and the pool radius, so shortening the reach costs nothing except the
+    /// range over which the effect exists -- which is the thing being cut on
+    /// purpose. Beyond it the light is removed outright rather than left at
+    /// zero, which is also the performance answer: Apple's note on
+    /// `SurroundingsLight` is that the cost is the on-screen footprint, and a
+    /// light that does not exist has none.
+    public var spotReach: Float = 1.4
+
+    /// Brightness, from Apple's own table for this component: a theatrical
+    /// spotlight is 500-1,000 lumens and a film production light 5,000-10,000.
+    /// A fire washing a wall it is nearly touching is at the top of that range,
+    /// which is also where Valinor's device-tuned caustics spot ended up. The
+    /// 2,600 this started at was a guess and read as a torch.
+    public var spotLumens: Float = 11000
+
+    /// How far the cast carries before it reaches zero.
+    ///
+    /// ITS OWN KNOB, no longer twice the reach. Those are different questions:
+    /// `spotReach` is how close a surface has to be before the flame notices
+    /// it, and this is how far the light travels once it has. Tying them meant
+    /// a pool that died 20cm past the wall it was lighting.
+    ///
+    /// Not the 10m default, deliberately. Apple's note on `SurroundingsLight`
+    /// is explicit that the default is usually larger than needed and that the
+    /// on-screen footprint -- driven by THIS and the outer angle -- is the
+    /// dominant cost of the whole effect. Five metres covers a room; ten pays
+    /// for a hall we are not in.
+    public var spotFalloffRadius: Float = 5.0
+
+    /// The falloff curve. Two is inverse-square, which is what a bare bulb in a
+    /// vacuum does and which crushes the light into a bright core with nothing
+    /// around it. Just over one carries much further and lands flatter -- which
+    /// is the bleeding-across-the-wall the operator asked for, and closer to
+    /// what a fire does in a room full of surfaces bouncing its light around.
+    public var spotFalloff: Float = 1.15
+
+    /// How sharply the nearer surface wins when several are in reach.
+    ///
+    /// Was squared, which handed a slightly nearer wall almost all of the
+    /// weight -- so crossing the point where two surfaces swap places moved the
+    /// aim a long way for a small step, and that read as a jump. Just over one
+    /// keeps the far surface contributing for longer, so the handover is spread
+    /// across the walk rather than concentrated at the crossing.
+    ///
+    /// LOWER IS SMOOTHER, and at 1.0 it is a straight average -- which is
+    /// smoothest of all and starts to point at nothing in particular when the
+    /// two surfaces are very different distances away. This is the knob for
+    /// that trade.
+    public var spotBlendSharpness: Float = 1.2
+
+    /// HOT PINK AGAIN, and for the same reason it was the first time: a warm
+    /// pool cast by a warm light onto a warm wall is a thing you cannot tell
+    /// apart from the wall being warm already. It goes back to the fire's own
+    /// colour once the mechanism is proven.
+    public var spotColor: UIColor = UIColor(red: 1.0, green: 0.08, blue: 0.58, alpha: 1)
+
+    private var lanternSpot: Entity?
+    private var spotTexture: AnimatedTexture?
+
+    /// Wake a spotlight when there is a surface close enough to be worth
+    /// lighting, aim it, and fade it with distance.
+    ///
+    /// WHY A SPOTLIGHT AT ALL, having chosen a point light. A point light is
+    /// the right SHAPE for a fire and cannot carry a projected texture -- only
+    /// a spotlight can. The objection to spotlights was that they have to be
+    /// aimed, and a fire does not aim. The operator's answer removes the
+    /// objection rather than arguing with it: a spotlight that does not exist
+    /// until there is a surface to aim at only ever has one right answer for
+    /// where to point. The point light stays underneath as the floor -- it is
+    /// what lights the room when nothing is near enough for this.
+    ///
+    /// THREE RAYS, 120 DEGREES APART, in the horizontal plane. Not fanned
+    /// around the persona's facing, because she billboards: her forward points
+    /// at whoever is looking, and the wall is usually the thing behind her.
+    /// Three rays evenly spaced cover every direction at the same cost as three
+    /// aimed at a guess, and no orientation of hers can hide a wall from all
+    /// three.
+    ///
+    /// AIMED ALONG THE NORMAL, not at the hit point. From off to one side,
+    /// aiming at the point rakes the light across the wall at a glancing angle
+    /// and smears the pool; a fire near a wall lights the patch in FRONT of it.
+    ///
+    /// FADED, NOT SWITCHED. Intensity reaches zero exactly at `spotReach`, so
+    /// carrying him toward a wall warms it gradually. A light that appears at a
+    /// threshold pops, and a pop is the one thing that would give away that
+    /// this is a trick.
+    private func trackProximitySpot(dt: Float) {
+        guard lanternActive, budget.proximitySpot, let probe = nearbySurfaces else {
+            retireSpot()
+            return
+        }
+        let origin = sphereEntity.position(relativeTo: nil)
+        let hits = probe(origin, Self.spotDirections, spotReach)
+        guard let nearest = hits.min(by: { $0.distance < $1.distance }),
+              nearest.distance > 0.0001 else {
+            // Ease OUT rather than vanish: walking away from a wall should let
+            // the pool fade, not switch it off a frame after the ray misses.
+            spotCloseness = ease(spotCloseness, toward: 0, dt: dt)
+            spotDistance = ease(spotDistance, toward: spotReach, dt: dt)
+            if spotCloseness < 0.04 { retireSpot() } else { applySpot() }
+            return
+        }
+
+        let spot = lanternSpot ?? makeSpot()
+        spot.setPosition(.zero, relativeTo: sphereEntity)
+
+        let wanted = simd_quatf(from: SIMD3<Float>(0, 0, -1),
+                                to: aimDirection(across: hits, nearest: nearest))
+        let ratio = 1 - pow(Self.spotAimRetention, max(dt, 0.0001) * 60)
+        spot.setOrientation(simd_slerp(spot.orientation(relativeTo: nil), wanted, ratio),
+                            relativeTo: nil)
+
+        spotCloseness = ease(spotCloseness,
+                             toward: max(0, 1 - nearest.distance / max(spotReach, 0.0001)),
+                             dt: dt)
+        spotDistance = ease(spotDistance, toward: nearest.distance, dt: dt)
+        applySpot()
+        spotTexture?.tick(deltaTime: dt)
+    }
+
+    /// Where to point, given everything the rays found.
+    ///
+    /// THE CORNER PROBLEM, solved without a corner case. Picking the nearest
+    /// surface and aiming at it is right in the middle of a wall and wrong
+    /// everywhere two surfaces meet: stand the flame in a corner and the light
+    /// commits to one of the two walls, leaving the other dark, and flips
+    /// between them as you nudge him.
+    ///
+    /// The operator's idea is to detect a corner and aim at a third point
+    /// between the two rays. This is that, made CONTINUOUS rather than
+    /// conditional: every surface within reach contributes its own inverse
+    /// normal, weighted by how close it is, and the aim is the sum. Two walls
+    /// at equal distance produce their exact bisector -- the corner -- and as
+    /// the flame leaves the corner the far wall's weight decays to nothing and
+    /// the aim slides onto the near one by itself.
+    ///
+    /// So there is no threshold to cross, no state to be in, and nothing to
+    /// revert. Which also means it needs no special handling for the cases the
+    /// operator wanted covered: a wall and a floor meet at a corner exactly as
+    /// two walls do, and this cannot tell the difference because there is no
+    /// difference. Ceilings likewise.
+    ///
+    /// The weight is raised to `spotBlendSharpness` so that a wall you are
+    /// almost touching counts for more than one at the edge of reach, rather
+    /// than the two averaging into a direction that faces neither.
+    private func aimDirection(across hits: [SurfaceHit], nearest: SurfaceHit) -> SIMD3<Float> {
+        var sum = SIMD3<Float>.zero
+        for hit in hits {
+            let closeness = max(0, 1 - hit.distance / max(spotReach, 0.0001))
+            sum -= hit.normal * pow(closeness, spotBlendSharpness)
+        }
+        // Opposed surfaces cancel -- a flame midway between floor and ceiling
+        // sums to nothing, and "nothing" is not a direction. Fall back to the
+        // nearest, which is the answer the sum was refining.
+        guard simd_length(sum) > 0.0001 else { return simd_normalize(-nearest.normal) }
+        return simd_normalize(sum)
+    }
+
+    /// Put the eased closeness onto the light    /// Put the eased distance onto the light: brightness AND cone width.
+    ///
+    /// THE CONE IS GEOMETRY, NOT A CURVE SOMEBODY PICKED. It used to lerp
+    /// between a near angle and a far one, which meant it opened in a straight
+    /// line and then simply stopped -- on the device the growth ran out at
+    /// about a metre and the illusion went with it.
+    ///
+    /// The operator's description is the right model: something squishy pressed
+    /// against a flat surface, spreading wider the harder it is pressed, and
+    /// spreading FASTER the closer it gets. That is not a metaphor, it is what
+    /// a cone subtending a fixed patch does. To wash a circle of radius R on a
+    /// surface `d` away, the half-angle is `atan(R / d)` -- which grows gently
+    /// while far off and runs away toward 90 degrees as `d` approaches nothing.
+    /// The exponential feel comes out of the arithmetic; there is no curve to
+    /// tune and no ceiling to run into.
+    ///
+    /// THE RADIAL FALLOFF IS THE CONE'S OWN, which is the operator's other
+    /// point and it removes a whole piece of planned work: the inner angle is
+    /// where the light is at full strength and the outer is where it reaches
+    /// zero, so the gap between them IS a radial gradient. A cookie was never
+    /// needed to make the pool bright in the middle -- only to give it
+    /// texture. Both angles are derived from the same distance, so the core and
+    /// the spread grow together and the pool keeps its proportions as it
+    /// spreads.
+    private func applySpot() {
+        guard let spot = lanternSpot,
+              var light = spot.components[SpotLightComponent.self] else { return }
+        let distance = max(spotDistance, 0.02)
+
+        let outer = 2 * atan(spotPoolRadius / distance) * 180 / .pi
+        let inner = 2 * atan(spotPoolRadius * spotCoreFraction / distance) * 180 / .pi
+        light.outerAngleInDegrees = min(max(outer, Self.spotAngleFloor), Self.spotAngleCeiling)
+        light.innerAngleInDegrees = min(inner, light.outerAngleInDegrees * 0.8)
+
+        light.color = spotColor
+        light.attenuationRadius = spotFalloffRadius
+        light.attenuationFalloffExponent = spotFalloff
+        // SQUARED, so the tail is dark rather than faint. A linear ramp is
+        // still a quarter lit at three-quarters of the reach, which is exactly
+        // the "why is that wall glowing" case; squared puts most of the effect
+        // in the last third, where a fire really would be washing something.
+        light.intensity = spotLumens * budget.lightScale
+            * (spotCloseness * spotCloseness)
+            * (0.8 + 0.4 * (spotTexture?.flicker() ?? 0.5))
+        spot.components.set(light)
+    }
+
+    /// The widest and narrowest the cone may get.
+    ///
+    /// The ceiling is not a taste decision: a spotlight's outer angle is the
+    /// full cone, and past about 170 degrees it is a sphere with a seam in it.
+    /// The floor keeps a distant flame from becoming a laser.
+    private static let spotAngleFloor: Float = 22
+    private static let spotAngleCeiling: Float = 168
+
+    /// Frame-rate independent easing toward a value, the same shape the resize
+    /// and the turn gestures use.
+    private func ease(_ current: Float, toward target: Float, dt: Float) -> Float {
+        let ratio = 1 - pow(Self.spotResponseRetention, max(dt, 0.0001) * 60)
+        return current + (target - current) * ratio
+    }
+
+    private var spotCloseness: Float = 0
+    private var spotDistance: Float = 1
+
+    /// How much of the gap survives each 60Hz frame. Slower than the gestures:
+    /// a light that chases the room as fast as a hand chases a pinch reads as
+    /// nervous.
+    /// How much of the gap the AIM keeps each 60Hz frame. Slow on purpose: the
+    /// nearest surface can change in a single frame and the direction has to
+    /// cross the gap between two walls without snapping.
+    private static let spotAimRetention: Float = 0.93
+
+    /// And how much the DISTANCE keeps, which is a much faster number.
+    ///
+    /// These were one value, and that was the bug behind a pool that took a
+    /// second to catch up with a pinch. Direction and distance need opposite
+    /// things: a direction can jump discontinuously when the nearest surface
+    /// swaps, so it wants heavy smoothing; a distance changes CONTINUOUSLY as
+    /// you move, so smoothing it buys nothing and costs all of the
+    /// responsiveness. One number could only be wrong for one of them.
+    private static let spotResponseRetention: Float = 0.55
+
+    /// How wide a patch the flame tries to wash, in METRES on the surface.
+    ///
+    /// This is the number the cone is derived from, and expressing it as a size
+    /// rather than as an angle is the whole point: a fire lights about so much
+    /// of a wall, and how many degrees that takes is a function of how far away
+    /// the wall is. Raising this makes the pool bigger at every distance.
+    public var spotPoolRadius: Float = 1.7
+
+    /// How much of the pool is at full brightness, as a fraction of its radius.
+    /// The rest is the falloff, which is the radial gradient.
+    public var spotCoreFraction: Float = 0.34
+
+    private func makeSpot() -> Entity {
+        let spot = Entity()
+        spot.name = "PersonaLanternSpot"
+        spot.components.set(SpotLightComponent(
+            color: spotColor,
+            intensity: 0,
+            innerAngleInDegrees: Self.spotAngleFloor * 0.5,
+            outerAngleInDegrees: Self.spotAngleFloor,
+            attenuationRadius: spotFalloffRadius,
+            attenuationFalloffExponent: spotFalloff))
+        #if os(visionOS)
+        // NOT THE FLAME'S OWN TEXTURE. A fire does not cast a picture of itself
+        // on a wall; it casts a soft moving pool. Projecting the flame would
+        // put a flame-shaped decal on the plaster, which reads as a sticker the
+        // moment you walk past it. The smoke preset is the blurred, slow one,
+        // driven from the same clock so the pool moves with the fire making it.
+        // BACK ON, with the aim proven bare. If the pool is off-centre again
+        // now, the cookie is the cause and not the aiming -- a projective
+        // texture MULTIPLIES the cone, so a blotchy one moves the apparent
+        // light to wherever it happens to be bright.
+        let texture = AnimatedTexture(.smoke, size: 256)
+        spotTexture = texture
+        if let texture {
+            spot.components.set(SpotLightComponent.ProjectiveTexture(
+                texture: texture.textureResource))
+        }
+        if budget.lightsSurroundings {
+            spot.components.set(SpotLightComponent.SurroundingsLight())
+        }
+        #endif
+        sphereEntity.addChild(spot)
+        lanternSpot = spot
+        log.notice("proximity spot woke")
+        return spot
+    }
+
+    private func retireSpot() {
+        guard lanternSpot != nil else { return }
+        lanternSpot?.removeFromParent()
+        lanternSpot = nil
+        spotTexture = nil
+        spotCloseness = 0
+        spotDistance = spotReach
+    }
+
+    /// Five directions: three around the horizon, plus straight down and
+    /// straight up.
+    ///
+    /// World-aligned rather than relative to her. That was chosen because a
+    /// billboarding persona has no meaningful forward -- and now that the root
+    /// does not turn at all, it is simply the only frame that means anything.
+    ///
+    /// THE FLOOR AND THE CEILING WERE MISSING and they are the two surfaces a
+    /// fire is most often near: it sits on things. A flame on a desk with no
+    /// wall within reach was finding nothing at all, which is the case most
+    /// likely to be tried first.
+    private static let spotDirections: [SIMD3<Float>] = {
+        var directions = (0..<3).map { i -> SIMD3<Float> in
+            let angle = Float(i) * 2 * .pi / 3
+            return SIMD3<Float>(sin(angle), 0, cos(angle))
+        }
+        directions.append(SIMD3<Float>(0, -1, 0))
+        directions.append(SIMD3<Float>(0, 1, 0))
+        return directions
+    }()
+
     /// Keep the flame moving, and the light breathing with it.    /// Keep the flame moving, and the light breathing with it.
     ///
     /// The flicker is the whole reason this is not just a warm lamp. A fire's
@@ -841,8 +1273,10 @@ public final class PersonaRig: ObservableObject {
         flameMesh?.update(phase: lanternPhase)
         trackFlameSurface()
         trackFaceResolution()
+        trackProximitySpot(dt: dt)
         guard var component = light.components[PointLightComponent.self] else { return }
-        component.intensity = lanternLumens * (0.75 + 0.5 * texture.flicker())
+        component.intensity = lanternLumens * budget.lightScale
+            * (0.75 + 0.5 * texture.flicker())
         light.components.set(component)
     }
 
@@ -947,10 +1381,45 @@ public final class PersonaRig: ObservableObject {
     /// billboard left behind on a body is precisely the tilt this was all
     /// written to avoid.
     private func refreshFacing() {
-        if facesViewer && !modelActive {
-            rootEntity.components.set(BillboardComponent())
-        } else {
-            rootEntity.components.remove(BillboardComponent.self)
+        // THE ROOT NEVER BILLBOARDS ANY MORE, and the reason is a bug that only
+        // showed up under a drag.
+        //
+        // `BillboardComponent` rewrites the entity's orientation every frame,
+        // out of process. A drag converts the hand's position through the
+        // targeted entity's own space -- so as you carried the persona and your
+        // view angle changed, the basis the gesture was converting through
+        // rotated underneath it, and the position calculation was fed a moving
+        // frame. Stable when the hand was still, stuttering the moment it
+        // moved. Turning the billboard off made the drag buttery.
+        //
+        // Nothing is lost, because a flame is a SURFACE OF REVOLUTION: it looks
+        // the same from every angle and turning it was always a no-op. What
+        // genuinely has to face you is the work hung around her and her face,
+        // and both now carry their own billboards -- see `workFacesViewer` and
+        // the face card's pivot. The thing that needs to turn turns; the thing
+        // that does not, does not.
+        rootEntity.components.remove(BillboardComponent.self)
+    }
+
+    /// Whether the work hung around the persona turns to face you.
+    ///
+    /// The cards, the caption, the shelves -- everything parented to
+    /// `personaAnchor`. In a ROOM you walk around her, so a shelf that stayed
+    /// where it spawned would end up behind her; in a volume you are already
+    /// square to the box and nothing should swivel.
+    ///
+    /// It lives on the anchor rather than on the root deliberately. The anchor
+    /// carries no geometry and nothing targets it for input, so RealityKit can
+    /// rewrite its orientation every frame without any gesture converting
+    /// through it -- which is exactly the trap the root fell into.
+    public var workFacesViewer = false {
+        didSet {
+            guard workFacesViewer != oldValue else { return }
+            if workFacesViewer {
+                personaAnchor.components.set(BillboardComponent())
+            } else {
+                personaAnchor.components.remove(BillboardComponent.self)
+            }
         }
     }
 

@@ -792,6 +792,15 @@ struct MainVolume: View {
         // you are already square to, and a persona swivelling inside it as you
         // lean is a persona who looks nervous.
         rig.facesViewer = false
+        rig.workFacesViewer = false
+        // A box on a desk gets a quarter of the light -- see EffectBudget. It
+        // reaches the real room from here, which was a surprise, but a bead in
+        // a window throwing a hearth's worth of light across the room is a lamp
+        // somebody would turn off.
+        rig.configure(for: .volumetric)
+        // The volume has no reconstructed room, so nothing for a proximity
+        // spotlight to find. Let go of the room's probe with the rest of it.
+        rig.nearbySurfaces = nil
         // And let go of the room's world-tracking provider with it. The rig
         // outlives the room, so a closure left behind here would keep an ARKit
         // session alive for a scene that has closed.

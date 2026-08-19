@@ -78,7 +78,7 @@ private struct PersonaHoldModifier: ViewModifier {
     /// Where the persona was when the press landed, and the offset from the
     /// pinch to her centre. Kept so she moves WITH the hand rather than
     /// snapping her centre onto it.
-    @State private var grabOffset: SIMD3<Float>?
+    @State private var grabOrigin: SIMD3<Float>?
     /// Set once a press has travelled far enough to be a drag. From then on it
     /// is a drag and nothing else -- no hold, no tap.
     @State private var dragging = false
@@ -92,20 +92,32 @@ private struct PersonaHoldModifier: ViewModifier {
             DragGesture(minimumDistance: 0)
                 .targetedToEntity(target)
                 .onChanged { value in
-                    let hit = value.convert(value.location3D, from: .local, to: .scene)
-                    let here = SIMD3<Float>(hit)
-
                     if pressStarted == nil {
                         pressStarted = Date()
                         committed = false
                         dragging = false
-                        grabOffset = target.position(relativeTo: nil) - here
+                        // WHERE SHE WAS WHEN THE GRAB BEGAN, captured once.
+                        // Everything below is measured from this rather than
+                        // from where she is now -- see the note on
+                        // `translation3D`.
+                        grabOrigin = target.position(relativeTo: nil)
                         startRamp()
                     }
 
-                    guard let grabOffset, onDrag != nil else { return }
-                    let start = value.convert(value.startLocation3D, from: .local, to: .scene)
-                    let travelled = simd_length(here - SIMD3<Float>(start))
+                    guard let grabOrigin, onDrag != nil else { return }
+                    // THE TRANSLATION, NOT THE LOCATION, and this is the fix
+                    // for a stutter that only appeared while moving.
+                    //
+                    // `location3D` is where the hand IS, and converting it out
+                    // of `.local` means converting through the space of the
+                    // entity being moved. Each frame's answer therefore depended
+                    // on the previous frame's result: still hands converged,
+                    // moving hands never settled. `translation3D` is how far
+                    // the hand has come since the gesture began, which does not
+                    // depend on where the persona has got to.
+                    let moved = SIMD3<Float>(value.convert(value.translation3D,
+                                                           from: .local, to: .scene))
+                    let travelled = simd_length(moved)
                     if !dragging, travelled > Self.dragThreshold {
                         // It is a drag from here on. The hold ramp stops, because
                         // holding still is what a hold IS -- a person moving the
@@ -116,7 +128,7 @@ private struct PersonaHoldModifier: ViewModifier {
                         progress(0)
                     }
                     if dragging {
-                        onDrag?(here + grabOffset)
+                        onDrag?(grabOrigin + moved)
                     }
                 }
                 .onEnded { _ in
@@ -124,7 +136,7 @@ private struct PersonaHoldModifier: ViewModifier {
                     let held = pressStarted.map { Date().timeIntervalSince($0) } ?? 0
                     let wasDragging = dragging
                     pressStarted = nil
-                    grabOffset = nil
+                    grabOrigin = nil
                     dragging = false
                     progress(0)
                     // A completed hold has already acted, and a drag has been

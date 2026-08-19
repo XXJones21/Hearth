@@ -223,7 +223,7 @@ struct ImmersiveHouse: View {
             // bloom is tuned. Switching to `.immersive` here took the halo away
             // and put an untuned bloom in its place, which is how the persona
             // arrived in the room looking like a different persona.
-            rig.configure(for: .volumetric)
+            rig.configure(for: .immersive)
             rig.enableInteraction()
             rig.updateState(PersonaState(viewModel.hearthState))
             rig.setConnected(viewModel.connectionAlive)
@@ -825,6 +825,46 @@ struct ImmersiveHouse: View {
         }
     }
 
+    /// Every reconstructed surface within reach along `directions`.
+    ///
+    /// The same query the drag clamp makes, asked for a different reason: the
+    /// clamp wants to know whether to stop, the flame wants to know whether
+    /// there is anything close enough to light. One raycast against
+    /// `RoomMesh.surfaces` answers both, and the hit already carries the normal
+    /// -- which is why this needed no plane detection and no trigger volumes.
+    ///
+    /// Every direction is cast SEPARATELY and bounded at `reach`, so each hit's
+    /// distance is measured from the flame along that ray in world metres --
+    /// the same units `spotReach` is written in. The nearest across all of them
+    /// wins.
+    ///
+    /// ONE THING IT CANNOT SEE: a reconstructed surface whose collision shape
+    /// has not been generated yet. `RoomMesh` builds those asynchronously per
+    /// anchor, so a wall can be visible and occluding for a moment before it is
+    /// castable. The honest failure is a flame that lights nothing for a beat
+    /// after a surface first appears, never a wrong distance.
+    /// ALL of them, not the nearest. Picking a winner here would throw away
+    /// exactly what the flame needs to find a corner -- two surfaces close at
+    /// once -- and would push that decision into a place that cannot see the
+    /// second one. See `PersonaRig.aimDirection`.
+    private func roomSurfaces(from origin: SIMD3<Float>,
+                              along directions: [SIMD3<Float>],
+                              within reach: Float) -> [PersonaRig.SurfaceHit] {
+        guard let scene = rig.rootEntity.scene else { return [] }
+        var found: [PersonaRig.SurfaceHit] = []
+        for direction in directions {
+            let hits = scene.raycast(from: origin,
+                                     to: origin + direction * reach,
+                                     query: .nearest,
+                                     mask: RoomMesh.surfaces)
+            guard let hit = hits.first else { continue }
+            found.append(PersonaRig.SurfaceHit(point: hit.position,
+                                               normal: hit.normal,
+                                               distance: hit.distance))
+        }
+        return found
+    }
+
     /// Stop a drag where the real room stops it.
     ///
     /// RealityKit will not do this for us. A transform written directly is
@@ -1049,9 +1089,24 @@ struct ImmersiveHouse: View {
         // to a bead, so a switch to Selene puts the fire out without anything
         // here having to know her name.
         rig.effectStyle = .ember
+        // The room is where the effects are allowed to be themselves. This also
+        // hands the rig the room's own raycast, so the proximity spotlight can
+        // find a wall without HearthSpatial ever importing ARKit.
+        rig.configure(for: .immersive)
+        rig.nearbySurfaces = { origin, directions, reach in
+            roomSurfaces(from: origin, along: directions, within: reach)
+        }
         rig.facingAxes = .upright
         rig.viewerTransform = { anchors.viewerTransform() }
+        // She still turns to face you if she has a BODY -- that is the
+        // constrained look-at, and it is not a billboard. A bead does not turn
+        // at all any more: a flame is a surface of revolution and turning it
+        // was always a no-op that cost a stuttering drag.
         rig.facesViewer = true
+        // What DOES have to face you is the work hung around her, so the anchor
+        // billboards instead of the root. Nothing targets the anchor for input,
+        // so no gesture converts through the thing being re-oriented.
+        rig.workFacesViewer = true
 
         // WHERE she stood in the box, if the crossing measured it, and a
         // sensible spot in front of the person if it did not -- the first run
