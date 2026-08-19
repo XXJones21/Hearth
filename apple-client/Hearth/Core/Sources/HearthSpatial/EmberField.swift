@@ -296,24 +296,41 @@ public final class EmberField: ParticleChoreography {
             break
 
         case .listening:
-            // THE FIRE DRAWS BREATH. Attraction toward the emitter's own origin
-            // -- which is the eyes -- with the buoyancy almost switched off, so
-            // embers still leave the skin and are then hauled back rather than
-            // escaping. What that looks like is a fire when a door opens and
-            // the air starts moving toward it: the plume gathers and hangs
-            // instead of rising. Taking something in, in fire's own words.
-            main.attractionCenter = .zero
-            main.attractionStrength = 0.9
-            main.acceleration = SIMD3<Float>(0, 0.015 * scale, 0)
-            main.dampingFactor = 0.62
-            main.lifeSpan = 3.0
+            // THE FIRE DRAWS UPWARD. A gentle spiral that RISES.
+            //
+            // This replaces a gather-and-hang built on attraction, and the
+            // rewrite is for two reasons. The first is that it was wrong: the
+            // attraction was resolving against the world origin (see
+            // `fieldSimulationSpace` above), so what it actually did was pull
+            // the embers at the person. The second is that even fixed it would
+            // have been the wrong idea -- on device it read as idle with the
+            // life taken out of it, because a plume that stops rising loses the
+            // one thing that made it look like fire, and a state that reads as
+            // "less" is not a state.
+            //
+            // Rising is the better answer anyway. Attention is upward: a fire
+            // being listened to draws, the way a chimney draws.
+            main.vortexStrength = 0.55
+            main.vortexDirection = SIMD3<Float>(0, 1, 0)
+            // Lift well above idle -- this is the state's whole character.
+            main.acceleration = SIMD3<Float>(0, 0.160 * scale, 0)
+            main.dampingFactor = 0.28
+            // Long, so the spiral has room to draw itself tall.
+            main.lifeSpan = 3.4
             main.lifeSpanVariation = 1.0
-            main.birthRate = 30 * density
-            main.spreadingAngle = 0.60
-            // Quieter turbulence, because a held breath should look held. Noise
-            // at idle strength would read as fidgeting.
-            main.noiseStrength = 0.085 * scale
-            component.speed = 0.060 * scale
+            main.birthRate = 32 * density
+            // NARROWER than idle, which is what separates the two at a glance:
+            // idle is a wide slow cloud, listening is a column going somewhere.
+            main.spreadingAngle = 0.35
+            // Enough trace to see the curl. Below thinking, which is all streak.
+            main.stretchFactor = 0.80
+            // Quiet turbulence so the spiral stays a spiral. Noise at idle
+            // strength scribbles over the shape the vortex is drawing.
+            main.noiseStrength = 0.055 * scale
+            // Low outward speed: the LIFT is doing the work here, not the birth
+            // velocity. Sideways speed at idle levels would flatten the column
+            // back into the cloud it is trying not to be.
+            component.speed = 0.045 * scale
 
         case .thinking:
             // A FIRE WHIRL. Vertical axis, which is the choice that keeps this
@@ -341,23 +358,47 @@ public final class EmberField: ParticleChoreography {
             main.noiseStrength = 0.070 * scale
 
         case .speaking:
-            // GUSTS. The continuous configuration is only the bed the bursts
-            // land on -- see `detectOnset`, which is where this state actually
-            // happens.
-            main.birthRate = 40 * density
-            main.spreadingAngle = 1.05
-            main.lifeSpan = 2.0
-            main.lifeSpanVariation = 0.8
-            main.dampingFactor = 0.30
-            // A drift toward whoever is being spoken to. The face card sits at
-            // +z, so +z is out of the front of him: the embers travel at the
-            // listener rather than merely upward, which is a small thing that
-            // makes the fire feel aimed.
-            main.acceleration = SIMD3<Float>(0, 0.055 * scale, 0.030 * scale)
-            component.speed = 0.100 * scale
-            component.speedVariation = 0.080 * scale
-            component.burstCount = 14
-            component.burstCountVariation = 6
+            // SPARKS, THROWN UPWARD. A log popping, once per syllable.
+            //
+            // The first pass spread the gusts wide and drifted them toward the
+            // listener, on the idea that the fire should feel aimed at whoever
+            // it is talking to. On device that reads as the plume merely
+            // getting busier -- the direction is too subtle to register and the
+            // wide cone makes each gust indistinguishable from the one before.
+            // Sparks are legible because they all go the SAME way, fast, and
+            // stop: it is the shared direction that makes a burst a burst.
+            //
+            // So the birth direction stops following the flame's surface normal
+            // and becomes a fixed local up. `.local` rather than `.world` so a
+            // Sulivan lying on his side -- or simply turned -- throws his sparks
+            // out of his own top rather than out of the room's.
+            component.birthDirection = .local
+            component.emissionDirection = SIMD3<Float>(0, 1, 0)
+            main.spreadingAngle = 0.40
+            // Fast out, then braked. That is the arc a spark makes: it is
+            // thrown, it loses to the air, it goes out near the top of its
+            // climb. Damping is what draws the arc -- without it this is a
+            // fountain that never comes down.
+            component.speed = 0.300 * scale
+            component.speedVariation = 0.180 * scale
+            main.dampingFactor = 0.45
+            main.acceleration = SIMD3<Float>(0, 0.050 * scale, 0)
+            // Brief and bright. A spark that lingers is an ember, and this
+            // state already has embers underneath it.
+            main.lifeSpan = 1.3
+            main.lifeSpanVariation = 0.5
+            main.sizeMultiplierAtEndOfLifespan = 0.05
+            // Sparks are LINES. Same lesson the thinking whirl taught: a fast
+            // thing drawn as a dot reads as a dot.
+            main.stretchFactor = 1.8
+            // The bed comes DOWN, below idle. The bursts are the event, and a
+            // busy continuous stream underneath is what hid them.
+            main.birthRate = 14 * density
+            // Straight flight. Turbulence at idle strength scatters a spark
+            // burst back into a cloud.
+            main.noiseStrength = 0.045 * scale
+            component.burstCount = 26
+            component.burstCountVariation = 10
 
         case .crossing:
             // THE COLLAPSE, and it is the progress bar. Hard attraction, no
@@ -475,6 +516,21 @@ public final class EmberField: ParticleChoreography {
         // emitter's TRANSFORM a usable lever at all -- the mic swell and the
         // hold's collapse both ride on it.
         component.particlesInheritTransform = true
+        // FORCE FIELDS ARE LOCAL TO THE EMITTER, and this is a bug fix rather
+        // than a preference.
+        //
+        // `attractionCenter` and `vortexDirection` are both points and axes in
+        // whatever space this names. Left unstated, the listening attraction
+        // toward `.zero` was pulling embers at the WORLD origin -- which in an
+        // immersive session is roughly where the person was standing when the
+        // space opened. On device that read exactly as reported: the embers
+        // flowing toward the viewer, for no reason anything in this file could
+        // explain.
+        //
+        // The vortex had the same latent fault waiting: an axis through the
+        // world origin rather than through the fire, which would have spun
+        // Sulivan's embers around a point somewhere across the room.
+        component.fieldSimulationSpace = .local
         component.simulationState = .play
         component.isEmitting = true
 

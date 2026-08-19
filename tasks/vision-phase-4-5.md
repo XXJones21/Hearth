@@ -1047,3 +1047,41 @@ and dropping some would leave holes in a ring.
 - Whether the syllable refractory (110ms) reads as speech or as a stutter.
 - Whether the exhale survives the window closing over it, or whether 0.97 needs
   to be earlier.
+
+### The device on listening and speaking, same day
+
+Two reports, and the first one found a bug the desk could not have.
+
+**"They are flowing towards me."** `attractionCenter` and `vortexDirection`
+resolve in whatever space `fieldSimulationSpace` names, and it was never set.
+The listening attraction toward `.zero` was therefore pulling embers at the
+WORLD origin -- which in an immersive session is roughly where the person was
+standing when the space opened. The report is exactly what that looks like, and
+nothing in `EmberField` could have explained it.
+
+The vortex had the same fault waiting silently: an axis through the world origin
+rather than through the fire, which would have spun the embers around a point
+across the room. `fieldSimulationSpace = .local` is now stated in the base.
+
+**"Listening just looks like idle."** True, and fixing the space would not have
+saved it. A gather-and-hang stops the plume rising, and rising is the one thing
+that makes it look like fire -- so the state read as idle with the life taken
+out. **A state that reads as "less" is not a state.**
+
+Listening is now a rising spiral: a gentle vertical vortex with lift well above
+idle, narrow where idle is wide, quiet turbulence so the curl stays legible.
+Idle is a wide slow cloud; listening is a column going somewhere. Attention is
+upward -- a fire being listened to draws, the way a chimney draws.
+
+**"Speaking should be a burst upwards like sparks."** The wide cone plus a drift
+toward the listener read as the plume merely getting busier: the direction was
+too subtle to register and the spread made each gust indistinguishable from the
+last. **It is the shared direction that makes a burst a burst.**
+
+So `birthDirection` stops following the flame's surface normal and becomes a
+fixed local up -- `.local` rather than `.world`, so a Sulivan who has been turned
+throws sparks out of his own top rather than out of the room's. Fast out then
+braked, because that is the arc a spark makes; brief; and `stretchFactor` up to
+1.8, which is the third time this phase that a fast thing drawn as a dot has
+read as a dot. The continuous bed comes DOWN below idle, since a busy stream
+underneath is what hid the bursts.
