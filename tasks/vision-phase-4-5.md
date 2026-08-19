@@ -93,3 +93,39 @@ whole point of the type being data.
 It also settles the phase 4 bloom question the same way: Selene has no emissive
 shell to clear a bloom threshold, so she gets no bloom, and that is a decision
 rather than an omission.
+
+## 4. Scale what is in the room, with `MagnifyGesture`
+
+Added 2026-08-18. A pinch-and-spread on any placed object resizes it: the
+bookcase, the persona, and whatever else gets pulled off a shelf later. Rooms
+differ, people differ, and every size in this client so far has been a number
+someone judged once on one device -- `beadScale`, `modelPresentationScale`,
+`presentationScale`. This hands that judgement to the person standing in the
+room, which is the only place it can actually be made.
+
+`MagnifyGesture().targetedToAnyEntity()`, with the initial scale captured on
+first change and cleared on end, is the shape Apple's own interactive-model
+sample uses.
+
+**The trap, and it is the same trap in both cases.** Neither of these objects is
+scaled by writing `entity.scale`. Both already have a knob that other things are
+measured against:
+
+- The persona has `setRigScale`, and `modelPresentationScale`, `personaAnchor`
+  and `crownHeight` are all fractions or functions OF it. Writing
+  `rootEntity.scale` behind them leaves a model at the wrong size and the cards,
+  the caption and the shelves hanging at the wrong offsets -- which is exactly
+  the bug `setRigScale` was introduced to prevent when the room and the box
+  wanted different numbers.
+- The bookcase has `presentationScale`, which is what keeps its geometry
+  authored at life size while it is SHOWN at any size.
+
+So the gesture drives the knob, never the transform. If a magnify ever needs to
+reach something that has no knob, the answer is to give it one rather than to
+reach past the ones that exist.
+
+**Two open questions for the device.** Whether a corporeal persona should be
+scalable at all -- Selene at life size is the point of her, and a half-height
+Selene is a doll -- and whether scale should persist with the anchor when a
+placed object is anchored, which it almost certainly should: a bookcase you sized
+to your room should be that size tomorrow.
