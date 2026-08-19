@@ -34,6 +34,12 @@
 import Foundation
 import RealityKit
 import simd
+import SwiftUI
+import HearthCore
+
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @MainActor
 final class PlacedObject {
@@ -50,8 +56,67 @@ final class PlacedObject {
     private var startTransform: Transform?
     private var grabPoint: SIMD3<Float>?
 
+    /// The bar you grab to move it.
+    ///
+    /// WHY A PLACED THING NEEDS ONE. A gesture reaches an entity through a
+    /// collision shape, and an empty root has none -- so a root with only a
+    /// SwiftUI attachment hanging off it is not draggable at all. The
+    /// attachment itself does not help: it is a hosted view that handles its
+    /// own input as SwiftUI, so a `targetedToEntity` drag never sees it. The
+    /// reader looked finished and could not be moved for exactly this reason.
+    ///
+    /// A BAR RATHER THAN THE WHOLE PANEL, and that is the second half of the
+    /// answer. A collider covering the panel would sit in front of the buttons
+    /// inside it and eat every press -- the same fault that has now bitten this
+    /// project three times in three places. So the handle is beneath the
+    /// content, where visionOS puts a window's own bar, and it is visible
+    /// because an invisible grab area is one you have to be told about.
+    private(set) var grabHandle: Entity?
+
     init(named name: String = "PlacedObject") {
         root.name = name
+    }
+
+    /// Give it something to be grabbed by.
+    ///
+    /// - Parameters:
+    ///   - width: how wide the bar is, in metres. Narrower than the content, so
+    ///     it reads as a handle rather than as a shelf the content sits on.
+    ///   - drop: how far below the content's centre it hangs.
+    func addGrabHandle(width: Float, drop: Float) {
+        grabHandle?.removeFromParent()
+
+        let size = SIMD3<Float>(width, Self.handleThickness, Self.handleDepth)
+        var material = UnlitMaterial()
+        material.color = .init(tint: Self.color(HearthPalette.Scene.linen))
+        material.blending = .transparent(opacity: 0.55)
+
+        let bar = ModelEntity(mesh: .generateBox(size: size,
+                                                 cornerRadius: Self.handleThickness * 0.5),
+                              materials: [material])
+        bar.name = root.name + ".grab"
+        bar.position = SIMD3<Float>(0, -drop, 0)
+
+        #if os(visionOS)
+        // Taller than it looks. A 6mm bar is a hard thing to aim at, so the
+        // shape it is HIT by is generous where the shape it is DRAWN as is not.
+        bar.components.set(CollisionComponent(
+            shapes: [.generateBox(size: SIMD3<Float>(width,
+                                                     Self.handleThickness * 5,
+                                                     Self.handleDepth * 3))]))
+        bar.components.set(InputTargetComponent())
+        bar.components.set(HoverEffectComponent())
+        #endif
+
+        root.addChild(bar)
+        grabHandle = bar
+    }
+
+    private static let handleThickness: Float = 0.006
+    private static let handleDepth: Float = 0.012
+
+    private static func color(_ c: SIMD3<Float>) -> UIColor {
+        UIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1)
     }
 
     /// Put it at its starting place, and remember that place.

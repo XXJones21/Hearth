@@ -439,7 +439,10 @@ struct ImmersiveHouse: View {
         // level as well as toward you.
         .simultaneousGesture(
             DragGesture()
-                .targetedToEntity(readerPlacement.root)
+                // The HANDLE, not the root: a root has no collision shape, and
+                // a gesture reaches an entity through one. See
+                // PlacedObject.addGrabHandle.
+                .targetedToEntity(readerPlacement.grabHandle ?? readerPlacement.root)
                 .onChanged { value in
                     guard reading != nil else { return }
                     readerPlacement.drag(
@@ -626,6 +629,11 @@ struct ImmersiveHouse: View {
         readerPlacement.spawn(at: SIMD3<Float>(shelf.x + Self.readerReach,
                                                Self.readerRise,
                                                shelf.z + 0.14))
+        // Sized to the panel it hangs under: 420 x 560 points is 0.31 x 0.41
+        // metres at visionOS's 1360 points to the metre, and the bar is a good
+        // deal narrower than that so it reads as a handle.
+        readerPlacement.addGrabHandle(width: Self.readerHandleWidth,
+                                      drop: Self.readerHandleDrop)
     }
 
     /// Lift the bookcase until its lowest shelf rests on the floor.
@@ -751,6 +759,12 @@ struct ImmersiveHouse: View {
     /// and at a height you would hold a book at.
     private static let readerReach: Float = 0.62
     private static let readerRise: Float = 1.25
+
+    /// The reader's grab bar: about two thirds the panel's width, hanging just
+    /// under its lower edge. The panel is 560pt tall, which is 0.41m, so half
+    /// of it plus a little clearance is where the bar goes.
+    private static let readerHandleWidth: Float = 0.20
+    private static let readerHandleDrop: Float = 0.24
 
     // MARK: - Placement
 
