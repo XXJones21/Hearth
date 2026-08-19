@@ -121,7 +121,7 @@ In a room, every one of those numbers is a different question:
   to be floor-relative and in front of the person at a conversational distance,
   which is what world sensing (section 6) is for.
 
-## 3. Controls without ornaments -- DECIDED 2026-08-18
+## 3. Controls without ornaments -- BUILT 2026-08-18 (spawn-and-anchor still to come)
 
 Operator's call, and it is better than any of the three options first written
 here: **the controls attach to the PERSONA, not to a window and not to the
@@ -194,6 +194,24 @@ separating before either is promised:
 Recommend the first for phase 4 and the second only if the device run says the
 panels want to belong to furniture. Shipping a usage-description key for a
 capability that is not used is exactly what the gates script exists to catch.
+
+**What landed 2026-08-18, and what did not.** Both shelves exist, hang off
+`personaAnchor`, and open the same panels the box opens. Persona switching is on
+the left. The hover-reveal is `CustomHoverEffect` plus `hoverEffectGroup()`,
+resting at 0.14 rather than zero -- invisible until looked at means invisible
+until GUESSED at, and a faint presence is a thing you can learn the position of
+once and then find.
+
+NOT built: pinch-an-icon-and-drag-it-off to spawn a panel and leave it in the
+room. Panels open beside the persona and travel with her, which is right until
+there is somewhere real to put them down -- and putting them down is the
+world-anchor work in section 9.
+
+Journal is deliberately absent from the room's shelf rather than present and
+dead. Its centre slot is the library's ENTITIES, and a bookcase in a room is a
+different object from one in a box: life size rather than 0.765, standing on
+the floor, with the clipping and the drag-to-scroll taken off because you walk
+to it. That is section 7's work.
 
 ### What still has no home
 

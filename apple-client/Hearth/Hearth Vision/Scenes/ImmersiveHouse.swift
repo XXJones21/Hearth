@@ -38,8 +38,10 @@
 //  shelves want. That is the next increment; this is the smaller change that
 //  makes a turn work in the room today.
 //
-//  WHAT THIS STILL DOES NOT DO: the control shelves, the room's own light
-//  (phase 4.5), and world reconstruction so panels can be set on real tables.
+//  WHAT THIS STILL DOES NOT DO: the room's own light (phase 4.5), and world
+//  reconstruction so a panel pulled off a shelf can be left on a real table.
+//  Panels open beside the persona for now and travel with her, which is right
+//  until there is somewhere real to put them down.
 //
 
 import SwiftUI
@@ -102,6 +104,12 @@ struct ImmersiveHouse: View {
     /// Up only while someone is typing. A composer permanently in front of the
     /// persona in a room is a control standing between you and her.
     @State private var composing = false
+
+    /// The open destination and the open rail tab. Separate state, because at
+    /// the desk both are open at once and folding them into one selection would
+    /// make mission control a place you leave your work to visit.
+    @State private var surface: HouseSurface?
+    @State private var rail: HouseRailTab?
 
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
@@ -172,6 +180,28 @@ struct ImmersiveHouse: View {
                     ComposerOrnament(viewModel: viewModel,
                                      autoFocus: true,
                                      onDismiss: { composing = false })
+                }
+            }
+            // The controls, which in a room belong to the persona rather than
+            // to a window she no longer has. See PersonaShelves.
+            Attachment(id: Self.leftShelfID) {
+                PersonaDestinationShelf(viewModel: viewModel, active: $surface)
+            }
+            Attachment(id: Self.rightShelfID) {
+                PersonaRailShelf(active: $rail)
+            }
+            if let surface, surface != .journal {
+                Attachment(id: Self.surfacePanelID) {
+                    HouseSurfacePanel(viewModel: viewModel, surface: surface) {
+                        self.surface = nil
+                    }
+                }
+            }
+            if let rail {
+                Attachment(id: Self.railPanelID) {
+                    HouseRailPanel(viewModel: viewModel, tab: rail) {
+                        self.rail = nil
+                    }
                 }
             }
         }
@@ -256,10 +286,38 @@ struct ImmersiveHouse: View {
             if composer.parent !== anchor { anchor.addChild(composer) }
             composer.position = SIMD3<Float>(0, -(rig.crownHeight + Self.composerDrop), 0.12)
         }
+
+        // The shelves, either side of her and turned slightly inward so they
+        // face the person standing in front rather than the wall beside them.
+        if let left = attachments.entity(for: Self.leftShelfID) {
+            if left.parent !== anchor { anchor.addChild(left) }
+            left.position = SIMD3<Float>(-Self.shelfReach, 0, 0.04)
+            left.orientation = simd_quatf(angle: Self.shelfToeIn, axis: SIMD3<Float>(0, 1, 0))
+        }
+        if let right = attachments.entity(for: Self.rightShelfID) {
+            if right.parent !== anchor { anchor.addChild(right) }
+            right.position = SIMD3<Float>(Self.shelfReach, 0, 0.04)
+            right.orientation = simd_quatf(angle: -Self.shelfToeIn, axis: SIMD3<Float>(0, 1, 0))
+        }
+
+        // An opened panel stands beyond its own shelf, on the same side, so the
+        // thing you pressed and the thing that opened are in one place.
+        if let panel = attachments.entity(for: Self.surfacePanelID) {
+            if panel.parent !== anchor { anchor.addChild(panel) }
+            panel.position = SIMD3<Float>(-Self.panelReach, Self.panelRise, 0.10)
+        }
+        if let panel = attachments.entity(for: Self.railPanelID) {
+            if panel.parent !== anchor { anchor.addChild(panel) }
+            panel.position = SIMD3<Float>(Self.panelReach, Self.panelRise, 0.10)
+        }
     }
 
     private static let liveTextID = "hearth.live-text"
     private static let composerID = "hearth.composer"
+    private static let leftShelfID = "hearth.shelf.left"
+    private static let rightShelfID = "hearth.shelf.right"
+    private static let surfacePanelID = "hearth.panel.surface"
+    private static let railPanelID = "hearth.panel.rail"
 
     /// The caption's clearance above the persona's crown. The volume's number,
     /// and it means the same thing here because both measure from the same
@@ -270,6 +328,23 @@ struct ImmersiveHouse: View {
     /// her rather than from the floor, for the same reason the caption is: it
     /// then means the same thing whoever is standing there.
     private static let composerDrop: Float = 0.12
+
+    /// How far to each side the shelves sit, in metres. The operator's number,
+    /// judged as a reach: close enough to belong to her, far enough not to be
+    /// in front of her face.
+    private static let shelfReach: Float = 0.30
+
+    /// And how far they turn inward, so a shelf beside her faces the person in
+    /// front of her rather than the wall beside them. Fifteen degrees.
+    private static let shelfToeIn: Float = .pi / 12
+
+    /// How far out an opened panel stands. Beyond its own shelf, on the same
+    /// side, so the thing pressed and the thing opened are in one place.
+    private static let panelReach: Float = 0.62
+
+    /// And how high, so a 720pt panel's middle is near eye level rather than
+    /// its top edge.
+    private static let panelRise: Float = 0.18
 
     // MARK: - Placement
 
