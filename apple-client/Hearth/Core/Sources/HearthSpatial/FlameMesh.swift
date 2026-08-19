@@ -192,6 +192,20 @@ public final class FlameMesh {
         ])
     }
 
+    /// How high the flame reads as reaching, in its own space.
+    ///
+    /// The VISIBLE top, not the geometric one. The mesh runs to a point at
+    /// v = 1 and the density kernel has faded it to nothing well before that,
+    /// so the tip is drawn and never seen. Anything hung above the persona --
+    /// her caption especially -- has to clear what people can SEE, and
+    /// measuring to the geometry would leave a gap of empty air.
+    public var visibleTop: Float { rise(at: Self.visibleTopParameter) }
+
+    /// Where the density feather has taken the flame to nothing. Matches the
+    /// upper edge of the fade in `fire_kernel`; if that window moves, this
+    /// moves with it.
+    private static let visibleTopParameter: Float = 0.95
+
     /// Where the flame's surface is, at a given height and around a given
     /// meridian, right now.
     ///

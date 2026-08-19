@@ -525,9 +525,31 @@ public final class PersonaRig: ObservableObject {
         // Undoing it in the card's proportions rather than in the kernel keeps
         // the phone and the headset drawing the same face from the same
         // numbers, which is the whole reason `FaceDirector` is shared.
-        let card = ModelEntity(mesh: .generatePlane(width: sphereRadius * Self.flameFaceWidth,
-                                                    height: sphereRadius * Self.flameFaceHeight),
-                               materials: [material])
+        // CURVED to the flame's own circumference, on the operator's second
+        // suggestion and it is the better one.
+        //
+        // A flat card in front of a round body is flat in front of a round
+        // body: its centre can touch the surface or its edges can, never both,
+        // so it always reads as a mask held up rather than as a face ON
+        // something. Bringing it closer only trades hovering for sinking.
+        //
+        // Giving it the surface's curvature removes the choice. The centre and
+        // the edges sit at the same small distance from the fire, and because
+        // the flame is very nearly a surface of revolution, the profile it
+        // presents is the same from every angle -- so a card curved once is
+        // correct wherever the billboard turns it. That last part is what makes
+        // this work at all, and it is why the curvature belongs on the card
+        // while the turning stays on the pivot above it.
+        let eyeHeight = sphereRadius * Self.flameFaceRise
+        let curvature = flameMesh?.surfaceRadius(atY: eyeHeight, angle: 0, phase: 0)
+            ?? sphereRadius
+        guard let mesh = Self.curvedCard(width: sphereRadius * Self.flameFaceWidth,
+                                         height: sphereRadius * Self.flameFaceHeight,
+                                         radius: curvature,
+                                         crop: SIMD2<Float>(Self.faceCropWidth,
+                                                            Self.faceCropHeight))
+        else { return }
+        let card = ModelEntity(mesh: mesh, materials: [material])
         card.name = "PersonaFlameFace"
         // After the flame, always. Its position already puts it in front; this
         // says so to the renderer rather than leaving it to be worked out from
@@ -542,6 +564,9 @@ public final class PersonaRig: ObservableObject {
         pivot.name = "PersonaFlameFacePivot"
         pivot.position = SIMD3<Float>(0, sphereRadius * Self.flameFaceRise, 0)
         pivot.components.set(BillboardComponent())
+        // Ask the renderer how much resolution this card actually needs. See
+        // `trackFaceResolution`.
+        card.components.set(AdaptiveResolutionComponent())
         pivot.addChild(card)
 
         sphereEntity.addChild(pivot)
@@ -552,6 +577,99 @@ public final class PersonaRig: ObservableObject {
         // -- and only the first one can be ruled out from here.
         log.notice("flame face card built")
     }
+
+    /// Redraw the face at the resolution it is actually being SEEN at.
+    ///
+    /// THE PROBLEM. The face is not an image file -- it is a Metal kernel
+    /// drawing shapes analytically into a texture every frame -- but it is
+    /// drawn into a texture of a FIXED size, and a fixed texture magnified is
+    /// a fixed texture magnified. Small on a desk it is crisp; pinched up to
+    /// something you stand next to, the eyes' edges soften and the texels start
+    /// to show. Nothing about the drawing is wrong; there is simply not enough
+    /// of it.
+    ///
+    /// THE ANSWER IS NOT A BIGGER TEXTURE, or not only. 2048 everywhere costs
+    /// sixteen times the memory to fix a case that happens at one size, and it
+    /// still has a limit -- it moves the problem rather than removing it.
+    ///
+    /// `AdaptiveResolutionComponent` is RealityKit's own answer and it is
+    /// exactly this question: it reports the pixels per metre the renderer
+    /// needs for this entity, right now, at the size and distance it is being
+    /// viewed at. Multiply by the card's width in metres and that is how many
+    /// texels the face deserves. Redraw at that, and the edges are as sharp as
+    /// the drawing always was -- which is the vector behaviour being asked for,
+    /// arrived at by re-rasterising rather than by never rasterising.
+    ///
+    /// Apple bins `pixelsPerMeter` to protect privacy -- a continuous value
+    /// would leak how close someone is standing -- and the binning is a gift
+    /// here: it means this changes rarely, so rebuilding a texture and its
+    /// pipeline on the change is cheap.
+    private func trackFaceResolution() {
+        guard let card = flameFaceCard,
+              let adaptive = card.components[AdaptiveResolutionComponent.self]
+        else { return }
+
+        let widthInMetres = sphereRadius * Self.flameFaceWidth
+            * max(rootEntity.scale.x, 0.0001)
+        let wanted = Self.faceTextureSize(forTexels: widthInMetres * adaptive.pixelsPerMeter)
+        guard wanted != faceTextureSize else { return }
+        rebuildFaceTexture(size: wanted)
+    }
+
+    /// The nearest power of two that covers `texels`, within bounds.
+    ///
+    /// Powers of two because a texture that changes size by a few percent every
+    /// time somebody leans is a texture being rebuilt constantly; snapping to
+    /// doublings means a handful of sizes over the whole range of the pinch.
+    private static func faceTextureSize(forTexels texels: Float) -> Int {
+        var size = minFaceTexture
+        while size < maxFaceTexture, Float(size) < texels { size *= 2 }
+        return size
+    }
+
+    private static let minFaceTexture = 512
+    private static let maxFaceTexture = 4096
+
+    /// Swap in a face drawn at a different resolution, keeping every tuning
+    /// number the old one carried.
+    ///
+    /// The knobs travel because they are not defaults -- `extent` and
+    /// `eyeScale` were both set against a hand held up beside the bead on a
+    /// device, and a rebuild that quietly reset them would undo that judgement
+    /// the first time somebody leaned in.
+    private func rebuildFaceTexture(size: Int) {
+        guard let old = faceTexture, let fresh = PersonaFaceTexture(size: size) else { return }
+        fresh.longitudeOffset = old.longitudeOffset
+        fresh.extent = old.extent
+        fresh.eyeScale = old.eyeScale
+        fresh.inkBlend = old.inkBlend
+        fresh.inkStyle = old.inkStyle
+        faceTexture = fresh
+        faceTextureSize = size
+        applyFaceTexture()
+        log.notice("face redrawn at \(size, privacy: .public) texels")
+    }
+
+    /// Point everything that wears the face at whichever texture is current.
+    private func applyFaceTexture() {
+        guard let faceTexture else { return }
+        var material = UnlitMaterial(color: .white, applyPostProcessToneMap: false)
+        material.color = .init(tint: .white, texture: .init(faceTexture.textureResource))
+        material.blending = .transparent(opacity: 1.0)
+        material.faceCulling = .none
+        material.opacityThreshold = 0.35
+        flameFaceCard?.model?.materials = [material]
+
+        if let shell = faceShell {
+            var shellMaterial = UnlitMaterial()
+            shellMaterial.color = .init(tint: .white,
+                                        texture: .init(faceTexture.textureResource))
+            shellMaterial.blending = .transparent(opacity: 1.0)
+            shell.model?.materials = [shellMaterial]
+        }
+    }
+
+    private var faceTextureSize = 512
 
     private func removeFlameFace() {
         flameFacePivot?.removeFromParent()
@@ -581,9 +699,71 @@ public final class PersonaRig: ObservableObject {
         card.position.z = skin + sphereRadius * Self.flameFaceClearance
     }
 
-    /// How far clear of the flame's skin the eyes ride. Small, and constant --
-    /// that constancy is the point.
-    private static let flameFaceClearance: Float = 0.22
+    /// How far clear of the flame's skin the eyes ride.
+    ///
+    /// Nearly nothing now that the card is curved. It was 0.22 of a radius to
+    /// keep a FLAT card's edges from cutting into a round body -- a clearance
+    /// the shape needed rather than the look wanted. A card with the flame's
+    /// own curvature needs only enough to stay out of the surface it is lying
+    /// on -- which turned out to be more than nothing, because the turbulence
+    /// moves the surface between the frames the card is tracking it on, and a
+    /// gap of almost zero lets the fire clip through the eyes in between.
+    private static let flameFaceClearance: Float = 0.20
+
+    /// A card bent around a cylinder of the given radius, bulging toward +Z.
+    ///
+    /// The arc's front point sits at the local origin and the edges fall away
+    /// behind it, which is exactly how the flame's surface behaves either side
+    /// of the meridian facing you -- so placing this at the tracked surface
+    /// distance lays the whole card on the fire rather than just its middle.
+    ///
+    /// Vertical stays straight. The flame curves that way too, but the eyes
+    /// span a few centimetres of a body tens of centimetres tall, and a second
+    /// axis of curvature would buy nothing anyone could see.
+    /// - Parameter crop: how much of the texture to show, as a fraction of its
+    ///   width and height, taken from the middle.
+    private static func curvedCard(width: Float,
+                                   height: Float,
+                                   radius: Float,
+                                   crop: SIMD2<Float>,
+                                   columns: Int = 24) -> MeshResource? {
+        let radius = max(radius, 0.001)
+        let span = width / radius              // total arc, in radians
+        var positions: [SIMD3<Float>] = []
+        var uvs: [SIMD2<Float>] = []
+        var indices: [UInt32] = []
+
+        for column in 0...columns {
+            let t = Float(column) / Float(columns)
+            let angle = (t - 0.5) * span
+            let x = sin(angle) * radius
+            // Zero at the centre of the arc, falling away at the edges.
+            let z = cos(angle) * radius - radius
+            let u = 0.5 + (t - 0.5) * crop.x
+            for row in 0...1 {
+                positions.append(SIMD3<Float>(x, (Float(row) - 0.5) * height, z))
+                // MEASURED, not reasoned. The first hand-built card mapped the
+                // bottom row to v = 1, on the same convention a generated plane
+                // appears to use, and the face came out upside down -- the
+                // mouth above the eyes. Row zero is the bottom and takes the
+                // SMALLER v. This is a fact about how RealityKit samples a mesh
+                // we authored ourselves, and it is worth stating in the units
+                // it was observed in rather than deriving it wrongly twice.
+                let v = 0.5 + (Float(row) - 0.5) * crop.y
+                uvs.append(SIMD2<Float>(u, v))
+            }
+        }
+        for column in 0..<columns {
+            let a = UInt32(column * 2)
+            indices += [a, a + 2, a + 1, a + 1, a + 2, a + 3]
+        }
+
+        var descriptor = MeshDescriptor(name: "PersonaFlameFace")
+        descriptor.positions = MeshBuffers.Positions(positions)
+        descriptor.textureCoordinates = MeshBuffers.TextureCoordinates(uvs)
+        descriptor.primitives = .triangles(indices)
+        return try? MeshResource.generate(from: [descriptor])
+    }
 
     /// The face card's proportions, how high up the flame it sits, and how far
     /// clear of the fire it floats.
@@ -592,8 +772,28 @@ public final class PersonaRig: ObservableObject {
     /// fully transparent, so growing it costs nothing visually and is the
     /// simplest way to make a face that occupies a small part of its texture
     /// occupy a large part of the flame.
-    private static let flameFaceWidth: Float = 5.15
-    private static let flameFaceHeight: Float = 2.42
+    private static let flameFaceWidth: Float = 1.7
+    private static let flameFaceHeight: Float = 1.25
+
+    /// How much of the face texture the card shows.
+    ///
+    /// THE CARD STOPPED BEING ABLE TO BE HUGE the moment it was curved. Its
+    /// width was 5.15 radii, which is fine flat -- the surplus is transparent
+    /// margin and costs nothing. Wrapped around a cylinder the flame's own
+    /// radius, that width is an arc of very nearly 280 DEGREES: the card went
+    /// most of the way round the fire, the face's edges came out as ribbons
+    /// either side of him, and features that should be side by side ended up
+    /// above one another.
+    ///
+    /// So the magnification moves from the CARD to the UVs. The card is now
+    /// the size of the flame's front, and it samples only the middle of the
+    /// texture -- where the face actually is, the kernel drawing it across the
+    /// front hemisphere and leaving the rest clear. Cropping tighter
+    /// horizontally than vertically is what widens the eyes, which is the same
+    /// correction the wide card was making, applied where it does not bend
+    /// anything.
+    private static let faceCropWidth: Float = 0.32
+    private static let faceCropHeight: Float = 0.44
     private static let flameFaceRise: Float = 0.25
     /// How far the face floats clear of the fire.
     ///
@@ -640,6 +840,7 @@ public final class PersonaRig: ObservableObject {
         texture.tick(deltaTime: dt)
         flameMesh?.update(phase: lanternPhase)
         trackFlameSurface()
+        trackFaceResolution()
         guard var component = light.components[PointLightComponent.self] else { return }
         component.intensity = lanternLumens * (0.75 + 0.5 * texture.flicker())
         light.components.set(component)
@@ -1514,6 +1715,13 @@ public final class PersonaRig: ObservableObject {
     /// bead and a good guess for a model mid-download.
     public var crownHeight: Float {
         let rigScale = max(rootEntity.scale.x, 0.0001)
+        // A FLAME IS TALLER THAN THE BEAD IT REPLACED, by more than three
+        // times, and everything hung above the persona is measured from here.
+        // Reporting the bead's radius while a fire stands in its place put the
+        // live caption inside the flames -- not by a little, by the whole
+        // difference between a sphere and a candle. The style changes what the
+        // top of the persona IS, so it has to change this.
+        if lanternActive, let flameMesh { return flameMesh.visibleTop * rigScale }
         guard modelActive else { return sphereRadius * rigScale }
         // Only measured once the fit has landed. Before then the model is still
         // the size the artist exported, and measuring it would throw the
