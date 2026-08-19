@@ -203,6 +203,15 @@ the chatlogs raw. It runs on the house's own clock, roughly every half
 hour, and does nothing on a day with nothing to review or once that day
 already has a review on file.
 
+Dev work reaches the same review through the harvester
+(`harness/valar/memory/dev_harvest.py`). The routines record can carry a
+**Dev sources** list under the Daily review section, lines of
+`- <repo-path> -> <project-slug>`; before a day is reviewed, each listed
+repo's commits from that day are filed as a diary at
+`Thoughts/<day>-dev-<slug>/claude.md`, which Selene reads like any other.
+No list means no harvesting, so an install without repos behaves exactly
+as before. As with every routine, deleting a line is the switch.
+
 The reviews shelf is also readable back. A recall that names a day, in any
 form the operator would say it ("yesterday", "August 18", "2026-08-18"),
 skips search ranking entirely and returns that day's review plus its

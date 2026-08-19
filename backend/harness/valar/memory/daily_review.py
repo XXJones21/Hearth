@@ -20,11 +20,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from ..config.settings import hearth_engram
-from . import routines
+from . import dev_harvest, routines
 
 logger = logging.getLogger("valar.memory.daily_review")
 
@@ -180,7 +180,15 @@ async def daily_review_loop() -> None:
             except Exception:  # noqa: BLE001 - unconfigured memory: idle tick
                 root = None
             if root is not None and routines.daily_review_enabled(root):
+                # Dev work enters the inbox before the day is judged: harvest
+                # yesterday first (a day of only commits is otherwise not
+                # pending at all), then each pending day again for replay
+                # windows. Both calls are idempotent and blocking-cheap, but
+                # git is a subprocess, so they leave the loop's thread.
+                yesterday = (date.today() - timedelta(days=1)).isoformat()
+                await asyncio.to_thread(dev_harvest.harvest_day, root, yesterday)
                 for day in pending_review_days(root):
+                    await asyncio.to_thread(dev_harvest.harvest_day, root, day)
                     await run_review(root, day)
         except asyncio.CancelledError:
             raise
