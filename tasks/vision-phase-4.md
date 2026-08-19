@@ -433,7 +433,7 @@ a bead has a height at which conversation happens. Height is the room's rule;
 the spot is hers. A carried bead height is clamped, because a volume can be
 dragged to the carpet or above head height.
 
-### Persisting a placed thing -- NOT YET BUILT
+### Persisting a placed thing -- BUILT 2026-08-18
 
 Wanted for panels pulled off the shelf and left in the room. The shape, from
 Apple's world-anchor docs and from Arena's working version:
@@ -451,6 +451,26 @@ Apple's world-anchor docs and from Arena's working version:
   `allAnchors`. Getting this wrong is a thing that silently never restores.
 - Anchors are only redelivered for NEARBY places. Someone who opens Hearth in a
   different room gets nothing, and that is correct rather than broken.
+
+**As built:** `RoomAnchors` runs the session and holds a `RoomSlot -> UUID` map
+in UserDefaults, because ARKit keeps the id and the pose and nothing else.
+Restoring is not a startup step -- an anchor arrives when ARKit recognises the
+place, which may be seconds after the room opens or never -- so it is applied
+whenever it turns up, and until then everything stands where it spawned. The
+bookcase is STOOD UP by its own anchor rather than merely repositioned: a thing
+left against a wall should be against that wall when you come back, without
+being pulled off the shelf again first. Putting it away forgets the anchor, so
+the room does not stand it back up tomorrow because it remembers a wall.
+
+Degrades quietly on purpose. No world tracking in the simulator, and a person
+may decline world sensing; in both cases the room still works and simply forgets
+where things were. Refusing to open the immersive space over that would trade
+the whole feature for one of its conveniences.
+
+`NSWorldSensingUsageDescription` went in with this commit, which is what the
+plist's own comment said the hold was waiting for -- and scoped to what is
+actually used, since this is world tracking for anchors and not the scene
+reconstruction that would let panels rest on real tables.
 
 ### Finding the floor, and the four traps in it
 

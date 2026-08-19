@@ -172,6 +172,9 @@ struct ImmersiveHouse: View {
     /// Anchoring, when it lands, anchors THIS -- one transform, one meaning.
     @State private var libraryPlacement = Entity()
 
+    /// What the room remembers about where things were left.
+    @StateObject private var anchors = RoomAnchors()
+
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -334,6 +337,9 @@ struct ImmersiveHouse: View {
                 rig.homePosition = home
                 rig.rootEntity.position = home
             },
+            onDragEnded: {
+                anchors.remember(.persona, at: rig.rootEntity.transformMatrix(relativeTo: nil))
+            },
             progress: { rig.transitionProgress = $0 }
         )
     }
@@ -388,8 +394,19 @@ struct ImmersiveHouse: View {
                 .onEnded { _ in
                     placement.libraryStart = nil
                     placement.libraryGrab = nil
+                    // Anchored where it was LET GO, not where it was grabbed.
+                    anchors.remember(.library,
+                                     at: libraryPlacement.transformMatrix(relativeTo: nil))
                 }
         )
+        .task { await anchors.run() }
+        // Restoring is not a startup step, because an anchor arrives when ARKit
+        // recognises the place -- which may be seconds after the room opens, or
+        // never if you are somewhere else. So it is applied whenever it turns
+        // up, and until then everything stands where it spawned.
+        .onChange(of: anchors.placements) { _, placements in
+            restore(placements)
+        }
         .task {
             await libraryData.load()
             library.apply(heart: libraryData.heart,
@@ -523,6 +540,27 @@ struct ImmersiveHouse: View {
         libraryPlacement.removeFromParent()
         placement.libraryStart = nil
         placement.libraryGrab = nil
+        // Put away, not merely moved: the room should not stand it back up
+        // tomorrow because it remembers a wall it used to lean against.
+        anchors.forget(.library)
+    }
+
+    /// Put back what the room remembers, whenever ARKit gets round to saying so.
+    ///
+    /// The bookcase is STOOD UP by its own anchor, not merely repositioned: a
+    /// thing you left against a wall should be against that wall when you come
+    /// back, without being pulled off the shelf again first. That is the whole
+    /// point of anchoring it.
+    private func restore(_ placements: [RoomSlot: simd_float4x4]) {
+        if let t = placements[.persona] {
+            let home = SIMD3<Float>(t.columns.3.x, t.columns.3.y, t.columns.3.z)
+            rig.homePosition = home
+            rig.rootEntity.position = home
+        }
+        if let t = placements[.library] {
+            if !libraryPlaced { placeLibrary() }
+            libraryPlacement.setTransformMatrix(t, relativeTo: nil)
+        }
     }
 
     private static let liveTextID = "hearth.live-text"
@@ -579,9 +617,17 @@ struct ImmersiveHouse: View {
     /// bit in front, and a height that depends entirely on whether the persona
     /// has a body.
     private func place() {
-        // The room's own scale, never the box's. `modelPresentationScale`
-        // divides this back out, so a model persona is unaffected by it.
+        // The room's own numbers, and ALL of them, stated rather than assumed.
+        //
+        // The rig is shared and the box changed it: 0.4 of life size, lifted
+        // 16cm to clear ornaments that do not exist here. Those are facts about
+        // a box with controls along its bottom edge, and leaving them in place
+        // is why Selene arrived in the room at less than half her height. The
+        // rig's defaults are the room's answers, but a default is only the
+        // answer until something else has set it.
         rig.setRigScale(Self.beadScale)
+        rig.modelPresentationScale = 1
+        rig.modelVerticalOffset = 0
 
         // WHERE she stood in the box, if the crossing measured it, and a
         // sensible spot in front of the person if it did not -- the first run

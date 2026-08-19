@@ -124,7 +124,19 @@ public final class PersonaRig: ObservableObject {
     /// the Shared Space, which is exactly why the billboard exists for the
     /// volume; with real bloom running it is redundant and would double up.
     public var realBloomActive = false {
-        didSet { glowBillboard?.isEnabled = isAlive && !realBloomActive }
+        // Through `setOrbVisible`, never straight at the billboard.
+        //
+        // This used to write `glowBillboard?.isEnabled` directly, which meant
+        // any host calling `configure(for:)` switched the halo back on -- under
+        // a MODEL persona as well, who has no orb for it to be the glow of. So
+        // Selene arrived in the room wearing a bead's halo, and the only reason
+        // the box did not show it was that nothing called `configure` there
+        // after her model loaded.
+        //
+        // Every path that changes what is visible goes through one function
+        // now, and that function knows who is on stage. Same lesson
+        // `setConnected` learned first.
+        didSet { setOrbVisible(!modelActive) }
     }
 
     /// Volume or room. The bead and the field are identical in both; only the
@@ -640,6 +652,15 @@ public final class PersonaRig: ObservableObject {
 
     /// The bead and everything that belongs to it. Toggled rather than removed
     /// so a switch back is instant and keeps its animation state.
+    /// The bead and everything that belongs to it: its shell, its face, its
+    /// particle field, its halo.
+    ///
+    /// The one place that decides what a persona is made of, and it decides on
+    /// `modelActive` -- which is to say on the visualization TYPE. A bead is a
+    /// light and carries light's furniture; a body carries none of it, and a
+    /// body wearing a bead's halo is two personas on one stage. Phase 4.5's
+    /// rule that non-corporeal personas get effects and humanoid ones do not
+    /// starts here rather than at each effect.
     private func setOrbVisible(_ visible: Bool) {
         sphereEntity.isEnabled = visible
         particleField.isEnabled = visible && isAlive

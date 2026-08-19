@@ -44,11 +44,13 @@ extension View {
                      onTap: (() -> Void)?,
                      onHold: @escaping () -> Void,
                      onDrag: ((SIMD3<Float>) -> Void)? = nil,
+                     onDragEnded: (() -> Void)? = nil,
                      progress: @escaping (Float) -> Void) -> some View {
         modifier(PersonaHoldModifier(target: target,
                                      onTap: onTap,
                                      onHold: onHold,
                                      onDrag: onDrag,
+                                     onDragEnded: onDragEnded,
                                      progress: progress))
     }
 }
@@ -58,6 +60,9 @@ private struct PersonaHoldModifier: ViewModifier {
     let onTap: (() -> Void)?
     let onHold: () -> Void
     let onDrag: ((SIMD3<Float>) -> Void)?
+    /// Called once when a reposition finishes. Where she was LET GO is what
+    /// gets remembered; where she passed through on the way is not.
+    let onDragEnded: (() -> Void)?
     let progress: (Float) -> Void
 
     /// Two seconds, from Valinor, judged on a headset.
@@ -126,7 +131,7 @@ private struct PersonaHoldModifier: ViewModifier {
                     // acting the whole time. Releasing after either is just
                     // letting go, and must not also start a voice turn.
                     guard !committed else { committed = false; return }
-                    guard !wasDragging else { return }
+                    guard !wasDragging else { onDragEnded?(); return }
                     guard held < Self.holdDuration else { return }
                     onTap?()
                 }

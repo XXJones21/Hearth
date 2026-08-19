@@ -20,13 +20,18 @@
 	    DeviceMotionTracker, which never crossed in the migration.
 	  - No UISupportedInterfaceOrientations or UILaunchScreen. A volume has no
 	    orientation and visionOS has no launch screen.
-	  - No NSWorldSensingUsageDescription, and this one is a deliberate hold
-	    rather than an omission. It is phase 4's key, for the scene
-	    reconstruction that lets the immersive house settle onto real surfaces.
-	    ARKit hard-crashes on the authorization request when it is absent, so it
-	    goes in the same commit that first asks -- and not one phase earlier,
-	    because a permission prompt for something the app does not yet do is a
-	    prompt the person cannot evaluate.
+	  - NSWorldSensingUsageDescription is now PRESENT, and this is the commit
+	    that first asks -- which is what the hold was waiting for. The immersive
+	    house remembers where you put things: a persona left on a table and a
+	    bookcase pushed against a wall are there again tomorrow, which needs
+	    world anchors and therefore world sensing. ARKit hard-crashes on the
+	    authorization request when the key is absent, and a permission prompt
+	    for something the app does not yet do is a prompt nobody can evaluate,
+	    so the two arrive together.
+
+	    It is scoped to what is actually used. This is world TRACKING for
+	    anchors; scene reconstruction, which would let panels rest on real
+	    tables, has not landed and the wording does not claim it.
 -->
 <plist version="1.0">
 <dict>
@@ -59,6 +64,8 @@
 	<string>Hearth uses the microphone so you can talk to your persona. Speech is recognized on this device.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Hearth uses speech recognition to transcribe your voice into text for the AI assistant.</string>
+	<key>NSWorldSensingUsageDescription</key>
+	<string>Hearth remembers where you place things in your room, so your persona and your library are where you left them.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>
