@@ -175,6 +175,15 @@ struct ImmersiveHouse: View {
     /// What the room remembers about where things were left.
     @StateObject private var anchors = RoomAnchors()
 
+    /// The journal being read, or nil for the shelves.
+    ///
+    /// The books were pinchable from the moment the bookcase existed -- they
+    /// carry collision and a hover effect of their own, which is why they lit
+    /// up -- and nothing was listening. Highlighting is the entity saying it
+    /// can be touched; opening is the host's job, and the room had not been
+    /// given it.
+    @State private var reading: JournalBook?
+
     init(viewModel: ChatViewModel, rig: PersonaRig,
          spawn: simd_float4x4?, onLeave: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -279,6 +288,34 @@ struct ImmersiveHouse: View {
             // The way to put the bookcase away again, beside it rather than on
             // it: a control ON a shelf of books would be one more thing among
             // the spines, and the one thing there that is not a book.
+            // An opened journal, standing beside the bookcase it came off.
+            // JournalBookView unchanged -- the shelf is new, what is written in
+            // a journal is not.
+            if let reading {
+                Attachment(id: Self.readerID) {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Button {
+                                self.reading = nil
+                            } label: {
+                                Label("Shelves", systemImage: "chevron.left")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .buttonStyle(.plain)
+                            .tint(HearthPalette.ember)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(HearthPalette.parchment)
+
+                        JournalBookView(book: reading)
+                    }
+                    .frame(width: 420, height: 560)
+                    .background(HearthPalette.cream)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
             if libraryPlaced {
                 Attachment(id: Self.libraryCloseID) {
                     Button {
@@ -399,6 +436,23 @@ struct ImmersiveHouse: View {
                                      at: libraryPlacement.transformMatrix(relativeTo: nil))
                 }
         )
+        // Pinch a spine to read it. Targeted at the library's whole subtree
+        // because the hit lands on a book, and `book(for:)` is what turns an
+        // entity back into a journal -- the same call the box makes. A hit on
+        // anything else in the tree resolves to nil and closes the reader,
+        // which is the same gesture meaning "not that one".
+        //
+        // Simultaneous with the bookcase's own drag rather than racing it:
+        // they target different entities, and declaring that plainly is
+        // cheaper than finding out which one SwiftUI would have preferred.
+        .simultaneousGesture(
+            SpatialTapGesture()
+                .targetedToEntity(library.root)
+                .onEnded { value in
+                    guard libraryPlaced else { return }
+                    reading = library.book(for: value.entity)
+                }
+        )
         .task { await anchors.run() }
         // Restoring is not a startup step, because an anchor arrives when ARKit
         // recognises the place -- which may be seconds after the room opens, or
@@ -503,6 +557,14 @@ struct ImmersiveHouse: View {
             if close.parent !== libraryPlacement { libraryPlacement.addChild(close) }
             close.position = SIMD3<Float>(-Self.libraryCloseReach, Self.libraryCloseRise, 0.1)
         }
+
+        // The reader stands off the bookcase's other side, at reading height,
+        // and travels with it -- a page you are part-way through should not be
+        // left behind when the shelf it came from is moved.
+        if let page = attachments.entity(for: Self.readerID) {
+            if page.parent !== libraryPlacement { libraryPlacement.addChild(page) }
+            page.position = SIMD3<Float>(Self.readerReach, Self.readerRise, 0.14)
+        }
     }
 
     /// Stand the bookcase in the room, life size, on the floor.
@@ -567,6 +629,7 @@ struct ImmersiveHouse: View {
 
     private func removeLibrary() {
         libraryPlaced = false
+        reading = nil
         libraryPlacement.removeFromParent()
         placement.libraryStart = nil
         placement.libraryGrab = nil
@@ -605,6 +668,7 @@ struct ImmersiveHouse: View {
     private static let surfacePanelID = "hearth.panel.surface"
     private static let railPanelID = "hearth.panel.rail"
     private static let libraryCloseID = "hearth.library.close"
+    private static let readerID = "hearth.journal-reader"
 
     /// The caption's clearance above the persona's crown. The volume's number,
     /// and it means the same thing here because both measure from the same
@@ -648,6 +712,12 @@ struct ImmersiveHouse: View {
     /// height, so it is beside the shelves rather than among the spines.
     private static let libraryCloseReach: Float = 0.5
     private static let libraryCloseRise: Float = 1.3
+
+    /// Where an opened journal stands: off the bookcase's other side, so the
+    /// shelves stay visible beside what you are reading rather than behind it,
+    /// and at a height you would hold a book at.
+    private static let readerReach: Float = 0.62
+    private static let readerRise: Float = 1.25
 
     // MARK: - Placement
 
