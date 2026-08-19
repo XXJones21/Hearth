@@ -2059,13 +2059,27 @@ public final class PersonaRig: ObservableObject {
     /// sphere that is no longer drawn. This is the one place that knows which.
     private var particleWorld: ParticleWorld {
         if lanternActive, let flameMesh {
+            // The face card's own height, read from the same constant it uses,
+            // so the embers and the eyes can never drift apart.
+            let eyes = sphereRadius * Self.flameFaceRise
             return ParticleWorld(coreRadius: flameMesh.radius,
                                  maxDistance: particleMaxDistance,
-                                 coreHeight: flameMesh.visibleTop)
+                                 coreHeight: flameMesh.visibleTop,
+                                 eyeHeight: eyes,
+                                 // ASK THE MESH, at rest phase. The flame
+                                 // breathes, so this is its average width at
+                                 // that height rather than this instant's --
+                                 // which is what a birth shell wants, since
+                                 // resizing it every frame would mean writing
+                                 // the whole component every frame.
+                                 waistRadius: flameMesh.surfaceRadius(atY: eyes,
+                                                                      angle: 0,
+                                                                      phase: 0))
         }
         return ParticleWorld(coreRadius: sphereRadius,
                              maxDistance: particleMaxDistance,
-                             coreHeight: 0)
+                             coreHeight: 0,
+                             eyeHeight: 0)
     }
 
     /// Put the preset's swarm on stage, building it the first time it is asked

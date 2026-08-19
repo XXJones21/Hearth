@@ -81,10 +81,39 @@ public struct ParticleWorld: Sendable, Equatable {
     /// bead, which is centred on it; the flame's visible top for the fire.
     public var coreHeight: Float
 
-    public init(coreRadius: Float, maxDistance: Float, coreHeight: Float = 0) {
+    /// Where the persona's FACE is, measured from the rig's origin.
+    ///
+    /// It is here because it is the one height on a persona that everything
+    /// else is judged against. Whatever a swarm does, it does it around the
+    /// eyes -- that is where a person is looking, and a plume centred anywhere
+    /// else reads as belonging to a different object than the face does. The
+    /// rig already computes this for the flame's face card; handing it over
+    /// costs nothing and stops the number being guessed at twice.
+    public var eyeHeight: Float
+
+    /// How wide the core is AT `eyeHeight`, which is not the same as
+    /// `coreRadius` on anything that is not a ball.
+    ///
+    /// A flame is a teardrop: widest low down, tapering to a point. A swarm
+    /// sized to the widest part and placed at the eyes would be born well
+    /// outside the silhouette at that height. So the rig asks the mesh how wide
+    /// it actually is where the field is going to sit, and the field is sized
+    /// from the answer. Same discipline as the spotlight's cone: derive from
+    /// the shape, never restate it.
+    public var waistRadius: Float
+
+    public init(coreRadius: Float,
+                maxDistance: Float,
+                coreHeight: Float = 0,
+                eyeHeight: Float = 0,
+                waistRadius: Float? = nil) {
         self.coreRadius = coreRadius
         self.maxDistance = maxDistance
         self.coreHeight = coreHeight
+        self.eyeHeight = eyeHeight
+        // A ball is the same width everywhere, so the default is the honest
+        // answer rather than a placeholder.
+        self.waistRadius = waistRadius ?? coreRadius
     }
 }
 

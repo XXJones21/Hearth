@@ -71,30 +71,37 @@ public final class EmberField: ParticleChoreography {
 
     // MARK: - Where the embers come from
 
-    /// Put the emitter on the flame's body rather than at the rig's origin.
+    /// Put the emitter at the persona's EYES rather than up the flame.
     ///
-    /// Embers do not fall out of the bottom of a fire and they do not appear
-    /// above it. They peel off its SKIN, mostly from the lower half where the
-    /// flame is widest and the air is moving fastest. So the emitter is a
-    /// sphere sized to the flame's waist, sitting a little under halfway up,
-    /// with particles born on its surface and pushed along the surface normal.
-    /// Buoyancy does the rest -- see `acceleration`.
+    /// It sat at 42% of the flame's visible top, on the reasoning that embers
+    /// peel off a fire's shoulders. That is true of a bonfire and wrong here,
+    /// because this fire has a FACE. Everything the eye is doing is happening
+    /// at the face card's height, and a plume whose source is a third of a
+    /// metre above it reads as a separate object passing behind him. Centring
+    /// it on the eyes puts the fire and the persona in the same place.
     ///
-    /// Both numbers are FRACTIONS of geometry the rig measures, never
-    /// constants. The flame is `sphereRadius * 1.05` wide and `sphereRadius *
-    /// 3.4` tall today, and if either changes the embers follow without anybody
-    /// editing this file. That is the same discipline the spotlight's cone
-    /// follows: derive from the shape, do not restate it.
+    /// The height is not restated: it comes from the rig, which reads it from
+    /// the same constant the face card is positioned by, so the two cannot
+    /// drift apart.
     private func placeEmitter() {
-        emitter.position = SIMD3<Float>(0, world.coreHeight * Self.birthHeightFraction, 0)
+        emitter.position = SIMD3<Float>(0, world.eyeHeight, 0)
     }
 
-    /// Where up the flame the embers are born, as a fraction of its visible top.
-    private static let birthHeightFraction: Float = 0.42
-    /// How much of the flame's waist the birth sphere spans. Under 1 so the
-    /// embers start INSIDE the flame's silhouette and emerge from it, rather
-    /// than popping into existence in clear air beside it.
-    private static let birthRadiusFraction: Float = 0.62
+    /// How far past the flame's own skin the embers are born, at the height
+    /// they are born at.
+    ///
+    /// WIDER THAN THE FLAME, ON PURPOSE, and this is a correction. It was 0.62
+    /// of the flame's WIDEST radius, applied at a height where the flame is not
+    /// its widest -- which put every ember inside the silhouette, where they
+    /// were hidden by the very thing they were supposed to be coming off.
+    /// Embers you cannot see are not embers.
+    ///
+    /// Now the rig measures the flame's radius at exactly the height the
+    /// emitter sits, and this pushes the birth shell slightly outside it. Just
+    /// outside: a fire's embers come off its edge, and a shell much wider than
+    /// this stops reading as a fire at all and starts reading as a ring around
+    /// one.
+    private static let birthSpread: Float = 1.15
 
     // MARK: - ParticleChoreography
 
@@ -153,15 +160,24 @@ public final class EmberField: ParticleChoreography {
         // down simply lose to buoyancy a moment later, which is exactly what
         // real ones do.
         component.emitterShape = .sphere
+        // SIZE, NOT RADIUS. RealityKit's other `size` properties are full
+        // extents along each axis, so a birth sphere as wide as the flame is a
+        // diameter -- and reading it as a radius is the likeliest explanation
+        // for how far inside the silhouette the first pass landed. If the
+        // embers now start too far out, this factor of two is the first
+        // suspect and halving it is the whole fix.
         component.emitterShapeSize = SIMD3<Float>(
-            repeating: world.coreRadius * Self.birthRadiusFraction)
+            repeating: world.waistRadius * 2 * Self.birthSpread)
         component.birthLocation = .surface
         component.birthDirection = .normal
 
-        // Slow. An ember's speed comes from the air around it, not from a
-        // launch, and anything faster reads as sparks off a grinder.
-        component.speed = 0.055 * Self.sizeFactor(world)
-        component.speedVariation = 0.045 * Self.sizeFactor(world)
+        // Slow, but not as slow as the first pass. An ember's speed comes from
+        // the air around it, not from a launch, and anything much faster reads
+        // as sparks off a grinder -- but too slow and buoyancy wins immediately,
+        // which is what kept the plume as narrow as the flame. The outward
+        // travel has to survive long enough to get clear.
+        component.speed = 0.085 * Self.sizeFactor(world)
+        component.speedVariation = 0.070 * Self.sizeFactor(world)
 
         // PARTICLES FOLLOW THE PERSONA. The alternative -- leaving embers
         // behind in world space as Sulivan is carried across a room -- is more
@@ -198,16 +214,25 @@ public final class EmberField: ParticleChoreography {
         // upward by the same rising column of air. Damping is what makes that
         // bend look like air rather than gravity: they lose their initial
         // speed, and what remains is the lift.
-        main.acceleration = SIMD3<Float>(0, 0.075 * Self.sizeFactor(world), 0)
-        main.dampingFactor = 0.55
-        main.spreadingAngle = 0.30
+        main.acceleration = SIMD3<Float>(0, 0.062 * Self.sizeFactor(world), 0)
+        // Damping down from 0.55: it was bleeding off the outward speed before
+        // the ember had cleared the flame, so every one of them turned upward
+        // while still inside it. Less damping is what lets the plume open.
+        main.dampingFactor = 0.32
+        // And a much wider cone off the birth normal. At 0.30 the embers left
+        // the surface almost perpendicular and in near-lockstep, which reads as
+        // a shell rather than a swarm.
+        main.spreadingAngle = 0.85
 
         // The wander. A fire's air is turbulent, and embers that rise in
         // straight lines look like a fountain. Kept low: strong noise turns a
         // plume into a snowstorm.
-        main.noiseStrength = 0.055 * Self.sizeFactor(world)
-        main.noiseScale = 1.8
-        main.noiseAnimationSpeed = 0.28
+        main.noiseStrength = 0.125 * Self.sizeFactor(world)
+        // Scale DOWN as strength goes up: a lower number is a larger swirl, and
+        // large slow swirls are what carry a plume sideways. Small strong ones
+        // just make every ember jitter in place.
+        main.noiseScale = 1.15
+        main.noiseAnimationSpeed = 0.24
 
         main.opacityCurve = .easeFadeOut
         // Slight streaking along the direction of travel. Embers are seen as
