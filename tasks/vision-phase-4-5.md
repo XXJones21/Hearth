@@ -1258,3 +1258,59 @@ Warm specks appear several metres from Sulivan in the wide frames, far beyond
 any ember's reach. They may be embers, or fixtures and reflections in
 passthrough. A frame-pair comparison would settle it -- particles move between
 adjacent frames and fixtures do not -- and it is the next thing to check.
+
+## 19. Speaking becomes a shell -- 2026-08-19
+
+The spark jet worked and could not be seen. **The live caption card hangs
+directly above the persona**, so the one region the sparks flew through is the
+one region something else already occupies.
+
+That is worth naming as a category, because it is not a tuning problem and no
+amount of speed, count or brightness would have found it: **the effect was in
+the wrong PLACE.** The whole previous round -- shared origin, shared direction,
+opposite acceleration signs, the `.once` timing bug -- was work spent making a
+jet legible in a region that was never going to be visible.
+
+### What replaced it
+
+The operator's design: the embers gather into a **shell** around the persona
+while he talks, the shell's radius rides the playback amplitude like a
+three-dimensional level meter, and it dissolves back to the rising column when
+he stops.
+
+A shell has the property the jet lacked. It surrounds him, so whatever is in
+front of or above him most of it still shows; and it reads from any angle, which
+a vertical jet does not.
+
+**The configuration is about holding still.** Every other mood is written around
+motion. This one takes motion away -- no buoyancy, heavy damping, near-zero
+birth speed, almost no turbulence -- so that the only thing moving is the thing
+carrying the signal. Turbulence in particular would blur the shell's edge, and
+the edge is what the eye reads the amplitude off.
+
+**Dense and short-lived**, which sounds contradictory and is not. Dense enough to
+read as a surface rather than a scatter; short-lived because **the lifespan IS
+the cross-fade.** Changing the emitter does not move a particle that is already
+alive, so the old plume finishes its own life while the shell fills in around
+it, and the same happens in reverse when he stops. That is the lerp, and it
+costs nothing.
+
+### Attack fast, release slow
+
+The pulse is one line in `applyPlumeScale`, riding the transform. It is
+deliberately asymmetric -- 24 per second opening, 6 closing -- which is what
+every level meter ever built does and for the same reason: consonants arrive
+faster than any eased value can follow, so symmetric easing rounds the peaks off
+and leaves the average rather than the shape. Snapping outward and falling back
+gently keeps the transients while still reading as something with mass.
+
+### What went
+
+The crown emitter, `sparkComponent`, the syllable onset detector and its
+refractory period, and the cached component the bursts needed. The amplitude now
+arrives through the transform, which touches no component at all -- so the
+speaking path costs less than it did when it was invisible.
+
+`ParticleEmitterComponent.Presets.sparks` and its `.once` timing are recorded in
+section 18 rather than deleted with the code: the lesson about presets carrying
+lifecycle decisions outlives the emitter that taught it.
