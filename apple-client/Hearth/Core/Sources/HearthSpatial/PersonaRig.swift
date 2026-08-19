@@ -779,6 +779,27 @@ public final class PersonaRig: ObservableObject {
         return bounds.max.y * rigScale
     }
 
+    /// How far the persona reaches to either SIDE of her own origin, in the
+    /// host's metres.
+    ///
+    /// The companion to `crownHeight`, and it exists for the same reason: work
+    /// hung on the persona has to be placed clear of her, and "clear of her"
+    /// is a different number for a bead the size of a plum and a person at life
+    /// size. A host that guessed one number would have it right for one of them.
+    ///
+    /// It matters more than it sounds. Her collision box spans her whole body,
+    /// so anything parented inside that span is not merely overlapping her --
+    /// it is UNREACHABLE, because a pinch aimed at it lands on her instead.
+    public var halfWidth: Float {
+        let rigScale = max(rootEntity.scale.x, 0.0001)
+        guard modelActive else { return sphereRadius * rigScale }
+        let nominal = modelLifeWidth * modelPresentationScale * 0.5
+        guard modelFramed else { return nominal }
+        let bounds = modelHost.visualBounds(relativeTo: rootEntity)
+        guard bounds.extents.x > 0.0001 else { return nominal }
+        return bounds.extents.x * 0.5 * rigScale
+    }
+
     private func layoutPersonaHosts() {
         let rigScale = max(rootEntity.scale.x, 0.0001)
         modelHost.scale = SIMD3<Float>(repeating: modelPresentationScale / rigScale)

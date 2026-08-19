@@ -414,6 +414,15 @@ struct ImmersiveHouse: View {
                           projects: libraryData.projects,
                           seedlings: libraryData.seedlings,
                           palette: viewModel.personaPalette)
+            // AND AGAIN, once there are books to measure.
+            //
+            // A restored anchor can arrive before the library has been fetched
+            // -- ARKit recognises a room in a moment and the house takes longer
+            // than that -- and an empty bookcase has no height to stand it by.
+            // So the lift is re-applied when the shelves are actually there,
+            // which is why it had to be idempotent: measuring a bookcase that
+            // already rests on the floor subtracts nothing.
+            standLibraryOnFloor()
         }
         .onChange(of: viewModel.personaVisualization) { _, visualization in
             rig.apply(visualization: visualization)
@@ -432,7 +441,14 @@ struct ImmersiveHouse: View {
         for (index, card) in cards.enumerated() {
             guard let entity = attachments.entity(for: card.id) else { continue }
             if entity.parent !== anchor { anchor.addChild(entity) }
-            entity.position = CardOrbitLayout.offsetFromOrb(index: index, count: cards.count)
+            // Pushed clear of her for the same reason the shelves are: a card's
+            // dismiss button inside a life-size persona's collision box is a
+            // button that cannot be pressed. `CardOrbitLayout` decides the
+            // column; how far out that column has to start is a fact about who
+            // is standing there.
+            var offset = CardOrbitLayout.offsetFromOrb(index: index, count: cards.count)
+            offset.x = -max(abs(offset.x), rig.halfWidth + Self.shelfClearance)
+            entity.position = offset
         }
         if let live = attachments.entity(for: Self.liveTextID) {
             if live.parent !== anchor { anchor.addChild(live) }
@@ -448,14 +464,21 @@ struct ImmersiveHouse: View {
 
         // The shelves, either side of her and turned slightly inward so they
         // face the person standing in front rather than the wall beside them.
+        // CLEAR OF HER, not merely beside her. A persona's collision box spans
+        // her whole body, so a shelf inside that span is not just overlapping
+        // -- it is unreachable, because every pinch aimed at it lands on her.
+        // 30cm is a comfortable reach from a bead the size of a plum and is
+        // INSIDE a life-size person, which is exactly why neither shelf
+        // responded when Selene was on stage.
+        let reach = max(Self.shelfReach, rig.halfWidth + Self.shelfClearance)
         if let left = attachments.entity(for: Self.leftShelfID) {
             if left.parent !== anchor { anchor.addChild(left) }
-            left.position = SIMD3<Float>(-Self.shelfReach, 0, 0.04)
+            left.position = SIMD3<Float>(-reach, 0, 0.04)
             left.orientation = simd_quatf(angle: Self.shelfToeIn, axis: SIMD3<Float>(0, 1, 0))
         }
         if let right = attachments.entity(for: Self.rightShelfID) {
             if right.parent !== anchor { anchor.addChild(right) }
-            right.position = SIMD3<Float>(Self.shelfReach, 0, 0.04)
+            right.position = SIMD3<Float>(reach, 0, 0.04)
             right.orientation = simd_quatf(angle: -Self.shelfToeIn, axis: SIMD3<Float>(0, 1, 0))
         }
 
@@ -526,7 +549,14 @@ struct ImmersiveHouse: View {
     /// the house has, how many books are in them, and the presentation scale,
     /// and any formula reproducing that here would be a second copy of
     /// arithmetic the entity already does.
+    /// Lift the bookcase until its lowest shelf rests on the placement.
+    ///
+    /// Idempotent, and that is what lets it be called from three places: when
+    /// the bookcase is first added, when the books finally arrive, and when an
+    /// anchor puts it back. A bookcase already resting on the floor measures a
+    /// `min.y` of zero and is moved by nothing.
     private func standLibraryOnFloor() {
+        guard libraryPlaced else { return }
         // Measured in the PLACEMENT's space and corrected within it, so the
         // placement root keeps meaning "the spot on the floor this bookcase
         // occupies" no matter how tall the bookcase turns out to be.
@@ -560,6 +590,11 @@ struct ImmersiveHouse: View {
         if let t = placements[.library] {
             if !libraryPlaced { placeLibrary() }
             libraryPlacement.setTransformMatrix(t, relativeTo: nil)
+            // The anchor remembers where the bookcase STANDS -- the placement
+            // root, on the floor. How far the shelves hang below that root is
+            // the library's own business and is re-derived here, because
+            // nothing about the anchor knows how many books arrived.
+            standLibraryOnFloor()
         }
     }
 
@@ -583,8 +618,14 @@ struct ImmersiveHouse: View {
 
     /// How far to each side the shelves sit, in metres. The operator's number,
     /// judged as a reach: close enough to belong to her, far enough not to be
-    /// in front of her face.
+    /// in front of her face. A FLOOR rather than the answer -- see
+    /// `shelfClearance`.
     private static let shelfReach: Float = 0.30
+
+    /// And how far outside her the shelves must stay whatever size she is.
+    /// A hand's width past the edge of the persona, so a shelf beside a
+    /// life-size figure is beside her rather than inside her.
+    private static let shelfClearance: Float = 0.12
 
     /// And how far they turn inward, so a shelf beside her faces the person in
     /// front of her rather than the wall beside them. Fifteen degrees.
