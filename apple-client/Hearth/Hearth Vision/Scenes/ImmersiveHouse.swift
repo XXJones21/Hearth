@@ -634,6 +634,10 @@ struct ImmersiveHouse: View {
         // deal narrower than that so it reads as a handle.
         readerPlacement.addGrabHandle(width: Self.readerHandleWidth,
                                       drop: Self.readerHandleDrop)
+        // A book you are holding faces you. The bookcase it came off does not:
+        // furniture that turned to follow you around the room could never be
+        // put against a wall.
+        readerPlacement.facesViewer(true)
     }
 
     /// Lift the bookcase until its lowest shelf rests on the floor.

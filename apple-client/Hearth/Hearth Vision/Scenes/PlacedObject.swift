@@ -119,6 +119,32 @@ final class PlacedObject {
         UIColor(red: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z), alpha: 1)
     }
 
+    /// Keep it turned toward whoever is looking at it.
+    ///
+    /// A panel you can carry around the room but not turn faces whichever way
+    /// it spawned, so bringing a book closer and stepping to one side leaves
+    /// you reading its edge. `BillboardComponent` is RealityKit's own answer
+    /// and is what a SwiftUI window does: the system turns the entity to the
+    /// viewer every frame, without the app ever learning where the viewer is --
+    /// which matters, because head pose is not something an app should have to
+    /// ask for in order to point a page at someone.
+    ///
+    /// A CHOICE rather than the default, because it is wrong for half of what
+    /// gets placed. Furniture stands where you put it: a bookcase that swung to
+    /// face you as you crossed the room would be a bookcase you could never put
+    /// against a wall. Things you HOLD face you; things you PLACE do not.
+    ///
+    /// Note that this takes over the entity's orientation, so `spawn(facing:)`
+    /// stops meaning anything once it is on -- and `RotateGesture`, when it
+    /// arrives in 4.5, belongs to the things that do not billboard.
+    func facesViewer(_ on: Bool) {
+        if on {
+            root.components.set(BillboardComponent())
+        } else {
+            root.components.remove(BillboardComponent.self)
+        }
+    }
+
     /// Put it at its starting place, and remember that place.
     func spawn(at position: SIMD3<Float>, facing orientation: simd_quatf = .init()) {
         home = Transform(scale: root.transform.scale,
