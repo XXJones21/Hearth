@@ -36,6 +36,7 @@ private struct TextureParams {
     var time: Float
     var scale: Float
     var brightness: Float
+    var flow: Float
     var width: UInt32
     var height: UInt32
 }
@@ -73,6 +74,24 @@ public final class AnimatedTexture {
         public static let fire = Preset(kernel: "fire_kernel",
                                         scale: 3.6, brightness: 1.15, speed: 1.25)
 
+        /// Thrown onto a WALL: flame light climbing it, gold low to ember high,
+        /// the same progression the flame itself runs.
+        /// Slowed to the flame's own pace: the mesh drifts at 0.55 against a
+        /// speed of 1.25, and a pool racing up a wall faster than the fire
+        /// making it is two effects rather than one.
+        public static let flameCookie = Preset(kernel: "flame_cookie_kernel",
+                                               scale: 3.2, brightness: 1.0, speed: 0.78)
+
+        /// The same flame thrown OUTWARD from the middle, for the surfaces a
+        /// fire stands on rather than beside.
+        public static let bloomCookie = Preset(kernel: "bloom_cookie_kernel",
+                                               scale: 3.0, brightness: 1.0, speed: 0.78)
+
+        /// Thrown onto a FLOOR or a CEILING: slow curling smoke, greyscale so
+        /// the light's own tint decides which of the two it is.
+        public static let swirlCookie = Preset(kernel: "swirl_cookie_kernel",
+                                               scale: 2.0, brightness: 1.0, speed: 0.7)
+
         /// The colour half of the fire: white heart through gold and amber to
         /// ember and ash, travelling upward. Carries no noise, so it is
         /// generated small -- see the note in the kernel about why colour and
@@ -97,6 +116,12 @@ public final class AnimatedTexture {
     public var scale: Float
     public var brightness: Float
     public var speed: Float
+
+    /// Reserved. Was "which way does the pattern move", back when one cookie
+    /// tried to serve walls and floors at once; the answer turned out to be two
+    /// kernels rather than one parameter. Kept because the uniform block is
+    /// shared and removing a field means editing both sides of it.
+    public var flow: Float = 1
 
     private var elapsed: Float = 0
 
@@ -187,6 +212,7 @@ public final class AnimatedTexture {
         var params = TextureParams(time: time,
                                    scale: scale,
                                    brightness: brightness,
+                                   flow: flow,
                                    width: UInt32(size),
                                    height: UInt32(size))
 

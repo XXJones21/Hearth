@@ -992,12 +992,6 @@ public final class PersonaRig: ObservableObject {
     /// that trade.
     public var spotBlendSharpness: Float = 1.2
 
-    /// HOT PINK AGAIN, and for the same reason it was the first time: a warm
-    /// pool cast by a warm light onto a warm wall is a thing you cannot tell
-    /// apart from the wall being warm already. It goes back to the fire's own
-    /// colour once the mechanism is proven.
-    public var spotColor: UIColor = UIColor(red: 1.0, green: 0.08, blue: 0.58, alpha: 1)
-
     private var lanternSpot: Entity?
     private var spotTexture: AnimatedTexture?
 
@@ -1041,6 +1035,7 @@ public final class PersonaRig: ObservableObject {
             // the pool fade, not switch it off a frame after the ray misses.
             spotCloseness = ease(spotCloseness, toward: 0, dt: dt)
             spotDistance = ease(spotDistance, toward: spotReach, dt: dt)
+            easeSpotTint(dt: dt)
             if spotCloseness < 0.04 { retireSpot() } else { applySpot() }
             return
         }
@@ -1048,8 +1043,9 @@ public final class PersonaRig: ObservableObject {
         let spot = lanternSpot ?? makeSpot()
         spot.setPosition(.zero, relativeTo: sphereEntity)
 
-        let wanted = simd_quatf(from: SIMD3<Float>(0, 0, -1),
-                                to: aimDirection(across: hits, nearest: nearest))
+        let aim = aimDirection(across: hits, nearest: nearest)
+        let wanted = Self.lookRotation(forward: aim)
+        dressSpot(for: Self.surfaceKind(aiming: aim, was: spotSurface), on: spot)
         let ratio = 1 - pow(Self.spotAimRetention, max(dt, 0.0001) * 60)
         spot.setOrientation(simd_slerp(spot.orientation(relativeTo: nil), wanted, ratio),
                             relativeTo: nil)
@@ -1058,8 +1054,129 @@ public final class PersonaRig: ObservableObject {
                              toward: max(0, 1 - nearest.distance / max(spotReach, 0.0001)),
                              dt: dt)
         spotDistance = ease(spotDistance, toward: nearest.distance, dt: dt)
+        easeSpotTint(dt: dt)
         applySpot()
+        // The pool breathes with the fire making it: same delta, same clock, so
+        // a flare on the flame and a flare on the wall are one event.
         spotTexture?.tick(deltaTime: dt)
+    }
+
+    /// What kind of surface the flame is lighting.
+    public enum LitSurface: Sendable { case wall, floor, ceiling }
+
+    /// Which kind we are aiming at, with hysteresis.
+    ///
+    /// The bands overlap on purpose. A single threshold would flip back and
+    /// forth every frame while the aim sat on it -- and a flip here is not a
+    /// small thing, it swaps the whole cookie. So becoming vertical needs a
+    /// clear commitment, and going back to a wall needs the aim to come well
+    /// clear of it again.
+    private static func surfaceKind(aiming direction: SIMD3<Float>,
+                                    was current: LitSurface) -> LitSurface {
+        let vertical = direction.y
+        let enter: Float = 0.72
+        let leave: Float = 0.55
+        switch current {
+        case .wall:
+            if vertical < -enter { return .floor }
+            if vertical > enter { return .ceiling }
+            return .wall
+        case .floor:
+            return vertical < -leave ? .floor : .wall
+        case .ceiling:
+            return vertical > leave ? .ceiling : .wall
+        }
+    }
+
+    /// Put the right cookie and the right tint on the light.
+    ///
+    /// THE SWAP IS THE DESIGN. One texture cannot be right on a wall and on a
+    /// floor, because fire light climbs one and spreads under the other -- two
+    /// motions, not one motion at two angles. So the surface decides, and the
+    /// spotlight's rotation being correct is what makes that decision trivial:
+    /// the aim already knows which way it is pointing.
+    ///
+    /// The floor and the ceiling share a kernel and differ only in the LIGHT's
+    /// colour, because a cookie combines with the light's tint rather than
+    /// replacing it. One greyscale swirl, tinted the fire's orange below and
+    /// its ember red above.
+    private func dressSpot(for surface: LitSurface, on spot: Entity) {
+        guard surface != spotSurface || spotTexture == nil else { return }
+        spotSurface = surface
+
+        // The bloom cookie is the flame cookie turned outward -- same tongues,
+        // same colours, thrown from the middle instead of up. Floor and ceiling
+        // still differ only by the light's tint.
+        let preset: AnimatedTexture.Preset = surface == .wall ? .flameCookie : .bloomCookie
+        let texture = AnimatedTexture(preset, size: 256)
+        spotTexture = texture
+
+        #if os(visionOS)
+        if let texture {
+            spot.components.set(SpotLightComponent.ProjectiveTexture(
+                texture: texture.textureResource))
+        }
+        #endif
+
+        // The COOKIE swaps outright and that is fine -- two patterns crossing
+        // over is not something the eye catches. The COLOUR is what cannot: a
+        // pool jumping from orange to red in one frame reads as a fault, and it
+        // is the only part of the swap that was jarring on device. So the tint
+        // is a target from here and something else walks toward it.
+        switch surface {
+        // The wall's cookie carries its own gradient, so the light stays
+        // near-white and lets it through unfiltered.
+        case .wall: spotTintTarget = Self.wallTint
+        case .floor: spotTintTarget = Self.floorTint
+        case .ceiling: spotTintTarget = Self.ceilingTint
+        }
+    }
+
+    /// Walk the light's colour toward whatever the surface asked for.
+    ///
+    /// Slower than the aim and much slower than the distance, because this is
+    /// the one change with no physical cause behind it: nothing in the room
+    /// moved, we simply decided the surface is a different kind now. A change
+    /// with no cause has to be gradual or it looks like a glitch.
+    private func easeSpotTint(dt: Float) {
+        let ratio = 1 - pow(Self.spotTintRetention, max(dt, 0.0001) * 60)
+        spotTint += (spotTintTarget - spotTint) * ratio
+    }
+
+    private static let spotTintRetention: Float = 0.95
+
+    private var spotTint = SIMD3<Float>(1.0, 0.94, 0.86)
+    private var spotTintTarget = SIMD3<Float>(1.0, 0.94, 0.86)
+
+    private var spotSurface: LitSurface = .wall
+
+    private static let wallTint = SIMD3<Float>(1.0, 0.94, 0.86)
+    /// The flame's own orange, for the pool it stands over.
+    private static let floorTint = SIMD3<Float>(1.0, 0.52, 0.16)
+    /// And its ember red for the ceiling, which is where the coolest part of a
+    /// fire's light ends up.
+    private static let ceilingTint = SIMD3<Float>(0.92, 0.22, 0.08)
+
+    /// A rotation whose -Z faces `forward`, with a STATED up.
+    ///
+    /// `simd_quatf(from:to:)` was the first version and it has no opinion about
+    /// roll: it picks whichever rotation is shortest, which changes as the
+    /// forward changes. On a wall nobody notices. Aimed at a FLOOR it means the
+    /// cookie's own orientation is arbitrary and drifts as the flame moves --
+    /// a patterned pool slowly spinning on the carpet for no reason.
+    ///
+    /// So the up vector is chosen rather than left to chance, and swapped when
+    /// the aim is near-vertical -- where world up is parallel to the forward
+    /// and defines no basis at all. That swap is a discontinuity, but it lands
+    /// on floors and ceilings where the cookie is radial and has no visible
+    /// orientation to lose.
+    private static func lookRotation(forward: SIMD3<Float>) -> simd_quatf {
+        let z = -simd_normalize(forward)                 // a spotlight shines along -Z
+        let worldUp = SIMD3<Float>(0, 1, 0)
+        let reference = abs(simd_dot(z, worldUp)) > 0.94 ? SIMD3<Float>(0, 0, -1) : worldUp
+        let x = simd_normalize(simd_cross(reference, z))
+        let y = simd_cross(z, x)
+        return simd_quatf(simd_float3x3(columns: (x, y, z)))
     }
 
     /// Where to point, given everything the rays found.
@@ -1134,16 +1251,21 @@ public final class PersonaRig: ObservableObject {
         light.outerAngleInDegrees = min(max(outer, Self.spotAngleFloor), Self.spotAngleCeiling)
         light.innerAngleInDegrees = min(inner, light.outerAngleInDegrees * 0.8)
 
-        light.color = spotColor
+        light.color = rigColor(spotTint)
         light.attenuationRadius = spotFalloffRadius
         light.attenuationFalloffExponent = spotFalloff
         // SQUARED, so the tail is dark rather than faint. A linear ramp is
         // still a quarter lit at three-quarters of the reach, which is exactly
         // the "why is that wall glowing" case; squared puts most of the effect
         // in the last third, where a fire really would be washing something.
+        // PULSED FROM THE FLAME'S OWN CLOCK, not the cookie's. The wall should
+        // brighten when the fire flares, and the two would drift apart if each
+        // read its own. `lanternTexture` is what the flame is drawn from, so it
+        // is the honest source for "how hard is it burning right now" -- the
+        // same value the point light already breathes on.
         light.intensity = spotLumens * budget.lightScale
             * (spotCloseness * spotCloseness)
-            * (0.8 + 0.4 * (spotTexture?.flicker() ?? 0.5))
+            * (0.8 + 0.4 * (lanternTexture?.flicker() ?? 0.5))
         spot.components.set(light)
     }
 
@@ -1199,28 +1321,16 @@ public final class PersonaRig: ObservableObject {
         let spot = Entity()
         spot.name = "PersonaLanternSpot"
         spot.components.set(SpotLightComponent(
-            color: spotColor,
+            color: rigColor(spotTint),
             intensity: 0,
             innerAngleInDegrees: Self.spotAngleFloor * 0.5,
             outerAngleInDegrees: Self.spotAngleFloor,
             attenuationRadius: spotFalloffRadius,
             attenuationFalloffExponent: spotFalloff))
         #if os(visionOS)
-        // NOT THE FLAME'S OWN TEXTURE. A fire does not cast a picture of itself
-        // on a wall; it casts a soft moving pool. Projecting the flame would
-        // put a flame-shaped decal on the plaster, which reads as a sticker the
-        // moment you walk past it. The smoke preset is the blurred, slow one,
-        // driven from the same clock so the pool moves with the fire making it.
-        // BACK ON, with the aim proven bare. If the pool is off-centre again
-        // now, the cookie is the cause and not the aiming -- a projective
-        // texture MULTIPLIES the cone, so a blotchy one moves the apparent
-        // light to wherever it happens to be bright.
-        let texture = AnimatedTexture(.smoke, size: 256)
-        spotTexture = texture
-        if let texture {
-            spot.components.set(SpotLightComponent.ProjectiveTexture(
-                texture: texture.textureResource))
-        }
+        // The cookie is deliberately NOT chosen here. Which one is right
+        // depends on what is being lit, and that is not known until the rays
+        // come back -- see `dressSpot`.
         if budget.lightsSurroundings {
             spot.components.set(SpotLightComponent.SurroundingsLight())
         }
@@ -1236,6 +1346,7 @@ public final class PersonaRig: ObservableObject {
         lanternSpot?.removeFromParent()
         lanternSpot = nil
         spotTexture = nil
+        spotSurface = .wall
         spotCloseness = 0
         spotDistance = spotReach
     }

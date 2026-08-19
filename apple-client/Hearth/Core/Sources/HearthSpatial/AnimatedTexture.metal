@@ -24,6 +24,7 @@ struct TextureParams {
     float time;        // seconds, drives the animation
     float scale;       // feature density across the texture
     float brightness;  // output gain
+    float flow;        // 1 = the pattern travels UP, 0 = it radiates OUTWARD
     uint  width;       // texture width  in texels
     uint  height;      // texture height in texels
 };
@@ -273,4 +274,179 @@ kernel void fire_color_kernel(texture2d<float, access::write> out [[texture(0)]]
     colour *= 0.92 + 0.14 * sin(params.time * 2.3);
 
     out.write(float4(colour, 1.0), gid);
+}
+
+// ---------------------------------------------------------------------------
+// The cookies: what the flame throws onto a surface.
+//
+// THREE OF THEM, CHOSEN BY WHAT IS BEING LIT, which is the operator's design
+// and it is the reason the spotlight's rotation was worth getting right first.
+// One texture cannot be correct on a wall and on a floor: fire light CLIMBS a
+// wall and SPREADS under itself, and those are different motions, not one
+// motion at different angles. Trying to make a single field do both produced a
+// starburst on the floorboards -- radial spokes firing out from under him --
+// because translating a noise field along every radius does not move detail
+// outward, it stretches the field into rays.
+//
+// So: a climbing flame for walls, a swirl for floors and ceilings, and the
+// COLOUR difference between floor and ceiling comes from the light's own tint
+// rather than a third kernel -- a projective texture combines with the light's
+// colour, so a greyscale swirl tinted orange and the same swirl tinted red are
+// two looks from one kernel.
+//
+// WHAT THEY ALL OBEY: bright through the middle, dark only at the rim. A cookie
+// multiplies the cone, so dark patches near the centre move the pool's apparent
+// position -- the light's visible centre is wherever the texture is bright
+// rather than wherever the cone is aimed. The cone's own inner and outer angles
+// are already the radial falloff; the radial term in these is there to keep
+// that rule and to hide the cone's rim, not to shape the pool.
+// ---------------------------------------------------------------------------
+
+/// A wall: flame light climbing it, orange at the base going to red as it goes.
+kernel void flame_cookie_kernel(texture2d<float, access::write> out [[texture(0)]],
+                                constant TextureParams &params [[buffer(0)]],
+                                uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= params.width || gid.y >= params.height) { return; }
+
+    float2 uv = float2(float(gid.x) / float(params.width),
+                       float(gid.y) / float(params.height));
+    float2 p = uv * 2.0 - 1.0;
+    float r = length(p);
+
+    float base = smoothstep(1.05, 0.10, r);
+
+    // Straight up, and only up. Rows run top-down, so subtracting from y walks
+    // the field upward on the wall -- the same trick and the same sign as the
+    // flame's own kernel, because it is the same motion.
+    // FLIPPED, on the device's word: the flames were running DOWN the wall.
+    //
+    // The flame mesh's own kernel subtracts from y to climb, and this one has
+    // to add. Both are right: a projective texture is thrown through the light
+    // the way a slide is thrown through a projector, and a projector inverts
+    // what it casts. The same sign that climbs on a surface you WEAR falls on a
+    // surface you are PROJECTED onto.
+    float2 q = p * params.scale;
+    float2 drift = float2(0.0, params.time * 0.62);
+    float2 warp = float2(fbm(q, drift), fbm(q + 4.1, drift));
+    float n = fbm(q + 1.4 * warp, drift);
+
+    // PRONOUNCED, because the first version read as a plain warm pool: the
+    // modulation was gentle enough that the movement was there and could not be
+    // SEEN. Pushing the noise through a smoothstep separates it into tongues
+    // with darker lanes between them, which is what makes ripples legible on a
+    // wall the way they are on the flame itself.
+    //
+    // The floor of 0.42 is what keeps rule 1 -- the pattern gets contrast, and
+    // the middle of the pool still never goes dark enough to pull the light's
+    // apparent centre off the cone's axis.
+    float tongues = smoothstep(0.30, 0.78, n);
+    float lum = clamp(base * (0.42 + 0.86 * tongues), 0.0, 1.0);
+
+    // The FlameMesh's own progression, in the same order: hot and orange low,
+    // cooling to red as it rises. `uv.y` is 0 at the top, so it is flipped to
+    // mean height the way it does everywhere else.
+    float height = 1.0 - uv.y;
+    // The colour follows the TONGUES as well as the height, so a lick of flame
+    // carries its own heat up the wall instead of the wall being banded.
+    float heat = clamp((1.0 - height) * 0.62 + (1.0 - tongues) * 0.38, 0.0, 1.0);
+    const float3 gold  = float3(1.00, 0.74, 0.30);
+    const float3 amber = float3(1.00, 0.42, 0.10);
+    const float3 ember = float3(0.80, 0.15, 0.05);
+
+    float3 colour = heat < 0.45
+        ? mix(gold, amber, smoothstep(0.00, 0.45, heat))
+        : mix(amber, ember, smoothstep(0.45, 1.00, heat));
+
+    out.write(float4(colour * lum, 1.0), gid);
+}
+
+/// A floor or a ceiling: slow swirling smoke, greyscale so the light's tint
+/// decides whether it is the floor's orange or the ceiling's red.
+///
+/// SWIRLED, NOT PUSHED OUTWARD. The motion is angular -- the sample coordinate
+/// is ROTATED about the centre by an amount that grows with radius and with
+/// time, which curls the field. Advancing it radially instead is what drew
+/// spokes. Nothing here translates along a radius, so nothing can streak along
+/// one.
+kernel void swirl_cookie_kernel(texture2d<float, access::write> out [[texture(0)]],
+                                constant TextureParams &params [[buffer(0)]],
+                                uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= params.width || gid.y >= params.height) { return; }
+
+    float2 uv = float2(float(gid.x) / float(params.width),
+                       float(gid.y) / float(params.height));
+    float2 p = uv * 2.0 - 1.0;
+    float r = length(p);
+
+    float base = smoothstep(1.05, 0.08, r);
+
+    // Curl: the further out, the more the field has been turned, so it winds
+    // rather than spinning as a rigid disc.
+    float angle = atan2(p.y, p.x) + params.time * 0.22 + r * 1.35;
+    float2 curled = float2(cos(angle), sin(angle)) * r * params.scale;
+
+    float2 slow = float2(params.time * 0.05, -params.time * 0.04);
+    float2 warp = float2(fbm(curled, slow), fbm(curled + 7.3, slow));
+    float n = fbm(curled + 1.4 * warp, slow);
+
+    float lum = clamp(base * (0.58 + 0.62 * smoothstep(0.2, 0.9, n)), 0.0, 1.0);
+    out.write(float4(lum, lum, lum, 1.0), gid);
+}
+
+/// A floor or a ceiling: the wall's flame, thrown outward from the middle
+/// instead of upward.
+///
+/// SAME LOOK, DIFFERENT AXIS, which is the operator's read after seeing the
+/// wall version: the cookie was right, only its direction was wrong for a
+/// surface the flame stands on. Fire light under a flame travels out from
+/// beneath it, so the tongues run from the centre to the rim and the colour
+/// runs with them -- gold in the middle where the fire is closest, ember at the
+/// edge where it is spending itself.
+///
+/// HOW IT MOVES OUTWARD WITHOUT DRAWING SPOKES, which is the trap the first
+/// attempt fell into. Translating the sample point along each radius does not
+/// move detail outward, it stretches the field into rays. Here the field is
+/// sampled on a CIRCLE whose own radius carries the radial coordinate and the
+/// clock: `(cos a, sin a) * (A + r*scale - t*speed)`. Growing time walks the
+/// sampling circle inward, so features appear to march outward, and because
+/// angle only ever enters through a cosine and a sine there is no seam and no
+/// preferred direction for anything to streak along.
+kernel void bloom_cookie_kernel(texture2d<float, access::write> out [[texture(0)]],
+                                constant TextureParams &params [[buffer(0)]],
+                                uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= params.width || gid.y >= params.height) { return; }
+
+    float2 uv = float2(float(gid.x) / float(params.width),
+                       float(gid.y) / float(params.height));
+    float2 p = uv * 2.0 - 1.0;
+    float r = length(p);
+
+    float base = smoothstep(1.05, 0.10, r);
+
+    float angle = atan2(p.y, p.x);
+    float march = 3.0 + r * params.scale - params.time * 0.62;
+    float2 q = float2(cos(angle), sin(angle)) * march;
+
+    float2 slow = float2(params.time * 0.04, -params.time * 0.03);
+    float2 warp = float2(fbm(q, slow), fbm(q + 4.1, slow));
+    float n = fbm(q + 1.4 * warp, slow);
+
+    // The same separation into tongues, and the same floor under it: contrast
+    // enough to read as movement, never dark enough in the middle to pull the
+    // pool's apparent centre off the cone's axis.
+    float tongues = smoothstep(0.30, 0.78, n);
+    float lum = clamp(base * (0.42 + 0.86 * tongues), 0.0, 1.0);
+
+    // Gold at the centre, ember at the rim -- the wall's ramp with radius
+    // standing in for height, which is the same journey away from the fire.
+    float heat = clamp(r * 0.62 + (1.0 - tongues) * 0.38, 0.0, 1.0);
+    const float3 gold  = float3(1.00, 0.74, 0.30);
+    const float3 amber = float3(1.00, 0.42, 0.10);
+    const float3 ember = float3(0.80, 0.15, 0.05);
+
+    float3 colour = heat < 0.45
+        ? mix(gold, amber, smoothstep(0.00, 0.45, heat))
+        : mix(amber, ember, smoothstep(0.45, 1.00, heat));
+
+    out.write(float4(colour * lum, 1.0), gid);
 }
