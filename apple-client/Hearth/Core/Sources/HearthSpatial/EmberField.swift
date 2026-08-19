@@ -23,15 +23,22 @@
 //
 //  AND ONE CONSEQUENCE WORTH STATING. `ParticleEmitterComponent` is a VALUE
 //  type: changing a property means reassigning the whole component, which
-//  restarts nothing but is not free. So this field is EDGE-TRIGGERED. It writes
-//  a configuration when the state changes, not every frame, which is why
-//  `appliedState` exists and why the per-frame path early-returns for the vast
-//  majority of frames.
+//  restarts nothing but is not free. So the rulebook is EDGE-TRIGGERED -- it is
+//  written when the mood changes, not every frame -- and the two things that
+//  genuinely have to move continuously, the mic swell and the hold's collapse,
+//  ride the emitter entity's TRANSFORM instead. See `update(_:)`.
+//
+//  TWO EMITTERS, NOT ONE. The body plume sits at the persona's eyes and burns
+//  through every mood. The crown sits near the flame's tip, carries no
+//  continuous output whatsoever, and exists to be burst once per syllable. They
+//  are separate because a burst needs a shared ORIGIN as much as a shared
+//  direction, and because a fire that stops being a fire while it talks is not
+//  a fire that is talking.
 //
 //  STATUS: all four turns are drawn, plus the pinch-and-hold crossing. Idle is
 //  the BASE configuration and every other mood is written as what it changes
 //  about the fire, which is the thing worth being able to read at a glance.
-//  See section 15 of `tasks/vision-phase-4-5.md`.
+//  See sections 15 and 16 of `tasks/vision-phase-4-5.md`.
 //
 
 import Foundation
@@ -54,19 +61,40 @@ public final class EmberField: ParticleChoreography {
     /// emitter sits relative to the flame.
     private let emitter = Entity()
 
-    private var world: ParticleWorld
+    /// A SECOND emitter, at the flame's tip, that only ever bursts.
+    ///
+    /// WHY A SECOND ONE. Speaking was configured on the body emitter, and the
+    /// body emitter is a sphere as wide as the flame with particles born on its
+    /// SURFACE. Every spark therefore left from a different point on a
+    /// half-metre ball -- and even with all of them aimed up, a burst whose
+    /// sources are spread across the whole silhouette does not read as a burst.
+    /// It is the shared ORIGIN as much as the shared direction that makes one.
+    ///
+    /// It also lets the fire keep burning while it talks, which one emitter
+    /// could not: reconfiguring the body into a spark jet meant the plume
+    /// stopped being a plume for the length of every sentence. Now the body
+    /// stays a fire, mildly agitated, and the crown erupts.
+    ///
+    /// It carries no continuous stream at all -- birth rate is zero, always --
+    /// so it needs no state machine. It sits there emitting nothing, and a
+    /// syllable bursts it.
+    private let crown = Entity()
+
+    private var core: ParticleCore
     private var palette: PersonaPalette
 
     /// The configuration currently written into the component. Nil forces the
     /// next update to write one.
     private var appliedState: PersonaState?
 
-    public init(world: ParticleWorld, palette: PersonaPalette) {
-        self.world = world
+    public init(core: ParticleCore, palette: PersonaPalette) {
+        self.core = core
         self.palette = palette
         root.name = "EmberField"
         emitter.name = "EmberEmitter"
+        crown.name = "EmberCrown"
         root.addChild(emitter)
+        root.addChild(crown)
         placeEmitter()
     }
 
@@ -85,8 +113,20 @@ public final class EmberField: ParticleChoreography {
     /// the same constant the face card is positioned by, so the two cannot
     /// drift apart.
     private func placeEmitter() {
-        emitter.position = SIMD3<Float>(0, world.eyeHeight, 0)
+        emitter.position = SIMD3<Float>(0, core.eyeHeight, 0)
+        // The crown sits INSIDE the taper rather than on top of it. At the
+        // visible top exactly, sparks appear to detach from a point floating
+        // above the flame; a little under, they erupt out of it.
+        crown.position = SIMD3<Float>(0, core.coreHeight * Self.crownHeight, 0)
     }
+
+    /// How far up the flame the spark jet sits, as a fraction of its visible
+    /// top.
+    private static let crownHeight: Float = 0.80
+    /// How wide the jet's mouth is, against the flame's waist. Small, because
+    /// the flame has nearly closed up by this height and a wide mouth would put
+    /// sparks outside a silhouette that has already tapered away.
+    private static let crownSpread: Float = 0.30
 
     /// How far past the flame's own skin the embers are born, at the height
     /// they are born at.
@@ -115,9 +155,9 @@ public final class EmberField: ParticleChoreography {
         mood = nil
     }
 
-    public func reshape(to newWorld: ParticleWorld) {
-        guard newWorld != world else { return }
-        world = newWorld
+    public func reshape(to newWorld: ParticleCore) {
+        guard newWorld != core else { return }
+        core = newWorld
         placeEmitter()
         mood = nil
     }
@@ -264,8 +304,8 @@ public final class EmberField: ParticleChoreography {
               frame.level > Self.onsetFloor,
               rising > Self.onsetRise else { return }
         burstCooldown = Self.onsetRefractory
-        component.burst()
-        emitter.components.set(component)
+        sparks.burst()
+        crown.components.set(sparks)
     }
 
     private var lastLevel: Float = 0
@@ -287,7 +327,7 @@ public final class EmberField: ParticleChoreography {
     /// at rest -- and every other state is expressed as what it changes about
     /// the fire, which is the thing worth being able to read at a glance.
     private func configure(_ mood: Mood, density: Float, exhaling: Bool) {
-        let scale = Self.sizeFactor(world)
+        let scale = Self.sizeFactor(core)
         var component = baseComponent(density: density)
         var main = component.mainEmitter
 
@@ -358,47 +398,25 @@ public final class EmberField: ParticleChoreography {
             main.noiseStrength = 0.070 * scale
 
         case .speaking:
-            // SPARKS, THROWN UPWARD. A log popping, once per syllable.
+            // THE FIRE IS AGITATED, and that is all this case does. The event
+            // itself happens at the crown -- see `sparkComponent`.
             //
-            // The first pass spread the gusts wide and drifted them toward the
-            // listener, on the idea that the fire should feel aimed at whoever
-            // it is talking to. On device that reads as the plume merely
-            // getting busier -- the direction is too subtle to register and the
-            // wide cone makes each gust indistinguishable from the one before.
-            // Sparks are legible because they all go the SAME way, fast, and
-            // stop: it is the shared direction that makes a burst a burst.
+            // The first pass turned the BODY into the spark jet, which is what
+            // made the sparks come from everywhere: the body is a sphere as
+            // wide as the flame with particles born on its surface. Aiming them
+            // all upward was not enough, because a burst needs a shared origin
+            // as much as a shared direction.
             //
-            // So the birth direction stops following the flame's surface normal
-            // and becomes a fixed local up. `.local` rather than `.world` so a
-            // Sulivan lying on his side -- or simply turned -- throws his sparks
-            // out of his own top rather than out of the room's.
-            component.birthDirection = .local
-            component.emissionDirection = SIMD3<Float>(0, 1, 0)
-            main.spreadingAngle = 0.40
-            // Fast out, then braked. That is the arc a spark makes: it is
-            // thrown, it loses to the air, it goes out near the top of its
-            // climb. Damping is what draws the arc -- without it this is a
-            // fountain that never comes down.
-            component.speed = 0.300 * scale
-            component.speedVariation = 0.180 * scale
-            main.dampingFactor = 0.45
-            main.acceleration = SIMD3<Float>(0, 0.050 * scale, 0)
-            // Brief and bright. A spark that lingers is an ember, and this
-            // state already has embers underneath it.
-            main.lifeSpan = 1.3
-            main.lifeSpanVariation = 0.5
-            main.sizeMultiplierAtEndOfLifespan = 0.05
-            // Sparks are LINES. Same lesson the thinking whirl taught: a fast
-            // thing drawn as a dot reads as a dot.
-            main.stretchFactor = 1.8
-            // The bed comes DOWN, below idle. The bursts are the event, and a
-            // busy continuous stream underneath is what hid them.
-            main.birthRate = 14 * density
-            // Straight flight. Turbulence at idle strength scatters a spark
-            // burst back into a cloud.
-            main.noiseStrength = 0.045 * scale
-            component.burstCount = 26
-            component.burstCountVariation = 10
+            // So the body keeps doing what a fire does and merely does it
+            // harder: a little more lift, a little more turbulence, a slightly
+            // wider mouth. Under the sparks it reads as the fire working.
+            main.birthRate = 34 * density
+            main.acceleration = SIMD3<Float>(0, 0.085 * scale, 0)
+            main.lifeSpan = 2.0
+            main.lifeSpanVariation = 0.8
+            main.spreadingAngle = 0.70
+            main.noiseStrength = 0.150 * scale
+            component.speed = 0.095 * scale
 
         case .crossing:
             // THE COLLAPSE, and it is the progress bar. Hard attraction, no
@@ -463,7 +481,99 @@ public final class EmberField: ParticleChoreography {
         // Value type: the component has to be set back, not merely mutated.
         self.component = component
         emitter.components.set(component)
+
+        // The crown is rewritten alongside the body rather than on its own
+        // schedule. It depends on exactly the same three things -- the palette,
+        // the flame's geometry, the surface's budget -- and every one of them
+        // already arrives here as a cleared mood, so a second edge to track
+        // would only be a second edge to get wrong.
+        sparks = sparkComponent(density: density)
+        crown.components.set(sparks)
     }
+
+    /// The spark jet. Apple's own `sparks` preset, then argued with.
+    ///
+    /// STARTING FROM THE PRESET rather than from a bare component is worth it
+    /// for one thing above all: whatever texture and streak character Apple
+    /// shipped with it is tuned, and this project has no reason to re-derive
+    /// it. Everything that makes a spark THIS fire's spark is overridden below.
+    private func sparkComponent(density: Float) -> ParticleEmitterComponent {
+        let scale = Self.sizeFactor(core)
+        var component = ParticleEmitterComponent.Presets.sparks
+
+        // A small mouth at the flame's tip, born through the VOLUME rather than
+        // on a surface: a surface birth on a shape this small puts every spark
+        // on a ring, and a ring is visible as a ring.
+        component.emitterShape = .sphere
+        component.emitterShapeSize = SIMD3<Float>(
+            repeating: core.waistRadius * 2 * Self.crownSpread)
+        component.birthLocation = .volume
+        // Local up, so a Sulivan who has been turned throws sparks out of HIS
+        // top rather than the room's. See the rule in ParticleField.swift.
+        component.birthDirection = .local
+        component.emissionDirection = SIMD3<Float>(0, 1, 0)
+        component.fieldSimulationSpace = .local
+        component.particlesInheritTransform = true
+        component.simulationState = .play
+        component.isEmitting = true
+        component.speed = 0.42 * scale
+        component.speedVariation = 0.22 * scale
+        // What a syllable is worth, budgeted like everything else that
+        // multiplies.
+        component.burstCount = Int(22 * density)
+        component.burstCountVariation = Int(8 * density)
+
+        var main = component.mainEmitter
+        // ZERO, ALWAYS. This emitter has no continuous output: it exists to be
+        // burst, once per syllable. A bed underneath is exactly what hid the
+        // bursts the first time round.
+        main.birthRate = 0
+        main.birthRateVariation = 0
+        main.spreadingAngle = 0.42
+
+        // A SHORT LIFE, which is the whole difference between a spark and an
+        // ember. The embers underneath live two and a half seconds and drift;
+        // these live half of one and are gone. Two populations with visibly
+        // different clocks read as two things, which is what lets the syllables
+        // stay legible on top of a fire that is already moving.
+        main.lifeSpan = 0.55
+        main.lifeSpanVariation = 0.25
+
+        main.size = 0.0055 * scale
+        main.sizeVariation = 0.0025 * scale
+        main.sizeMultiplierAtEndOfLifespan = 0.02
+
+        // DOWNWARD, and it is not a typo. Embers are lighter than the air they
+        // are in and rise; a spark is a thrown fragment and arcs. Giving the two
+        // populations opposite signs on the same axis is most of what stops the
+        // sparks from being read as simply more embers.
+        main.acceleration = SIMD3<Float>(0, -0.05 * scale, 0)
+        main.dampingFactor = 0.30
+
+        // Long streaks. A spark is seen as a line, and at this speed a dot
+        // would read as a dot -- the third time this phase that has been the
+        // answer.
+        main.stretchFactor = 2.2
+        // Almost no wander: sparks fly straight, and turbulence would scatter a
+        // burst back into the cloud it is trying to stand out from.
+        main.noiseStrength = 0.020 * scale
+
+        main.opacityCurve = .easeFadeOut
+        main.blendMode = .additive
+        main.sortOrder = .unsorted
+        main.isLightingEnabled = false
+        // Always the speaking accent, because that is the only turn this
+        // emitter ever fires in.
+        main.color = emberColor(for: .speaking)
+        main.colorEvolutionPower = 1.2
+
+        component.mainEmitter = main
+        return component
+    }
+
+    /// The crown's component, kept so a syllable can burst it without
+    /// rebuilding it.
+    private var sparks = ParticleEmitterComponent()
 
     /// The component the caller currently has on the emitter. Kept so a gust
     /// can be fired without rebuilding the rulebook around it.
@@ -477,7 +587,7 @@ public final class EmberField: ParticleChoreography {
     /// by `sizeFactor`, so a Sulivan pinched down to a desk toy gets embers in
     /// proportion instead of a shower of boulders.
     private func baseComponent(density: Float) -> ParticleEmitterComponent {
-        let scale = Self.sizeFactor(world)
+        let scale = Self.sizeFactor(core)
         var component = ParticleEmitterComponent()
 
         // Born on the skin of a sphere, leaving along its normal. This is the
@@ -493,7 +603,7 @@ public final class EmberField: ParticleChoreography {
         // embers start too far out, this factor of two is the first suspect and
         // halving it is the whole fix.
         component.emitterShapeSize = SIMD3<Float>(
-            repeating: world.waistRadius * 2 * Self.birthSpread)
+            repeating: core.waistRadius * 2 * Self.birthSpread)
         component.birthLocation = .surface
         component.birthDirection = .normal
 
@@ -662,8 +772,8 @@ public final class EmberField: ParticleChoreography {
     /// once. Which makes a single question answerable on device: if the embers
     /// are wrong at every size, the numbers are wrong; if they are right at one
     /// size and wrong at others, this factor is.
-    private static func sizeFactor(_ world: ParticleWorld) -> Float {
-        max(world.coreRadius, 0.0001) / referenceRadius
+    private static func sizeFactor(_ core: ParticleCore) -> Float {
+        max(core.coreRadius, 0.0001) / referenceRadius
     }
 
     /// Sulivan's flame at full volumetric size: `sphereRadius * 1.05`.

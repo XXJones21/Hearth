@@ -51,7 +51,7 @@ public final class FirefliesField: ParticleChoreography {
     /// say "still fully visible".
     private var twinkling = false
 
-    private var world: ParticleWorld
+    private var core: ParticleCore
     private var palette: PersonaPalette
 
     private var spinAngle: Float = 0
@@ -63,8 +63,8 @@ public final class FirefliesField: ParticleChoreography {
     private let metallic: Float = 0.5
     private let roughness: Float = 0.4
 
-    public init(world: ParticleWorld, palette: PersonaPalette) {
-        self.world = world
+    public init(core: ParticleCore, palette: PersonaPalette) {
+        self.core = core
         self.palette = palette
         root.name = "FirefliesField"
         build()
@@ -83,8 +83,8 @@ public final class FirefliesField: ParticleChoreography {
             let y = 1.0 - (Float(i) / Float(count - 1)) * 2.0
             let r = sqrt(max(0, 1.0 - y * y))
             let theta = golden * Float(i)
-            let innerEdge = world.coreRadius + 0.04
-            let dist = innerEdge + particleNoise(i) * (world.maxDistance - innerEdge)
+            let innerEdge = core.coreRadius + 0.04
+            let dist = innerEdge + particleNoise(i) * (core.maxDistance - innerEdge)
             let pos = SIMD3<Float>(cos(theta) * r * dist, y * dist, sin(theta) * r * dist)
             basePositions.append(pos)
 
@@ -131,8 +131,8 @@ public final class FirefliesField: ParticleChoreography {
     /// rebuilding 96 entities. It is recorded and otherwise ignored: the
     /// fireflies orbit a bead whose radius is a constant of the design, and the
     /// preset that changes shape underneath its field is the fire, not this one.
-    public func reshape(to newWorld: ParticleWorld) {
-        world = newWorld
+    public func reshape(to newWorld: ParticleCore) {
+        core = newWorld
     }
 
     public func update(_ frame: ParticleFrame) {
@@ -210,7 +210,7 @@ public final class FirefliesField: ParticleChoreography {
         root.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         root.scale = .one
         clearTwinkle()
-        let maxD = world.maxDistance
+        let maxD = core.maxDistance
         for i in entities.indices {
             orbitAngles[i] += orbitSpeeds[i] * frame.dt * 4
             let angle = orbitAngles[i]
@@ -235,7 +235,7 @@ public final class FirefliesField: ParticleChoreography {
         root.orientation = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
         root.scale = .one
         clearTwinkle()
-        let ringD = world.maxDistance * 0.86
+        let ringD = core.maxDistance * 0.86
         for i in entities.indices {
             orbitAngles[i] += orbitSpeeds[i] * frame.dt * 8
             let angle = orbitAngles[i]
@@ -250,7 +250,7 @@ public final class FirefliesField: ParticleChoreography {
         root.scale = .one
         clearTwinkle()
         let n = entities.count
-        let ringD = world.maxDistance * (1.0 - 0.3 * progress)
+        let ringD = core.maxDistance * (1.0 - 0.3 * progress)
         let tilt: Float = 0.6
         let spin = frame.time * (3.0 + 6.0 * progress)
         for i in entities.indices {
@@ -271,11 +271,11 @@ public final class FirefliesField: ParticleChoreography {
         root.scale = .one
         clearTwinkle()
         let n = entities.count
-        let width = world.maxDistance * 1.8
+        let width = core.maxDistance * 1.8
         let halfW = width / 2
         // A small floor keeps the line alive between syllables.
-        let amp = (0.04 + 0.5 * frame.level) * world.maxDistance
-        let z = world.coreRadius + 0.06
+        let amp = (0.04 + 0.5 * frame.level) * core.maxDistance
+        let z = core.coreRadius + 0.06
         for i in entities.indices {
             let t = n <= 1 ? 0 : Float(i) / Float(n - 1)
             let x = -halfW + t * width

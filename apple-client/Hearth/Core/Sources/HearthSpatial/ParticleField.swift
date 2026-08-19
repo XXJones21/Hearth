@@ -64,14 +64,24 @@ public enum ParticlePreset: String, Sendable, CaseIterable {
 
 // MARK: - What the field is swarming around
 
-/// The geometry a field arranges itself against.
+/// The geometry a field arranges itself against: the bead or the flame at the
+/// centre of it.
+///
+/// NAMED `Core` RATHER THAN `World`, which it was, and the rename is worth the
+/// churn. This file's central invariant is that a field resolves everything in
+/// the persona's LOCAL space and never the world's -- so a type called
+/// `ParticleWorld`, with a property called `world`, sitting a few lines from
+/// `fieldSimulationSpace = .local`, was two different meanings of the same word
+/// in the one file where the distinction had already cost a bug. The thing it
+/// describes is the core, and the fields were already called `coreRadius` and
+/// `coreHeight`.
 ///
 /// Stated rather than assumed because the two presets orbit different things.
 /// Fireflies orbit a 24cm bead. Embers rise off a flame three and a half times
 /// that tall and slightly wider at the waist -- and if the flame's proportions
 /// change, the embers have to follow without anybody editing a constant in two
 /// files. So the rig measures its own geometry and hands the numbers over.
-public struct ParticleWorld: Sendable, Equatable {
+public struct ParticleCore: Sendable, Equatable {
     /// The radius of the thing at the centre. For a bead, the sphere; for the
     /// fire, the flame's widest.
     public var coreRadius: Float
@@ -240,8 +250,8 @@ public protocol ParticleChoreography: AnyObject {
     func apply(palette: PersonaPalette)
 
     /// The core changed shape underneath the field: a lantern lit, a flame
-    /// resized. Cheap to call; implementations early-return on an equal world.
-    func reshape(to world: ParticleWorld)
+    /// resized. Cheap to call; implementations early-return on an equal core.
+    func reshape(to core: ParticleCore)
 
     /// One frame. Everything the field does happens here.
     func update(_ frame: ParticleFrame)

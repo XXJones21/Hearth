@@ -2069,12 +2069,12 @@ public final class PersonaRig: ObservableObject {
     /// the lantern lit the centre is a flame three and a half times the bead's
     /// height, and the embers have to be born on ITS skin rather than on the
     /// sphere that is no longer drawn. This is the one place that knows which.
-    private var particleWorld: ParticleWorld {
+    private var particleCore: ParticleCore {
         if lanternActive, let flameMesh {
             // The face card's own height, read from the same constant it uses,
             // so the embers and the eyes can never drift apart.
             let eyes = sphereRadius * Self.flameFaceRise
-            return ParticleWorld(coreRadius: flameMesh.radius,
+            return ParticleCore(coreRadius: flameMesh.radius,
                                  maxDistance: particleMaxDistance,
                                  coreHeight: flameMesh.visibleTop,
                                  eyeHeight: eyes,
@@ -2088,7 +2088,7 @@ public final class PersonaRig: ObservableObject {
                                                                       angle: 0,
                                                                       phase: 0))
         }
-        return ParticleWorld(coreRadius: sphereRadius,
+        return ParticleCore(coreRadius: sphereRadius,
                              maxDistance: particleMaxDistance,
                              coreHeight: 0,
                              eyeHeight: 0)
@@ -2106,14 +2106,14 @@ public final class PersonaRig: ObservableObject {
         let wanted: any ParticleChoreography
         switch effectStyle {
         case .fireflies:
-            if fireflies == nil { fireflies = FirefliesField(world: particleWorld, palette: palette) }
+            if fireflies == nil { fireflies = FirefliesField(core: particleCore, palette: palette) }
             wanted = fireflies!
         case .fire:
-            if embers == nil { embers = EmberField(world: particleWorld, palette: palette) }
+            if embers == nil { embers = EmberField(core: particleCore, palette: palette) }
             wanted = embers!
         }
         wanted.apply(palette: palette)
-        wanted.reshape(to: particleWorld)
+        wanted.reshape(to: particleCore)
         guard particles !== wanted else { return }
         particles?.root.removeFromParent()
         particles = wanted

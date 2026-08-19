@@ -407,6 +407,20 @@ struct MainVolume: View {
             rig.modelPresentationScale = Self.personaModelScale
             rig.modelVerticalOffset = Self.personaModelLift
 
+            // THE SAME SULIVAN THE ROOM SHOWS. The volume was still lighting
+            // the bead while the room burned, which made the crossing a change
+            // of PERSONA rather than a change of place -- the one thing the
+            // hold gesture is not supposed to mean.
+            //
+            // The rig's own default is still `.fireflies`, deliberately: it is
+            // what a new house shows and what the flame falls back to when its
+            // Metal machinery is unavailable. Both hosts opting in explicitly is
+            // what keeps that fallback real instead of theoretical.
+            //
+            // Whether it lands is still the rig's decision -- the fire belongs
+            // to a bead, so a switch to Selene puts it out without this line
+            // having to know her name.
+            rig.effectStyle = .fire
             rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
             rig.enableInteraction()
             rig.updateState(PersonaState(viewModel.hearthState))

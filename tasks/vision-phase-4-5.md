@@ -1122,3 +1122,57 @@ Open, and all three want the headset rather than the desk:
 - Whether the syllable refractory (110ms) reads as speech or as a stutter.
 - Whether the exhale survives the window closing, or whether 0.97 needs to be
   earlier.
+
+## 17. Two emitters, and the fire arrives in the volume -- 2026-08-19
+
+### `ParticleWorld` became `ParticleCore`
+
+Two meanings of "world" in the one file whose central invariant is local-versus-
+world space. The type describes the bead or flame at the centre of the field,
+its properties were already `coreRadius` and `coreHeight`, and the phone has not
+adopted the package yet -- so the rename is cheapest now.
+
+### The fire is what the volume shows too
+
+`MainVolume` was still lighting the bead while the room burned, which made the
+pinch-and-hold a change of PERSONA rather than a change of place -- the one
+thing that gesture is not supposed to mean. Both hosts now opt in explicitly.
+
+The rig's own default stays `.fireflies`. Both hosts stating it is what keeps
+the fallback real rather than theoretical: there is still exactly one code path
+that runs when the flame's Metal machinery is unavailable, and it is still the
+one everybody sees first.
+
+### Speaking: a second emitter
+
+**The fault.** The sparks came from every direction despite being aimed
+straight up. The body emitter is a sphere as wide as the flame with particles
+born on its SURFACE, so every spark left from a different point on a half-metre
+ball. Aiming them all one way was not enough: **a burst needs a shared origin as
+much as a shared direction.**
+
+**The fix is a second emitter, not a different configuration.** `crown` sits
+near the flame's tip -- inside the taper rather than on top of it, or the sparks
+detach from a point floating above the fire. It carries no continuous output at
+all: birth rate is zero, always, so it needs no state machine. It sits there
+emitting nothing and a syllable bursts it.
+
+That also fixes something the single emitter could not. Reconfiguring the body
+into a spark jet meant the plume stopped being a plume for the length of every
+sentence. Now the body keeps burning -- mildly agitated, a little more lift and
+turbulence -- and the crown erupts on top of it.
+
+**Built from `ParticleEmitterComponent.Presets.sparks`.** Worth starting there
+for one thing above all: whatever texture and streak character Apple shipped is
+tuned, and there is no reason to re-derive it. Everything that makes a spark
+this fire's spark is overridden.
+
+**Two populations with different clocks.** Embers live two and a half seconds
+and drift; sparks live half of one and are gone. And the accelerations have
+OPPOSITE SIGNS on the same axis -- embers are lighter than the air they sit in
+and rise, a spark is a thrown fragment and arcs. That opposition is most of what
+stops the sparks from reading as simply more embers.
+
+`stretchFactor` at 2.2. Third time this phase that "a fast thing drawn as a dot
+reads as a dot" has been the answer -- the thinking whirl, the first spark pass,
+and now this.
