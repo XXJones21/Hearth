@@ -691,6 +691,8 @@ emissive bead and its firefly field, which is what a brand-new house shows.
 `.ember` is the hearth-fire, chosen rather than assumed, and the room opts in
 explicitly while this is being built.
 
+*Renamed `.fire` in section 15, and the volume opts in too as of section 17.*
+
 It matters beyond taste. The bead is device-tested, shipped and understood, and
 it is the fallback whenever the flame's machinery is unavailable -- no Metal, no
 compute pipeline, a metallib that missed the bundle. Deleting it to make room
@@ -888,6 +890,10 @@ quantity -- speed, size, acceleration, noise -- is multiplied by one
 every size the numbers are wrong; if they are right at one size and wrong at the
 others, the factor is.
 
+*Wrong, and section 18.5 has the correction: `sizeFactor` was always exactly
+1.0, the hierarchy was already doing the scaling, and the binary test above
+could never have distinguished anything. Removed.*
+
 `particlesInheritTransform` is TRUE for the first pass. The alternative --
 leaving embers behind in world space as Sulivan is carried across a room -- is
 more physical and genuinely lovely, and it is the wrong trade first: a plume
@@ -978,6 +984,9 @@ gets a vote.
 
 ### Speaking: one gust per syllable
 
+*Superseded by section 19. Speaking is a pulsing shell; the syllable detector
+and its refractory period are gone.*
+
 The continuous configuration is only the bed the bursts land on. The state
 actually happens in `detectOnset`.
 
@@ -1045,6 +1054,7 @@ and dropping some would leave holes in a ring.
 
 - `vortexStrength` 1.4, with no documented unit behind it.
 - Whether the syllable refractory (110ms) reads as speech or as a stutter.
+  *(Moot -- the detector is gone, section 19.)*
 - Whether the exhale survives the window closing over it, or whether 0.97 needs
   to be earlier.
 
@@ -1073,7 +1083,9 @@ idle, narrow where idle is wide, quiet turbulence so the curl stays legible.
 Idle is a wide slow cloud; listening is a column going somewhere. Attention is
 upward -- a fire being listened to draws, the way a chimney draws.
 
-**"Speaking should be a burst upwards like sparks."** The wide cone plus a drift
+**"Speaking should be a burst upwards like sparks."** *(Sparks retired in section
+19 -- the region above the persona belongs to the caption card.)* The wide cone
+plus a drift
 toward the listener read as the plume merely getting busier: the direction was
 too subtle to register and the spread made each gust indistinguishable from the
 last. **It is the shared direction that makes a burst a burst.**
@@ -1144,6 +1156,11 @@ that runs when the flame's Metal machinery is unavailable, and it is still the
 one everybody sees first.
 
 ### Speaking: a second emitter
+
+*Superseded by section 19. The jet was invisible behind the caption card and the
+crown emitter has been retired -- but the diagnosis below, that a burst needs a
+shared origin as much as a shared direction, still stands and is why it was
+built.*
 
 **The fault.** The sparks came from every direction despite being aimed
 straight up. The body emitter is a sphere as wide as the flame with particles
@@ -1222,6 +1239,9 @@ whirl, the first spark pass, and now the body plume. 1.10, still under the
 sparks' 2.2.
 
 ### 4. The sparks drew nothing at all
+
+*The emitter is gone as of section 19, for an unrelated reason. The `.once`
+lesson is kept because it outlives the code that taught it.*
 
 Not one burst across six seconds of speech, in a region that should have been
 full of them. The likeliest cause, and the one now fixed: **`Presets.sparks` is
@@ -1314,3 +1334,66 @@ speaking path costs less than it did when it was invisible.
 `ParticleEmitterComponent.Presets.sparks` and its `.once` timing are recorded in
 section 18 rather than deleted with the code: the lesson about presets carrying
 lifecycle decisions outlives the emitter that taught it.
+
+## 20. Where phase 4.5 stands -- 2026-08-19
+
+Confirmed on device: the fire preset does a full turn, in both hosts, at every
+size, with the crossing in both directions.
+
+### What shipped
+
+| | |
+|---|---|
+| **Shape** | `FlameMesh`, a `LowLevelMesh` teardrop that breathes. |
+| **Surface** | An `UnlitMaterial` wearing an animated fire kernel; a curved face card in front of it. |
+| **Light** | A point light at the flame's exact centre with `SurroundingsLight`, plus the proximity spotlight that wakes near a wall, floor or ceiling and swaps its cookie for the surface it found. |
+| **Particles** | `ParticleChoreography`, with `FirefliesField` (choreographed, the default) and `EmberField` (simulated, the fire) behind it. |
+| **Gestures** | Move, scale and rotate on placed entities, assigned per object kind, with spine handles. |
+| **Room** | Scene reconstruction with occlusion AND collision, so the persona cannot be shoved through a wall. |
+
+### The three rules this phase produced
+
+They are worth more than any of the numbers, because every one of them was paid
+for by a device run that looked wrong for a reason the desk could not have
+guessed:
+
+1. **One preset, one mechanism** (section 15). Fireflies are choreographed for
+   all four states; embers are simulated for all four. Nothing switches
+   mechanism mid-turn.
+2. **Everything is local to the persona** (section 17). A field hangs off a rig
+   that travels, is carried, is resized and crosses between scenes. Anything
+   resolved against the room stops meaning what it meant.
+3. **Configuration on edges, continuous on the transform** (section 16). The
+   rulebook is a value type and costs a full write; the amplitude and the hold
+   ramp ride `emitter.scale` instead, which moves the whole live system for
+   free.
+
+### The four lessons that were not rules
+
+- **A state that reads as "less" is not a state.** Listening as a gather-and-
+  hang stopped the plume rising, and rising is what made it look like fire.
+- **A burst needs a shared ORIGIN as much as a shared direction.** Aiming every
+  spark upward off a half-metre sphere is not a burst.
+- **A fast thing drawn as a point reads as a point.** Three separate times:
+  the thinking whirl, the first spark pass, the body plume.
+- **An effect can be in the wrong PLACE**, and no tuning finds it. The spark
+  jet was correct and invisible, because the caption card owns the region above
+  the persona.
+
+### Still open
+
+- `vortexStrength` 1.4 for thinking, with no documented unit behind it.
+- Whether the exhale survives the window closing, or whether 0.97 needs to be
+  earlier.
+- The cylinder's `emitterShapeSize` axis convention is undocumented; it is
+  passed as (diameter, height, diameter) by analogy with the sphere.
+- Warm specks appear several metres from the persona in wide frames. They may be
+  embers or passthrough fixtures; a frame-pair comparison settles it, since
+  particles move between adjacent frames and fixtures do not.
+
+### What phase 4.5 did NOT do, and did not claim to
+
+Motion at room scale is still `BehaviorDirector.motion = .none`, the cards still
+want spring lag and billboarding, and `PersonaView`/`AppsView` are still dead in
+the room. All three were deferred out of phase 4 and are still deferred. The
+chibi face is parked in [tasks/persona-chibi-face.md](persona-chibi-face.md).
