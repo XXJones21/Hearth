@@ -328,27 +328,9 @@ public final class PersonaFaceTexture {
     /// most. `Bundle(for:)` cannot trap, and the nested scan below finds the
     /// same bundle whether the target links statically into the app or ships as
     /// its own framework.
+    /// See `KernelLibrary`, which is this search after the animated textures
+    /// needed the same one.
     private static func loadLibrary(device: MTLDevice) -> MTLLibrary? {
-        var candidates: [Bundle] = [Bundle(for: PersonaFaceTexture.self)]
-
-        // A package target built as a resource bundle nests it alongside the
-        // binary, named for the package and target.
-        if let resourceURL = candidates[0].resourceURL {
-            let nested = (try? FileManager.default.contentsOfDirectory(
-                at: resourceURL, includingPropertiesForKeys: nil)) ?? []
-            candidates += nested
-                .filter { $0.pathExtension == "bundle" }
-                .compactMap { Bundle(url: $0) }
-        }
-        candidates.append(.main)
-
-        for bundle in candidates {
-            if let library = try? device.makeDefaultLibrary(bundle: bundle) {
-                log.notice("kernel found in \(bundle.bundleURL.lastPathComponent, privacy: .public)")
-                return library
-            }
-        }
-        // Last resort: the process-wide default, which is the app's own.
-        return device.makeDefaultLibrary()
+        KernelLibrary.load(device: device)
     }
 }

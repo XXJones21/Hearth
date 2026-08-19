@@ -787,6 +787,15 @@ struct MainVolume: View {
         rig.modelPresentationScale = Self.personaModelScale
         rig.modelVerticalOffset = Self.personaModelLift
         rig.configure(for: .volumetric)
+        // Facing OUT OF THE BOX, not at you. Billboarding is a room behaviour:
+        // there you walk around her, so she has to turn. A volume is a window
+        // you are already square to, and a persona swivelling inside it as you
+        // lean is a persona who looks nervous.
+        rig.facesViewer = false
+        // And let go of the room's world-tracking provider with it. The rig
+        // outlives the room, so a closure left behind here would keep an ARKit
+        // session alive for a scene that has closed.
+        rig.viewerTransform = nil
         let home = SIMD3<Float>(surface == nil ? 0 : Self.stageLeftX,
                                 CardOrbitLayout.orbY, 0)
         rig.homePosition = home

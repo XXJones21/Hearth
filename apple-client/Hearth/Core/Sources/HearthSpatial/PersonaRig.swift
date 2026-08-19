@@ -171,6 +171,698 @@ public final class PersonaRig: ObservableObject {
         didSet { behavior.home = homePosition }
     }
 
+    // MARK: - Effect styles
+
+    /// Which set of effects a non-corporeal persona wears.
+    ///
+    /// A PRESET, not a replacement, and that is the operator's instruction of
+    /// 2026-08-18: the bead and its fireflies are what a brand-new house shows,
+    /// and the flame is a second style beside it rather than the thing that
+    /// took its place. A new user meets Sulivan as a warm bead in a swarm of
+    /// fireflies; the hearth-fire is chosen.
+    ///
+    /// It matters beyond taste. The bead's look is device-tested, shipped and
+    /// understood, and it is the fallback whenever the flame's machinery is
+    /// unavailable -- no Metal, no compute pipeline, a metallib that did not
+    /// make it into the bundle. Deleting it to make room for the new thing
+    /// would have left nothing to fall back TO.
+    public enum EffectStyle: String, Sendable, CaseIterable {
+        /// The emissive bead with its firefly field. The default.
+        case fireflies
+        /// The hearth-fire with its embers. Phase 4.5's work.
+        case ember
+    }
+
+    /// The style this persona is wearing. Changing it re-dresses the rig.
+    ///
+    /// `fireflies` by default, deliberately: a default is what everyone gets
+    /// who never opens a setting.
+    public var effectStyle: EffectStyle = .fireflies {
+        didSet {
+            guard effectStyle != oldValue else { return }
+            applyEffectStyle()
+        }
+    }
+
+    /// Put the current style on the rig, given who is standing there.
+    ///
+    /// Called when the style changes AND when the persona does, because both
+    /// decide the answer: the ember style belongs to a bead, and a body wearing
+    /// a fire is a different and much stranger idea. That is the same rule the
+    /// bloom and the billboard follow -- effects are a property of the
+    /// visualization KIND, never of a name.
+    private func applyEffectStyle() {
+        setLantern(effectStyle == .ember && !modelActive)
+    }
+
+    // MARK: - The lantern (phase 4.5 experiment)
+
+    /// The bead as a paper lantern: a shell wearing an animated flame, with a
+    /// point light at its exact centre throwing that warmth onto the real room.
+    ///
+    /// THE IDEA, and it is the operator's. `SurroundingsLight` is what puts a
+    /// virtual light onto physical surfaces, and a POINT light is the right
+    /// shape for a fire -- it sits somewhere and the room falls off around it,
+    /// rather than aiming a cone. What a point light cannot do is carry a
+    /// projected texture; only a spotlight can. So the pattern moves off the
+    /// light and onto the SHELL: an alpha texture makes the sphere itself
+    /// ripple, and the light inside makes the room warm.
+    ///
+    /// THE LIGHT MUST BE AT THE SPHERE'S CENTRE, exactly, which is why it is
+    /// parented to the bead rather than positioned near it. Off-centre it stops
+    /// being a bulb in a shade and becomes a lamp beside one -- and Valinor
+    /// already learned the same lesson from the other end, where moving its
+    /// projector two metres up meant nothing landed at all.
+    ///
+    /// KNOWN, BEFORE THE DEVICE SAYS IT: RealityKit point lights do not cast
+    /// shadows. `Shadow` exists on `DirectionalLightComponent` and
+    /// `SpotLightComponent` and there is no point-light equivalent. So the
+    /// shell's alpha will NOT mask the light -- the pattern will be on the
+    /// sphere, and what reaches the wall will be smooth warm light with no
+    /// filaments in it. That is worth testing anyway: it answers whether the
+    /// glow reaches a real wall at all, at what intensity, and whether the
+    /// flame reads on the bead -- three things nothing else can tell us.
+    private func setLantern(_ on: Bool) {
+        guard on != (lanternLight != nil) else { return }
+        guard on else {
+            lanternLight?.removeFromParent()
+            lanternLight = nil
+            lanternTexture = nil
+            lanternShell?.removeFromParent()
+            lanternShell = nil
+            flameMesh = nil
+            showCoreAfterLantern()
+            // Give the face and the halo back, now that nothing is standing in
+            // for them.
+            setOrbVisible(!modelActive)
+            return
+        }
+
+        lanternTexture = AnimatedTexture(.fire)
+
+        let light = Entity()
+        light.name = "PersonaLantern"
+        // Dead centre of the bead: a bulb inside a shade, not a lamp beside it.
+        light.position = .zero
+        light.components.set(PointLightComponent(color: lanternColor,
+                                                 intensity: lanternLumens,
+                                                 attenuationRadius: lanternReach))
+        // The part that makes it touch the real room rather than only virtual
+        // things. Without this the wall stays exactly as dark as it was.
+        //
+        // visionOS only, and that is the honest shape of it rather than an
+        // oversight: there are no surroundings to light on a phone. The rest of
+        // the lantern -- the shell, the flame, the bulb -- compiles and works
+        // everywhere, so iOS gets a glowing sphere and no room glow, which is
+        // exactly what iOS should get.
+        #if os(visionOS)
+        light.components.set(PointLightComponent.SurroundingsLight())
+        #endif
+        sphereEntity.addChild(light)
+        lanternLight = light
+
+        applyLanternMaterial()
+        hideCoreForLantern()
+        buildFlameFace()
+        applyHoverEffect()
+        // Take the face and the halo off, so what you are looking at is the
+        // flame and nothing else. This is the "swap the mesh out" the test
+        // asked for: same sphere, same size, entirely different surface.
+        setOrbVisible(!modelActive)
+    }
+
+    /// A candle, from Apple's own table: 10-15 lumens over about a metre. The
+    /// point-light DEFAULT is 26,963 lumens at ten metres, which is a floodlight
+    /// -- three orders of magnitude between a hearth and a car park, and the
+    /// kind of number that is much easier to look up than to guess at.
+    ///
+    /// SET FOR THE TEST, NOT FOR THE LOOK. Fourteen lumens over 1.2m is a
+    /// candle and it could not be seen at all on the first run -- which is
+    /// exactly what Apple's table says it should be, and useless for answering
+    /// "does a point light reach a real wall". So the test runs at a table lamp
+    /// and comes down once the answer is yes. Finding the ceiling first and
+    /// then dimming is a shorter road than creeping up from nothing.
+    /// Down from 7000 in two steps on the device. Valinor's 7000 was a
+    /// SPOTLIGHT's number, spread over a cone and aimed away from the orb -- a
+    /// point light spends the same lumens in every direction at once, from
+    /// inside the thing you are looking at, so it was never the same figure.
+    /// Still two orders above the candle Apple's table names, which is what a
+    /// virtual light costs when it has to compete with passthrough of a lit
+    /// room.
+    public var lanternLumens: Float = 1500 {
+        didSet { refreshLanternLight() }
+    }
+    public var lanternReach: Float = 10.0 {
+        didSet { refreshLanternLight() }
+    }
+
+    /// The lantern's colour, for the light AND the flame.
+    ///
+    /// THE LIGHT'S colour only. The flame's own colour comes from the ramp
+    /// texture, which is the whole point of having one.
+    ///
+    /// The hot pink is gone -- it did its job. It was there because a warm
+    /// light in a warm room makes success and failure look identical, and once
+    /// the wall was unmistakably lit there was nothing left for it to prove. A
+    /// debug colour that ships is a debug colour nobody removed.
+    ///
+    /// Amber rather than white: this is the colour a fire throws, and it is the
+    /// average of the ramp above the heart. When the light is eventually driven
+    /// FROM the ramp on each frame, this becomes its resting value.
+    public var lanternColor: UIColor = UIColor(red: 1.0, green: 0.55, blue: 0.22, alpha: 1) {
+        didSet { refreshLanternLight(); applyLanternMaterial() }
+    }
+
+    /// The candle this is aiming AT, from Apple's own table, kept so the number
+    /// to come back to is not lost.
+    public static let candleLumens: Float = 14
+    public static let candleReach: Float = 1.2
+
+    private var lanternLight: Entity?
+    private var lanternTexture: AnimatedTexture?
+    private var lanternShell: ModelEntity?
+    private var flameMesh: FlameMesh?
+    private var flameFacePivot: Entity?
+
+    /// The draw order for the things the lantern is made of.
+    ///
+    /// Transparency in RealityKit is sorted PER OBJECT, by distance, and two
+    /// transparent objects that overlap get whichever answer that heuristic
+    /// arrives at this frame -- which is why the face card flickered in and out
+    /// of hiding the fire. A sort group replaces the heuristic with a stated
+    /// order: the flame, then the face.
+    private let lanternSortGroup = ModelSortGroup()
+
+    /// The lantern's own clock, in seconds.
+    ///
+    /// ONE PHASE, FOUR CONSUMERS: the mesh's silhouette, the texture's inner
+    /// structure, the light's colour and its intensity. They have to agree
+    /// about when "now" is or the room gets four effects standing near each
+    /// other rather than one fire. It is passed as an argument for the same
+    /// reason `FaceDirector` takes `now` as one -- a clock read independently
+    /// in four places is four clocks.
+    private var lanternPhase: Float = 0
+
+    /// Whether the bead is currently wearing the flame instead of its own face.
+    private var lanternActive: Bool { lanternLight != nil }
+
+    /// Put a changed brightness or reach onto a light that is already burning.
+    private func refreshLanternLight() {
+        guard let light = lanternLight,
+              var component = light.components[PointLightComponent.self] else { return }
+        component.intensity = lanternLumens
+        component.attenuationRadius = lanternReach
+        component.color = lanternColor
+        light.components.set(component)
+    }
+
+    /// Build the flame: geometry for the silhouette, texture for the inside.
+    ///
+    /// The sphere shell that proved this works is gone. It could not stop being
+    /// a sphere -- see `FlameMesh` -- so the shape moves to real geometry and
+    /// the animated texture keeps doing the job it was always good at, which is
+    /// the structure WITHIN the flame rather than its outline.
+    private func applyLanternMaterial() {
+        guard let texture = lanternTexture else { return }
+        if flameMesh == nil {
+            flameMesh = FlameMesh(radius: sphereRadius * 1.05,
+                                  height: sphereRadius * 3.4)
+        }
+
+        // UNLIT, and this is the fix for a flame that came back pure white.
+        //
+        // It was a `PhysicallyBasedMaterial` with a white base colour and a
+        // 7000-lumen point light sitting INSIDE it, centimetres away. A white
+        // diffuse surface that close to a light that bright saturates: every
+        // channel clips, and the emissive ramp was a small addition on top of
+        // an already-blown-out white. Turning the emissive down would not have
+        // helped, because the light was doing the damage.
+        //
+        // Fire does not receive light. It emits. An unlit material ignores the
+        // room, ignores its own light, and draws exactly the texture it is
+        // given -- which is what the flame wanted from the start, and it makes
+        // the two-texture split unnecessary as well: unlit takes ONE colour
+        // texture and uses its alpha for transparency, so colour and density
+        // travel together.
+        // `applyPostProcessToneMap: false` on Apple's own advice for unlit
+        // materials: cheaper, and more accurate colours -- which matters when
+        // the colours ARE the effect.
+        var material = UnlitMaterial(color: .white, applyPostProcessToneMap: false)
+        material.color = .init(tint: .white, texture: .init(texture.textureResource))
+        material.blending = .transparent(opacity: 1.0)
+        // BACK FACES CULLED AGAIN. Setting this to `.none` was a mistake and it
+        // is the flame half of the transparency fault: with both sides drawn,
+        // every pixel of the flame is TWO transparent surfaces from one mesh,
+        // and RealityKit sorts transparency per object -- so the far wall of the
+        // teardrop and the near wall have no defined order between them. What
+        // that looks like is exactly what the device showed: dark regions where
+        // the two layers disagree, and a body that seems to have solid parts
+        // where nothing solid exists.
+        //
+        // A closed teardrop does not need its inside drawn. One layer, one
+        // order, half the overdraw.
+        material.faceCulling = .back
+
+        guard let flameMesh else { return }
+        if let shell = lanternShell {
+            shell.model = ModelComponent(mesh: flameMesh.resource, materials: [material])
+            return
+        }
+        let shell = ModelEntity(mesh: flameMesh.resource, materials: [material])
+        shell.name = "PersonaFlame"
+        // The flame draws FIRST, the face card second. See `lanternSortGroup`.
+        shell.components.set(ModelSortGroupComponent(group: lanternSortGroup, order: 0))
+        // The flame stands ON the bead's centre rather than around it: its own
+        // profile already puts its base slightly below its origin, which is
+        // where a flame meets whatever it is burning on.
+        shell.position = .zero
+        sphereEntity.addChild(shell)
+        lanternShell = shell
+    }
+
+    /// Take the core away entirely and leave the flame standing on its own.
+    ///
+    /// THE THIRD ANSWER TO THE SAME QUESTION, and the sequence is worth keeping
+    /// because each step was informative. The flame first went on the core's
+    /// own material, which made the bead a flame-shaped HOLE. Then it moved to
+    /// a shell over a lit core, and read as pink smears on a cream ball --
+    /// nothing for the fire to be brighter than. Then the core went dark, which
+    /// is Calcifer in a grate. Now the core goes away, which is Calcifer in the
+    /// air: whatever the flame's texture does not draw is simply not there.
+    ///
+    /// The MODEL is removed, not the entity. `sphereEntity` carries the
+    /// collision shape, the input target and the hover effect -- it is what
+    /// gaze and pinch find -- and it is the flame shell's parent. Disabling it
+    /// would take the fire and the ability to touch him with it.
+    private func hideCoreForLantern() {
+        guard let model = sphereEntity.model else { return }
+        coreModel = model
+        sphereEntity.model = nil
+    }
+
+    /// Put the face on a card in front of the flame instead of on a ball
+    /// inside it.
+    ///
+    /// THE SPRITE, and it is the operator's -- traditional animation and game
+    /// practice, where a character's features live on a flat card that always
+    /// faces you rather than on the geometry. The face texture is already
+    /// exactly what that needs: it is mostly transparent with opaque ink only
+    /// where the features are, so a card wearing it shows EYES and nothing
+    /// else. No new texture, no inverse mask to author -- the alpha it has
+    /// always had is the mask.
+    ///
+    /// The sphere shell it replaces was sized to hug a bead. A flame is
+    /// narrower than that almost everywhere and a different shape everywhere
+    /// else, so the shell either poked through the fire or sat buried in it,
+    /// and no scale fixes both at once.
+    ///
+    /// TWO ENTITIES, and the split is what makes "in front" mean anything. The
+    /// pivot billboards; the card hangs at a fixed offset along the pivot's own
+    /// forward. A card placed at a fixed offset in the FLAME's space would be in
+    /// front of the fire from one direction and behind it from the other.
+    ///
+    /// Flat rather than curved, and that is not a shortcut: a card that always
+    /// faces you is seen face-on by definition, so curvature across it would
+    /// never be visible. It becomes worth having only if the face ever stops
+    /// billboarding.
+    private func buildFlameFace() {
+        guard let faceTexture else { return }
+        if flameFacePivot != nil { return }
+
+        var material = UnlitMaterial(color: .white, applyPostProcessToneMap: false)
+        material.color = .init(tint: .white, texture: .init(faceTexture.textureResource))
+        material.blending = .transparent(opacity: 1.0)
+        // A CUTOUT, not a blend, and this is the eyes half of the same fault.
+        //
+        // A blended transparent surface is still a SURFACE: its empty texels
+        // take part in sorting even though they paint nothing, so a big mostly
+        // empty card in front of the fire intermittently won the sort and hid
+        // the flame behind its own rectangle. That is the flashing panel.
+        //
+        // A threshold makes RealityKit DISCARD anything below it rather than
+        // blend it, so the empty part of the card stops existing as far as the
+        // renderer is concerned. The cost is that the ink's edges go binary
+        // instead of soft -- which is the right trade for eyes, and would be
+        // the wrong one for the flame.
+        material.opacityThreshold = 0.35
+        // Both faces, because which way `BillboardComponent` presents an entity
+        // is not something to be confident about from the desk: if it turns the
+        // card's back to the viewer, culling makes it invisible and looks
+        // exactly like a card that was never built.
+        material.faceCulling = .none
+
+        // WIDER THAN TALL, and that is the fix for eyes that came out as two
+        // narrow tally marks.
+        //
+        // The face texture was authored to be worn by a SPHERE. The kernel
+        // draws it in longitude and latitude, and wrapping that onto a curved
+        // front hemisphere stretches it horizontally -- so the eyes are drawn
+        // narrow on purpose, and the sphere widens them back. A flat card does
+        // no such widening, so it shows the unwrapped drawing exactly as
+        // stored: correct height, far too thin.
+        //
+        // Undoing it in the card's proportions rather than in the kernel keeps
+        // the phone and the headset drawing the same face from the same
+        // numbers, which is the whole reason `FaceDirector` is shared.
+        let card = ModelEntity(mesh: .generatePlane(width: sphereRadius * Self.flameFaceWidth,
+                                                    height: sphereRadius * Self.flameFaceHeight),
+                               materials: [material])
+        card.name = "PersonaFlameFace"
+        // After the flame, always. Its position already puts it in front; this
+        // says so to the renderer rather than leaving it to be worked out from
+        // two transparent objects' origins.
+        card.components.set(ModelSortGroupComponent(group: lanternSortGroup, order: 1))
+        // Forward of the pivot, along the direction the pivot is turned to.
+        card.position = SIMD3<Float>(0, 0, sphereRadius * Self.flameFaceLift)
+
+        let pivot = Entity()
+        pivot.name = "PersonaFlameFacePivot"
+        pivot.position = SIMD3<Float>(0, sphereRadius * Self.flameFaceRise, 0)
+        pivot.components.set(BillboardComponent())
+        pivot.addChild(card)
+
+        sphereEntity.addChild(pivot)
+        flameFacePivot = pivot
+        // Said out loud: "no eyes at all" has three possible causes -- the card
+        // was not built, it was built facing away, or it is buried in the fire
+        // -- and only the first one can be ruled out from here.
+        log.notice("flame face card built")
+    }
+
+    private func removeFlameFace() {
+        flameFacePivot?.removeFromParent()
+        flameFacePivot = nil
+    }
+
+    /// The face card's proportions, how high up the flame it sits, and how far
+    /// clear of the fire it floats.
+    ///
+    /// Bigger than the first attempt as well as wider. The card's background is
+    /// fully transparent, so growing it costs nothing visually and is the
+    /// simplest way to make a face that occupies a small part of its texture
+    /// occupy a large part of the flame.
+    private static let flameFaceWidth: Float = 3.57
+    private static let flameFaceHeight: Float = 2.42
+    private static let flameFaceRise: Float = 0.25
+    /// How far the face floats clear of the fire.
+    ///
+    /// Brought back in from 1.45 now that the draw order is STATED rather than
+    /// guessed. That number existed to keep the card physically clear of the
+    /// flame, because two transparent surfaces in the same space sorted by
+    /// luck; the sort group and the cutout threshold solve that properly, so
+    /// the distance can go back to being an aesthetic choice. A face that
+    /// hovers a hand's width in front of a flame reads as a mask on a stick.
+    ///
+    /// Out to 1.75 and back to 1.0 across two device runs: 0.95 sat the eyes ON
+    /// the fire, 1.75 floated them clear of it.
+    ///
+    /// Expressed in RADII rather than centimetres on purpose -- the flame
+    /// scales with the persona, so a fixed offset would be a face pressed
+    /// against a tennis-ball Sulivan and a face stranded in front of a large
+    /// one. Which also means a correction given in centimetres has to be
+    /// converted through whatever size he was at the time, and this one assumed
+    /// the room's own bead scale. If the eyes are still wrong, say it in
+    /// radii or say what size he was.
+    private static let flameFaceLift: Float = 1.0
+
+    /// Give the bead its body back when the lantern goes out.    /// Give the bead its body back when the lantern goes out.
+    private func showCoreAfterLantern() {
+        removeFlameFace()
+        applyHoverEffect()
+        guard let model = coreModel else { return }
+        sphereEntity.model = model
+        coreModel = nil
+        configureSphereMaterial()
+    }
+
+    /// The bead's own mesh and material, parked while the flame stands alone.
+    private var coreModel: ModelComponent?
+
+    /// Keep the flame moving, and the light breathing with it.    /// Keep the flame moving, and the light breathing with it.
+    ///
+    /// The flicker is the whole reason this is not just a warm lamp. A fire's
+    /// signature from across a room is not its shape -- it is that the light on
+    /// the walls is never still.
+    private func tickLantern(dt: Float) {
+        guard let texture = lanternTexture, let light = lanternLight else { return }
+        lanternPhase += dt
+        texture.tick(deltaTime: dt)
+        flameMesh?.update(phase: lanternPhase)
+        guard var component = light.components[PointLightComponent.self] else { return }
+        component.intensity = lanternLumens * (0.75 + 0.5 * texture.flicker())
+        light.components.set(component)
+    }
+
+    /// Which axes a persona is allowed to turn on when she is facing you.
+    ///
+    /// `BillboardComponent` was the first answer and it is the wrong one for
+    /// anything with feet. It has no axis constraint: it turns the entity to
+    /// the viewer on every axis, so a persona shrunk to a desk toy and stood on
+    /// the floor TILTS BACK to look up at you. On a bead nobody would notice.
+    /// On a body it is the head-turning scene from a horror film, which is a
+    /// long way from "she is facing me".
+    ///
+    /// Roll is deliberately absent rather than merely unused. A look-at can
+    /// only recover roll from the viewer's own head tilt, which is not
+    /// something this app has or should ask for -- so offering the option would
+    /// be offering a switch that does nothing.
+    public struct FacingAxes: OptionSet, Sendable {
+        public let rawValue: Int
+        public init(rawValue: Int) { self.rawValue = rawValue }
+
+        /// Turn about the vertical -- which way she is facing.
+        public static let yaw = FacingAxes(rawValue: 1 << 0)
+        /// Tilt to look up or down at the viewer.
+        public static let pitch = FacingAxes(rawValue: 1 << 1)
+
+        /// Feet on the floor and head level: turns to face you, never leans.
+        /// The right answer for anything with a body.
+        public static let upright: FacingAxes = [.yaw]
+        /// Fully turned to the viewer, the way a flat panel wants to be.
+        public static let free: FacingAxes = [.yaw, .pitch]
+    }
+
+    /// How much of the viewer's direction the persona is allowed to take.
+    ///
+    /// `.upright` because the personas who need this have bodies. A bead could
+    /// take `.free` harmlessly, and that is exactly the kind of per-persona
+    /// difference this being a property rather than a constant is for.
+    public var facingAxes: FacingAxes = .upright
+
+    /// Where the person watching is, and which way they are looking.
+    ///
+    /// The whole device transform rather than just its translation, because the
+    /// forward vector is in it and the next things that want this -- spawning
+    /// something in front of you, a persona who walks to where you are looking
+    /// -- want the direction as much as the point. Turning to face someone only
+    /// needs the point, so that is all this file reads today.
+    ///
+    /// A CLOSURE, supplied by the host, for two reasons. HearthSpatial compiles
+    /// for iOS and must not import ARKit to do it; and the pose is the room's
+    /// to fetch, since it is the room that already runs a world-tracking
+    /// provider and already holds the authorisation for one.
+    ///
+    /// This is the head pose, which is worth naming plainly rather than
+    /// hiding: `WorldTrackingProvider.queryDeviceAnchor(atTimestamp:)` is the
+    /// documented way to have something follow a person's view, and it is
+    /// deliberately gated behind world sensing. It reaches the rig's
+    /// orientation and goes no further, and it is never stored.
+    ///
+    /// Nil, or a nil return, simply means she does not turn this frame. A
+    /// persona facing slightly the wrong way is a much smaller failure than one
+    /// that stops being drawn.
+    public var viewerTransform: (@MainActor () -> simd_float4x4?)?
+
+    /// Keep the persona turned toward whoever is looking at her.
+    ///
+    /// TWO MECHANISMS, chosen by what is on stage, which is the same rule the
+    /// effects follow: a bead is not grounded in anything, so it takes
+    /// `BillboardComponent` and turns however it likes -- there is no wrong way
+    /// up for a floating light, and the free version is cheaper and runs out of
+    /// process. A body has feet, and gets the constrained turn below.
+    ///
+    /// The reader panel is the bead's case in a different shape: a page tilting
+    /// to face you is what a page should do.
+    ///
+    /// A thing you have put on your desk should be facing you, and always being
+    /// right beats a gesture to make it right.
+    ///
+    /// IT TAKES THE ORIENTATION OVER. While this is on, `update` writes the
+    /// rig's rotation from the viewer instead of from `behaviour.yaw` -- the
+    /// director's turn would otherwise be computed, assigned and discarded.
+    /// What is lost with it is her turning to look at things, which for a
+    /// persona always facing you was never visible anyway.
+    ///
+    /// Off by default. The volume has one right way to be looked at, which is
+    /// out of the front of the box.
+    ///
+    /// A FLAG RATHER THAN A FIXED COMPONENT, on purpose and ahead of need. When
+    /// motion is picked back up, a persona who crosses the room has to face the
+    /// way she is WALKING -- a figure gliding sideways across a floor while
+    /// staring at you is the uncanny version of this feature, not a subtler
+    /// one. So the director will want this off for the length of a move and
+    /// back on when she settles, and the switch is here now so that discovering
+    /// it later is a line of code rather than an unpicking.
+    public var facesViewer = false {
+        didSet { refreshFacing() }
+    }
+
+    /// Put the right facing mechanism on the rig for whoever is standing there.
+    ///
+    /// Called when the flag changes AND when the persona does, because a switch
+    /// from Sulivan to Selene changes which mechanism is correct -- and a
+    /// billboard left behind on a body is precisely the tilt this was all
+    /// written to avoid.
+    private func refreshFacing() {
+        if facesViewer && !modelActive {
+            rootEntity.components.set(BillboardComponent())
+        } else {
+            rootEntity.components.remove(BillboardComponent.self)
+        }
+    }
+
+    /// Turn to the viewer, on the axes she is allowed to turn on.
+    ///
+    /// HER FRONT IS +Z, which is the one assumption here worth knowing about.
+    /// It is not arbitrary: at yaw zero she faces out of the volumetric
+    /// window, and the person looking into that window is on the +Z side. If a
+    /// persona ever ends up facing away, this is the sign to flip and nothing
+    /// else -- a model authored backwards is corrected by `rotationY` from its
+    /// own config, which is a different knob in a different place.
+    private func faceViewer() {
+        guard let device = viewerTransform?() else { return }
+        let viewer = SIMD3<Float>(device.columns.3.x, device.columns.3.y, device.columns.3.z)
+        let toViewer = viewer - rootEntity.position(relativeTo: nil)
+
+        let flat = SIMD2<Float>(toViewer.x, toViewer.z)
+        guard simd_length(flat) > 0.0001 else { return }
+        let yaw = facingAxes.contains(.yaw) ? atan2(toViewer.x, toViewer.z) : 0
+
+        var pitch: Float = 0
+        if facingAxes.contains(.pitch) {
+            let distance = simd_length(toViewer)
+            if distance > 0.0001 { pitch = asin(toViewer.y / distance) }
+        }
+
+        rootEntity.orientation = simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
+            * simd_quatf(angle: pitch, axis: SIMD3<Float>(1, 0, 0))
+    }
+
+    /// Capture for a pinch in progress, in METRES, so a resize is a delta from
+    /// the size the gesture started at rather than a compounding multiplication
+    /// of whatever the last frame produced.
+    private var gestureSize: Float?
+
+    /// How big the persona currently IS, in the host's metres -- her height if
+    /// she has a body, the bead's diameter if she does not.
+    ///
+    /// One number for two very different things, which is the same trick
+    /// `crownHeight` plays and for the same reason: a host resizing a persona
+    /// should not have to know which kind it has.
+    public var presentedSize: Float {
+        modelActive ? crownHeight : sphereRadius * 2 * max(rootEntity.scale.x, 0.0001)
+    }
+
+    /// Set how big the persona is, in metres, through whichever knob actually
+    /// governs it.
+    ///
+    /// AND THEY ARE DIFFERENT KNOBS, which is the whole reason this method
+    /// exists rather than a caller writing a scale. `layoutPersonaHosts` sets
+    /// `modelHost.scale = modelPresentationScale / rigScale`, deliberately, so
+    /// that a model keeps its own size while the bead changes with the host --
+    /// which means the rig scale is CANCELLED for a model and `setRigScale`
+    /// moves a corporeal persona not at all. A pinch routed through it looks
+    /// broken and is not: it is asking the wrong knob.
+    ///
+    /// So: a body is sized by `modelPresentationScale`, a bead by the rig
+    /// scale, and the caller says how tall it wants her in metres.
+    public func resize(to metres: Float) {
+        // Clamped HERE rather than only in the gesture, because this is also
+        // the restore path -- and a size that arrives from a store is exactly
+        // the one nobody watched being produced. A bad number written straight
+        // to the knob is a persona you cannot find in order to fix.
+        let range = modelActive ? Self.modelHeightRange : Self.beadSizeRange
+        let metres = min(max(metres, range.lowerBound), range.upperBound)
+        if modelActive {
+            // Her authored height, recovered from what she currently measures,
+            // rather than assumed from `modelLifeHeight`. The fit already
+            // happened and the measurement knows about it.
+            let unit = max(crownHeight / max(modelPresentationScale, 0.0001), 0.0001)
+            modelPresentationScale = metres / unit
+        } else {
+            setRigScale(metres / max(sphereRadius * 2, 0.0001))
+        }
+    }
+
+    /// Resize by however much the pinch has spread since it began.
+    ///
+    /// Sets a TARGET rather than the size itself. A magnification read straight
+    /// onto the knob every frame is as steady as the hand reporting it, and a
+    /// two-handed pinch in mid-air is not steady at all -- the persona judders
+    /// while it grows. See `tickSize`.
+    public func magnify(by magnification: Float) {
+        if gestureSize == nil { gestureSize = presentedSize }
+        guard let start = gestureSize else { return }
+        let range = modelActive ? Self.modelHeightRange : Self.beadSizeRange
+        targetSize = min(max(start * max(magnification, 0.0001),
+                             range.lowerBound), range.upperBound)
+    }
+
+    /// True while a pinch-to-resize is in progress, so a host can keep other
+    /// gestures off her while it is. A two-handed pinch also reads as a drag,
+    /// and a persona who slides across the room while being resized is being
+    /// asked two things at once.
+    public var isResizing: Bool { gestureSize != nil }
+
+    /// Let go of a resize. The TARGET is kept: the ease is allowed to finish
+    /// after your fingers have opened, which is what makes the last frame of a
+    /// gesture look like the end of a movement rather than a stop.
+    public func endGesture() {
+        gestureSize = nil
+    }
+
+    /// Ease the persona toward the size the pinch asked for.
+    ///
+    /// Frame-rate independent, and that matters more here than it looks: a
+    /// fixed per-frame fraction eases at one speed at 90Hz and another when the
+    /// room is busy, so the feel of the gesture would change with the scene.
+    /// Raising the retention to a power of the frame's share of 60Hz keeps the
+    /// time constant fixed in SECONDS instead.
+    private func tickSize(dt: Float) {
+        guard let target = targetSize else { return }
+        let current = presentedSize
+        guard abs(target - current) > 0.0005 else {
+            resize(to: target)
+            targetSize = nil
+            return
+        }
+        let blend = 1 - pow(Self.sizeRetention, max(dt, 0.0001) * 60)
+        resize(to: current + (target - current) * blend)
+    }
+
+    /// How much of the gap to the target survives each 60Hz frame. Lower is
+    /// snappier; this is roughly a tenth of a second to settle, which reads as
+    /// attached to the hand rather than as lag.
+    private static let sizeRetention: Float = 0.75
+
+    private var targetSize: Float?
+
+    /// What a persona may be pinched to, as PHYSICAL SIZES rather than as
+    /// fractions of a scale.
+    ///
+    /// Fractions were the first attempt and they were wrong twice over. A
+    /// single 0.3 floor meant a bead whose host had already set 0.5 could only
+    /// shrink to a grapefruit, and meant nothing at all for a body whose size
+    /// does not come from that scale. Metres are what the person in the room is
+    /// actually judging, so metres are what the clamp is written in.
+    ///
+    /// The numbers are the operator's, given on device on 2026-08-18: the bead
+    /// goes down to a TENNIS BALL, and the body to a shade over a traditional
+    /// doll -- small enough to stand on a desk, which is the point of being
+    /// able to shrink her at all.
+    public static let beadSizeRange: ClosedRange<Float> = 0.067...0.60
+    public static let modelHeightRange: ClosedRange<Float> = 0.34...2.0
+
     // MARK: - The model personas
 
     /// Where a `glb_animated` persona stands. A child of the rig root, so a
@@ -288,9 +980,19 @@ public final class PersonaRig: ObservableObject {
     private let sphereAlpha: Float = 1.0
     private let sphereMetallic: Float = 0.5
     private let sphereRoughness: Float = 0.4
-    /// Generous on purpose: a gaze target the size of the bead is a gaze target
-    /// people miss.
-    private let tapTargetRadius: Float = 0.46
+    /// THE SIZE OF THE BEAD, and no longer generous.
+    ///
+    /// It was 0.46 against a sphere of 0.24 -- nearly double, on the reasoning
+    /// that a gaze target the size of the bead is one people miss. In a volume
+    /// that cost nothing. In a ROOM it is a metre-wide invisible ball around a
+    /// palm-sized light: it held Sulivan half a metre off the floor, because
+    /// what met the floor was the collider rather than the sphere, and it made
+    /// him feel like he was bumping into things that were not there.
+    ///
+    /// A collider that is not the shape of the thing is a lie the room tells,
+    /// and in a room the room is the authority. If gaze targeting suffers, the
+    /// answer is a small margin here -- not a second sphere.
+    private var tapTargetRadius: Float { sphereRadius }
     private let particleCount = 96
     private let particleRadius: Float = 0.010
     private let particleMaxDistance: Float = 0.48
@@ -630,6 +1332,10 @@ public final class PersonaRig: ObservableObject {
             }
             self.modelActive = true
             self.setOrbVisible(false)
+            // A billboard belongs to a bead. She has feet now, and so does the
+            // fire she is not wearing.
+            self.refreshFacing()
+            self.applyEffectStyle()
             // NO collision yet, deliberately. The first cut set a provisional
             // box here from the un-fitted model, which for a USDZ authored at
             // a hundred times its final size is a box around the whole room --
@@ -665,6 +1371,9 @@ public final class PersonaRig: ObservableObject {
         guard modelActive else { return }
         modelActive = false
         setOrbVisible(true)
+        // Back to a bead, which may billboard freely -- and may burn.
+        refreshFacing()
+        applyEffectStyle()
     }
 
     private func clearModelCollision() {
@@ -689,8 +1398,16 @@ public final class PersonaRig: ObservableObject {
     private func setOrbVisible(_ visible: Bool) {
         sphereEntity.isEnabled = visible
         particleField.isEnabled = visible && isAlive
-        glowBillboard?.isEnabled = visible && isAlive && !realBloomActive
-        faceShell?.isEnabled = visible && isAlive
+        // The lantern REPLACES the bead's own surface, so the two things drawn
+        // on top of it come off with it. The face shell sits at 1.02 of the
+        // sphere's radius -- it is a second sphere covering the first -- so a
+        // flame applied underneath is perfectly hidden by a face. That is why
+        // swapping the material alone changed nothing you could see.
+        glowBillboard?.isEnabled = visible && isAlive && !realBloomActive && !lanternActive
+        // The sphere face is off while the flame burns: the card in front of
+        // the fire is wearing the same texture, and two faces is one too many.
+        faceShell?.isEnabled = visible && isAlive && !lanternActive
+        lanternShell?.isEnabled = visible && isAlive && lanternActive
     }
 
     /// The model host's own scale: the presentation fraction, with the rig
@@ -944,10 +1661,16 @@ public final class PersonaRig: ObservableObject {
             let swell = breathe + 0.18 * pulse
 
             sphereEntity.scale = SIMD3<Float>(repeating: swell)
-            sphereMaterial.emissiveColor = .init(color: rigColor(glow))
-            sphereMaterial.emissiveIntensity = intensity * 1.3 + 0.3 * pulse
-            sphereMaterial.baseColor = .init(tint: rigColor(sphereBaseColor, alpha: sphereAlpha))
-            sphereEntity.model?.materials = [sphereMaterial]
+            // The core paints itself as usual -- UNLESS the lantern is lit, in
+            // which case the core's job is to be the dark the flame is seen
+            // against. See `dressCoreForLantern`.
+            if !lanternActive {
+                sphereMaterial.emissiveColor = .init(color: rigColor(glow))
+                sphereMaterial.emissiveIntensity = intensity * 1.3 + 0.3 * pulse
+                sphereMaterial.baseColor = .init(tint: rigColor(sphereBaseColor,
+                                                                alpha: sphereAlpha))
+                sphereEntity.model?.materials = [sphereMaterial]
+            }
 
             let bloom = min(1.0, intensity * 0.5)
             if let billboard = glowBillboard {
@@ -964,10 +1687,23 @@ public final class PersonaRig: ObservableObject {
         // inferring it: only the rig knows whether the house is talking.
         let offset = behavior.tick(dt: dt, speaking: currentState == .speaking)
         rootEntity.position = homePosition + offset
+        // How big she is, eased toward whatever the last pinch asked for.
+        tickSize(dt: dt)
+        tickLantern(dt: dt)
+
         // The rig turns, which is what makes the face look at anything: the
         // face is painted on the front of a shell that does not billboard, so
         // it looks wherever the rig is pointed.
-        rootEntity.orientation = simd_quatf(angle: behavior.yaw, axis: SIMD3<Float>(0, 1, 0))
+        //
+        // One author for the orientation, whichever it is. Facing the viewer
+        // and performing the director's own turn are the same field, and a
+        // frame that wrote both would show whichever ran second.
+        if facesViewer && modelActive {
+            faceViewer()
+        } else if !facesViewer {
+            rootEntity.orientation = simd_quatf(angle: behavior.yaw,
+                                                axis: SIMD3<Float>(0, 1, 0))
+        }
         // Edges only: this is inside a per-frame tick, and assigning an equal
         // value to a @Published still notifies.
         if behavior.performing != performingBehavior {
@@ -1220,9 +1956,39 @@ public final class PersonaRig: ObservableObject {
         let shape = ShapeResource.generateSphere(radius: tapTargetRadius)
         sphereEntity.components.set(CollisionComponent(shapes: [shape]))
         sphereEntity.components.set(InputTargetComponent())
-        sphereEntity.components.set(HoverEffectComponent())
+        applyHoverEffect()
         #endif
     }
+
+    /// The gaze feedback, which is not one effect for every persona.
+    ///
+    /// THE WHITE FLASH. visionOS draws a hover highlight wherever you look, out
+    /// of process, and the default is a bright neutral one -- which on a bead
+    /// is exactly right and on a FLAME is a white sheet dropping over the fire
+    /// at random. It looked like a rendering fault and it is the system telling
+    /// you, correctly, that this thing can be tapped.
+    ///
+    /// SO IT IS RESTYLED RATHER THAN SUPPRESSED. Moving the collider to an
+    /// invisible proxy would silence it, and would also silence the one signal
+    /// that the persona is interactive at all -- a real loss for the sake of an
+    /// artefact. A warm, weak spotlight style says the same thing in the fire's
+    /// own language: look at him and he brightens, which is what a fire does
+    /// when you lean toward it.
+    private func applyHoverEffect() {
+        #if os(visionOS)
+        guard lanternActive else {
+            sphereEntity.components.set(HoverEffectComponent())
+            return
+        }
+        sphereEntity.components.set(HoverEffectComponent(.spotlight(
+            .init(color: lanternColor, strength: Self.lanternHoverStrength))))
+        #endif
+    }
+
+    /// Weak on purpose: enough to notice, not enough to read as a flash. If it
+    /// still announces itself on device, this is the number, and zero is a
+    /// legitimate answer.
+    private static let lanternHoverStrength: Float = 0.35
 
     // MARK: - Helpers
 
