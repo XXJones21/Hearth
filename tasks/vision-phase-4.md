@@ -502,6 +502,25 @@ Other rules from the same doc, recorded because each is a trap:
 - **`@SceneStorage`** restores per-scene state across launches -- the open rail
   tab and the open destination are candidates, once the volume settles.
 
+### No presentations in a room
+
+Found on device 2026-08-18: **"Presentations are not currently supported in
+Immersive contexts."** A `Menu` is a presentation, and so are sheets, popovers
+and alerts -- in an immersive space they log that line and show nothing at all.
+
+The persona switcher was a `Menu` and is now an unrolling section of the shelf
+itself: pressing the dot grows the shelf downward into the persona list, which
+is the same list in the same place without asking the system to present
+anything.
+
+**Still outstanding, and each is a control that will do nothing if pressed in
+the room:** `PersonaView`'s prompt editor and colour picker, and `AppsView`'s
+card library, all of which are `.sheet`. They work in the volume and are dead in
+the room. The fix should follow the doctrine the settings rows already use -- a
+capability the host declares rather than a platform check at each call site --
+so a surface can ask whether presentations are available and offer a different
+route, or withhold the control, rather than showing one that silently fails.
+
 ### Controls in a room, revisited
 
 Two Apple samples bear on the shelves, and they change the options written in

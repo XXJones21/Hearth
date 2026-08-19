@@ -215,40 +215,60 @@ struct PersonaRailShelf: View {
 ///
 /// The same rules the status ornament settled: a live switch rather than
 /// Settings' "Start with" pin, a tick on `selectedPersona` as the phone's
-/// drawer draws it, and only a menu at all when there is something to choose.
-/// A menu that opens onto one disabled row is a control that lied about being
-/// one.
+/// drawer draws it, and only offered at all when there is something to choose.
+/// A control that opens onto one disabled row is a control that lied about
+/// being one.
+///
+/// NOT A MENU, and that is the room's constraint rather than a preference:
+/// "Presentations are not currently supported in Immersive contexts". A `Menu`
+/// is a presentation, so in a room it logs that and shows nothing -- the same
+/// goes for popovers, sheets and alerts. The shelf therefore grows DOWNWARD
+/// instead: pressing the dot unrolls the personas as more rows of the shelf,
+/// which is the same list in the same place without asking the system to
+/// present anything.
 private struct PersonaSwitchButton: View {
     @ObservedObject var viewModel: ChatViewModel
+
+    @State private var expanded = false
 
     private var canSwitch: Bool {
         viewModel.connectionStatus == .connected && viewModel.availablePersonas.count > 1
     }
 
     var body: some View {
-        Group {
-            if canSwitch {
-                Menu {
-                    ForEach(viewModel.availablePersonas, id: \.self) { name in
-                        Button {
-                            viewModel.switchPersona(name)
-                        } label: {
-                            if name == viewModel.selectedPersona {
-                                Label(name, systemImage: "checkmark")
-                            } else {
-                                Text(name)
-                            }
-                        }
-                    }
-                } label: {
-                    face
-                }
-                .buttonStyle(.plain)
-            } else {
+        VStack(spacing: 4) {
+            Button {
+                guard canSwitch else { return }
+                withAnimation(.easeOut(duration: 0.18)) { expanded.toggle() }
+            } label: {
                 face
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Persona: \(viewModel.currentPersonaName)"
+                                + (canSwitch ? ". Switch." : ""))
+
+            if expanded {
+                ForEach(viewModel.availablePersonas, id: \.self) { name in
+                    Button {
+                        viewModel.switchPersona(name)
+                        withAnimation(.easeOut(duration: 0.18)) { expanded = false }
+                    } label: {
+                        Text(name.prefix(1))
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(name == viewModel.selectedPersona
+                                             ? HearthPalette.ember
+                                             : HearthPalette.roast)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(name)
+                    .accessibilityAddTraits(name == viewModel.selectedPersona ? [.isSelected] : [])
+                }
+            }
         }
-        .accessibilityLabel("Persona: \(viewModel.currentPersonaName). Switch.")
+        // A list that stays unrolled behind your back is clutter the next time
+        // you look at the shelf.
+        .onChange(of: canSwitch) { _, can in if !can { expanded = false } }
     }
 
     /// A dot in the persona's own accent rather than an icon, because the

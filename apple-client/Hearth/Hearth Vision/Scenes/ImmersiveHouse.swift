@@ -50,6 +50,14 @@ import HearthCore
 import HearthUI
 import HearthSpatial
 
+/// Somewhere for the room to remember a placement without telling SwiftUI.
+///
+/// See `ImmersiveHouse.placement` for why this is a class.
+@MainActor
+private final class RoomPlacement {
+    var spawn: SIMD3<Float>?
+}
+
 struct ImmersiveHouse: View {
     @ObservedObject var viewModel: ChatViewModel
     @ObservedObject var rig: PersonaRig
@@ -85,7 +93,16 @@ struct ImmersiveHouse: View {
     /// it, and a persona who was three metres away is now three metres from
     /// somewhere else. Re-applying this puts her back where the room started
     /// rather than leaving her somewhere behind a wall.
-    @State private var spawnLocation: SIMD3<Float>?
+    ///
+    /// A REFERENCE type, and that is not a style choice. This is written by
+    /// `place()`, which runs inside the RealityView's update closure, and
+    /// writing a `@State` value there is "Modifying state during view update,
+    /// this will cause undefined behavior" -- SwiftUI's words. It is also how
+    /// the room came up EMPTY: the write invalidated the body mid-update, and
+    /// the add that should have followed it did not reliably land. Mutating a
+    /// property of a held object is not a state change, so the closure can
+    /// remember something without telling SwiftUI it has.
+    @State private var placement = RoomPlacement()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -142,6 +159,15 @@ struct ImmersiveHouse: View {
     /// nothing at runtime and let the compiler finish.
     private var stage: some View {
         RealityView { content, _ in
+            // ADDED HERE as well as in `update`, and the belt matters more than
+            // the braces. The update closure only runs when the body is
+            // invalidated, and the room's one guaranteed invalidation -- the
+            // spawn transform arriving -- does not happen when that transform
+            // comes back nil. Which is exactly the case where the persona is
+            // most needed and was least present.
+            place()
+            content.add(rig.rootEntity)
+
             // `.volumetric`, in a room, deliberately: that mode keeps the
             // billboard halo, and the halo is what the bead's glow IS until
             // bloom is tuned. Switching to `.immersive` here took the halo away
@@ -301,9 +327,9 @@ struct ImmersiveHouse: View {
         // a phase change, and coming back to `.active` is the one moment worth
         // checking whether the persona is still somewhere findable.
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .active, let spawnLocation else { return }
-            rig.homePosition = spawnLocation
-            rig.rootEntity.position = spawnLocation
+            guard phase == .active, let home = placement.spawn else { return }
+            rig.homePosition = home
+            rig.rootEntity.position = home
         }
         // The bookcase is a room object, so its own drag is its own gesture --
         // it does not travel with the persona and must not be moved by her.
@@ -492,7 +518,7 @@ struct ImmersiveHouse: View {
         rig.rootEntity.position = home
         // Remembered, not recomputed: dragging her somewhere else should not
         // change where "back to the start" means.
-        if spawnLocation == nil { spawnLocation = home }
+        if placement.spawn == nil { placement.spawn = home }
     }
 
     /// How high the rig's ORIGIN sits above the floor.
