@@ -1176,3 +1176,85 @@ stops the sparks from reading as simply more embers.
 `stretchFactor` at 2.2. Third time this phase that "a fast thing drawn as a dot
 reads as a dot" has been the answer -- the thinking whirl, the first spark pass,
 and now this.
+
+## 18. What the recording said -- 2026-08-19
+
+Frames pulled at 0.2s intervals through six seconds of continuous speech, plus
+tight crops around the flame. Five findings, all of them things the desk could
+not have produced.
+
+Working, and worth recording as such: the flame silhouette, its striations, the
+face sitting on it, and the proximity spotlight -- including a genuinely
+convincing pool of firelight on the floorboards under a desk-toy-sized Sulivan.
+
+### 1. The plume was a ball, and by construction
+
+Embers sat in a rough sphere around the flame, several of them clearly BELOW
+its base. Two causes, both structural:
+
+- **Birth on a sphere's SURFACE.** A sphere has a bottom, so a third of every
+  ember was born under the fire.
+- **`birthDirection = .normal`.** Each ember left along whichever way its birth
+  point happened to face, which averages to nothing.
+
+And the forces confirmed it: outward travel settles near `speed / damping`
+≈ 0.26m, while the buoyant rise over a 2.4s life was `½·a·t²` ≈ 0.18m. **Sideways
+beat up.** No amount of noise tuning fixes a ball whose geometry is a ball.
+
+Now a `.cylinder` spanning the flame's body, born through its VOLUME, with every
+ember leaving along local up. Volume also removes the shell artefact -- a
+surface birth puts every particle on a thin skin, and a skin is visible as a
+skin. Buoyancy is four times what it was and the birth speed is under half, so
+the lift dominates, which is also what actually happens to an ember.
+
+### 2. Far too sparse
+
+Ten to fifteen visible against an expected steady state near sixty. The missing
+ones were not missing: they were **inside the flame**, where an additive dot on
+a bright gold surface is invisible. The rate has to be set for the escapees
+rather than for the population. 26/s becomes 55/s, and every mood moves with it.
+
+### 3. Round dots, not streaks
+
+`stretchFactor` at 0.35 did not read at all. Third time this phase that "a fast
+thing drawn as a point reads as a point" has been the answer -- the thinking
+whirl, the first spark pass, and now the body plume. 1.10, still under the
+sparks' 2.2.
+
+### 4. The sparks drew nothing at all
+
+Not one burst across six seconds of speech, in a region that should have been
+full of them. The likeliest cause, and the one now fixed: **`Presets.sparks` is
+an IMPACT effect, so its `timing` is `.once`.** It emits when installed and is
+finished forever, and `burst()` does not revive an emitter whose timing has run
+out. Inheriting a preset inherits its LIFECYCLE, and lifecycle decisions are
+exactly the ones that never show up as a wrong-looking particle. They show up as
+nothing, which is the hardest thing to read off a recording.
+
+`timing` is now stated explicitly. The crown also gains a thin trickle -- five a
+second, against the forty on the BODY that hid the bursts the first time. Purity
+of a zero was worth less than making the emitter's liveness visible: the last
+recording could not distinguish "the bursts are not firing" from "the emitter is
+not alive", and those want completely different fixes.
+
+### 5. `sizeFactor` was always exactly 1.0
+
+Every number was multiplied by `coreRadius / 0.252`, and `coreRadius` is
+`flameMesh.radius` = `sphereRadius * 1.05` -- a constant of the rig's LOCAL
+space, which does not change when a persona is resized. The size lives in
+`rootEntity.scale`, several nodes up.
+
+Nothing was broken by it: the answer to the question it was built to ask is that
+**the hierarchy already does the scaling**, because the emitter is a descendant
+of the rig root and `particlesInheritTransform` is true. What it cost was a
+multiply per number and a false reassurance -- the device test designed around it
+("wrong at every size means the numbers, wrong at some sizes means the factor")
+could never have distinguished anything. Removed, with the reference stated as a
+fact about the geometry instead.
+
+### Still unresolved
+
+Warm specks appear several metres from Sulivan in the wide frames, far beyond
+any ember's reach. They may be embers, or fixtures and reflections in
+passthrough. A frame-pair comparison would settle it -- particles move between
+adjacent frames and fixtures do not -- and it is the next thing to check.

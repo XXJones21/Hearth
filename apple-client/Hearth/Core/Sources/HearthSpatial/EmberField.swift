@@ -123,6 +123,10 @@ public final class EmberField: ParticleChoreography {
     /// How far up the flame the spark jet sits, as a fraction of its visible
     /// top.
     private static let crownHeight: Float = 0.80
+    /// How much of the flame's height the birth column spans, against its
+    /// visible top. Slightly over one, because the flame hangs below the rig's
+    /// origin as well as standing above it.
+    private static let birthColumn: Float = 1.15
     /// How wide the jet's mouth is, against the flame's waist. Small, because
     /// the flame has nearly closed up by this height and a wide mouth would put
     /// sparks outside a silhouette that has already tapered away.
@@ -327,7 +331,6 @@ public final class EmberField: ParticleChoreography {
     /// at rest -- and every other state is expressed as what it changes about
     /// the fire, which is the thing worth being able to read at a glance.
     private func configure(_ mood: Mood, density: Float, exhaling: Bool) {
-        let scale = Self.sizeFactor(core)
         var component = baseComponent(density: density)
         var main = component.mainEmitter
 
@@ -353,24 +356,24 @@ public final class EmberField: ParticleChoreography {
             main.vortexStrength = 0.55
             main.vortexDirection = SIMD3<Float>(0, 1, 0)
             // Lift well above idle -- this is the state's whole character.
-            main.acceleration = SIMD3<Float>(0, 0.160 * scale, 0)
-            main.dampingFactor = 0.28
+            main.acceleration = SIMD3<Float>(0, 0.400, 0)
+            main.dampingFactor = 0.12
             // Long, so the spiral has room to draw itself tall.
             main.lifeSpan = 3.4
             main.lifeSpanVariation = 1.0
-            main.birthRate = 32 * density
+            main.birthRate = 60 * density
             // NARROWER than idle, which is what separates the two at a glance:
             // idle is a wide slow cloud, listening is a column going somewhere.
-            main.spreadingAngle = 0.35
+            main.spreadingAngle = 0.30
             // Enough trace to see the curl. Below thinking, which is all streak.
-            main.stretchFactor = 0.80
+            main.stretchFactor = 1.20
             // Quiet turbulence so the spiral stays a spiral. Noise at idle
             // strength scribbles over the shape the vortex is drawing.
-            main.noiseStrength = 0.055 * scale
+            main.noiseStrength = 0.050
             // Low outward speed: the LIFT is doing the work here, not the birth
             // velocity. Sideways speed at idle levels would flatten the column
             // back into the cloud it is trying not to be.
-            component.speed = 0.045 * scale
+            component.speed = 0.025
 
         case .thinking:
             // A FIRE WHIRL. Vertical axis, which is the choice that keeps this
@@ -384,18 +387,18 @@ public final class EmberField: ParticleChoreography {
             // STREAKS, not dots. A spiral drawn by points is a scatter; drawn
             // by short traces along the path, it is a spiral. This is the one
             // number doing most of the work in this state.
-            main.stretchFactor = 1.5
+            main.stretchFactor = 1.80
             main.lifeSpan = 3.2
             main.lifeSpanVariation = 0.9
-            main.birthRate = 34 * density
+            main.birthRate = 62 * density
             // Less lift, so the whirl stays a whirl. Full buoyancy stretches it
             // into a helix so tall that the turning is no longer visible.
-            main.acceleration = SIMD3<Float>(0, 0.045 * scale, 0)
+            main.acceleration = SIMD3<Float>(0, 0.100, 0)
             // And barely any damping, because the tangential speed IS the
             // effect. Damping is what kills a vortex.
-            main.dampingFactor = 0.22
-            main.spreadingAngle = 0.50
-            main.noiseStrength = 0.070 * scale
+            main.dampingFactor = 0.10
+            main.spreadingAngle = 0.45
+            main.noiseStrength = 0.060
 
         case .speaking:
             // THE FIRE IS AGITATED, and that is all this case does. The event
@@ -410,13 +413,13 @@ public final class EmberField: ParticleChoreography {
             // So the body keeps doing what a fire does and merely does it
             // harder: a little more lift, a little more turbulence, a slightly
             // wider mouth. Under the sparks it reads as the fire working.
-            main.birthRate = 34 * density
-            main.acceleration = SIMD3<Float>(0, 0.085 * scale, 0)
+            main.birthRate = 64 * density
+            main.acceleration = SIMD3<Float>(0, 0.340, 0)
             main.lifeSpan = 2.0
             main.lifeSpanVariation = 0.8
-            main.spreadingAngle = 0.70
-            main.noiseStrength = 0.150 * scale
-            component.speed = 0.095 * scale
+            main.spreadingAngle = 0.65
+            main.noiseStrength = 0.140
+            component.speed = 0.050
 
         case .crossing:
             // THE COLLAPSE, and it is the progress bar. Hard attraction, no
@@ -435,11 +438,11 @@ public final class EmberField: ParticleChoreography {
             main.dampingFactor = 0.85
             main.lifeSpan = 1.6
             main.lifeSpanVariation = 0.4
-            main.birthRate = 55 * density
+            main.birthRate = 90 * density
             main.spreadingAngle = 0.25
-            main.noiseStrength = 0.030 * scale
-            component.speed = 0.045 * scale
-            component.speedVariation = 0.025 * scale
+            main.noiseStrength = 0.030
+            component.speed = 0.040
+            component.speedVariation = 0.025
             // Held hot. A ramp that cools on the way in would make the collapse
             // look like the fire going out, which is the opposite of what a
             // crossing means.
@@ -466,8 +469,8 @@ public final class EmberField: ParticleChoreography {
             main.spreadingAngle = .pi
             main.sizeMultiplierAtEndOfLifespan = 0.05
             main.stretchFactor = 1.2
-            component.speed = 0.55 * scale
-            component.speedVariation = 0.25 * scale
+            component.speed = 0.550
+            component.speedVariation = 0.250
             component.burstCount = 90
             component.burstCountVariation = 20
         }
@@ -498,8 +501,22 @@ public final class EmberField: ParticleChoreography {
     /// shipped with it is tuned, and this project has no reason to re-derive
     /// it. Everything that makes a spark THIS fire's spark is overridden below.
     private func sparkComponent(density: Float) -> ParticleEmitterComponent {
-        let scale = Self.sizeFactor(core)
         var component = ParticleEmitterComponent.Presets.sparks
+
+        // TIMING, STATED, and this is the likeliest reason the first pass drew
+        // nothing whatsoever.
+        //
+        // A preset called `sparks` is an IMPACT effect, and an impact effect is
+        // `.once` -- it emits for a moment when it is installed and is then
+        // finished forever. Inheriting that meant this emitter was already dead
+        // before anybody spoke, and no amount of `burst()` revives an emitter
+        // whose timing has run out.
+        //
+        // The lesson generalises past the bug: a preset is a bundle of
+        // decisions, and the ones it makes about LIFECYCLE are exactly the ones
+        // that never show up as a wrong-looking particle. They show up as
+        // nothing at all, which is the hardest thing to read off a recording.
+        component.timing = .repeating(emit: .init(duration: 86_400))
 
         // A small mouth at the flame's tip, born through the VOLUME rather than
         // on a surface: a surface birth on a shape this small puts every spark
@@ -516,19 +533,25 @@ public final class EmberField: ParticleChoreography {
         component.particlesInheritTransform = true
         component.simulationState = .play
         component.isEmitting = true
-        component.speed = 0.42 * scale
-        component.speedVariation = 0.22 * scale
+        component.speed = 0.420
+        component.speedVariation = 0.220
         // What a syllable is worth, budgeted like everything else that
         // multiplies.
         component.burstCount = Int(22 * density)
         component.burstCountVariation = Int(8 * density)
 
         var main = component.mainEmitter
-        // ZERO, ALWAYS. This emitter has no continuous output: it exists to be
-        // burst, once per syllable. A bed underneath is exactly what hid the
-        // bursts the first time round.
-        main.birthRate = 0
-        main.birthRateVariation = 0
+        // A THIN TRICKLE rather than nothing, and it is not the bed that hid
+        // the bursts before -- that was forty a second on the BODY, competing
+        // with the sparks at the same size and colour. Five a second from the
+        // tip is a fire that occasionally spits while it talks.
+        //
+        // It is worth more than the purity of a zero, because it makes the
+        // emitter's own liveness VISIBLE. The last recording could not
+        // distinguish "the bursts are not firing" from "the emitter is not
+        // alive", and those two want completely different fixes.
+        main.birthRate = 5 * density
+        main.birthRateVariation = 3 * density
         main.spreadingAngle = 0.42
 
         // A SHORT LIFE, which is the whole difference between a spark and an
@@ -539,15 +562,15 @@ public final class EmberField: ParticleChoreography {
         main.lifeSpan = 0.55
         main.lifeSpanVariation = 0.25
 
-        main.size = 0.0055 * scale
-        main.sizeVariation = 0.0025 * scale
+        main.size = 0.0055
+        main.sizeVariation = 0.0025
         main.sizeMultiplierAtEndOfLifespan = 0.02
 
         // DOWNWARD, and it is not a typo. Embers are lighter than the air they
         // are in and rise; a spark is a thrown fragment and arcs. Giving the two
         // populations opposite signs on the same axis is most of what stops the
         // sparks from being read as simply more embers.
-        main.acceleration = SIMD3<Float>(0, -0.05 * scale, 0)
+        main.acceleration = SIMD3<Float>(0, -0.050, 0)
         main.dampingFactor = 0.30
 
         // Long streaks. A spark is seen as a line, and at this speed a dot
@@ -556,7 +579,7 @@ public final class EmberField: ParticleChoreography {
         main.stretchFactor = 2.2
         // Almost no wander: sparks fly straight, and turbulence would scatter a
         // burst back into the cloud it is trying to stand out from.
-        main.noiseStrength = 0.020 * scale
+        main.noiseStrength = 0.020
 
         main.opacityCurve = .easeFadeOut
         main.blendMode = .additive
@@ -582,38 +605,50 @@ public final class EmberField: ParticleChoreography {
     /// Idle: a slow, sparse rise. The fire is burning and nobody is talking to
     /// it -- and it is also the baseline every other state is written against.
     ///
-    /// The numbers are chosen against a flame roughly 25cm wide and 80cm tall
-    /// -- Sulivan at his full volumetric size -- and every one of them is scaled
-    /// by `sizeFactor`, so a Sulivan pinched down to a desk toy gets embers in
-    /// proportion instead of a shower of boulders.
+    /// The numbers are in the RIG'S units, where the flame is 25cm across and
+    /// 78cm tall whatever size the persona is actually being shown at. The
+    /// hierarchy converts them -- see the note on scale below.
     private func baseComponent(density: Float) -> ParticleEmitterComponent {
-        let scale = Self.sizeFactor(core)
         var component = ParticleEmitterComponent()
 
-        // Born on the skin of a sphere, leaving along its normal. This is the
-        // shape that reads as "coming off a fire" rather than "shot from a
-        // point": embers leave in every direction at once, and the ones aimed
-        // down simply lose to buoyancy a moment later, which is exactly what
-        // real ones do.
-        component.emitterShape = .sphere
-        // SIZE, NOT RADIUS. RealityKit's other `size` properties are full
-        // extents along each axis, so a birth sphere as wide as the flame is a
-        // diameter -- and reading it as a radius is the likeliest explanation
-        // for how far inside the silhouette the first pass landed. If the
-        // embers start too far out, this factor of two is the first suspect and
-        // halving it is the whole fix.
+        // A COLUMN THROUGH THE FLAME, and this replaces a shell around it.
+        //
+        // The first pass was a sphere with particles born on its SURFACE and
+        // leaving along the surface NORMAL. Both halves were wrong, and the
+        // recording showed exactly how: a sphere has a bottom, so a third of
+        // every ember was born UNDER the fire and pushed downward, and what was
+        // left was a ball of dots distributed evenly around the flame rather
+        // than anything rising off it. Embers do not come out of the bottom of
+        // a fire.
+        //
+        // A cylinder spanning the flame's body, born through its VOLUME, is the
+        // honest shape: a flame is a column of hot gas and an ember can be
+        // lifted from anywhere inside it. Volume rather than surface also
+        // removes the shell artefact -- a surface birth puts every particle on
+        // a thin skin, and a skin is visible as a skin.
+        component.emitterShape = .cylinder
         component.emitterShapeSize = SIMD3<Float>(
-            repeating: core.waistRadius * 2 * Self.birthSpread)
-        component.birthLocation = .surface
-        component.birthDirection = .normal
+            core.waistRadius * 2 * Self.birthSpread,
+            core.coreHeight * Self.birthColumn,
+            core.waistRadius * 2 * Self.birthSpread)
+        component.birthLocation = .volume
+        // AND THEY ALL LEAVE UPWARD. `.normal` was the other half of the ball:
+        // it aimed each ember along whichever way its birth point happened to
+        // face, which averages to nothing. Local up, so a persona who has been
+        // turned still sends embers out of his own top rather than the room's.
+        component.birthDirection = .local
+        component.emissionDirection = SIMD3<Float>(0, 1, 0)
 
-        // Slow, but not as slow as the first pass. An ember's speed comes from
-        // the air around it, not from a launch, and anything much faster reads
-        // as sparks off a grinder -- but too slow and buoyancy wins immediately,
-        // which is what kept the plume as narrow as the flame. The outward
-        // travel has to survive long enough to get clear.
-        component.speed = 0.085 * scale
-        component.speedVariation = 0.070 * scale
+        // SLOW OUT, FAST UP, and the ratio is the whole fix.
+        //
+        // It used to be the other way round. Outward travel settled around
+        // speed-over-damping, roughly a quarter metre; the buoyant rise over a
+        // 2.4 second life was about two thirds of that. Sideways beat up, so
+        // the result was a ball however the noise was tuned. Now the birth
+        // velocity is small and the LIFT does the work -- which is also what
+        // actually happens to an ember.
+        component.speed = 0.035
+        component.speedVariation = 0.030
 
         // PARTICLES FOLLOW THE PERSONA. The alternative -- leaving embers
         // behind in world space as Sulivan is carried across a room -- is more
@@ -649,39 +684,43 @@ public final class EmberField: ParticleChoreography {
         // Sparse. Fewer, better-seen embers beat a haze -- the same lesson the
         // firefly twinkle taught, where a hundred dots at a tenth opacity read
         // as clutter and a third of them at full opacity read as fireflies.
-        main.birthRate = 26 * density
-        main.birthRateVariation = 10 * density
+        // DENSER. On device the field read as a dozen specks. At 26 a second
+        // over a 2.4 second life the steady state is about sixty embers -- but
+        // most of those sixty are INSIDE the flame, where an additive dot on a
+        // bright gold surface is invisible. Only the escapees are ever seen, so
+        // the rate has to be set for them rather than for the population.
+        main.birthRate = 55 * density
+        main.birthRateVariation = 18 * density
 
         // Long enough to travel a flame-height and a bit past it. Embers that
         // die at the crown look like the flame has a lid.
         main.lifeSpan = 2.4
         main.lifeSpanVariation = 1.1
 
-        main.size = 0.0075 * scale
-        main.sizeVariation = 0.004 * scale
+        main.size = 0.0090
+        main.sizeVariation = 0.0040
         // Embers SHRINK as they burn out. Fading alone leaves ghosts of the
         // original size hanging in the air.
         main.sizeMultiplierAtEndOfLifespan = 0.15
 
-        // BUOYANCY, which is the whole reason a `.normal` birth direction works
-        // here. Embers leave the flame in every direction and are then all bent
-        // upward by the same rising column of air. Damping is what makes that
-        // bend look like air rather than gravity: they lose their initial
-        // speed, and what remains is the lift.
-        main.acceleration = SIMD3<Float>(0, 0.062 * scale, 0)
-        // Damping down from 0.55: it was bleeding off the outward speed before
-        // the ember had cleared the flame, so every one of them turned upward
-        // while still inside it. Less damping is what lets the plume open.
-        main.dampingFactor = 0.32
-        // And a much wider cone off the birth normal. At 0.30 the embers left
-        // the surface almost perpendicular and in near-lockstep, which reads as
-        // a shell rather than a swarm.
-        main.spreadingAngle = 0.85
+        // BUOYANCY, now the dominant force rather than a bias on top of one.
+        // Four times what it was: over a 2.4 second life this carries an ember
+        // most of a metre, comfortably past the flame's crown. An ember that
+        // dies before it clears the fire may as well not have been born,
+        // because nothing inside the flame can be seen against it.
+        main.acceleration = SIMD3<Float>(0, 0.260, 0)
+        // Damping down again, to stop fighting the rise. Drag is what caps the
+        // climb, and the climb is the effect.
+        main.dampingFactor = 0.15
+        // A narrower cone than the shell needed. With every ember already
+        // leaving upward, the spread is the plume's TAPER rather than its
+        // shape -- and a wide one only puts embers back out to the sides.
+        main.spreadingAngle = 0.55
 
         // The wander. A fire's air is turbulent, and embers that rise in
         // straight lines look like a fountain. Kept low: strong noise turns a
         // plume into a snowstorm.
-        main.noiseStrength = 0.125 * scale
+        main.noiseStrength = 0.100
         // Scale DOWN as strength goes up: a lower number is a larger swirl, and
         // large slow swirls are what carry a plume sideways. Small strong ones
         // just make every ember jitter in place.
@@ -689,10 +728,11 @@ public final class EmberField: ParticleChoreography {
         main.noiseAnimationSpeed = 0.24
 
         main.opacityCurve = .easeFadeOut
-        // Slight streaking along the direction of travel. Embers are seen as
-        // short traces rather than points, because they move while the eye
-        // integrates -- and because a camera would show the same.
-        main.stretchFactor = 0.35
+        // STREAKS, and 0.35 was not one. On device every ember was a round dot:
+        // a moving thing drawn as a point reads as a point, which is the same
+        // lesson the thinking whirl and the first spark pass each taught.
+        // Three times the number, and still under the sparks'.
+        main.stretchFactor = 1.10
 
         // ADDITIVE, AND IT SOLVES THE PROBLEM THAT COST THIS PROJECT DAYS.
         // Every transparency artefact on the flame came from sorting: two
@@ -760,24 +800,31 @@ public final class EmberField: ParticleChoreography {
         }
     }
 
-    // MARK: - Scale
+    // MARK: - Scale, and the multiply that did nothing
 
-    /// How much smaller or larger this flame is than the one the numbers above
-    /// were judged against.
-    ///
-    /// Everything the emitter takes -- speed, size, acceleration, noise -- is in
-    /// metres or metres per second, and none of it means anything without a
-    /// reference. Rather than restate each number as a fraction inline, the
-    /// whole configuration is written for a reference flame and then scaled
-    /// once. Which makes a single question answerable on device: if the embers
-    /// are wrong at every size, the numbers are wrong; if they are right at one
-    /// size and wrong at others, this factor is.
-    private static func sizeFactor(_ core: ParticleCore) -> Float {
-        max(core.coreRadius, 0.0001) / referenceRadius
-    }
-
-    /// Sulivan's flame at full volumetric size: `sphereRadius * 1.05`.
-    private static let referenceRadius: Float = 0.252
+    // THERE IS NO SIZE FACTOR ANY MORE, and removing it is a correction rather
+    // than a simplification.
+    //
+    // Every number in this file used to be multiplied by
+    // `coreRadius / 0.252`, written to answer the open question of whether
+    // emitter output scales with entity scale. It was always exactly 1.0.
+    // `coreRadius` is `flameMesh.radius`, which is `sphereRadius * 1.05` -- a
+    // constant of the rig's LOCAL space, which does not change when a persona
+    // is pinched from a tennis ball to life size. The size lives in
+    // `rootEntity.scale`, several nodes up.
+    //
+    // Nothing was broken by it, because the answer to the original question
+    // turns out to be that the hierarchy already does the scaling: the emitter
+    // is a descendant of the rig root, `particlesInheritTransform` is true, and
+    // every metre written here is a rig-local metre that the transform converts
+    // on the way out. What the factor actually did was cost a multiply per
+    // number and offer false reassurance -- the device test it was built for
+    // ("wrong at every size means the numbers, wrong at some sizes means the
+    // factor") could never have distinguished anything.
+    //
+    // So: every number here is in the RIG'S units, where the flame is 0.25
+    // across and 0.78 tall. That is the reference, and it is a fact about the
+    // geometry rather than a variable.
 
     // MARK: - Helpers
 
