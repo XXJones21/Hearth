@@ -146,13 +146,28 @@ public struct ParticleFrame: Sendable {
     /// the flourish is the same event whatever turn it interrupts.
     public var transition: Float
 
+    /// How much swarm this surface can afford, 0 to 1.
+    ///
+    /// A simulated field is the cheapest thing in the room to turn down and one
+    /// of the more expensive to leave running: in the immersive house the
+    /// embers share a frame with the proximity spotlight, the scene mesh and
+    /// two Metal kernels. So the count is a POLICY of the surface rather than a
+    /// constant of the preset, and it arrives here the same way every other
+    /// budgeted effect arrives -- from `EffectBudget`, read once by the rig
+    /// instead of queried by each effect.
+    ///
+    /// Choreographed fields ignore it: 96 dots is 96 dots, and dropping some
+    /// would leave holes in a ring.
+    public var density: Float
+
     public init(state: PersonaState,
                 time: Float,
                 dt: Float,
                 motion: Float,
                 spin: Float,
                 level: Float,
-                transition: Float) {
+                transition: Float,
+                density: Float = 1) {
         self.state = state
         self.time = time
         self.dt = dt
@@ -160,6 +175,7 @@ public struct ParticleFrame: Sendable {
         self.spin = spin
         self.level = level
         self.transition = transition
+        self.density = density
     }
 }
 

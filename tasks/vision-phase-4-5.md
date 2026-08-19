@@ -898,13 +898,9 @@ trail does not.
 
 Listening, thinking and speaking are named in `EmberField.update` and currently
 hold the idle configuration, deliberately and visibly, so the first device pass
-judges one thing. What they want, and what the emitter can already express:
+judges one thing.
 
-- **Listening** -- `attractionStrength` and `attractionCenter` pull the embers
-  back in and hold them, so the fire looks like it is drawing breath.
-- **Thinking** -- `vortexStrength` and `vortexDirection` spin the plume.
-- **Speaking** -- `burst()` on the playback amplitude, which is the emitter's
-  answer to the fireflies' waveform line: not the same shape, the same job.
+*Superseded by section 16 -- all four turns and the crossing are drawn.*
 
 ### One thing fixed on the way past
 
@@ -914,3 +910,140 @@ shifted the blame -- the signature of a body that is too large rather than a
 line that is wrong. Split at the natural seam, where the RealityView ends and
 the modifier chain begins, plus the card attachment lifted into `StageCard`.
 Not part of this work; it was simply in the way.
+
+## 16. The other three, and the crossing -- 2026-08-19
+
+Idle read well on device, so the rest followed. One thing had to be settled
+first, because it decided all four.
+
+### The split that made them affordable
+
+`EmberField` early-returned unless the turn changed. That was right for idle and
+could not survive listening or speaking, both of which want CONTINUOUS data --
+mic level, playback amplitude -- or the crossing, which wants a two-second ramp.
+Rewriting a value-type component sixty times a second is exactly the cost
+section 15 warned about.
+
+So the field now has two kinds of lever:
+
+- **Configuration** -- birth rate, lifespan, colour, vortex, attraction. The
+  emitter's rulebook. Written on EDGES only: the turn changed, the palette
+  changed, the surface's budget changed.
+- **Continuous** -- the emitter entity's own TRANSFORM. Because
+  `particlesInheritTransform` is true, scaling that entity moves the whole live
+  plume every frame for the price of a transform write.
+
+That keeps section 15's rule intact. Nothing repositions an individual ember;
+the simulation stays authoritative and the whole system is moved around it. And
+`particlesInheritTransform` has now earned its keep twice -- it was chosen so
+the plume would scale with a pinched-down Sulivan, and it turns out to be the
+only reason the transform is a usable lever at all.
+
+### Idle is the base, not a peer
+
+The six configurations are one base with five departures rather than six
+near-identical functions. Idle IS the base -- the fire at rest -- and every
+other mood is written as what it CHANGES about the fire, which is the thing
+worth being able to read at a glance six months from now.
+
+### Listening: the fire draws breath
+
+`attractionStrength` toward the emitter's own origin, which is the eyes, with
+buoyancy almost switched off. Embers still leave the skin and are then hauled
+back rather than escaping: the plume gathers and hangs instead of rising. That
+is a fire when a door opens and the air starts moving toward it.
+
+The mic swells the whole plume through `emitter.scale`. The fireflies widen
+their swirl for the same input; this is the same sentence in the other language.
+
+Turbulence comes DOWN here, not up. A held breath should look held, and noise at
+idle strength reads as fidgeting.
+
+### Thinking: a fire whirl
+
+`vortexStrength` about a vertical axis. The alternative was spinning about the
+viewer's axis, the way the fireflies stand their ring up to frame the face --
+but that fights buoyancy the whole way and stops looking like anything that
+burns. The flame frames the face here, which the bead never did, so the vortex
+does not have to.
+
+Two numbers do the work: `stretchFactor` at 1.5, because a spiral drawn by
+points is a scatter and a spiral drawn by short traces along the path is a
+spiral; and `dampingFactor` down to 0.22, because the tangential speed IS the
+effect and damping is what kills a vortex. Lift comes down too -- full buoyancy
+stretches the whirl into a helix so tall the turning stops being visible.
+
+`vortexStrength` has no documented unit. 1.4 is a first guess and the device
+gets a vote.
+
+### Speaking: one gust per syllable
+
+The continuous configuration is only the bed the bursts land on. The state
+actually happens in `detectOnset`.
+
+**A RISE through a floor, not a level above it.** Amplitude alone would burst
+continuously through a loud word and never during a quiet one. The onset -- the
+moment the level jumps -- is what a syllable is, and it is the same edge the
+flame mesh already pulses on, which is why the two read as matched rather than
+as two effects that happen to be busy at the same time.
+
+The refractory period is the safety margin. Speech runs at four to seven
+syllables a second; without a floor under the interval a noisy level fires every
+frame and the gust becomes a stream, which is precisely what this is trying not
+to be.
+
+Acceleration also gains a small +z component. The face card sits at +z, so the
+embers travel toward whoever is being spoken to rather than merely upward. Small
+thing; it makes the fire feel aimed.
+
+### The crossing: collapse, then one burst
+
+Chosen over a rising column for three reasons, and the first is the one that
+matters: **the same pinch crosses in both directions.** A pillar reads as going
+*up* somewhere, which is wrong half the time. Collapse-and-release does not care
+which way you are travelling.
+
+**The collapse is the progress bar.** Hard attraction, no buoyancy, heavy
+damping, short life: the fire hauls its embers in and goes tight and quiet, and
+how tight it has got is how far through the two seconds you are. Nothing has to
+be drawn to say the hold is building. The transform ramp does the other half --
+attraction alone just makes the plume denser; the scale ramp is what makes the
+gathering read as continuous.
+
+**Aborting is free.** The plume scale eases toward its target, so a hold
+abandoned at 1.4 seconds simply relaxes. No unwind path, which is where these
+usually break.
+
+At 0.97 it becomes the exhale: birth rate to ZERO, cone wide open, speed up
+sevenfold, one `burst()` fired from inside the configuration so the burst is
+spawned under the rules it belongs to. Birth rate at zero is deliberate -- a
+continuous stream underneath would blur the single moment two seconds were
+building toward into just more fire.
+
+High damping with no acceleration makes it a shockwave rather than a fountain.
+The embers fling out, stop, and fade where they stopped. A fountain would still
+be climbing when the scene changed, and a flourish half-finished at the cut is
+worse than none. The scale SNAPS rather than eases here for the same reason:
+there are about sixty milliseconds before the window closes, and easing would
+still be halfway through when the scene changed.
+
+Colour holds hot through both. A ramp that cooled on the way in would make the
+collapse look like the fire going out, which is the opposite of what a crossing
+means. Both crossing moods borrow the SPEAKING accent -- a crossing is not a
+turn and has no colour of its own, and holding whatever the turn happened to be
+would mean the same flourish came out cold when it interrupted a thinking beat.
+
+### Density is now a budget line
+
+`EffectBudget` gains `particleDensity`, and it is deliberately NOT `lightScale`:
+there is no light to scale on a phone but there is still a fire to draw, so
+reusing the light's zero would have deleted the embers outright. 0.55 flat, 0.8
+volumetric, 1.0 immersive. Choreographed fields ignore it -- 96 dots is 96 dots,
+and dropping some would leave holes in a ring.
+
+### What the device still has to say
+
+- `vortexStrength` 1.4, with no documented unit behind it.
+- Whether the syllable refractory (110ms) reads as speech or as a stutter.
+- Whether the exhale survives the window closing over it, or whether 0.97 needs
+  to be earlier.

@@ -179,23 +179,35 @@ public final class PersonaRig: ObservableObject {
         /// decides if the bead still needs its painted halo.
         public var realBloom: Bool
 
+        /// How much of a SIMULATED swarm this surface can afford, 0 to 1.
+        ///
+        /// Separate from `lightScale` on purpose, and the flat case is why:
+        /// there is no light to scale on a phone, but there is still a fire to
+        /// draw, so reusing the light's zero would have deleted the embers
+        /// outright. Ninety-six choreographed dots ignore this -- see
+        /// `ParticleFrame.density`.
+        public var particleDensity: Float
+
         public static let flat = EffectBudget(lightScale: 0,
                                               lightsSurroundings: false,
                                               proximitySpot: false,
-                                              realBloom: false)
+                                              realBloom: false,
+                                              particleDensity: 0.55)
         /// A quarter, on the reasoning that a desk lamp is not a hearth. The
         /// number is a starting point and the device will argue with it.
         public static let volumetric = EffectBudget(lightScale: 0.25,
                                                     lightsSurroundings: true,
                                                     proximitySpot: false,
-                                                    realBloom: false)
+                                                    realBloom: false,
+                                                    particleDensity: 0.8)
         /// `realBloom` is false even here, deliberately: nothing in this client
         /// adds a `BloomComponent` yet, so the bead still needs its painted
         /// halo. Turn this on in the same change that adds the real one.
         public static let immersive = EffectBudget(lightScale: 1.0,
                                                   lightsSurroundings: true,
                                                   proximitySpot: true,
-                                                  realBloom: false)
+                                                  realBloom: false,
+                                                  particleDensity: 1.0)
 
         public static func `for`(_ mode: PresentationMode) -> EffectBudget {
             switch mode {
@@ -2632,7 +2644,8 @@ public final class PersonaRig: ObservableObject {
                                         motion: motion,
                                         spin: spinSpeed,
                                         level: smoothedLevel,
-                                        transition: transitionProgress))
+                                        transition: transitionProgress,
+                                        density: budget.particleDensity))
     }
 
     // MARK: - The face, per frame
