@@ -17,6 +17,16 @@ updates appended under `Key Decisions` in `Projects/hearth/claude.md` and
 nonzero project-update count, because recall and the review both read the
 brain deeply only since the engram-mcp seam fix (Hearth `ea33cb7`).
 
+## Landed 2026-08-19 (commit on feat/ios-qol-tier0)
+
+The plumbing around the review was fixed while investigating "Sulivan says
+nothing happened yesterday": chatlog-only days now count as pending and
+feed the review raw; recall answers day-shaped queries from the review and
+session list directly; the reviews shelf became a search scope
+(engram-mcp `11da537`); Sulivan got a Memory Honesty section; the WSL
+selene-review.timer was retired so only this routine writes the shelf.
+What remains in THIS task is the writing quality below.
+
 ## The defects
 
 1. **Vague review prose.** The 2026-08-17 review says "a reflective
