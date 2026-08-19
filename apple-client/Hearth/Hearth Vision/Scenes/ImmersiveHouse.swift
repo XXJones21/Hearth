@@ -56,17 +56,6 @@ import HearthSpatial
 @MainActor
 private final class RoomPlacement {
     var spawn: SIMD3<Float>?
-
-    /// The bookcase's transform when the current gesture began, and where the
-    /// hand was when it did.
-    ///
-    /// Captured on the first change and applied as a DELTA rather than
-    /// following the hand outright, so grabbing a shelf at its edge does not
-    /// snap the whole bookcase's centre onto your fingers. Cleared on end,
-    /// which is what makes the next gesture start from where this one left off
-    /// rather than from where the object was first put.
-    var libraryStart: Transform?
-    var libraryGrab: SIMD3<Float>?
 }
 
 struct ImmersiveHouse: View {
@@ -169,8 +158,21 @@ struct ImmersiveHouse: View {
     /// So: the placement root sits ON THE FLOOR at the spot the bookcase
     /// occupies, the library hangs inside it lifted by its own height, and the
     /// close button hangs beside it unaffected by how big the bookcase is.
-    /// Anchoring, when it lands, anchors THIS -- one transform, one meaning.
-    @State private var libraryPlacement = Entity()
+    /// Anchoring anchors THIS -- one transform, one meaning. See PlacedObject
+    /// for the pattern, which every placed thing shares now.
+    @State private var libraryPlacement = PlacedObject(named: "LibraryPlacement")
+
+    /// And the opened book, which is placed SEPARATELY from the shelf it came
+    /// off.
+    ///
+    /// A reader welded beside the bookcase is only readable if the bookcase is
+    /// within reading distance, so consulting one book meant dragging the whole
+    /// library across the room and putting it back. Pulling a book off a shelf
+    /// and bringing it to your desk is the real gesture, and it needs the book
+    /// to be its own placed thing. It returns to the shelf's side when closed,
+    /// so the next one opens somewhere known rather than wherever the last one
+    /// was abandoned.
+    @State private var readerPlacement = PlacedObject(named: "ReaderPlacement")
 
     /// What the room remembers about where things were left.
     @StateObject private var anchors = RoomAnchors()
@@ -239,9 +241,14 @@ struct ImmersiveHouse: View {
             }
             // The bookcase belongs to the room, so it is added to the room
             // rather than hung on the persona.
-            if libraryPlaced, !content.entities.contains(libraryPlacement) {
-                content.add(libraryPlacement)
+            if libraryPlaced, !content.entities.contains(libraryPlacement.root) {
+                content.add(libraryPlacement.root)
                 standLibraryOnFloor()
+            }
+            // The reader is the room's, not the bookcase's, so it is added to
+            // the room -- which is what lets it be carried away from the shelf.
+            if reading != nil, !content.entities.contains(readerPlacement.root) {
+                content.add(readerPlacement.root)
             }
             layoutWork(attachments: attachments)
         } attachments: {
@@ -296,7 +303,7 @@ struct ImmersiveHouse: View {
                     VStack(spacing: 0) {
                         HStack {
                             Button {
-                                self.reading = nil
+                                openReader(nil)
                             } label: {
                                 Label("Shelves", systemImage: "chevron.left")
                                     .font(.system(size: 13, weight: .medium))
@@ -413,28 +420,34 @@ struct ImmersiveHouse: View {
                 .targetedToEntity(library.dragSurface)
                 .onChanged { value in
                     guard libraryPlaced else { return }
-                    let here = SIMD3<Float>(value.convert(value.location3D,
-                                                          from: .local, to: .scene))
-                    if placement.libraryStart == nil {
-                        placement.libraryStart = libraryPlacement.transform
-                        placement.libraryGrab = here
-                    }
-                    guard let start = placement.libraryStart,
-                          let grab = placement.libraryGrab else { return }
                     // Across the floor only. A bookcase you can lift into the
-                    // air is a bookcase you can lose above the ceiling, and the
-                    // height is already correct -- it is standing on the floor.
-                    let moved = here - grab
-                    libraryPlacement.position = start.translation
-                        + SIMD3<Float>(moved.x, 0, moved.z)
+                    // air is a bookcase you can lose above the ceiling, and its
+                    // height is already right -- it is standing on the floor.
+                    libraryPlacement.drag(
+                        to: SIMD3<Float>(value.convert(value.location3D,
+                                                       from: .local, to: .scene)),
+                        onFloor: true)
                 }
                 .onEnded { _ in
-                    placement.libraryStart = nil
-                    placement.libraryGrab = nil
+                    libraryPlacement.endGesture()
                     // Anchored where it was LET GO, not where it was grabbed.
-                    anchors.remember(.library,
-                                     at: libraryPlacement.transformMatrix(relativeTo: nil))
+                    anchors.remember(.library, at: libraryPlacement.worldTransform)
                 }
+        )
+        // And the book you are reading, carried anywhere you like -- including
+        // up, because bringing a page closer usually means bringing it to eye
+        // level as well as toward you.
+        .simultaneousGesture(
+            DragGesture()
+                .targetedToEntity(readerPlacement.root)
+                .onChanged { value in
+                    guard reading != nil else { return }
+                    readerPlacement.drag(
+                        to: SIMD3<Float>(value.convert(value.location3D,
+                                                       from: .local, to: .scene)),
+                        onFloor: false)
+                }
+                .onEnded { _ in readerPlacement.endGesture() }
         )
         // Pinch a spine to read it. Targeted at the library's whole subtree
         // because the hit lands on a book, and `book(for:)` is what turns an
@@ -450,7 +463,7 @@ struct ImmersiveHouse: View {
                 .targetedToEntity(library.root)
                 .onEnded { value in
                     guard libraryPlaced else { return }
-                    reading = library.book(for: value.entity)
+                    openReader(library.book(for: value.entity))
                 }
         )
         .task { await anchors.run() }
@@ -554,16 +567,16 @@ struct ImmersiveHouse: View {
         // one, and it is not part of the furniture -- it is how you put the
         // furniture away.
         if let close = attachments.entity(for: Self.libraryCloseID) {
-            if close.parent !== libraryPlacement { libraryPlacement.addChild(close) }
+            if close.parent !== libraryPlacement.root { libraryPlacement.root.addChild(close) }
             close.position = SIMD3<Float>(-Self.libraryCloseReach, Self.libraryCloseRise, 0.1)
         }
 
-        // The reader stands off the bookcase's other side, at reading height,
-        // and travels with it -- a page you are part-way through should not be
-        // left behind when the shelf it came from is moved.
+        // The reader hangs at its own placement's origin, because the
+        // PLACEMENT is what moves. Where that placement starts is decided when
+        // the book is opened -- see `openReader`.
         if let page = attachments.entity(for: Self.readerID) {
-            if page.parent !== libraryPlacement { libraryPlacement.addChild(page) }
-            page.position = SIMD3<Float>(Self.readerReach, Self.readerRise, 0.14)
+            if page.parent !== readerPlacement.root { readerPlacement.root.addChild(page) }
+            page.position = .zero
         }
     }
 
@@ -585,8 +598,8 @@ struct ImmersiveHouse: View {
 
         // The library hangs inside the placement; the placement is what stands
         // in the room.
-        if library.root.parent !== libraryPlacement {
-            libraryPlacement.addChild(library.root)
+        if library.root.parent !== libraryPlacement.root {
+            libraryPlacement.root.addChild(library.root)
         }
         library.root.isEnabled = true
 
@@ -594,7 +607,25 @@ struct ImmersiveHouse: View {
         // the placement is set once it is in the scene and can be measured --
         // see `standLibraryOnFloor`.
         let home = rig.rootEntity.position
-        libraryPlacement.position = SIMD3<Float>(home.x - Self.libraryReach, 0, home.z)
+        libraryPlacement.spawn(at: SIMD3<Float>(home.x - Self.libraryReach, 0, home.z))
+    }
+
+    /// Open a book, or close the one that is open.
+    ///
+    /// The reader starts beside the bookcase -- where it always appeared -- and
+    /// is then yours to bring closer. Closing it sends the placement home, so
+    /// the next book opens at the shelf rather than wherever the last one was
+    /// put down.
+    private func openReader(_ book: JournalBook?) {
+        reading = book
+        guard book != nil else {
+            readerPlacement.returnHome()
+            return
+        }
+        let shelf = libraryPlacement.root.position
+        readerPlacement.spawn(at: SIMD3<Float>(shelf.x + Self.readerReach,
+                                               Self.readerRise,
+                                               shelf.z + 0.14))
     }
 
     /// Lift the bookcase until its lowest shelf rests on the floor.
@@ -622,17 +653,17 @@ struct ImmersiveHouse: View {
         // Measured in the PLACEMENT's space and corrected within it, so the
         // placement root keeps meaning "the spot on the floor this bookcase
         // occupies" no matter how tall the bookcase turns out to be.
-        let bounds = library.root.visualBounds(relativeTo: libraryPlacement)
+        let bounds = library.root.visualBounds(relativeTo: libraryPlacement.root)
         guard bounds.extents.y > 0.0001 else { return }
         library.root.position.y -= bounds.min.y
     }
 
     private func removeLibrary() {
         libraryPlaced = false
-        reading = nil
-        libraryPlacement.removeFromParent()
-        placement.libraryStart = nil
-        placement.libraryGrab = nil
+        openReader(nil)
+        libraryPlacement.root.removeFromParent()
+        readerPlacement.root.removeFromParent()
+        libraryPlacement.endGesture()
         // Put away, not merely moved: the room should not stand it back up
         // tomorrow because it remembers a wall it used to lean against.
         anchors.forget(.library)
@@ -652,7 +683,9 @@ struct ImmersiveHouse: View {
         }
         if let t = placements[.library] {
             if !libraryPlaced { placeLibrary() }
-            libraryPlacement.setTransformMatrix(t, relativeTo: nil)
+            libraryPlacement.root.setTransformMatrix(t, relativeTo: nil)
+            libraryPlacement.spawn(at: libraryPlacement.root.position,
+                                   facing: libraryPlacement.root.orientation)
             // The anchor remembers where the bookcase STANDS -- the placement
             // root, on the floor. How far the shelves hang below that root is
             // the library's own business and is re-derived here, because
