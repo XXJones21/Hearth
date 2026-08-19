@@ -198,6 +198,7 @@ struct ImmersiveHouse: View {
             // rather than hung on the persona.
             if libraryPlaced, !content.entities.contains(library.root) {
                 content.add(library.root)
+                standLibraryOnFloor()
             }
             layoutWork(attachments: attachments)
         } attachments: {
@@ -430,13 +431,31 @@ struct ImmersiveHouse: View {
         // to it, and you look up.
         library.clipBelowInParent = nil
 
-        // Beside the persona and a little forward, standing on the floor, so it
-        // arrives somewhere you can see it and then gets dragged where you want
-        // it. `root.position.y` is the floor because the immersive space's
-        // origin is the point on the ground below you.
+        // Beside the persona, and the HEIGHT is set once it is in the scene and
+        // can be measured -- see `standLibraryOnFloor`.
         let home = rig.rootEntity.position
         library.root.position = SIMD3<Float>(home.x - Self.libraryReach, 0, home.z)
         library.root.isEnabled = true
+    }
+
+    /// Lift the bookcase until its lowest shelf rests on the floor.
+    ///
+    /// Its root is the TOP of the bookcase, not the bottom: shelves are placed
+    /// at `-topDrop - row * shelfPitch`, so the whole thing hangs DOWNWARD from
+    /// the origin. Putting that origin at y=0 -- the floor, since the immersive
+    /// space's origin is the point on the ground below you -- therefore buried
+    /// the entire bookcase under the floorboards with only its masthead
+    /// showing.
+    ///
+    /// Measured rather than derived, for the same reason the model's framing is
+    /// and the book titles' centring is: the height depends on how many rooms
+    /// the house has, how many books are in them, and the presentation scale,
+    /// and any formula reproducing that here would be a second copy of
+    /// arithmetic the entity already does.
+    private func standLibraryOnFloor() {
+        let bounds = library.root.visualBounds(relativeTo: nil)
+        guard bounds.extents.y > 0.0001 else { return }
+        library.root.position.y -= bounds.min.y
     }
 
     private func removeLibrary() {

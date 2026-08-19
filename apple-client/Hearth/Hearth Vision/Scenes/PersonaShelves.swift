@@ -46,6 +46,13 @@ import HearthUI
 struct PersonaSideShelf<Content: View>: View {
     @ViewBuilder var content: Content
 
+    /// Something whose change should resize the shelf. The persona list unrolls
+    /// into full names, and a shelf sized for four icons cannot hold them --
+    /// so the shelf measures itself to its content and animates the difference,
+    /// which is the same thing the live caption card does when a long sentence
+    /// arrives.
+    var resizeOn: AnyHashable = 0
+
     /// How visible the shelf is when nobody is looking at it.
     ///
     /// Not zero, and that is the judgement in this file. Invisible until looked
@@ -59,9 +66,14 @@ struct PersonaSideShelf<Content: View>: View {
         VStack(spacing: 6) {
             content
         }
+        // No width of its own, on purpose: the VStack measures to the widest
+        // thing in it, the glass follows the VStack, and the attachment follows
+        // the glass. A frame here would be the one number that stopped all
+        // three from tracking the content.
         .padding(.horizontal, 4)
         .padding(.vertical, 8)
         .glassBackgroundEffect()
+        .animation(.easeOut(duration: 0.18), value: resizeOn)
         .hoverEffect { effect, isActive, _ in
             effect.animation(.easeOut(duration: 0.22)) {
                 $0.opacity(isActive ? 1 : Self.restingOpacity)
@@ -103,15 +115,17 @@ struct PersonaDestinationShelf: View {
     /// Whether the bookcase is already standing in the room.
     var libraryPlaced = false
 
+    @State private var personasExpanded = false
+
     var body: some View {
-        PersonaSideShelf {
+        PersonaSideShelf(resizeOn: AnyHashable(personasExpanded)) {
             // Persona switching lives here rather than on a status strip.
             //
             // In the box it hung off the strip that was already naming the
             // persona, where a menu on that name cost nothing. A room has no
             // strip, and switching is a thing you go and do rather than a thing
             // you notice in passing -- so it goes where going and doing lives.
-            PersonaSwitchButton(viewModel: viewModel)
+            PersonaSwitchButton(viewModel: viewModel, expanded: $personasExpanded)
 
             Divider()
                 .frame(width: 22)
@@ -229,7 +243,9 @@ struct PersonaRailShelf: View {
 private struct PersonaSwitchButton: View {
     @ObservedObject var viewModel: ChatViewModel
 
-    @State private var expanded = false
+    /// Owned by the shelf rather than by this control, because the SHELF is
+    /// what has to resize when the list unrolls.
+    @Binding var expanded: Bool
 
     private var canSwitch: Bool {
         viewModel.connectionStatus == .connected && viewModel.availablePersonas.count > 1
@@ -253,12 +269,26 @@ private struct PersonaSwitchButton: View {
                         viewModel.switchPersona(name)
                         withAnimation(.easeOut(duration: 0.18)) { expanded = false }
                     } label: {
-                        Text(name.prefix(1))
+                        // The WHOLE name, and the shelf grows to hold it.
+                        //
+                        // An initial is not an identity: two personas whose
+                        // names begin with the same letter would be two
+                        // identical buttons. And a fixed width would be a bet
+                        // on how long a name is -- someone else's household is
+                        // not ours, and a truncated name is a worse answer than
+                        // a wider shelf.
+                        //
+                        // `fixedSize` is what makes the shelf measure to the
+                        // text rather than the text squeeze into the shelf.
+                        Text(name)
                             .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                             .foregroundStyle(name == viewModel.selectedPersona
                                              ? HearthPalette.ember
                                              : HearthPalette.roast)
-                            .frame(width: 24, height: 24)
+                            .padding(.horizontal, 8)
+                            .frame(minWidth: 24, minHeight: 24)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(name)

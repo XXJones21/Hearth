@@ -124,6 +124,26 @@ So the gesture drives the knob, never the transform. If a magnify ever needs to
 reach something that has no knob, the answer is to give it one rather than to
 reach past the ones that exist.
 
+## 5. Turn what is in the room, with `RotateGesture`
+
+Added 2026-08-18, and it is the other half of section 4. A bookcase you can move
+and resize but not TURN can only ever face the direction it spawned in, which
+for a thing you want flat against a wall is the one direction it is guaranteed
+to be wrong.
+
+Horizontal axis only -- yaw. A bookcase lying on its side is not a thing anyone
+wants, and neither is a persona; the one degree of freedom that matters in a
+room is which way something faces. `RotateGesture` targeted to the entity, with
+the starting orientation captured on first change and cleared on end, matching
+the shape sections 4 uses for scale.
+
+Same trap as scale, in a different place. The persona's yaw is DRIVEN --
+`update` writes `rootEntity.orientation` from `behavior.yaw` every frame, so a
+gesture that writes the transform is overwritten before it is seen. Turning her
+means giving the rig a resting yaw the director's own turn is measured against,
+the way `homePosition` is what its travel is measured against. The bookcase has
+no such driver and can take the rotation directly.
+
 **Two open questions for the device.** Whether a corporeal persona should be
 scalable at all -- Selene at life size is the point of her, and a half-height
 Selene is a doll -- and whether scale should persist with the anchor when a
