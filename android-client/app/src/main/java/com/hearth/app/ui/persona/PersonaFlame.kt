@@ -27,6 +27,9 @@ import com.hearth.core.models.HearthState
 import com.hearth.core.persona.FlameProfile
 import com.hearth.core.persona.PersonaPalette
 import com.hearth.core.persona.face.FaceGeometry
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 /**
  * Sulivan's fire, drawn with vector primitives -- no shader, no 3D. Ported
@@ -333,6 +336,109 @@ private fun DrawScope.drawFlame(phase: Double, inputs: FlameInputs) {
         )
 
         canvas.restore()
+    }
+
+    // THE EMBERS, drawn OUTSIDE the layer so they add light to the halo as
+    // well as to the body.
+    drawEmbers(flame, phase, cx, baseY, inputs)
+}
+
+/**
+ * The embers.
+ *
+ * Three things to get right, all of which the iOS build got wrong first and
+ * only the last of which was a number:
+ *
+ * 1. **Born across the body, not on the axis.** The first cut took their
+ *    sideways drift from [FlameProfile.noise], which is damped to nothing
+ *    below the dome -- correct for a silhouette that must stay attached to its
+ *    base, wrong for a particle, which spends its early life exactly there.
+ *    Every ember started on the centre line and stayed near it, reading as
+ *    crumbs around the mouth.
+ * 2. **Additive, always.** An opaque dot on a bright gold flame is mud. Adding
+ *    light to light means embers inside the fire are indistinguishable from it
+ *    and embers outside it glow -- which is both what fire does and, on the
+ *    headset, what removes the need to sort them at all.
+ * 3. **Rising and widening, shrinking as they cool.** Fading alone leaves
+ *    ghosts of the original size hanging in the air.
+ *
+ * KNOWN GAP, and it is shared with iOS rather than introduced here: the spec's
+ * state table gives THINKING a slow whirl, and neither canvas implementation
+ * draws one, so thinking currently reads as idle. Adding it on one client only
+ * would make the two flames different characters, which is the thing the whole
+ * shared-arithmetic approach exists to prevent.
+ */
+private fun DrawScope.drawEmbers(
+    flame: FlameProfile,
+    phase: Double,
+    cx: Double,
+    baseY: Double,
+    inputs: FlameInputs,
+) {
+    if (inputs.reduceMotion) return
+
+    val count = 26
+    val sink = flame.radius * FlameProfile.DOME_DEPTH
+    val speaking = inputs.state == HearthState.SPEAKING
+    val listening = inputs.state == HearthState.LISTENING
+
+    for (i in 0 until count) {
+        // The shader's own hash, so the field is the SAME field on every client
+        // rather than merely a similar one.
+        val r0 = FlameProfile.hash(i * 1.13)
+        val r1 = FlameProfile.hash(i * 2.71 + 5.2)
+        val r2 = FlameProfile.hash(i * 4.37 + 11.9)
+
+        val life = 2.2 + r1 * 1.4
+        // Listening draws the plume up faster and narrower; idle is slow and
+        // wide. The same distinction the headset's emitter makes.
+        val speed = if (listening) 1.35 else 1.0
+        val t = (((phase * speed) / life) + r0).mod(1.0)
+
+        val x: Double
+        val y: Double
+        val dotSize: Double
+        val alpha: Double
+
+        if (speaking) {
+            // THE SHELL, opened by the voice -- the headset's speaking state in
+            // two dimensions. A ring rather than a plume, because what carries
+            // the amplitude is its RADIUS. Everything else holds still, so the
+            // only thing moving is the thing carrying the signal.
+            val angle = (i.toDouble() / count) * 2 * Math.PI + phase * 0.25
+            val shell = flame.radius * (1.55 + 0.95 * inputs.pulse) * (0.9 + r2 * 0.2)
+            x = cx + cos(angle) * shell
+            y = baseY - sink - flame.height * 0.30 + sin(angle) * shell * 0.85
+            dotSize = flame.radius * (0.05 + r2 * 0.03)
+            alpha = 0.55 + 0.45 * inputs.pulse
+        } else {
+            // BORN ACROSS THE BODY. r2 places the birth meridian and the
+            // silhouette gives the width there, so an ember starts somewhere on
+            // the fire rather than in the middle of it.
+            val birthV = 0.25 + r2 * 0.5
+            val halfWidth = flame.surface(birthV, r2 * 6.28, phase)
+            val birthX = cx + (r0 - 0.5) * 2 * halfWidth * 0.85
+            val birthY = baseY - (flame.rise(birthV) + sink)
+
+            // Rise past the tip, and WIDEN on the way -- a plume opens.
+            val climb = flame.height * (0.55 + r1 * 0.55) * t
+            val spread = flame.radius * (0.35 + r2 * 0.5) * t * t
+            x = birthX + sin(phase * (0.7 + r1) + i) * spread
+            y = birthY - climb
+            dotSize = flame.radius * (0.055 + r1 * 0.045) * (1 - t * 0.75)
+            // In over the first fifth, out over the last half.
+            alpha = min(t / 0.2, 1.0) * (1 - FlameProfile.smoothstep(0.5, 1.0, t))
+        }
+
+        // Hot at birth, cooling to ember red -- the kernel's ramp with the
+        // middle taken out, because a spark's whole life is short.
+        val colour = if (t < 0.5) FlameStraw else FlameAmber
+        drawCircle(
+            color = colour.copy(alpha = (alpha.coerceIn(0.0, 1.0) * 0.7).toFloat()),
+            radius = dotSize.toFloat(),
+            center = Offset(x.toFloat(), y.toFloat()),
+            blendMode = BlendMode.Plus,
+        )
     }
 }
 
