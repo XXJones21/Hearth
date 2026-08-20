@@ -46,10 +46,18 @@ public struct GeneratedViewCard: View {
     private func sectionView(_ section: [String: Any], index: Int) -> some View {
         switch section.optString("kind") {
         case "text":
-            Text(section.optString("body"))
-                .font(.body)
-                .foregroundStyle(HearthPalette.roast)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // A text section may carry a `heading` (memory/journal cards,
+            // 2026-08-20). Headed sections render like a journal page's
+            // section blocks; unheaded ones stay plain body text.
+            let heading = section.optString("heading")
+            if heading.isEmpty {
+                Text(section.optString("body"))
+                    .font(.body)
+                    .foregroundStyle(HearthPalette.roast)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HeadedTextBlock(heading: heading, text: section.optString("body"))
+            }
 
         case "stat":
             let isHero = (template == "hero_stat" && index == 0)
@@ -85,6 +93,61 @@ public struct GeneratedViewCard: View {
         default:
             EmptyView()
         }
+    }
+}
+
+/// A headed text section, styled like the Journal page's section blocks
+/// (JournalEntryView.SectionBlock): uppercase ember eyebrow over bullet-aware
+/// body lines in a soft panel. Parchment here because the card surface is
+/// already fluff.
+private struct HeadedTextBlock: View {
+    let heading: String
+    let text: String
+
+    private var lines: [String] {
+        // The bodies arrive as light markdown (Selene reviews); bold markers
+        // read as noise in a card line, so they are stripped, not rendered.
+        text.replacingOccurrences(of: "**", with: "")
+            .split(separator: "\n").map(String.init)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(heading.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1)
+                .foregroundStyle(HearthPalette.ember)
+
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    let isBullet = line.hasPrefix("-") || line.hasPrefix("*")
+                    HStack(alignment: .top, spacing: 6) {
+                        if isBullet {
+                            Circle()
+                                .fill(HearthPalette.fawn)
+                                .frame(width: 4, height: 4)
+                                .padding(.top, 6)
+                        }
+                        Text(isBullet
+                             ? line.dropFirst().trimmingCharacters(in: .whitespaces)
+                             : line)
+                            .font(.system(size: 13))
+                            .lineSpacing(2)
+                            .foregroundStyle(HearthPalette.roast)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        .background(HearthPalette.parchment, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(HearthPalette.linen, lineWidth: 1)
+        )
     }
 }
 

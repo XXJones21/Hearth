@@ -6,34 +6,298 @@ related:
   - persona-face-spec.md
   - hearth-vision-design.md
 sources:
+  - apple-client/Hearth/Core/Sources/HearthUI/Persona/FlameProfile.swift
+  - apple-client/Hearth/Core/Sources/HearthUI/Persona/PersonaFlameCanvas.swift
   - apple-client/Hearth/Core/Sources/HearthSpatial/FlameMesh.swift
   - apple-client/Hearth/Core/Sources/HearthSpatial/AnimatedTexture.swift
   - apple-client/Hearth/Core/Sources/HearthSpatial/AnimatedTexture.metal
   - apple-client/Hearth/Core/Sources/HearthSpatial/PersonaRig.swift
   - apple-client/Hearth/Core/Sources/HearthSpatial/EmberField.swift
   - tasks/clients/visionOS/phase-4-5.md
+  - tasks/clients/ios/renderer-ab.md
 ---
 
 # Persona Flame
 
 How Sulivan's fire is built, in the order you would build it.
 
-This is a **walkthrough, not an API reference**. The visionOS client is the
-reference implementation and every technique below is described in terms of
-what it does and why, so it can be rebuilt on desktop and Android against
-whatever those platforms offer instead of RealityKit and Metal.
+This is a **walkthrough, not an API reference**. Every technique is described in
+terms of what it does and why, so it can be rebuilt against whatever a platform
+offers.
+
+**There are two implementations and this document covers both**, because the
+right one depends on what the client is:
+
+| If the client is | Build | Section |
+| --- | --- | --- |
+| A screen -- Android, the desktop's card surfaces, widgets | **The canvas flame.** Vector primitives, no shader, no 3D. | [For 2D canvas renderers](#for-2d-canvas-renderers) |
+| A spatial stage -- a headset, or a scene with a movable camera | **The mesh flame.** Real geometry, a compute kernel, a light in the room. | [For 3D spatial platforms](#for-3d-spatial-platforms) |
+
+They are not a first draft and a real version. They are the same character drawn
+two ways, and **both are shipping**: the headset runs the mesh, the phone runs
+the canvas. The iOS client built both and chose the canvas on device -- it cost
+less and, more importantly, a canvas flame had to exist anyway for widgets,
+which can host neither a 3D view nor a compute pass. One implementation beats a
+better-looking second one. The full comparison is in
+`tasks/clients/ios/renderer-ab.md`.
+
+**Read the 2D section first even if you are building the 3D one.** The
+silhouette arithmetic is shared, and it is most of the character.
 
 The companion document is [persona-face-spec.md](persona-face-spec.md), which
 covers the face itself -- the geometry, the expression library, the director.
 This one covers the body the face sits on.
 
 **Read the "why" paragraphs.** Almost every number here replaced a different
-number that looked correct and failed on a headset, and the reason is more
+number that looked correct and failed on a device, and the reason is more
 portable than the value.
 
 ---
 
-## The shape of the whole thing
+## For 2D canvas renderers
+
+Reference implementation: `PersonaFlameCanvas` and `FlameProfile` in
+`apple-client/Hearth/Core/Sources/HearthUI/Persona/`. Roughly three hundred
+lines of arithmetic and fills, no shader, running at 60fps on a phone.
+
+Everything below needs only: a path you can build from points and fill with a
+gradient, a way to clip one drawing to another, and an additive blend mode.
+Compose's `Canvas`, HTML5 `<canvas>`, SVG and SwiftUI's `Canvas` all qualify.
+
+### The shape of it
+
+| Layer | What it is |
+| --- | --- |
+| 1. The profile | The arithmetic. Shared with the 3D version, and exact. |
+| 2. The body | One closed path, one linear gradient. |
+| 3. The tip | A feather, because the path ends in a point and a flame never does. |
+| 4. The licks | A few narrower flames inside the body, standing in for the noise field. |
+| 5. The face | The persona's own face, drawn on top. Features only. |
+| 6. The embers | Additive dots, born across the body and rising past the tip. |
+| 7. The halo | A radial glow. The 3D version deliberately has none. |
+
+One clock through all of them. **Seven effects on seven clocks are seven effects
+near each other; seven on one clock are one fire.**
+
+### 1. The profile, and why it is not an approximation
+
+Three functions of `v`, where `v` runs 0 at the base to 1 at the tip. They are
+the same functions the mesh uses, and the reason a 2D client can have the exact
+same silhouette is worth stating carefully:
+
+**The flame is a surface of revolution.** Seen from the front, its outline is
+the profile evaluated at the two meridians where the horizontal coordinate is
+extremal -- angle 0 and angle pi. So the canvas evaluates exactly what the mesh
+evaluates, at two angles instead of forty-four.
+
+```
+width(v)  = v < 0.3 ? radius * sin((v/0.3) * pi/2)
+                    : radius * pow(max(1 - t*t, 0), 0.45)      where t = (v-0.3)/0.7
+rise(v)   = base + (v < 0.3 ? radius*0.95 * (1 - cos((v/0.3) * pi/2))
+                            : radius*0.95 + (height - radius*0.95) * t)
+            where base = -radius * 0.95
+lean(v)   = sway * radius * v*v * sin(phase * 1.7)
+```
+
+Three things those lines cost to learn:
+
+- **A flame is fattest LOW.** The first version was widest near the top and drew
+  to a point at the bottom, which is a light bulb.
+- **`pow(1-t, n)` gives a cone.** It is very nearly a straight line near the
+  base. Squaring `t` inside is what keeps the flame near full width through its
+  lower third and moves all the narrowing into the top half, which is where a
+  flame's narrowing is. The exponent is the top's width, and LOWER is wider.
+- **`rise` must curve with `width` across the dome.** A profile that simply goes
+  to zero at v = 0 gives a spike. The bottom 30% is a hemisphere: the height
+  follows the same quarter circle the width does.
+
+The lean grows with `v` squared so it is all in the top third. A flame's base is
+held by whatever it is burning on.
+
+### 2. The wobble
+
+Multiply the width by `1 + turbulence * noise(angle, v, phase)`:
+
+```
+noise(a, v, p) = (sin(3a + p*2.1 + v*5.0)
+                + sin(5a - p*1.6 + v*8.0) * 0.55
+                + sin(8a + p*2.9 - v*3.0) * 0.3) / 1.85
+                * smoothstep(0.3, 1.0, v)
+```
+
+Trigonometric rather than a noise table, because the flame closes on itself and
+sines of INTEGER multiples of the angle agree at 0 and 2pi for free.
+
+**The smoothstep damping is not optional.** A flame is held steady at its base;
+the first version's wobble ran all the way down and chewed the dome into a knot
+of folds.
+
+Evaluate at angle 0 for the right edge and angle pi for the left. They wobble
+independently, which is what stops the flame reading as a symmetrical vase.
+
+Add a body-wide breath of `1 + 0.012 * sin(phase * 1.6)` and **keep it that
+small**. At 0.06 it swelled the silhouette enough to swallow the face on every
+cycle. A flame does not pulse as a whole; its edges move.
+
+### 3. The body: one path, one gradient
+
+Walk `v` from 0 to 1 up the right meridian, then back down the left, and close.
+Forty points a side is plenty.
+
+Fill it with a linear gradient from the base to the tip, using the same five
+stops the shader ramp uses, at the same positions:
+
+| Stop | Colour | At |
+| --- | --- | --- |
+| straw | `1.00, 0.88, 0.42` | 0.00 |
+| gold | `1.00, 0.66, 0.18` | 0.28 |
+| amber | `1.00, 0.38, 0.07` | 0.58 |
+| red | `0.86, 0.13, 0.04` | 0.85 |
+| ash | `0.45, 0.06, 0.03` | 1.00 |
+
+**Yellow where the flame is fed, red where it is spending itself.** A near-white
+heart claimed too much of the height and left the body looking bleached.
+
+What a gradient cannot do is the shader's trick of perturbing the ramp position
+by the noise field, so a drawn flame's colour boundaries are level where a
+computed one's wander. That is the largest single visual difference between the
+two implementations and it is acceptable.
+
+### 4. The tip feather
+
+The path ends in a point and a point is the one shape a flame never has. Fade
+the body out between `v = 0.88` and `v = 0.99` -- the same window the shader
+uses.
+
+A canvas cannot subtract alpha from a fill it has already made, so clip to the
+body path and paint a background-to-transparent gradient over the top of it. If
+your canvas has a destination-out blend, that is cleaner.
+
+### 5. The licks
+
+The shader gets its internal structure from a five-octave domain-warped fbm
+evaluated per pixel. A canvas cannot, and does not need to.
+
+Draw **three narrower flames inside the body** -- the same profile at 30-55% of
+the width and 70-90% of the height, each offset sideways by the noise function
+at its own seed, each filled with a pale gradient at low alpha, all clipped to
+the body.
+
+Three reads as structure. More turns the body back into a wash.
+
+### 6. The face: features only, drawn on top
+
+This is the whole 2D shortcut, and it is a big one. The 3D version needs a card
+curved to the flame's own radius, tracking the surface as turbulence moves it,
+in a stated sort group. **A screen has one viewpoint and no depth to fight over,
+so the face is simply drawn over the fire.**
+
+**But it must be features only.** The persona's normal face draws a filled head
+and a rim and then puts eyes on it -- composited over a fire that is a persona
+standing IN FRONT OF a flame, not a flame with a face. The headset never hits
+this because its face is a texture that is mostly transparent, with ink only
+where the features are. Give the face renderer a flag that suppresses the head
+fill and keeps everything else.
+
+**And the ink goes flat black.** On a cream head, a warm brown belongs to the
+same palette family as everything around it. On a flame the background is bright
+saturated gold, and a brown two steps from cream is one step from fire -- the
+eyes wash out exactly where the body is brightest, which is where they sit.
+
+Everything else about the face is unchanged: same director, same pose, same
+gaze, same blink. A persona wearing a flame blinks exactly as it does wearing a
+head.
+
+### 7. The embers
+
+Additive dots. Three things to get right, all of which were got wrong first:
+
+**Born across the body, not on the axis.** Pick a birth height in the upper
+half, pick a meridian, and use the silhouette to get the width there. The first
+version derived its sideways drift from the wobble noise -- which is damped to
+nothing near the base, correct for a silhouette and wrong for a particle, which
+spends its early life exactly there. Every ember started on the centre line and
+stayed near it, reading as crumbs around the mouth.
+
+**Additive, always.** An opaque dot on a bright gold flame is mud. Adding light
+to light means embers inside the fire are indistinguishable from it and embers
+outside it glow -- which is both what fire does and, in the 3D version, what
+removes the need to sort them at all.
+
+**Rising and widening, shrinking as they cool.** Climb past the tip; spread with
+`t` squared so the plume opens; shrink to a quarter. Fading alone leaves ghosts
+of the original size hanging in the air.
+
+Per-turn behaviour, matching what the 3D emitter does:
+
+| State | The plume |
+| --- | --- |
+| Idle | Slow, wide, rising. |
+| Listening | Narrower and faster. |
+| Thinking | Turning -- a slow whirl. |
+| Speaking | A ring around the flame whose RADIUS carries the playback amplitude. |
+
+### 8. The halo
+
+A radial gradient behind everything, its opacity driven by a flicker value.
+
+**Keep it, and note that the 3D version deliberately does not have one.** The
+headset switches its painted glow off when the flame lights, because a real
+light doing real work on real walls does that job better. A screen has no walls,
+so nothing does that job -- and without the halo the fire reads flatter than the
+orb it replaces.
+
+The flicker is three sines at incommensurable rates:
+
+```
+0.5 + 0.5 * clamp(sin(t*2.7)*0.5 + sin(t*4.3 + 1.7)*0.3 + sin(t*9.1 + 0.4)*0.2, -1, 1)
+```
+
+A correlation, not a measurement. A fire's signature is that its light is never
+still.
+
+### The one bug every canvas port will hit
+
+**A canvas does not animate itself.** If the clock is read where the drawing is
+constructed rather than supplied by a per-frame timer, the flame moves only when
+something else happens to invalidate the view: stationary, then a lurch. On iOS
+that is a `TimelineView`; elsewhere it is a render loop or an animation frame.
+
+Related, and worth knowing before you measure anything: **a frame-rate readout
+that has its own clock will report the display refresh whatever the drawing
+beside it is doing.** Ours confidently said 60fps for a completely frozen flame.
+Judge motion by eye.
+
+### What 2D gives up
+
+- **Fine grain.** The fbm's tattered small-scale licks. This is the one that
+  makes fire look *hot* up close.
+- **Level colour bands** instead of wandering ones, per step 3.
+- **Depth.** No parallax between the near and far walls, because there are no
+  walls.
+- **Any path to rotating it.** If the client ever grows a movable camera, the
+  shape has to be rebuilt as geometry.
+
+None of those is what makes it Sulivan. The shape, the palette and the motion
+are, and all three port exactly.
+
+---
+
+## For 3D spatial platforms
+
+Everything from here down is the mesh implementation: real geometry, a compute
+kernel writing a texture every frame, an unlit material, a curved face card, and
+a particle emitter. It is what the visionOS client runs.
+
+**Build this instead of the canvas flame only if the viewer can change angle** --
+a headset, or a scene with an orbit control. The desktop client is in that
+category today and the phone is not.
+
+---
+
+---
+
+### The shape of the whole thing
 
 Five pieces, each answering one question. Building them in this order works
 because each one can be seen before the next exists.
@@ -56,7 +320,7 @@ them.
 
 ---
 
-## 1. The mesh: a teardrop that moves
+### 1. The mesh: a teardrop that moves
 
 ### Why geometry and not a texture
 
@@ -158,7 +422,7 @@ it IS the light.** Do not spend effort on accurate normals here.
 
 ---
 
-## 2. The texture: what happens inside
+### 2. The texture: what happens inside
 
 A square texture (512², RGBA16F) rewritten every frame by a compute shader. On
 platforms without compute, a fragment shader over the same UVs computes the same
@@ -265,7 +529,7 @@ what collapsed two textures into one.
 
 ---
 
-## 3. The material and the light
+### 3. The material and the light
 
 ### Unlit, and this is not an optimisation
 
@@ -329,7 +593,7 @@ passthrough.
 
 ---
 
-## 4. The face plane
+### 4. The face plane
 
 The face is a texture drawn by its own kernel (see
 [persona-face-spec.md](persona-face-spec.md)) shown on a small card in front of
@@ -428,7 +692,7 @@ give the same number.
 
 ---
 
-## 5. The particles
+### 5. The particles
 
 Full detail, including all six configurations, is in
 [tasks/clients/visionOS/phase-4-5.md](../../tasks/clients/visionOS/phase-4-5.md)
@@ -508,76 +772,58 @@ It is also simply what fire does.
 
 ---
 
-## What a flat client can drop -- and what it cannot
+## Choosing between them
 
-Most of the machinery above exists to survive conditions a screen does not have.
-Worth separating carefully, because the saving is real and it is smaller than it
-first looks.
+The 2D recipe above used to live here as speculation, written before either
+implementation existed. It is a shipped implementation now, so what is left in
+this section is only the decision.
 
-### First, ask whether the client is flat at all
+### Ask whether the client is flat at all
 
 **The desktop client is not.** It renders the persona through
 `@react-three/fiber` in a `<Canvas>` with a perspective camera and
-**`OrbitControls`** -- zoom disabled, polar angle clamped, but free in yaw. The
-viewer can walk around the persona. That is a 3D scene in a window, not a
-composited picture, and it keeps almost everything a headset needs.
+**`OrbitControls`** -- zoom disabled, polar angle clamped, free in yaw. The
+viewer can walk around the persona. That is a 3D scene in a window, and it keeps
+almost everything a headset needs: the billboard, the card's curvature, the
+surface tracking and the sort group all still earn their keep.
 
-**Android is undecided**, and this is the decision to make deliberately rather
-than by default, because it changes what gets ported:
+It also already pays for a WebGL context, which makes a third option available
+there and probably the best one: **port the Metal kernel to GLSL as a
+`ShaderMaterial` and keep the mesh.** That is a closer match than either
+alternative.
+
+**Android is undecided**, and it is a decision to take deliberately rather than
+by default:
 
 - A **3D scene in a view** costs what desktop costs and gains a persona you can
   turn.
-- A **flat composite** is much cheaper and gives up rotation permanently.
+- A **flat composite** is much cheaper, is proven on the phone, and gives up
+  rotation permanently.
 
-### Drops on every non-headset client
+### What drops on every non-spatial client
 
 These need passthrough or a room, and neither exists in a window:
 
-- **`SurroundingsLight`.** No physical surfaces to reach.
-- **The proximity spotlight** -- surface detection, the cone that widens with
-  distance, the wall/floor/ceiling cookies, the corner blending. All of it.
+- **Surroundings lighting.** No physical surfaces to reach.
+- **The proximity spotlight** -- surface detection, the widening cone, the
+  wall/floor/ceiling cookies, the corner blending.
 - **Occlusion and collision against a scene mesh.**
 - **The point light itself**, very nearly. The flame is unlit, so the light
-  never touched it -- its only job was the room. Keep it only if a lit model
-  persona might stand near the fire.
-- **`AdaptiveResolutionComponent`.** A window knows its own pixel size exactly,
-  which is simpler than the headset's answer rather than a substitute for it.
-- **The gestures** -- move, scale, rotate, the spine handles, the anchors that
-  remember where things were left.
+  never touched it -- its only job was the room.
+- **Adaptive resolution.** A window knows its own pixel size exactly, which is
+  simpler than the headset's answer rather than a substitute for it.
+- **The gestures** -- move, scale, rotate, and the anchors that remember where
+  things were left.
 
-`EffectBudget.flat` already encodes most of this: `lightScale` 0, no
-surroundings, no proximity spot.
+### What drops only on a TRULY flat client
 
-### Drops ONLY on a truly flat client
+These survive anywhere the viewer can change angle, which includes desktop:
 
-These survive anywhere the viewer can change angle, which includes desktop
-today:
-
-- **The billboard on the face pivot.** One fixed viewpoint means the card never
-  needs to turn. An orbiting camera means it does.
-- **The card's curvature.** It exists so the face is correct from every angle.
-  One angle needs no curve.
-- **Tracking the flame's moving surface in depth.** A flat composite draws the
-  face over the fire and the problem does not exist.
-- **`opacityThreshold` and the sort group.** Both are fixes for transparency
-  sorting between two objects. Compositing in a fixed order has no sort to lose.
-
-### The bigger saving, if the client really is flat
-
-**The mesh becomes optional.** It exists for one reason: a texture carves
-inward, so it could never put a tongue of flame outside the sphere it was worn
-by. That is a constraint of texturing 3D geometry, and a flat client is not
-texturing geometry -- it is drawing pixels.
-
-So on a flat client, `profile`, `rise`, `lean` and the wobble stop describing a
-ring of vertices and start describing an **outline in screen space**: a mask, or
-an SDF, evaluated in the same fragment shader that already computes the fire.
-One pass, no vertex buffer, no per-frame mesh upload -- **and the silhouette is
-identical, because the arithmetic is the same.**
-
-The cost is that it stops being an object. There is no path from there to
-rotating it later without redoing the shape, which is precisely why this is a
-decision to take on purpose.
+- The billboard on the face pivot.
+- The card's curvature.
+- Tracking the flame's moving surface in depth.
+- The opacity threshold and the sort group -- both are fixes for sorting between
+  two objects, and compositing in a fixed order has no sort to lose.
 
 ### The one thing that is a LOSS, not a saving
 
@@ -585,144 +831,70 @@ The flicker on the walls. *"A fire's signature from across a room is not its
 shape -- it is that the light on the walls is never still."* A window has no
 walls, so the fire loses its most legible cue and gets nothing back.
 
-The compensation is the thing the headset deliberately gave up: **a painted
-glow.** The bead wears one, and the flame switches it off, because a real light
-in a real room does that job better. In a window nothing does that job, so the
-2D clients should keep the halo the headset dropped -- driven by the same
-`flicker()` value, which is CPU-side arithmetic on the shared clock and free on
-any platform.
-
-That inversion is the general rule for this port: **the headset spent effort on
-the room and none on the composite; a screen has to spend it the other way
-round.**
-
-## Drawing it without a shader
-
-The alternative to porting the mesh is not porting a shader either: draw the
-flame with ordinary vector primitives, the way `PersonaOrb` already draws the
-bead in a SwiftUI `Canvas` and the desktop draws the face in React.
-
-**There is precedent and it is the same character.** `PersonaOrb` is a radial
-gradient for the halo, filled circles for the particles, a radial gradient for
-the body and a stroked ring for the edge. No shader, no per-pixel work, no 3D --
-and nobody looking at the phone and the headset thinks they are two personas.
-The bar is **the same character, not the same pixels**, and what carried the orb
-across was its palette and its motion rather than its fidelity.
-
-**And one client forces the question anyway.** Widgets cannot host a
-`RealityView` or run a compute pass. If Sulivan is to appear in a widget at all,
-a shader-free flame has to exist regardless of what desktop and Android choose.
-
-### The silhouette ports EXACTLY, which is most of the battle
-
-This is the part worth knowing before deciding anything else. The flame is very
-nearly a surface of revolution, so its outline seen from the front is just the
-profile evaluated at the two meridians perpendicular to the view:
-
-```
-for v in 0...1:
-    x = ±surfaceRadius(v, angle: ±π/2, phase) + lean(v).x
-    y = rise(v)
-```
-
-Twenty-nine points down each side, joined into one closed path. `profile`,
-`rise`, `lean` and the wobble are **plain arithmetic with no platform in them**
--- they port to Swift, TypeScript or Kotlin unchanged, and the shape that comes
-out is not an approximation of the headset's flame. It is the same curve.
-
-Since the silhouette is what the mesh was built for in the first place, and the
-silhouette is the single biggest carrier of the character, a 2D client gets the
-expensive lesson for free and only has to approximate the interior.
-
-### Two noise functions, and only one needs to port
-
-This is the piece that makes the whole thing cheap, and it is easy to miss
-because the two live in different files.
-
-- **The Metal `fbm`** -- five octaves, domain-warped, per pixel. This is what
-  needs a shader, and it is what a 2D client gives up.
-- **`FlameMesh.noise`** -- three sines of integer multiples of the angle,
-  damped toward the base. Per vertex, deterministic, seamless, and **already the
-  thing that describes how the flame's edges move.**
-
-On a 2D client, promote the cheap one to do both jobs: the same trig noise that
-wobbles the outline also places and animates the interior striations. Same
-clock, same function, same character -- and it runs in a `for` loop over a few
-dozen values rather than a few hundred thousand.
-
-### The recipe, back to front
-
-Each layer maps onto something the 3D version does:
-
-| Layer | 3D original | 2D drawing |
-| --- | --- | --- |
-| Halo | (deliberately absent -- the real light does it) | Radial gradient behind everything. See the note on this being a LOSS, above. |
-| Body | Mesh silhouette | Closed path from `profile`/`rise`/`lean`/wobble |
-| Colour | Heat ramp perturbed by fbm | Linear gradient, bottom to top, the same five stops -- straw, gold, amber, red, ash |
-| Interior | Domain-warped fbm density | A handful of tapered vertical strokes at low alpha, placed and swayed by `FlameMesh.noise` |
-| Tip | `1 - smoothstep(0.88, 0.99, v)` on density | The same window as an alpha fade on the fill, or on a mask |
-| Breath | `1 + 0.012·sin(phase·1.6)` on the profile | Identical -- it is already just a scalar on the path |
-| Face | Curved card riding the surface | Drawn on top, in order. No sorting, no tracking, no curvature |
-| Embers | Particle emitter | Filled circles, exactly as `PersonaOrb` already draws its field |
-| Flicker | Drives the point light | Drives the halo's opacity |
-
-### What is actually given up
-
-Be honest about it so nobody chases it later:
-
-- **Fine grain.** The fbm gives tattered, small-scale licks. Broad strokes give
-  broad structure. Looking at device captures, the flame reads as shape first,
-  vertical gold-to-red gradient second, and broad striations third -- fine grain
-  is a fourth-order term, but it is the one that makes the fire look *hot* up
-  close.
-- **Depth.** No parallax between the near and far walls of the flame, because
-  there are no walls.
-- **Any path to rotating it**, as noted above.
-
-None of those are what makes it Sulivan. The shape, the palette and the motion
-are, and all three port.
-
-### If a client already has a 3D canvas
-
-The desktop's three.js scene is a third option and probably the better one
-there: port the Metal kernel to GLSL as a `ShaderMaterial` and keep the mesh.
-That is a closer match than either alternative, and it is available because the
-desktop already pays for a WebGL context. **The shader-free recipe above is for
-the places that genuinely cannot -- widgets first, and Android if it goes flat.**
+The compensation is the halo -- see step 8 of the 2D recipe. The general rule
+for this port: **the spatial version spent its effort on the room and none on
+the composite; a screen has to spend it the other way round.**
 
 ## Porting notes
 
-**What is RealityKit-specific and needs a local answer:**
+**What is platform-specific in the 3D version and needs a local answer:**
 
-- `LowLevelMesh` -- any dynamic vertex buffer works. The mesh is ~1,300 vertices
-  rebuilt per frame on the CPU; that is a rounding error on any platform, and the
-  profile stays readable as arithmetic.
-- `LowLevelTexture` + compute -- a fragment shader over the same UVs computes the
-  same function, since nothing persists between frames.
-- `SurroundingsLight` -- has no equivalent off visionOS, and needs none. Without
-  passthrough there are no physical surfaces to light.
+- `LowLevelMesh` -- any dynamic vertex buffer works. ~1,300 vertices rebuilt per
+  frame on the CPU is a rounding error anywhere, and it keeps the profile
+  readable as arithmetic.
+- `LowLevelTexture` + compute -- a fragment shader over the same UVs computes
+  the same function, since nothing persists between frames.
+- `SurroundingsLight` -- no equivalent off visionOS, and none needed.
 - `AdaptiveResolutionComponent` -- replace with distance and field of view.
 - `BillboardComponent` -- note that it constrains no axes. Anything with feet
-  needs a yaw-only look-at instead, or a persona shrunk to a desk toy tilts back
-  to look up at you.
+  needs a yaw-only look-at, or a persona shrunk to a desk toy tilts back to look
+  up at you.
 
-**What is not platform-specific and should be copied exactly:**
+**What the 2D version needs from its platform**, and it is a short list: a path
+built from points, a linear and a radial gradient, a clip, and an additive blend
+mode. Compose `Canvas`, HTML5 `<canvas>`, SVG and SwiftUI `Canvas` all qualify.
 
-- The profile, rise, lean and noise functions. They are the shape.
-- The colour ramp and the heat perturbation.
-- The density curve, including the tip feather and where it starts.
-- The decision to be unlit, and the reasons.
-- One clock through all five pieces.
+**What is not platform-specific at all and should be copied exactly:**
 
-**What to build first, if you want to see something early:** the mesh with a flat
-colour. The silhouette is most of the character, and every later step is easier
-to judge against a shape you can already recognise.
+- `width`, `rise`, `lean` and the trig `noise`. They ARE the shape, and they are
+  identical in both implementations.
+- The five colour stops and their positions.
+- Where the tip feather starts and ends.
+- The flicker's three sine rates.
+- One clock through every layer.
+
+**What to build first, if you want to see something early:** the outline, filled
+with a flat colour. The silhouette is most of the character, and every later
+step is easier to judge against a shape you already recognise.
+
+**How to know it is right:** put it beside the headset's and ask whether it is
+the same character, not whether it is the same picture. That is the bar
+`PersonaOrb` cleared for the bead, and it is the bar here.
 
 ## Open items
 
-- The mesh is CPU-written. `LowLevelMesh` offers GPU buffers if the vertex count
-  ever grows enough to matter; it has not.
+**Shared:**
+
 - The chibi face variant sits behind a flag and is written up in
   [tasks/persona-chibi-face.md](../../tasks/persona-chibi-face.md).
+- The canvas flame has only been judged at idle on device. Thinking and speaking
+  are where the states diverge most, and the speaking ring is untested.
+
+**3D only:**
+
+- The mesh is CPU-written. `LowLevelMesh` offers GPU buffers if the vertex count
+  ever grows enough to matter; it has not.
 - The thinking vortex strength has no documented unit behind it and was set by
   eye on device.
+- The cylinder's `emitterShapeSize` axis convention is undocumented; it is
+  passed as (diameter, height, diameter) by analogy with the sphere.
+
+**2D only:**
+
+- How a persona's config selects the fire. The renderer is chosen from the
+  config by design -- `sphere_particle` keeps the orb, `glb_animated` mounts a
+  model, `procedural_face` draws the face -- so the fire needs a name there
+  rather than a client-side switch.
+- Colour bands are level where the shader's wander. Perturbing the gradient
+  stops per-frame by the same noise would close some of that gap and has not
+  been tried.
