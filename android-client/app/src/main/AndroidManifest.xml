@@ -37,6 +37,24 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
+            <!-- The COVER SCREEN's home, and it is a different seat from the
+                 one above. A folding phone's outer display is a secondary
+                 display in the platform's sense, and what rests there is
+                 chosen from this category alone. Note there is no
+                 CATEGORY_HOME here: claiming the cover cannot disturb the
+                 launcher on the inner display.
+
+                 The seat is held today by
+                 com.motorola.launcher.secondarydisplay, which declares exactly
+                 this filter and nothing more. Declaring it makes Hearth a
+                 candidate; being CHOSEN is a preference, and on the appliance
+                 the DPC sets it. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.SECONDARY_HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
             <!-- Quick talk, the iOS hearth://talk deep link. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
