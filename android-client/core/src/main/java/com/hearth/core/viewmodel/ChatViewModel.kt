@@ -152,12 +152,19 @@ class ChatViewModel(
         speech?.onFinalResult = { text ->
             _partialTranscript.value = null
             listenJob?.cancel()
-            if (text.isNotBlank()) {
-                appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = text))
-                _state.value = HearthState.THINKING
-                socket.sendClientTranscription(text)
-            } else {
+            if (text.isBlank()) {
+                // Heard nothing worth sending. Closing the window in silence
+                // is correct after an automatic post-speak listen; the mic
+                // simply stands down.
                 _state.value = HearthState.IDLE
+                _micLevel.value = 0f
+            } else {
+                appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = text))
+                if (socket.sendClientTranscription(text)) {
+                    _state.value = HearthState.THINKING
+                } else {
+                    reportUnsent()
+                }
             }
         }
         speech?.onError = { message ->
@@ -270,8 +277,32 @@ class ChatViewModel(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = trimmed))
-        _state.value = HearthState.THINKING
-        socket.sendTextQuery(trimmed)
+        if (socket.sendTextQuery(trimmed)) {
+            _state.value = HearthState.THINKING
+        } else {
+            // The socket was gone. Saying so beats sitting in THINKING
+            // forever, and beats the silence that made a dropped follow-up
+            // look like the client had ignored it.
+            reportUnsent()
+        }
+    }
+
+    /**
+     * A turn that never reached the house. The socket drops for ordinary
+     * reasons (the screen slept, the network moved) and the reconnect is
+     * automatic, so this says what happened and invites the retry rather
+     * than pretending to be thinking.
+     */
+    private fun reportUnsent() {
+        _state.value = HearthState.IDLE
+        _thinkingStage.value = null
+        appendMessage(
+            ChatMessage(
+                role = ChatMessage.Role.SYSTEM,
+                text = "That did not reach the house. Reconnecting; say it again.",
+            )
+        )
+        if (!inBackground) scheduleReconnect()
     }
 
     fun switchPersona(name: String) = socket.switchPersona(name)

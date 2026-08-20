@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import androidx.core.content.ContextCompat
 import com.hearth.core.audio.SpeechRecognitionManager
 import com.hearth.core.audio.TtsStreamPlayer
+import com.hearth.core.models.HearthState
 import com.hearth.core.config.ServerConfig
 import com.hearth.core.transport.HearthWebSocketClient
 import com.hearth.core.viewmodel.ChatViewModel
@@ -118,6 +119,16 @@ class MainActivity : ComponentActivity() {
                             mutableStateOf<HouseDestination?>(null)
                         }
 
+                        // A live turn holds the screen awake. Without this the
+                        // display times out while the house is thinking, the
+                        // activity stops, the socket is torn down, and the
+                        // follow-up the operator speaks has nowhere to go.
+                        // That is exactly what happened on the first device
+                        // run: the house logged "1 turns, reason=disconnect".
+                        KeepScreenOn(
+                            state != HearthState.IDLE && state != HearthState.LOADING
+                        )
+
                         // A surface is a full-screen visit, as on iOS: the
                         // stage stays underneath and Back returns to it.
                         when (destination) {
@@ -194,6 +205,25 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Hold the display awake while a turn is live. The window flag is the
+     * right tool rather than a wake lock: it needs no permission and it dies
+     * with the window.
+     */
+    @androidx.compose.runtime.Composable
+    private fun KeepScreenOn(keep: Boolean) {
+        androidx.compose.runtime.DisposableEffect(keep) {
+            if (keep) {
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            } else {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+            onDispose {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
         }
     }

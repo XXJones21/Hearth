@@ -110,19 +110,18 @@ class HearthWebSocketClient(
         )
     }
 
-    fun sendTextQuery(text: String) {
+    /** False when there is no socket: the caller must not claim it sent. */
+    fun sendTextQuery(text: String): Boolean =
         send(JSONObject().put("action", "text_query").put("text", text))
-    }
 
     /** The transcript of a local recognition. The audio itself never ships. */
-    fun sendClientTranscription(text: String) {
+    fun sendClientTranscription(text: String): Boolean =
         send(
             JSONObject()
                 .put("action", "client_transcription")
                 .put("text", text)
                 .put("source", "android_speech")
         )
-    }
 
     fun sendPing() = send(JSONObject().put("action", "ping"))
 
