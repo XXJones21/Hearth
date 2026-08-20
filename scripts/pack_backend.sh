@@ -59,6 +59,22 @@ done
 cp "$REPO/backend/manifest.yaml" "$STAGE/backend/" 2>/dev/null || true
 cp "$REPO/crates/hearth-probe/dictionary.yaml" "$STAGE/backend/dictionary.yaml"
 
+# The second-brain memory client, vendored from its own repository into
+# vendor/engram-mcp (the path REL_ENGRAM_MCP names and the rendered
+# HEARTH_ENGRAM_MCP_PATH points at). First run establishes a brain for every
+# new user, so a bundle without the client that reads it deeply is a memory
+# regression shipping silently: hard error, like the supervisor gate above.
+# The local transport is stdlib-only; the package directory is the whole need.
+ENGRAM_MCP_SRC="${ENGRAM_MCP_SRC:-$REPO/../claude-marketplace/engram-mcp}"
+if [ ! -d "$ENGRAM_MCP_SRC/engram_mcp" ]; then
+  echo "no engram-mcp checkout at $ENGRAM_MCP_SRC" >&2
+  echo "clone https://github.com/XXJones21/engram-mcp.git there, or set ENGRAM_MCP_SRC" >&2
+  exit 1
+fi
+mkdir -p "$STAGE/backend/vendor/engram-mcp"
+cp -r "$ENGRAM_MCP_SRC/engram_mcp" "$STAGE/backend/vendor/engram-mcp/"
+cp "$ENGRAM_MCP_SRC/pyproject.toml" "$STAGE/backend/vendor/engram-mcp/" 2>/dev/null || true
+
 find "$STAGE" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$STAGE/backend/harness/sessions" 2>/dev/null || true
 

@@ -38,6 +38,19 @@ _BRIEF_FALLBACK_TOOLS = {
     "recall": "From memory",
 }
 
+# Writes that must leave a receipt on screen. A file tool has never had a
+# card, so an 18-call wiki ingest and the Engram write that followed it were
+# both invisible (live 2026-08-16 `41956a18`: one spoken sentence, no cards).
+# The receipt also makes a false completion visible: a claim with no card is
+# a claim with no write.
+_WRITE_RECEIPT_TOOLS = {
+    "new_file": "Wrote",
+    "write_file": "Wrote",
+    "mkdir": "Created folder",
+    "move_file": "Moved",
+    "delete_file": "Deleted",
+}
+
 _CARD_BODY_CHARS = 280
 
 
@@ -76,9 +89,75 @@ def compose_for_result(tool_name: str, result: Any) -> list[dict]:
                         },
                     }
                 ]
+        # Rule 3: a completed write leaves a receipt naming the real path.
+        heading = _WRITE_RECEIPT_TOOLS.get(tool_name)
+        if heading and getattr(result, "ok", False):
+            path = str(data.get("path") or "").strip()
+            if path:
+                if tool_name == "mkdir" and not data.get("created"):
+                    heading = "Folder already there"
+                sections: list[dict] = [{"kind": "text", "body": path}]
+                chars = data.get("chars")
+                if isinstance(chars, int) and chars > 0:
+                    sections.append(
+                        {"kind": "stat", "label": "Characters", "value": f"{chars:,}"}
+                    )
+                return [
+                    {
+                        "version": 1,
+                        "type": "generated_view",
+                        "props": {
+                            "template": "brief",
+                            "title": heading,
+                            "sections": sections,
+                        },
+                    }
+                ]
         return []
     except Exception as exc:  # noqa: BLE001 - composition never breaks the turn
         logger.warning("compose_for_result failed for %s: %s", tool_name, exc)
+        return []
+
+
+def compose_open_task(snapshot: dict | None) -> list[dict]:
+    """Progress card for one finished tool batch of a carried file task.
+
+    The voice turn speaks a single sentence no matter how many files moved,
+    so the counts and what is left go to the screen instead. One card per
+    batch: the client timeline keeps each upsert as its own entry, so the
+    cards read back as a progress log rather than replacing each other.
+    """
+    try:
+        if not snapshot:
+            return []
+        root = str(snapshot.get("root") or "").strip()
+        done = bool(snapshot.get("done"))
+        if done:
+            title = f"Finished reading {root}" if root else "Finished reading"
+        else:
+            title = f"Reading {root}" if root else "Reading files"
+        sections: list[dict] = [
+            {
+                "kind": "stat_row",
+                "stats": [
+                    {"label": "Read", "value": str(snapshot.get("read") or 0)},
+                    {"label": "Files left", "value": str(snapshot.get("files_left") or 0)},
+                    {"label": "Folders left", "value": str(snapshot.get("dirs_left") or 0)},
+                ],
+            }
+        ]
+        nxt = [str(p) for p in (snapshot.get("next") or []) if p]
+        if nxt:
+            sections.append({"kind": "text", "body": "Next: " + ", ".join(nxt)})
+        return [
+            {
+                "version": 1,
+                "type": "generated_view",
+                "props": {"template": "brief", "title": title, "sections": sections},
+            }
+        ]
+    except Exception as exc:  # noqa: BLE001 - composition never breaks the turn
+        logger.warning("compose_open_task failed: %s", exc)
         return []
 
 
