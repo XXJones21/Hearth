@@ -3,7 +3,9 @@ package com.hearth.core.surfaces
 import com.hearth.core.config.ServerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
@@ -60,6 +62,14 @@ data class HouseApp(
     val tagline: String,
     val transport: String,
     val tools: List<String>,
+    /** active | setup | available. The page groups on this. */
+    val state: String,
+    /** Which personas are offered it. */
+    val who: List<String>,
+    /** What it is still waiting on, when state is setup. */
+    val needs: List<String>,
+    /** Tools beyond the ones listed. */
+    val more: Int,
 )
 
 data class CardKind(
@@ -85,6 +95,10 @@ data class AppsSurface(
                         tagline = it.optString("tagline"),
                         transport = it.optString("transport"),
                         tools = it.optJSONArray("tools").strings(),
+                        state = it.optString("state").ifEmpty { "available" },
+                        who = it.optJSONArray("who").strings(),
+                        needs = it.optJSONArray("needs").strings(),
+                        more = it.optInt("more"),
                     )
                 },
                 cards = json.optJSONArray("cards").objects().map {
@@ -484,4 +498,38 @@ suspend fun probeHealth(config: ServerConfig): HealthProbe? {
         brainReady = json.optBoolean("brain_ready"),
         brainBackend = json.optString("brain_backend").ifEmpty { "unknown" },
     )
+}
+
+/**
+ * Write persona edits back. The house takes a map of persona key to the
+ * fields that changed, so an untouched field is absent rather than sent
+ * back at its current value.
+ *
+ * Batched behind Save on purpose: a persona is hours of writing, and a
+ * field-by-field autosave turns a stray keystroke into a permanent edit.
+ */
+suspend fun applyPersonaEdits(
+    config: ServerConfig,
+    key: String,
+    edits: JSONObject,
+): String? = withContext(Dispatchers.IO) {
+    val url = config.url("/personas/apply") ?: return@withContext "No house configured."
+    val body = JSONObject().put("edits", JSONObject().put(key, edits))
+    val builder = okhttp3.Request.Builder()
+        .url(url)
+        .post(
+            body.toString().toRequestBody("application/json".toMediaType())
+        )
+    config.authorize(builder)
+    try {
+        client.newCall(builder.build()).execute().use { response ->
+            val text = response.body?.string().orEmpty()
+            if (!response.isSuccessful) return@withContext "The house refused the change."
+            val json = JSONObject(text)
+            if (json.optBoolean("ok", true)) null
+            else json.optString("error").ifEmpty { "The house refused the change." }
+        }
+    } catch (e: Exception) {
+        "Could not reach the house."
+    }
 }
