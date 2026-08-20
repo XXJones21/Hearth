@@ -38,13 +38,18 @@ fun HouseStatusBar(
     state: HearthState,
     personaName: String,
     activeTools: List<String>,
+    /** The cover screen: the same line, with less room around it. */
+    compact: Boolean = false,
 ) {
     val label = statusLabel(state, personaName, activeTools) ?: return
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(
+                horizontal = if (compact) 12.dp else 20.dp,
+                vertical = if (compact) 1.dp else 4.dp,
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
