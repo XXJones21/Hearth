@@ -55,6 +55,8 @@ public struct PersonaFlameCanvas: View {
     }
 
     public var body: some View {
+        GeometryReader { proxy in
+        let field = min(proxy.size.width, proxy.size.height)
         ZStack {
             Canvas { ctx, size in draw(into: ctx, size: size) }
             // THE FACE, COMPOSITED ON TOP -- which is the whole 2D shortcut.
@@ -73,19 +75,39 @@ public struct PersonaFlameCanvas: View {
                 PersonaFaceView(geometry: faceGeometry,
                                 state: state,
                                 palette: palette,
-                                reducedMotion: reducedMotion)
-                    .scaleEffect(0.42)
-                    .offset(y: Self.faceDrop)
+                                reducedMotion: reducedMotion,
+                                // FEATURES ONLY. With the head on, this drew a
+                                // solid cream squircle in front of the fire --
+                                // a persona standing before a flame rather than
+                                // a flame with a face.
+                                drawsHead: false)
+                    // Framed rather than scaled. `scaleEffect` shrinks the
+                    // stroke widths and the blur radii with the drawing; a
+                    // frame lets the face lay itself out at the size it is
+                    // actually being shown, which is what its own geometry
+                    // numbers are relative to.
+                    .frame(width: field * Self.faceSpan, height: field * Self.faceSpan)
+                    .offset(y: field * Self.faceDrop)
                     .allowsHitTesting(false)
             }
         }
+        }
     }
 
-    /// How far below centre the eyes sit, as a fraction of the view. The
-    /// headset puts them at a quarter of the bead's radius above the flame's
-    /// origin, which is low in the body -- a flame's face belongs where the
-    /// fire is widest, not up in the taper.
-    private static let faceDrop: CGFloat = 26
+    /// How much of the view the face's own square occupies.
+    ///
+    /// The face places its eyes at a fraction of its half-extents, so this is
+    /// really a statement about how far apart the eyes sit: big enough that
+    /// they span the flame's body, small enough that they stay inside its
+    /// silhouette at the height they sit at.
+    private static let faceSpan: CGFloat = 0.44
+
+    /// How far below the view's centre the eyes sit, as a fraction of the
+    /// view. Derived from the same place the headset gets it -- the flame's
+    /// base sits low in the frame and the eyes ride a quarter of a radius above
+    /// its origin, which is DOWN in the body where the fire is widest, not up
+    /// in the taper.
+    private static let faceDrop: CGFloat = 0.02
 
     // MARK: - The five colour stops, straight from `fire_kernel`
 
@@ -117,7 +139,7 @@ public struct PersonaFlameCanvas: View {
         // Proportioned like the headset's: the flame is 1.05 of the bead's
         // radius wide and 3.4 of it tall, so width and height stay in the same
         // ratio to each other whatever this view is given.
-        let unit = field * 0.13
+        let unit = field * 0.155
         var flame = FlameProfile(radius: unit * 1.05, height: unit * 3.4)
         if reducedMotion { flame.turbulence = 0; flame.sway = 0 }
 

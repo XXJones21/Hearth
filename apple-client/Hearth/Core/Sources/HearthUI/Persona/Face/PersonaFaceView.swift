@@ -49,19 +49,36 @@ public struct PersonaFaceView: View {
     let state: HearthState
     let palette: PersonaPalette
     let reducedMotion: Bool
+    let drawsHead: Bool
 
     @State private var box = DirectorBox()
 
+    /// - Parameter drawsHead: whether to paint the head under the features.
+    ///   True is the persona as this view has always drawn it -- a filled
+    ///   squircle with eyes on it.
+    ///
+    ///   FALSE IS FOR A FACE WORN BY SOMETHING ELSE. The headset draws Sulivan
+    ///   as a flame and puts his eyes on it, and what makes that work is that
+    ///   the face texture is mostly TRANSPARENT with ink only where the
+    ///   features are. This view was not: composited over a fire it put a solid
+    ///   cream head in front of it, which is a persona standing in front of a
+    ///   flame rather than a flame with a face.
+    ///
+    ///   The features are unchanged either way -- same director, same pose,
+    ///   same gaze and blink -- so a persona wearing a body still blinks
+    ///   exactly as it does wearing a head.
     public init(
         geometry: FaceGeometry,
         state: HearthState,
         palette: PersonaPalette = .fallback,
-        reducedMotion: Bool = false
+        reducedMotion: Bool = false,
+        drawsHead: Bool = true
     ) {
         self.geometry = geometry
         self.state = state
         self.palette = palette
         self.reducedMotion = reducedMotion
+        self.drawsHead = drawsHead
     }
 
     public var body: some View {
@@ -189,10 +206,12 @@ public struct PersonaFaceView: View {
         ctx.rotate(by: .radians(pose.headTilt))
         ctx.translateBy(x: -cx, y: -cy)
 
-        ctx.fill(squircle(cx: cx, cy: cy, rx: hw, ry: hh, roundness: pose.headRoundness),
-                 with: .color(headFill()))
-        ctx.stroke(squircle(cx: cx, cy: cy, rx: hw, ry: hh, roundness: pose.headRoundness),
-                   with: .color(rimColor()), lineWidth: max(1, side * 0.015))
+        if drawsHead {
+            ctx.fill(squircle(cx: cx, cy: cy, rx: hw, ry: hh, roundness: pose.headRoundness),
+                     with: .color(headFill()))
+            ctx.stroke(squircle(cx: cx, cy: cy, rx: hw, ry: hh, roundness: pose.headRoundness),
+                       with: .color(rimColor()), lineWidth: max(1, side * 0.015))
+        }
 
         // Eyes: vertical capsules, each with its own lid, size, lean and lift
         // -- matched eyes read as a machine, mismatched ones as a creature.

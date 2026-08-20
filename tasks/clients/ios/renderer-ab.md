@@ -136,6 +136,27 @@ drawing. **Judge motion by eye; use the number only for cost.**
 None of this means B is the wrong answer. It means the comparison had not
 happened yet.
 
+### And the face was a head
+
+With the clock fixed, the canvas flame drew -- behind a **solid cream squircle**.
+`PersonaFaceView` is not an alpha-only face: it fills a head and a rim and then
+puts features on it. Composited over a fire that is a persona standing in FRONT
+of a flame, not a flame with a face.
+
+The headset never hit this because its face is a TEXTURE that is mostly
+transparent, with ink only where the features are -- the alpha it already had is
+the mask. The SwiftUI face had no such property because nothing had ever asked
+it to wear a body.
+
+`PersonaFaceView` now takes `drawsHead:`, defaulting true so every existing
+caller is unchanged. False paints the features and nothing else. The director,
+the pose, the gaze and the blink are identical either way, which is the point:
+a persona wearing a flame blinks exactly as it does wearing a head.
+
+Also framed rather than scaled. `scaleEffect` shrinks stroke widths and blur
+radii along with the drawing; a frame lets the face lay out at the size it is
+actually shown, which is what its own geometry numbers are relative to.
+
 ## Decision, when it comes
 
 Whichever wins, **the loser does not stay.** Two persona renderers behind a
