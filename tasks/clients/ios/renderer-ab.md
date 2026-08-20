@@ -105,6 +105,37 @@ Builds clean for device (`iPhone (60)`, iOS 26.6) and simulator as of
    the spec's note on this being the one genuine loss. If B looks flat next to
    the orb, that is the first thing to try rather than evidence against it.
 
+## Second device run, 2026-08-20
+
+**Route B renders incredibly well.** That is the headline and it is not in
+doubt.
+
+**Route A was not finished, and two of the three faults were mine rather than
+the approach's.**
+
+- *"Does not animate at all, stop and stutters."* A `Canvas` does not animate
+  itself. `date: .now` is evaluated once when the body is built, so without a
+  clock driving re-evaluation the flame only moved when something ELSE
+  invalidated the view -- which is exactly "stationary, then a lurch".
+  `PersonaCanvasView` wraps the shipped orb in a `TimelineView` for precisely
+  this reason and route A was missing the wrapper.
+- *"No eyes or anything."* Correct -- nothing drew a face. Fixed by compositing
+  the SAME `PersonaFaceView` the shipped persona uses over the flame, which is
+  the 2D shortcut the spec describes: one viewpoint and no depth to fight over
+  means no curved card, no surface tracking, no sort group.
+- *"The particles are stationary."* Same cause as the first: they are drawn
+  from the clock that was not advancing.
+
+**And the frame-time readout lied, which is worse than the bugs.** It has its
+own `TimelineView`, so it reports the display's refresh whatever the persona
+beside it is doing -- it said a confident 60fps for a flame that was completely
+frozen. It measures itself. It can still catch a renderer heavy enough to stall
+the main thread, and it cannot see a renderer that is cheap because it is not
+drawing. **Judge motion by eye; use the number only for cost.**
+
+None of this means B is the wrong answer. It means the comparison had not
+happened yet.
+
 ## Decision, when it comes
 
 Whichever wins, **the loser does not stay.** Two persona renderers behind a

@@ -42,10 +42,18 @@ enum PersonaRenderer: String, CaseIterable, Identifiable {
 
 /// A rolling mean frame time, sampled off the SwiftUI clock.
 ///
-/// NOT an instrument. It measures how often this view is asked to redraw, which
-/// on a busy stage is a reasonable stand-in for the frame rate and on an idle
-/// one is exactly the display's refresh. It is here to catch a renderer that
-/// halves the frame rate, not to report a number anyone should quote.
+/// READ THE NEXT PARAGRAPH BEFORE BELIEVING THIS NUMBER.
+///
+/// It measures how often THIS view is asked to redraw, and this view has its
+/// own `TimelineView(.animation)`. So it reports the display's refresh whatever
+/// the persona beside it is doing -- and on the first device run it duly said
+/// 60fps for a canvas flame that was completely frozen. That is not a small
+/// caveat, it is the instrument measuring itself.
+///
+/// It still catches the case it was built for: a renderer heavy enough to stall
+/// the whole main thread drags this down with it. What it cannot see is a
+/// renderer that is cheap because it is not drawing. Judge motion with your
+/// eyes; use this only for cost.
 struct FrameCostReadout: View {
     @State private var last: Date?
     @State private var mean: Double = 0

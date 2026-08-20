@@ -252,13 +252,24 @@ struct HearthMainView: View {
                 // exact persona it was built to compare. An override has to
                 // override.
                 if investigateRenderer == PersonaRenderer.canvasFire.rawValue {
-                    PersonaFlameCanvas(
-                        state: stageState,
-                        pulse: Double(viewModel.ttsAmplitude),
-                        date: .now,
-                        reducedMotion: reduceMotion,
-                        palette: viewModel.personaPalette
-                    )
+                    // A CANVAS DOES NOT ANIMATE ITSELF. `date: .now` is
+                    // evaluated once, when the body is built, so without a
+                    // clock driving re-evaluation the flame only moves when
+                    // something ELSE invalidates the view -- which on device
+                    // read exactly as reported: stationary, then a lurch.
+                    // `PersonaCanvasView` wraps the orb this way for the same
+                    // reason; this is the wrapper it was missing.
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0,
+                                            paused: reduceMotion)) { timeline in
+                        PersonaFlameCanvas(
+                            state: stageState,
+                            pulse: Double(viewModel.ttsAmplitude),
+                            date: timeline.date,
+                            reducedMotion: reduceMotion,
+                            palette: viewModel.personaPalette,
+                            faceGeometry: viewModel.personaVisualization.faceGeometry
+                        )
+                    }
                 } else if investigateRenderer == PersonaRenderer.reality.rawValue {
                     PersonaFlameView(
                         state: stageState,

@@ -36,22 +36,56 @@ public struct PersonaFlameCanvas: View {
     public var date: Date
     public var reducedMotion: Bool
     public var palette: PersonaPalette
+    /// The persona's face, drawn ON the flame. Nil draws a fire with no face,
+    /// which is the honest state for a config that carried no geometry.
+    public var faceGeometry: FaceGeometry?
 
     public init(state: HearthState,
                 pulse: Double = 0,
                 date: Date = .distantPast,
                 reducedMotion: Bool = false,
-                palette: PersonaPalette = .fallback) {
+                palette: PersonaPalette = .fallback,
+                faceGeometry: FaceGeometry? = nil) {
         self.state = state
         self.pulse = pulse
         self.date = date
         self.reducedMotion = reducedMotion
         self.palette = palette
+        self.faceGeometry = faceGeometry
     }
 
     public var body: some View {
-        Canvas { ctx, size in draw(into: ctx, size: size) }
+        ZStack {
+            Canvas { ctx, size in draw(into: ctx, size: size) }
+            // THE FACE, COMPOSITED ON TOP -- which is the whole 2D shortcut.
+            //
+            // The headset needs a curved card that rides the flame's moving
+            // surface, because a flat card in front of a round body either
+            // hovers or sinks, and because the viewer can walk around it. A
+            // window has one viewpoint and no depth to fight over, so the same
+            // face is simply drawn over the fire. No curvature, no surface
+            // tracking, no sort group.
+            //
+            // It is the SAME view the shipped persona uses, driven by the same
+            // director -- so the eyes blink and the mouth follows the voice
+            // here exactly as they do everywhere else.
+            if let faceGeometry {
+                PersonaFaceView(geometry: faceGeometry,
+                                state: state,
+                                palette: palette,
+                                reducedMotion: reducedMotion)
+                    .scaleEffect(0.42)
+                    .offset(y: Self.faceDrop)
+                    .allowsHitTesting(false)
+            }
+        }
     }
+
+    /// How far below centre the eyes sit, as a fraction of the view. The
+    /// headset puts them at a quarter of the bead's radius above the flame's
+    /// origin, which is low in the body -- a flame's face belongs where the
+    /// fire is widest, not up in the taper.
+    private static let faceDrop: CGFloat = 26
 
     // MARK: - The five colour stops, straight from `fire_kernel`
 
