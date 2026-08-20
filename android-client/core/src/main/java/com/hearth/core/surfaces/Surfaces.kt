@@ -289,40 +289,176 @@ data class SessionsSurface(val rows: List<SessionRow>) {
     }
 }
 
-// ---- journal --------------------------------------------------------------
+// ---- journal ---------------------------------------------------------------
 
-data class JournalBook(
+/** One page in a book: a session, a review, or a durable fact. */
+data class JournalEntry(
     val title: String,
-    val summary: String,
-    val pages: Int,
-    val entries: Int,
+    val date: String,
+    val synopsis: String,
+    val persona: String,
+    val slug: String = "",
+    val hasTranscript: Boolean = false,
 )
 
 /**
- * The shelf, in the house's own two halves: what you are building
- * (`projects`) and what you are living (`life`).
+ * A book on the shelf. [shelf] decides which room it stands in.
+ *
+ * A project with one page or fewer is a SEEDLING and stands in the
+ * conservatory rather than the forge: the library is arranged by how alive a
+ * thing is, not by what kind of thing it is.
  */
-data class JournalShelf(
-    val projects: List<JournalBook>,
-    val life: List<JournalBook>,
+data class JournalBook(
+    val title: String,
+    val pages: Int,
+    val summary: String,
+    val entries: List<JournalEntry> = emptyList(),
+    val shelf: Shelf = Shelf.PROJECT,
 ) {
+    enum class Shelf { HEART, LIFE, PROJECT, SEEDLING }
+
+    val isSeedling: Boolean get() = pages <= 1
+}
+
+/**
+ * The library, in Selene's locked room order. Ported from the iOS
+ * `JournalLibrary`.
+ *
+ * The Heart's three volumes do not exist on the server: they are composed
+ * here from the sessions, reviews and facts endpoints, because they are
+ * VIEWS of a living record rather than files on a shelf.
+ */
+data class JournalLibrary(
+    val heart: List<JournalBook>,
+    val life: List<JournalBook>,
+    val projects: List<JournalBook>,
+    val seedlings: List<JournalBook>,
+) {
+    val isEmpty: Boolean
+        get() = heart.isEmpty() && life.isEmpty() &&
+            projects.isEmpty() && seedlings.isEmpty()
+
     companion object {
-        private fun books(array: JSONArray?): List<JournalBook> =
-            array.objects().map {
-                JournalBook(
-                    title = it.optString("title"),
-                    summary = it.optString("summary"),
-                    pages = it.optInt("pages"),
-                    entries = it.optInt("entries"),
+        suspend fun load(config: ServerConfig): JournalLibrary {
+            val shelf = fetch(config, "/journal/shelf")
+            val sessions = fetch(config, "/journal/sessions")
+            val reviews = fetch(config, "/journal/reviews")
+            val facts = fetch(config, "/journal/facts")
+
+            fun books(key: String, shelfKind: JournalBook.Shelf) =
+                shelf?.optJSONArray(key).objects().map {
+                    JournalBook(
+                        title = it.optString("title"),
+                        pages = it.optInt("pages"),
+                        summary = it.optString("summary"),
+                        shelf = shelfKind,
+                    )
+                }
+
+            val allProjects = books("projects", JournalBook.Shelf.PROJECT)
+            return JournalLibrary(
+                heart = livingVolumes(sessions, reviews, facts),
+                life = books("life", JournalBook.Shelf.LIFE),
+                projects = allProjects
+                    .filterNot { it.isSeedling }
+                    .sortedByDescending { it.pages },
+                seedlings = allProjects
+                    .filter { it.isSeedling }
+                    .map { it.copy(shelf = JournalBook.Shelf.SEEDLING) },
+            )
+        }
+
+        /**
+         * The three volumes that live and grow: the Journal, what the house
+         * knows about you, and Selene's nightly consolidations.
+         */
+        private fun livingVolumes(
+            sessions: JSONObject?,
+            reviews: JSONObject?,
+            facts: JSONObject?,
+        ): List<JournalBook> {
+            val out = mutableListOf<JournalBook>()
+
+            val sessionRows = sessions?.optJSONArray("sessions").objects()
+            if (sessionRows.isNotEmpty()) {
+                out.add(
+                    JournalBook(
+                        title = "The Journal",
+                        pages = sessionRows.size,
+                        summary = "The working record of what was built, decided " +
+                            "and left open on each day. This volume and the Ledger " +
+                            "are the two that grow almost daily.",
+                        entries = sessionRows.map {
+                            JournalEntry(
+                                title = it.optString("title").ifEmpty { "Session" },
+                                date = it.optString("date"),
+                                synopsis = it.optString("summary"),
+                                persona = it.optString("persona")
+                                    .substringBefore(' ')
+                                    .ifEmpty { "Sulivan" },
+                                slug = it.optString("slug")
+                                    .ifEmpty { it.optString("thought_slug") },
+                                hasTranscript = it.optBoolean("has_transcript"),
+                            )
+                        },
+                        shelf = JournalBook.Shelf.HEART,
+                    )
                 )
             }
 
-        suspend fun load(config: ServerConfig): JournalShelf? {
-            val json = fetch(config, "/journal/shelf") ?: return null
-            return JournalShelf(
-                projects = books(json.optJSONArray("projects")),
-                life = books(json.optJSONArray("life")),
-            )
+            // "- [2026-05-28] [tag] the fact itself"
+            val factLines = facts?.optString("body").orEmpty()
+                .split("\n")
+                .filter { it.startsWith("- [") }
+            if (factLines.isNotEmpty()) {
+                out.add(
+                    JournalBook(
+                        title = "About you",
+                        pages = factLines.size,
+                        summary = "What the house knows about you, held as durable " +
+                            "facts rather than transcript. One living page, " +
+                            "refreshed rather than appended. Curation is " +
+                            "conversational: ask Selene to forget something and " +
+                            "she will.",
+                        entries = factLines.map { line ->
+                            val date = line.drop(3).takeWhile { it != ']' }
+                            val text = line.dropWhile { it != ']' }.drop(1).trim()
+                            JournalEntry(
+                                title = text.take(70),
+                                date = date,
+                                synopsis = text,
+                                persona = "Selene",
+                            )
+                        },
+                        shelf = JournalBook.Shelf.HEART,
+                    )
+                )
+            }
+
+            val reviewRows = reviews?.optJSONArray("reviews").objects()
+            if (reviewRows.isNotEmpty()) {
+                out.add(
+                    JournalBook(
+                        title = "Selene's Ledger",
+                        pages = reviewRows.size,
+                        summary = "Nightly consolidations. Each one reads the day " +
+                            "and keeps what will still matter next month. Where " +
+                            "the Journal records, the Ledger decides what endures.",
+                        entries = reviewRows
+                            .sortedByDescending { it.optString("date") }
+                            .map {
+                                JournalEntry(
+                                    title = "Daily review",
+                                    date = it.optString("date"),
+                                    synopsis = it.optString("body"),
+                                    persona = "Selene",
+                                )
+                            },
+                        shelf = JournalBook.Shelf.HEART,
+                    )
+                )
+            }
+            return out
         }
     }
 }

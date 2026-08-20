@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hearth.core.config.ServerConfig
 import com.hearth.core.surfaces.AppsSurface
-import com.hearth.core.surfaces.JournalShelf
 import com.hearth.core.surfaces.PersonaSurface
 import com.hearth.core.surfaces.SessionRow
 import com.hearth.core.surfaces.SessionsSurface
@@ -297,48 +296,6 @@ private fun SessionRowView(
 }
 
 // ---- journal --------------------------------------------------------------
-
-/** The shelf in the house's own two halves: what you build, what you live. */
-@Composable
-fun JournalScreen(config: ServerConfig, onBack: () -> Unit) {
-    var shelf by remember { mutableStateOf<JournalShelf?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        shelf = JournalShelf.load(config)
-        loading = false
-    }
-
-    SurfaceScaffold("Journal", onBack) { padding ->
-        val current = shelf
-        when {
-            loading -> SurfaceLoading(padding)
-            current == null -> SurfaceUnavailable(padding)
-            else -> LazyColumn(modifier = Modifier.padding(padding)) {
-                for ((heading, books) in listOf(
-                    "Projects" to current.projects,
-                    "Life" to current.life,
-                )) {
-                    if (books.isEmpty()) continue
-                    item(key = "h-$heading") {
-                        Text(
-                            heading,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                        )
-                    }
-                    items(books, key = { heading + it.title }) { book ->
-                        SurfaceRowItem(
-                            title = book.title,
-                            detail = book.summary,
-                            trailing = "${book.entries}",
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 // ---- apps -----------------------------------------------------------------
 
