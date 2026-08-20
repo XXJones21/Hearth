@@ -17,7 +17,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.lifecycle.lifecycleScope
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
@@ -136,6 +139,9 @@ class MainActivity : ComponentActivity() {
 
                         // A surface is a full-screen visit, as on iOS: the
                         // stage stays underneath and Back returns to it.
+                        CompositionLocalProvider(
+                            LocalLayoutDirection provides LayoutDirection.Rtl
+                        ) {
                         when (destination) {
                             HouseDestination.SESSIONS -> SessionsScreen(
                                 config = config,
@@ -168,29 +174,37 @@ class MainActivity : ComponentActivity() {
                             null -> ModalNavigationDrawer(
                                 drawerState = drawerState,
                                 drawerContent = {
-                                    HouseShelf(
-                                        personas = personas,
-                                        currentPersona = persona,
-                                        onPersona = {
-                                            viewModel.switchPersona(it)
-                                            scope.launch { drawerState.close() }
-                                        },
-                                        onOpen = {
-                                            destination = it
-                                            scope.launch { drawerState.close() }
-                                        },
-                                        onNewSession = {
-                                            viewModel.newSession()
-                                            scope.launch { drawerState.close() }
-                                        },
-                                        transcriptShown = transcriptShown,
-                                        onToggleTranscript = {
-                                            transcriptShown = !transcriptShown
-                                            scope.launch { drawerState.close() }
-                                        },
-                                    )
+                                    // The shelf comes in from the RIGHT, as on
+                                    // iOS. Compose only opens drawers from the
+                                    // start edge, so the drawer is composed in
+                                    // RTL and its contents flipped back.
+                                    CompositionLocalProvider(
+                                        LocalLayoutDirection provides LayoutDirection.Ltr
+                                    ) {
+                                        HouseShelf(
+                                            personas = personas,
+                                            currentPersona = persona,
+                                            connected = connected,
+                                            onPersona = {
+                                                viewModel.switchPersona(it)
+                                                scope.launch { drawerState.close() }
+                                            },
+                                            onOpen = {
+                                                destination = it
+                                                scope.launch { drawerState.close() }
+                                            },
+                                            transcriptShown = transcriptShown,
+                                            onToggleTranscript = {
+                                                transcriptShown = it
+                                                scope.launch { drawerState.close() }
+                                            },
+                                        )
+                                    }
                                 },
                             ) {
+                                CompositionLocalProvider(
+                                    LocalLayoutDirection provides LayoutDirection.Ltr
+                                ) {
                                 HearthMainScreen(
                                     state = state,
                                     connected = connected,
@@ -210,9 +224,6 @@ class MainActivity : ComponentActivity() {
                                         if (hasMic()) viewModel.toggleListening()
                                         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
                                     },
-                                    // Three meanings, none of them the talk
-                                    // button's: quiet a reply, discard a
-                                    // partial, or start a turn.
                                     onStageTap = {
                                         when (state) {
                                             HearthState.SPEAKING -> viewModel.interruptSpeaking()
@@ -229,7 +240,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onShelf = { scope.launch { drawerState.open() } },
                                 )
+                                }
                             }
+                        }
                         }
                     }
                 }

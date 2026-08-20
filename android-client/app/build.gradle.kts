@@ -49,6 +49,9 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    // The shelf carries an icon per row, as iOS does. R8 strips the unused
+    // ones from a release build.
+    implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation("androidx.core:core-ktx:1.15.0")
