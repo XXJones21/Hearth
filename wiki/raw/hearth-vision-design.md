@@ -150,7 +150,17 @@ director; there is no second state machine.
 
 **A caveat to respect.** The caustics set was never validated on a device, so
 the `LowLevelTexture` pattern gets its first on-device proof through the
-face. Treat the pattern as unproven until headset gate 2 passes.
+face. Treat the pattern as unproven until headset gate 2 passes. *(Resolved
+2026-08-17: the pattern works. The face renders on the headset, and the kernel
+compiles and links for iOS as well.)*
+
+**An open change to the mouth.** The speaking particle waveform is, in the
+operator's judgement, the best speaking treatment across every client -- and
+the face draws an unrelated oval beside it. Two answers to one question, with
+the weaker one on the face. The mouth should become the waveform. Scoped, with
+the two readings of that separated and the phase-channel question laid out, in
+`tasks/clients/visionOS/waveform-mouth.md`; deliberately not folded together with the
+separate complaint that the particle wave is too wide at volume scale.
 
 ## 4. Choreography
 
@@ -245,28 +255,239 @@ live against the house. Cards as billboarding attachments through the ported
 *Headset gate 1: a full voice turn in the volume.* Pinch the orb, speech
 recognized, reply spoken, a card beside the orb.
 
-**Phase 2, the face.** `PersonaFaceTexture` and `face_kernel`, the `FacePose`
-params bridge, hemisphere material binding, the attachment fallback. Body and
-gaze look-at with the head anchor.
+On the device, Build-and-Run hung at "Configuring Debugger Actions" with LLDB
+reading device memory to resolve symbols; killing the app and launching it from
+the Home View cleared it every time, and the turn then ran end to end.
+
+**Disabling the two checkers was not enough.** That was the first fix and it
+left the hang in place, because removing the injected dylibs does not remove the
+dyld-to-LLDB notify path they wedge in. The Vision scheme now runs with no
+debugger at all -- "Debug executable" unchecked -- which is what the Valinor log
+concluded in the first place. The checkers stay disabled underneath so that
+ticking the debugger back on to chase something does not immediately re-arm the
+trap, and GPU validation and frame capture are off as well, since frame capture
+auto-enables for a Metal binary under the debugger and this target links Metal
+as of phase 2.
+
+The cost is the console: `print` writes to stdout, stdout is not the unified
+log, and with no debugger Xcode shows neither. Anything worth reading on the
+headset goes through `os.Logger` and is read with `xcrun devicectl device
+console` or Console.app.
+
+Two decisions taken during the port, both departures from what this document
+first said:
+
+- **The pairing window is Vision-native, not a reshaped `FirstRunView`.** What
+  is genuinely shared is the contract, and that IS reused unchanged --
+  `ServerConfig`, `Pairing.pair`, `.hearthServerConfigured`. What does not
+  carry is the chrome: the phone's view is a full-screen column sized against
+  a keyboard sliding up under it, and the headset's is a 396pt pane floating
+  in front of a room. Two layouts, one flow. (Standing reason to revisit:
+  reaching a house over Tailscale from the headset is unresolved, and the
+  address step is where that surfaces.)
+- **The ornaments are Vision-native too.** `HouseStatusBar` and
+  `BottomInputBar` are shaped for a 390pt column with a keyboard under them;
+  an ornament is a short horizontal strip with no keyboard of its own.
+  Parameterising the phone's for both would serve neither. They stay in the
+  iOS target until something actually wants them twice.
+
+**Phase 2, the face.** LANDED 2026-08-17. **Gate 2 PASSED** on the device: the
+face alive on the orb through a full turn, blinking, with the mouth riding real
+TTS amplitude. The `LowLevelTexture` pattern is proven, on hardware, for the
+first time. `PersonaFaceTexture` and `face_kernel`, the `FacePose` params
+bridge, the material binding, the attachment fallback. Look-at moved out; see
+below.
+
+Four adjustments came out of the device runs and none were predictable from the
+simulator: the face landed a quarter turn off (RealityKit's sphere UV seam is
+undocumented, so the shell's rotation is measured rather than derived); the
+limb fade was vignetting the whole face rather than its last few degrees; the
+ink was being written sRGB into a linear float texture, which is most of a stop
+too bright and was the whole of the "washed out" complaint; and the geometry
+carried from a flat 130pt phone view is simply small on a bead the size of a
+palm. The face now runs flat black at `eyeScale` 1.2, both marked as test
+settings in the code. Colour polish is
+[tasks/clients/visionOS/visual-polish.md](../../tasks/clients/visionOS/visual-polish.md).
 *Headset gate 2: the face alive on the orb, expressions firing on
 `tts_chunk_start`.* This is also the first on-device proof of the
 `LowLevelTexture` pattern.
 
-**Phase 3, choreography and journals.** `BehaviorDirector`, primitives, the
-`state_update` fallback producer. `JournalBook`, `JournalShelf`, both open
-paths, the library volume. In parallel on the backend: `behavior_cue` lands
-in Valar in Valinor, then merges to the Hearth backend; the client swaps
+Three things this section assumed that turned out otherwise:
+
+- **Neither look-at layer belongs in the volume, and both move to phase 4.**
+  The body layer was specified as a smoothed slerp toward the user's head
+  anchor; a head anchor needs a world-tracking ARKit session, and the Shared
+  Space does not grant one to a volumetric window. The first fix was a
+  `BillboardComponent`, and it was the wrong instinct -- a volume is a box you
+  look into from the front, so the face simply faces forward and stays there.
+  That is not an approximation of the intended behaviour at this scale; it is
+  the whole of it. Looking-at earns its keep in the immersive house, where the
+  orb roams a room and the person moves around it, and it lands there against
+  the real anchor rather than a stand-in for one. (Operator's call,
+  2026-08-17.)
+- **The kernel draws no head.** Section 3 says the kernel draws "the
+  established capsule-and-squircle ink language", but the squircle is the
+  phone's head, and on the orb the bead already is one. The kernel writes
+  transparent everywhere it is not laying ink and the shell blends over the
+  body.
+- **The metallib does not live where Valinor's did.** Valinor's kernel sat in
+  the app target, where `makeDefaultLibrary()` finds it. This one ships in a
+  package target: the build compiles it and copies a `default.metallib` into
+  `HearthCore_HearthSpatial.bundle`, nested inside the app rather than at its
+  root. `PersonaFaceTexture` searches for it rather than assuming, and still
+  returns nil -- into the fallback -- if it is genuinely absent.
+
+So section 3's "look-at, two layers" is phase 4 work in full. Nothing of it
+ships here, deliberately: the director's own playlist and saccades keep the
+eyes alive without anything to track, and machinery that cannot be judged in
+the scene it lives in is machinery nobody can tell is broken.
+
+**Phase 3, choreography and journals.** LANDED 2026-08-17. **Gate 3 PASSED in
+part** on the device: the library opens on the Journal button, its shelves
+scroll, a spine can be pinched and the entry read in the phone's own journal
+view, and the persona's investigation prop stages and clears with the cue. The
+half NOT demonstrated is the orb flying to the shelf, because `motion` is
+`.none` by decision -- the travel fought the volume's layout and was switched
+off rather than tuned under pressure. See
+[tasks/clients/visionOS/visual-polish.md](../../tasks/clients/visionOS/visual-polish.md) item 4. `BehaviorDirector`, primitives, the fallback producer. `JournalBook`,
+`JournalShelf`, both open paths. In parallel on the backend: `behavior_cue`
+lands in Valar in Valinor, then merges to the Hearth backend; the client swaps
 producers with no change.
 *Gate 3: a journal-search turn makes the orb fly to the shelf, and the found
 entry is readable in the opened book.*
 
-**Phase 4, the immersive house.** The `ImmersiveSpace(.mixed)` host, entity
-re-hosting between volume and room, the `realBloomActive` switch,
-pinch-and-hold in both directions, `NSWorldSensingUsageDescription` into the
-Vision plist when surface placement lands. Room-scale choreography falls out
-of the same behavior library.
-*Gate 4: the immersive round trip.* Hold to enter, the room furnishes, hold
-to leave, the volume returns.
+Three departures worth knowing:
+
+- **The fallback producer reads the TOOL LIST, not `state_update`.** This
+  section says `state_update`, but that message carries a coarse stage
+  (transcribing, deciding, acting) that cannot tell a journal search from a
+  file read -- so every turn would produce the same generic hover. The
+  `pipeline_stage` message already carries actual tool names, so the derived
+  cues are matched loosely against those. Both producers post through one
+  funnel and the director cannot tell them apart, which is what the design
+  actually asked for; the moment a real `behavior_cue` arrives the derived one
+  goes quiet for the session, because two producers running at once would
+  fight and the harness is always better informed.
+- **Which book to open is a guess, and it should not stay one.** The cue names
+  a performance, not a journal, so the client matches a quoted title out of the
+  house's own reply against the shelf. It works and it is embarrassing. The
+  harness KNOWS which journal it read, so `behavior_cue` should grow a payload
+  -- `{name, phase, subject}` -- and that guess should be deleted rather than
+  improved. Worth landing with the Valar change.
+- **The library volume is not built.** The shelf is one set of entities scaled
+  by its host, so the compact shelf in the main volume is the whole mechanism;
+  the library volume is that same shelf in a bigger box, and it is a scene
+  declaration rather than new machinery. Deferred so gate 3 can be judged on
+  the thing it is actually about.
+
+**Phase 3.5, finishing the volume. LANDED 2026-08-18.** Added 2026-08-17, after
+gate 3, for two things: the shared surfaces were unusable in the box, and the
+desktop's third slot had no equivalent here. Both are done.
+
+The surfaces were not blank -- they rendered, behind a glass slab that visionOS
+draws for a navigation container and that ate every pinch. The cause was the
+suspected one, the phone's navigation chrome inside an attachment, and the fix
+is the split rather than the fork: `HearthSurfaceChrome` in the environment
+picks `.navigation` or `.bare`, `HearthSurfaceShell` draws or omits the stack
+accordingly, and `hearthSurfaceClose` gives an unpresented surface a real way
+out. One implementation of what each screen SAYS; only the shell differs.
+
+The rail is the desktop's `AppFrame` third column, made collapsible for a
+smaller box: a VERTICAL button shelf on the right face mirroring the bottom
+one, opening a docked panel with the desktop's three tabs. Sessions moved off
+the bottom shelf into it, where the desktop keeps it; Memory reads
+`/journal/facts`; Routines says it has nothing rather than porting the
+desktop's fabricated rows. Opening it squeezes the centre slot instead of
+covering it, which is what the desktop's grid does. Scoped and recorded in
+[tasks/clients/visionOS/phase-3-5.md](../../tasks/clients/visionOS/phase-3-5.md).
+
+Two more things landed with it, neither in the original scope and both found by
+running the thing. **The app icon**: a visionOS icon is three parallaxed layers
+masked to a circle, so the phone's flat hearth was SPLIT by colour rather than
+resized. **Persona switching**, which turned out to be two features wearing one
+name -- the status ornament became a menu, and then choosing Selene proved the
+stage had never asked a persona what it wanted to be. `PersonaRig` now dispatches
+on `visualization.type`, by type and never by name, so a `glb_animated` persona
+gets her model where a `procedural_face` persona gets the bead, and travel, tap
+targets, palette and state all keep working because none of them were ever the
+bead's.
+
+The device then corrected three things the desk could not have: a model was
+being fitted in SCENE space and arrived life-size in an 80cm box with a
+collision box that swallowed every pinch in the volume; a figure standing on the
+floor of the box stands in the ornaments hanging along its bottom edge; and her
+head stands exactly where the live caption was. The last one reversed a call
+from 2026-08-17 -- work is now ANCHORED to the persona rather than placed on the
+stage, which is what section 6 asked for on day one and what
+`CardOrbitLayout.offsetFromOrb` had been waiting for.
+
+Phase 4 DISMISSES this volume and returns to it, which is why these were worth
+fixing first: anything broken in the box is broken in both places and harder to
+see in one of them. It also inherits three things phase 3.5 built for it --
+`modelPresentationScale` and `modelVerticalOffset`, whose defaults are already
+the room's answer, and `personaAnchor`, which is how work travels.
+
+**Phase 4, the immersive house. LANDED 2026-08-18.** Re-scoped first, because
+phases 3 and 3.5 had changed what was being carried into the room: the sketch
+was written when the persona was a bead and the volume had almost no chrome, and
+both had stopped being true. Recorded in full in
+[tasks/clients/visionOS/phase-4.md](../../tasks/clients/visionOS/phase-4.md).
+
+*Gate 4 PASSED.* Hold the persona for two seconds and the box gives way to the
+room; hold her again and the box returns. Both persona kinds make the trip, and
+they did fail differently on the way -- a bead and a figure are re-hosted by the
+same code and broke in different places, which is why the gate asked for both.
+
+**The room, as built.** The `ImmersiveSpace(.mixed)` host with the rig re-hosted
+rather than rebuilt, at her own size and standing on a real floor. A single
+gesture carrying three meanings on one target: pinch to talk, hold to cross,
+drag to move her. Cards and the live caption travel with her on `personaAnchor`.
+The controls became part of the PERSONA -- two shelves, thirty centimetres to
+either side, mostly hidden until looked at, with persona switching on the left.
+The journal is pulled off the shelf as a life-size bookcase you place, move and
+read from, and its books open into a reader you can carry to where you are
+sitting. Everything placed is remembered by a world anchor and is where you left
+it tomorrow.
+
+**Four things it taught that the scoping did not predict:**
+
+- **A subscription belongs to the scene that issued it.** The rig ticks itself
+  now, through a `ClosureComponent` that RealityKit runs in whatever scene the
+  entity is in, so the handover costs nothing. Anything else hands every future
+  host a lifecycle it cannot see.
+- **A collider outlives, or overlaps, what it was measured from.** Three
+  separate bugs with one shape: a box measured before the model was fitted, a
+  box left behind after the model was unloaded, and work parented INSIDE a
+  life-size persona's own box, which does not overlap her so much as become
+  unreachable behind her. The rig grew `crownHeight` and `halfWidth` so hosts
+  can place work clear of whoever is standing there.
+- **A room has no ornaments and no presentations.** Both are window features. The
+  first moved the whole client interface onto the persona; the second turned a
+  `Menu` into a shelf that unrolls, and left Persona's editors and Apps' card
+  library still to answer for.
+- **Every placed thing wants the same structure**, which the persona had from
+  the start and everything else was given after breaking it:
+  `PlacedObject` -- an empty root that gestures move, with the presentation
+  hanging inside keeping its own scale. Things you hold face you; things you
+  place stay where they are pointed.
+
+**Deferred out of phase 4 deliberately:** motion at room scale (`.none` still,
+and phase 4.5 is where the travel is judged), the spring lag and billboarding
+that section 6 asks of cards, the library as a room object in the JOURNAL
+destination sense, and scene reconstruction so panels can rest on real tables --
+the world-sensing key that landed here is for anchors, not surfaces.
+
+**Phase 4.5, the room's light.** Added 2026-08-18. Valinor's immersive scene
+projects animated caustics onto the real room through a `ProjectiveTexture` and
+a `SurroundingsLight`, and it is good work that belongs to a different persona:
+Sulivan's palette has moved to cream and the warm end of the brand, and pool
+caustics under a warm bead reads as two ideas rather than one. So caustics
+becomes a PRESET of a projected-light effect rather than the mechanism itself --
+`CausticsTexture` already takes a kernel name and already ships two -- and a
+warm firelight effect is authored beside it in the brand's own terms. Carries
+the operator's rule that non-corporeal personas get effects and humanoid ones do
+not, which also settles whether Selene blooms. Scoped in
+[tasks/clients/visionOS/phase-4-5.md](../../tasks/clients/visionOS/phase-4-5.md).
 
 **Phase 5, surfaces and polish.** Settings, Persona, Apps, Transcript
 windows; the shelf ornament that opens them.

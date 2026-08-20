@@ -44,6 +44,11 @@ struct HearthMainView: View {
     /// been sitting unwired in PersonaCanvasView since it was ported.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// INVESTIGATION BRANCH ONLY -- which persona renderer the stage uses.
+    /// See RendererAB.swift.
+    @AppStorage(PersonaRenderer.storageKey) private var investigateRenderer
+        = PersonaRenderer.shipped.rawValue
+
     private var isIdle: Bool {
         stageState == .IDLE || stageState == .LOADING
     }
@@ -240,7 +245,32 @@ struct HearthMainView: View {
                 // or a face whose geometry has not -- falls back to its orb
                 // rather than showing an empty volume, so Sage arrives with no
                 // code change.
-                if viewModel.personaVisualization.canRenderFace,
+                // INVESTIGATION BRANCH ONLY, and it is checked FIRST on
+                // purpose. The chain below picks a renderer from the persona's
+                // own config, and Sulivan's config says `procedural_face` --
+                // so an A/B appended to the END of it was unreachable for the
+                // exact persona it was built to compare. An override has to
+                // override.
+                if investigateRenderer == PersonaRenderer.canvasFire.rawValue {
+                    // A CANVAS DOES NOT ANIMATE ITSELF. `date: .now` is
+                    // evaluated once, when the body is built, so without a
+                    // clock driving re-evaluation the flame only moves when
+                    // something ELSE invalidates the view -- which on device
+                    // read exactly as reported: stationary, then a lurch.
+                    // `PersonaCanvasView` wraps the orb this way for the same
+                    // reason; this is the wrapper it was missing.
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0,
+                                            paused: reduceMotion)) { timeline in
+                        PersonaFlameCanvas(
+                            state: stageState,
+                            pulse: Double(viewModel.ttsAmplitude),
+                            date: timeline.date,
+                            reducedMotion: reduceMotion,
+                            palette: viewModel.personaPalette,
+                            faceGeometry: viewModel.personaVisualization.faceGeometry
+                        )
+                    }
+                } else if viewModel.personaVisualization.canRenderFace,
                    let faceGeometry = viewModel.personaVisualization.faceGeometry {
                     PersonaFaceView(
                         geometry: faceGeometry,

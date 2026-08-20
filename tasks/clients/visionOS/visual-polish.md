@@ -40,7 +40,7 @@ room rather than as the orb's own voice.
 
 The waveform itself is not the problem and must not be "fixed" -- it is, in the
 operator's judgement, the best speaking treatment across every client, and
-[the waveform mouth task](vision-waveform-mouth.md) wants to promote it further.
+[the waveform mouth task](waveform-mouth.md) wants to promote it further.
 Only its width and its distance from the bead are in question.
 
 `PersonaRig.updateSpeakingParticles` owns both: `width` and the `z` offset that

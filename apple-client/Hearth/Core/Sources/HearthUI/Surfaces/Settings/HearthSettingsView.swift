@@ -49,6 +49,12 @@ public struct HearthSettingsView: View {
                         // to accrue.
                         SpatialStageSection()
                     }
+                    // The phone only, and asked by CLIENT rather than by a
+                    // new capability: this is scaffolding that leaves, and a
+                    // capability invented for it would outlive it.
+                    if ClientProfile.current == .ios {
+                        PersonaRendererSection()
+                    }
                     HistorySection(viewModel: viewModel)
 
                     if ClientProfile.can(.devPane) {
@@ -465,6 +471,41 @@ private struct SpatialStageSection: View {
                     .onChange(of: typingBar) { _, v in
                         ClientPrefs.stageTypingBar = v
                     }
+            }
+        }
+    }
+}
+
+// MARK: - Which drawing the persona wears (investigation)
+
+/// Buried on purpose.
+///
+/// This was a segmented control on the stage while the A/B was live, which is
+/// where a comparison belongs -- one you have to go and find is one nobody runs
+/// twice. The comparison is decided; what is left is a way to hold the new
+/// flame against the persona it replaces while the flame is still being tuned,
+/// and that is not a choice anybody makes twice a day.
+///
+/// IT LEAVES ENTIRELY when a persona's config can name the fire. The renderer
+/// is chosen from the config by design -- `sphere_particle` keeps the canvas,
+/// `glb_animated` mounts RealityKit, `procedural_face` draws the face -- and a
+/// setting that overrides the config is scaffolding, not a feature.
+private struct PersonaRendererSection: View {
+    @AppStorage(PersonaRenderer.storageKey) private var renderer
+        = PersonaRenderer.shipped.rawValue
+
+    var body: some View {
+        SettingsSection(title: "Persona", badge: "This phone") {
+            SettingsRow(label: "Drawing",
+                        hint: "Shipped is whatever the persona's config asks for. Fire is the flame the headset shows, drawn here without a 3D scene -- the same silhouette and the same colours, in a canvas. Being tried out; it will become the persona's own choice rather than yours.") {
+                Picker("", selection: $renderer) {
+                    ForEach(PersonaRenderer.allCases) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 180)
             }
         }
     }

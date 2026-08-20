@@ -30,6 +30,7 @@
 
 import Foundation
 import Combine
+import QuartzCore
 import ARKit
 import RealityKit
 import simd
@@ -50,6 +51,16 @@ final class RoomAnchors: ObservableObject {
     /// here has no remembered place and should use its spawn position.
     @Published private(set) var placements: [RoomSlot: simd_float4x4] = [:]
 
+    /// How big each slot was left, which the anchor itself cannot hold.
+    ///
+    /// A `WorldAnchor` persists an id and a pose. Once the room can be pinched
+    /// to resize, that is a gap with a name: a bookcase you sized to your wall
+    /// comes back tomorrow at whatever the code's default was, which is worse
+    /// than not being able to size it at all -- the work was done and the room
+    /// forgot it. So the size rides in the same sidecar as the ids, which had
+    /// to exist anyway because ARKit does not keep the slot either.
+    @Published private(set) var scales: [RoomSlot: Float] = [:]
+
     /// True once the session is running, so a host can tell "no anchor yet"
     /// from "anchoring is not available at all".
     @Published private(set) var running = false
@@ -61,9 +72,11 @@ final class RoomAnchors: ObservableObject {
     private var saved: [RoomSlot: UUID] = [:]
 
     private static let storeKey = "hearth.roomAnchors"
+    private static let scaleKey = "hearth.roomScales"
 
     init() {
         saved = Self.loadStore()
+        scales = Self.loadScales()
     }
 
     /// Start world tracking and keep applying what it redelivers.
@@ -108,7 +121,19 @@ final class RoomAnchors: ObservableObject {
     /// Replaces whatever that slot was anchored to before, because a thing has
     /// one place at a time and leaving the old anchor behind would have ARKit
     /// tracking a bookcase that is no longer there.
-    func remember(_ slot: RoomSlot, at transform: simd_float4x4) {
+    ///
+    /// - Parameter scale: the size it was left at, kept beside the id because
+    ///   the anchor has nowhere to put it. Pass the POSE in `transform`, not
+    ///   the full transform -- see `PlacedObject.worldPose`.
+    func remember(_ slot: RoomSlot, at transform: simd_float4x4, scale: Float = 1) {
+        // The size is ours and is worth keeping even when anchoring is not
+        // available: the simulator and a declined world-sensing prompt both
+        // land here, and forgetting where a thing was is no reason to also
+        // forget how big it was.
+        if scales[slot] != scale {
+            scales[slot] = scale
+            Self.saveScales(scales)
+        }
         guard running else { return }
         let previous = saved[slot]
         let anchor = WorldAnchor(originFromAnchorTransform: transform)
@@ -128,11 +153,36 @@ final class RoomAnchors: ObservableObject {
         }
     }
 
+    /// Where the person is standing and which way they are looking, right now.
+    ///
+    /// The same provider the anchors come from, which is why this lives here
+    /// rather than in a second session: `WorldTrackingProvider` already runs,
+    /// already holds the world-sensing authorisation, and a second one would be
+    /// asking for the same permission twice to learn the same thing.
+    ///
+    /// `queryDeviceAnchor(atTimestamp:)` is the documented route -- it is what
+    /// Apple's own "entity that follows a person's view" sample is built on --
+    /// and it returns a PREDICTED pose, which is why the tracking state is
+    /// checked rather than assumed. An untracked anchor still has a transform
+    /// in it, and it is the last good one rather than the current one.
+    ///
+    /// Returns the whole transform: the caller wants the translation today and
+    /// the forward vector soon.
+    func viewerTransform() -> simd_float4x4? {
+        guard running,
+              let device = worldTracking.queryDeviceAnchor(atTimestamp: CACurrentMediaTime()),
+              device.isTracked
+        else { return nil }
+        return device.originFromAnchorTransform
+    }
+
     /// Forget a slot entirely -- the bookcase put away, not merely moved.
     func forget(_ slot: RoomSlot) {
         let previous = saved.removeValue(forKey: slot)
         placements[slot] = nil
+        scales[slot] = nil
         Self.saveStore(saved)
+        Self.saveScales(scales)
         guard let previous, running else { return }
         Task { try? await worldTracking.removeAnchor(forID: previous) }
     }
@@ -154,5 +204,21 @@ final class RoomAnchors: ObservableObject {
             out[pair.key.rawValue] = pair.value.uuidString
         }
         UserDefaults.standard.set(raw, forKey: storeKey)
+    }
+
+    private static func loadScales() -> [RoomSlot: Float] {
+        guard let raw = UserDefaults.standard.dictionary(forKey: scaleKey) as? [String: Double]
+        else { return [:] }
+        return raw.reduce(into: [:]) { out, pair in
+            guard let slot = RoomSlot(rawValue: pair.key) else { return }
+            out[slot] = Float(pair.value)
+        }
+    }
+
+    private static func saveScales(_ store: [RoomSlot: Float]) {
+        let raw = store.reduce(into: [String: Double]()) { out, pair in
+            out[pair.key.rawValue] = Double(pair.value)
+        }
+        UserDefaults.standard.set(raw, forKey: scaleKey)
     }
 }
