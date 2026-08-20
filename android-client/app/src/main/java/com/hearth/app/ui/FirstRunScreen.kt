@@ -1,0 +1,146 @@
+package com.hearth.app.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.hearth.core.config.Pairing
+import com.hearth.core.config.ServerConfig
+import kotlinx.coroutines.launch
+
+/**
+ * First run, two steps, the same shape as the iOS `FirstRunView`: name the
+ * house, then redeem the six-digit code it is showing.
+ *
+ * The two steps are separate because knowing where the house is and being
+ * allowed through its door are different states, and a screen that conflates
+ * them says "connecting" forever when the real answer is "you need to pair".
+ */
+@Composable
+fun FirstRunScreen(
+    config: ServerConfig,
+    onDone: () -> Unit,
+) {
+    var address by remember { mutableStateOf(config.address) }
+    var code by remember { mutableStateOf("") }
+    var step by remember { mutableStateOf(if (config.isConfigured) Step.CODE else Step.ADDRESS) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Hearth", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            when (step) {
+                Step.ADDRESS -> "Where is your house?"
+                Step.CODE -> "Enter the code your house is showing."
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+        )
+
+        when (step) {
+            Step.ADDRESS -> {
+                OutlinedTextField(
+                    value = address,
+                    onValueChange = { address = it; error = null },
+                    label = { Text("Address") },
+                    // A tailnet name works from anywhere; a LAN address works
+                    // at home. Port 18700 is assumed unless one is typed.
+                    placeholder = { Text("vytal.tail22b3ca.ts.net") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = {
+                        config.commitAddress(address)
+                        if (config.isConfigured) {
+                            step = Step.CODE
+                        } else {
+                            error = "Type the house's address."
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                ) { Text("Continue") }
+            }
+
+            Step.CODE -> {
+                OutlinedTextField(
+                    value = code,
+                    onValueChange = { code = it.filter(Char::isDigit).take(6); error = null },
+                    label = { Text("Pairing code") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    singleLine = true,
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    enabled = code.length == 6 && !busy,
+                    onClick = {
+                        busy = true
+                        error = null
+                        scope.launch {
+                            try {
+                                Pairing.pair(config, code, android.os.Build.MODEL)
+                                onDone()
+                            } catch (e: Exception) {
+                                error = e.message
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                ) { Text("Pair") }
+
+                TextButton(
+                    onClick = { step = Step.ADDRESS },
+                    enabled = !busy,
+                ) { Text("Change address") }
+            }
+        }
+
+        if (busy) {
+            CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
+        }
+
+        error?.let {
+            Text(
+                it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
+}
+
+private enum class Step { ADDRESS, CODE }

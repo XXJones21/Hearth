@@ -44,6 +44,13 @@ class HearthWebSocketClient(
 
     private var socket: WebSocket? = null
 
+    /**
+     * Called the moment the socket opens, before any frame is read. The
+     * handshake goes out from here so `core` never needs an Android context
+     * to build its device block.
+     */
+    var onOpen: (() -> Unit)? = null
+
     @Volatile
     var isConnected: Boolean = false
         private set
@@ -148,6 +155,7 @@ class HearthWebSocketClient(
         override fun onOpen(webSocket: WebSocket, response: Response) {
             isConnected = true
             Log.i(TAG, "socket open")
+            onOpen?.invoke()
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
