@@ -7,6 +7,7 @@ import com.hearth.core.audio.TtsStreamPlayer
 import com.hearth.core.config.ServerConfig
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
+import com.hearth.core.persona.PersonaForm
 import com.hearth.core.persona.PersonaPalette
 import com.hearth.core.persona.face.FaceGeometry
 import com.hearth.core.transport.HearthEvent
@@ -110,9 +111,13 @@ class ChatViewModel(
     private val _activeTools = MutableStateFlow<List<String>>(emptyList())
     val activeTools: StateFlow<List<String>> = _activeTools.asStateFlow()
 
-    /** Non-null only for a procedural_face persona that sent its numbers. */
+    /** Non-null only for a face-wearing persona that sent its numbers. */
     private val _faceGeometry = MutableStateFlow<FaceGeometry?>(null)
     val faceGeometry: StateFlow<FaceGeometry?> = _faceGeometry.asStateFlow()
+
+    /** Which renderer the persona's own config asks for. */
+    private val _personaForm = MutableStateFlow(PersonaForm.SPHERE_PARTICLE)
+    val personaForm: StateFlow<PersonaForm> = _personaForm.asStateFlow()
 
     /**
      * Captions and face cues parked by segment index, released when that
@@ -512,12 +517,17 @@ class ChatViewModel(
             is HearthEvent.PersonaConfig -> {
                 val visualization = event.config.optJSONObject("visualization")
                 _palette.value = PersonaPalette.from(visualization)
+                val form = PersonaForm.from(visualization?.optString("type"))
+                _personaForm.value = form
                 // A face config that arrived without its geometry falls back
                 // to the orb, the same contract iOS uses: the two halves of "a
                 // face" travel together or the stage draws what it knows.
-                val type = visualization?.optString("type")
+                //
+                // BOTH face-wearing forms need the numbers. The flame wears the
+                // same face on a body of fire, so gating this on
+                // procedural_face alone would have drawn Sulivan's fire blind.
                 _faceGeometry.value =
-                    if (type == "procedural_face" && visualization.has("geometry")) {
+                    if (form.wearsFace && visualization != null && visualization.has("geometry")) {
                         FaceGeometry.from(visualization.optJSONObject("geometry"))
                     } else {
                         null

@@ -5,7 +5,8 @@
   "classification": "abstract",
   "shipped": true,
   "visualization": {
-    "type": "procedural_face",
+    "_type_comment": "The renderer, chosen by TYPE and never by name -- no client says 'if Sulivan'. 'flame' is Sulivan's own: a fire wearing the face below, drawn with vector primitives on a screen and built as a mesh with a compute kernel and a room light on a headset. One name for both, because it says what he IS rather than how one platform draws him. The face geometry stays: the flame wears it, features only, in flat black. Spec: wiki/raw/persona-flame-spec.md.",
+    "type": "flame",
     "archetype": "warm_round",
     "geometry": {
       "head_width": 1.0,

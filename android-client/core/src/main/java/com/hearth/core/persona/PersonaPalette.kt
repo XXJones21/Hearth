@@ -47,6 +47,10 @@ object Scene {
 }
 
 data class PersonaPalette(
+    /** The core bead body. */
+    val sphere: Rgb,
+    /** The orbiting particle field. */
+    val particle: Rgb,
     val idle: Rgb,
     val listening: Rgb,
     val thinking: Rgb,
@@ -66,29 +70,64 @@ data class PersonaPalette(
          * persona's.
          */
         val fallback = PersonaPalette(
+            sphere = Scene.fennec,
+            particle = Scene.honey,
             idle = Scene.fennec,
             listening = Scene.honey,
             thinking = Scene.fennec.mix(Scene.ember, 0.5f),
             speaking = Scene.ember,
         )
 
-        /** Decode a persona's `visualization.state_colors` block, tolerantly. */
+        /**
+         * Decode the server's `visualization` block. Any missing field keeps
+         * the fallback, so partial and legacy configs are safe.
+         *
+         * THE WIRE SHAPE IS AN OBJECT, `{"r":..,"g":..,"b":..}`, and this read
+         * an ARRAY until 2026-08-20 -- so every lookup missed and every persona
+         * silently wore the brand defaults. Sulivan's own colours had never
+         * reached this client. Nothing failed loudly, because falling back to a
+         * warm palette is indistinguishable from a persona that asked for one.
+         */
         fun from(visualization: JSONObject?): PersonaPalette {
-            val colors = visualization?.optJSONObject("state_colors") ?: return fallback
-            fun pick(key: String, fallbackColor: Rgb): Rgb {
-                val arr = colors.optJSONArray(key) ?: return fallbackColor
-                if (arr.length() < 3) return fallbackColor
-                return Rgb(
-                    arr.optDouble(0).toFloat(),
-                    arr.optDouble(1).toFloat(),
-                    arr.optDouble(2).toFloat(),
-                )
+            if (visualization == null) return fallback
+            var p = fallback
+
+            rgb(visualization.optJSONObject("sphere")?.opt("color"))
+                ?.let { p = p.copy(sphere = it) }
+            rgb(visualization.optJSONObject("particle_system")?.opt("color"))
+                ?.let { p = p.copy(particle = it) }
+
+            val states = visualization.optJSONObject("state_colors")
+            if (states != null) {
+                rgb(states.opt("idle"))?.let { p = p.copy(idle = it) }
+                rgb(states.opt("listening"))?.let { p = p.copy(listening = it) }
+                rgb(states.opt("thinking"))?.let { p = p.copy(thinking = it) }
+                rgb(states.opt("speaking"))?.let { p = p.copy(speaking = it) }
+
+                // A face-era config carries state_colors and no sphere or
+                // particle_system objects at all. The orb-fallback paths -- a
+                // model persona whose asset has not arrived, a face whose
+                // geometry has not, a widget -- still deserve the persona's OWN
+                // colours, so the bead borrows the idle glow and the particles
+                // the listening glow rather than degrading to brand defaults.
+                if (!visualization.has("sphere")) {
+                    rgb(states.opt("idle"))?.let { p = p.copy(sphere = it) }
+                }
+                if (!visualization.has("particle_system")) {
+                    rgb(states.opt("listening"))?.let { p = p.copy(particle = it) }
+                }
             }
-            return PersonaPalette(
-                idle = pick("idle", fallback.idle),
-                listening = pick("listening", fallback.listening),
-                thinking = pick("thinking", fallback.thinking),
-                speaking = pick("speaking", fallback.speaking),
+            return p
+        }
+
+        /** An `{r,g,b}` colour object; alpha is ignored, the bead is solid. */
+        private fun rgb(any: Any?): Rgb? {
+            val d = any as? JSONObject ?: return null
+            if (!d.has("r") || !d.has("g") || !d.has("b")) return null
+            return Rgb(
+                d.optDouble("r").toFloat(),
+                d.optDouble("g").toFloat(),
+                d.optDouble("b").toFloat(),
             )
         }
     }

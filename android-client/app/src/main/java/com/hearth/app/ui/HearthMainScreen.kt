@@ -52,10 +52,12 @@ import androidx.compose.ui.platform.LocalDensity
 import com.hearth.app.ui.cards.DynamicCard
 import com.hearth.app.ui.persona.PersonaFace
 import com.hearth.app.ui.persona.PersonaFlame
+import com.hearth.app.ui.persona.PersonaOrb
 import com.hearth.core.cards.CardDescriptor
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
 import com.hearth.core.persona.PersonaPalette
+import com.hearth.core.persona.PersonaForm
 import com.hearth.core.persona.face.FaceGeometry
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -89,6 +91,7 @@ fun HearthMainScreen(
     messages: List<ChatMessage>,
     palette: PersonaPalette,
     faceGeometry: FaceGeometry?,
+    personaForm: PersonaForm,
     faceCue: Pair<String, Long>?,
     caption: String?,
     cards: List<CardDescriptor>,
@@ -140,6 +143,7 @@ fun HearthMainScreen(
                     connected = connected,
                     palette = palette,
                     faceGeometry = faceGeometry,
+                    personaForm = personaForm,
                     faceCue = faceCue,
                     caption = caption,
                     ttsAmplitude = ttsAmplitude,
@@ -193,15 +197,6 @@ fun HearthMainScreen(
 }
 
 /**
- * Mount the flame for every persona while it is being built.
- *
- * TEMPORARY, and section 6 of `tasks/android-client-implementation.md` deletes
- * it: at that point `visualization.type` names the fire, Sulivan's config asks
- * for it, and the stage picks a renderer the way every other client does.
- */
-private const val FLAME_PREVIEW = true
-
-/**
  * Persona on top keeping the slack, the caption below taking exactly the
  * height it needs. Stacked rather than overlaid: overlaying let a tall
  * caption bury the persona, and the persona being visible at all times is the
@@ -216,6 +211,7 @@ private fun PersonaStage(
     connected: Boolean,
     palette: PersonaPalette,
     faceGeometry: FaceGeometry?,
+    personaForm: PersonaForm,
     faceCue: Pair<String, Long>?,
     caption: String?,
     ttsAmplitude: Float,
@@ -243,12 +239,12 @@ private fun PersonaStage(
             // the first real device.
             BoxWithConstraints(contentAlignment = Alignment.Center) {
                 val side = minOf(maxWidth, maxHeight) * 0.82f
-                // SCAFFOLDING, and it leaves in section 6. The renderer is
-                // chosen from the persona's own config by design -- nothing in
-                // a client should say "if Sulivan" -- but the config cannot
-                // name the fire until every client can draw it, so the flame is
-                // mounted unconditionally while it is being built and tuned.
-                if (FLAME_PREVIEW) {
+                // THE RENDERER IS CHOSEN FROM THE PERSONA'S OWN CONFIG, never
+                // by name. A form whose numbers or assets have not arrived
+                // falls back to the orb rather than showing nothing -- the same
+                // contract every other client keeps, and what lets Sage arrive
+                // with no code change here.
+                if (personaForm == PersonaForm.FLAME) {
                     PersonaFlame(
                         state = state,
                         pulse = ttsAmplitude,
@@ -258,7 +254,7 @@ private fun PersonaStage(
                         composerUp = composerUp,
                         modifier = Modifier.size(side),
                     )
-                } else if (faceGeometry != null) {
+                } else if (personaForm == PersonaForm.PROCEDURAL_FACE && faceGeometry != null) {
                     PersonaFace(
                         geometry = faceGeometry,
                         state = state,
@@ -270,16 +266,15 @@ private fun PersonaStage(
                     )
                 } else {
                     // A persona whose face numbers have not arrived falls back
-                    // to its orb rather than showing nothing, the same
-                    // contract iOS uses for a model with no clips.
-                    Box(
-                        modifier = Modifier
-                            .size(side * 0.7f)
-                            .clip(CircleShape)
-                            .background(
-                                if (connected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
+                    // to its orb rather than showing nothing, the same contract
+                    // iOS uses for a model with no clips. It was a flat filled
+                    // circle until 2026-08-20, which is indistinguishable from
+                    // a rendering failure.
+                    PersonaOrb(
+                        state = state,
+                        pulse = ttsAmplitude,
+                        palette = palette,
+                        modifier = Modifier.size(side),
                     )
                 }
             }

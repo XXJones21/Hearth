@@ -117,6 +117,7 @@ class MainActivity : ComponentActivity() {
                         val cards by viewModel.cardStore.cards.collectAsState()
                         val palette by viewModel.palette.collectAsState()
                         val faceGeometry by viewModel.faceGeometry.collectAsState()
+                        val personaForm by viewModel.personaForm.collectAsState()
                         val faceCue by viewModel.faceCue.collectAsState()
 
                         val personas by viewModel.personas.collectAsState()
@@ -253,6 +254,7 @@ class MainActivity : ComponentActivity() {
                                     messages = messages,
                                     palette = palette,
                                     faceGeometry = faceGeometry,
+                                    personaForm = personaForm,
                                     faceCue = faceCue,
                                     caption = caption,
                                     cards = cards,
