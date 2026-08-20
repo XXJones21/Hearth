@@ -196,7 +196,13 @@ data class PersonaEntry(
     val description: String,
     val classification: String,
     val systemPrompt: String,
-    val voice: String,
+    /**
+     * The voice block is an OBJECT, not a name. Rendering it as a string put
+     * raw JSON on the page where iOS shows three readable rows.
+     */
+    val voiceManner: String,
+    val voiceClip: String,
+    val voiceLine: String,
     val form: String,
     val internal: Boolean,
 )
@@ -213,7 +219,13 @@ data class PersonaSurface(val personas: List<PersonaEntry>) {
                         description = it.optString("description"),
                         classification = it.optString("classification"),
                         systemPrompt = it.optString("system_prompt"),
-                        voice = it.optString("voice"),
+                        voiceManner = it.optJSONObject("voice")
+                            ?.optString("voice_description").orEmpty(),
+                        voiceClip = it.optJSONObject("voice")
+                            ?.optString("reference_audio").orEmpty()
+                            .substringAfterLast('/'),
+                        voiceLine = it.optJSONObject("voice")
+                            ?.optString("reference_text").orEmpty(),
                         form = it.optString("form"),
                         internal = it.optBoolean("internal"),
                     )
