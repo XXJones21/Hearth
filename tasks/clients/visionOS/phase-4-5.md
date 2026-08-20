@@ -7,7 +7,7 @@ persona standing in a room and a persona LIGHTING one.
 > **CLOSED 2026-08-20.** Everything scoped here is built and confirmed on
 > device. Section 20 has the summary, the three rules the phase produced, and
 > the four things still open -- none of which block anything. The user-facing
-> write-up is [wiki/clients/visionos.md](../wiki/clients/visionos.md).
+> write-up is [wiki/clients/visionos.md](../../../wiki/clients/visionos.md).
 
 ## What this is about
 
@@ -795,7 +795,7 @@ thing sits behind `PersonaFaceTexture.eyeStyle` and draws nothing until asked.
 It still needs brows, a mouth in its own language, a counterpart on the phone,
 and a home in the persona config rather than in client properties. Written up in
 full, with every device correction it took, in
-[tasks/persona-chibi-face.md](persona-chibi-face.md).
+[tasks/persona-chibi-face.md](../../persona-chibi-face.md).
 
 Next: the ember field's other three states -- see section 15.
 
@@ -1401,4 +1401,4 @@ guessed:
 Motion at room scale is still `BehaviorDirector.motion = .none`, the cards still
 want spring lag and billboarding, and `PersonaView`/`AppsView` are still dead in
 the room. All three were deferred out of phase 4 and are still deferred. The
-chibi face is parked in [tasks/persona-chibi-face.md](persona-chibi-face.md).
+chibi face is parked in [tasks/persona-chibi-face.md](../../persona-chibi-face.md).

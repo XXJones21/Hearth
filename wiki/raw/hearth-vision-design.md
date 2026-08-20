@@ -183,7 +183,7 @@ operator's judgement, the best speaking treatment across every client -- and
 the face draws an unrelated oval beside it. Two answers to one question, with
 the weaker one on the face. The mouth should become the waveform. Scoped, with
 the two readings of that separated and the phase-channel question laid out, in
-`tasks/vision-waveform-mouth.md`; deliberately not folded together with the
+`tasks/clients/visionOS/waveform-mouth.md`; deliberately not folded together with the
 separate complaint that the particle wave is too wide at volume scale.
 
 ## 4. Choreography
@@ -359,7 +359,7 @@ too bright and was the whole of the "washed out" complaint; and the geometry
 carried from a flat 130pt phone view is simply small on a bead the size of a
 palm. The face now runs flat black at `eyeScale` 1.2, both marked as test
 settings in the code. Colour polish is
-[tasks/vision-visual-polish.md](../../tasks/vision-visual-polish.md).
+[tasks/clients/visionOS/visual-polish.md](../../tasks/clients/visionOS/visual-polish.md).
 *Headset gate 2: the face alive on the orb, expressions firing on
 `tts_chunk_start`.* This is also the first on-device proof of the
 `LowLevelTexture` pattern.
@@ -401,7 +401,7 @@ view, and the persona's investigation prop stages and clears with the cue. The
 half NOT demonstrated is the orb flying to the shelf, because `motion` is
 `.none` by decision -- the travel fought the volume's layout and was switched
 off rather than tuned under pressure. See
-[tasks/vision-visual-polish.md](../../tasks/vision-visual-polish.md) item 4. `BehaviorDirector`, primitives, the fallback producer. `JournalBook`,
+[tasks/clients/visionOS/visual-polish.md](../../tasks/clients/visionOS/visual-polish.md) item 4. `BehaviorDirector`, primitives, the fallback producer. `JournalBook`,
 `JournalShelf`, both open paths. In parallel on the backend: `behavior_cue`
 lands in Valar in Valinor, then merges to the Hearth backend; the client swaps
 producers with no change.
@@ -451,7 +451,7 @@ the bottom shelf into it, where the desktop keeps it; Memory reads
 `/journal/facts`; Routines says it has nothing rather than porting the
 desktop's fabricated rows. Opening it squeezes the centre slot instead of
 covering it, which is what the desktop's grid does. Scoped and recorded in
-[tasks/vision-phase-3-5.md](../../tasks/vision-phase-3-5.md).
+[tasks/clients/visionOS/phase-3-5.md](../../tasks/clients/visionOS/phase-3-5.md).
 
 Two more things landed with it, neither in the original scope and both found by
 running the thing. **The app icon**: a visionOS icon is three parallaxed layers
@@ -483,7 +483,7 @@ the room's answer, and `personaAnchor`, which is how work travels.
 phases 3 and 3.5 had changed what was being carried into the room: the sketch
 was written when the persona was a bead and the volume had almost no chrome, and
 both had stopped being true. Recorded in full in
-[tasks/vision-phase-4.md](../../tasks/vision-phase-4.md).
+[tasks/clients/visionOS/phase-4.md](../../tasks/clients/visionOS/phase-4.md).
 
 *Gate 4 PASSED.* Hold the persona for two seconds and the box gives way to the
 room; hold her again and the box returns. Both persona kinds make the trip, and
@@ -539,7 +539,7 @@ becomes a PRESET of a projected-light effect rather than the mechanism itself --
 warm firelight effect is authored beside it in the brand's own terms. Carries
 the operator's rule that non-corporeal personas get effects and humanoid ones do
 not, which also settles whether Selene blooms. Scoped in
-[tasks/vision-phase-4-5.md](../../tasks/vision-phase-4-5.md).
+[tasks/clients/visionOS/phase-4-5.md](../../tasks/clients/visionOS/phase-4-5.md).
 
 **Phase 5, surfaces and polish.** Settings, Persona, Apps, Transcript
 windows; the shelf ornament that opens them.

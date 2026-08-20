@@ -9,7 +9,7 @@ left -- see the design doc's phase 4 entry for the four lessons worth carrying
 into 4.5.
 
 Scoped 2026-08-18, after phase 3.5 closed. This supersedes the phase 4 sketch in
-[the design doc](../wiki/raw/hearth-vision-design.md) section 8, which is now a
+[the design doc](../../../wiki/raw/hearth-vision-design.md) section 8, which is now a
 summary pointing here.
 
 The sketch was written on 2026-08-17, before the volume had been built. Two of

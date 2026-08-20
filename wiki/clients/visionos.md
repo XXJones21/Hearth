@@ -9,9 +9,9 @@ related:
 sources:
   - wiki/raw/hearth-vision-design.md
   - wiki/raw/visionos-handoff.md
-  - tasks/vision-phase-3-5.md
-  - tasks/vision-phase-4.md
-  - tasks/vision-phase-4-5.md
+  - tasks/clients/visionOS/phase-3-5.md
+  - tasks/clients/visionOS/phase-4.md
+  - tasks/clients/visionOS/phase-4-5.md
   - apple-client/Hearth/Hearth Vision/
   - apple-client/Hearth/Core/Sources/HearthSpatial/
 ---
@@ -161,6 +161,11 @@ a panel: it is a **library of real books on real shelves** that you scroll
 by dragging and open by pinching a spine. Ask the house about something it
 wrote down and it will walk to the shelves and fetch the book itself.
 
+Cards stay beside the persona rather than following you around. A card is
+something the persona handed you, so it belongs where the persona is; a card
+that trails you from room to room is a notification, and the point of putting
+a house in a room is that it is somewhere rather than everywhere.
+
 ## What it needs
 
 - **A Hearth house running on a computer on your network.** The headset
@@ -181,7 +186,6 @@ wrote down and it will walk to the shelves and fetch the book itself.
   movement is not built.
 - **Persona and Apps are unreachable in the room.** Both surfaces work in
   the volume; in the immersive space they have nowhere to be shown yet.
-- **Cards do not follow you.** They arrive and they sit where they arrived.
 - **No away-from-home access.** Reaching a house from outside your own
   network is planned, not built.
 - **One house.** There is no directory of houses and no cloud account.

@@ -150,8 +150,7 @@ thing entirely, wearing someone else's memory and personas.
   built out.
 - **No persona imagery.** Personas render as an orb or a drawn face; a 3D or
   animated persona model is not bundled with any persona yet.
-- **visionOS is a separate app**, not this one running larger. As of
-  2026-08-20 it has its own volume, immersive space and persona rig; see
+- **This is not the visionOS app.** The headset has its own, described in
   [Hearth on Apple Vision Pro](visionos.md).
 - **No away-from-home access.** Reaching a house from outside your own
   network, for example over Tailscale, is planned but not part of the app

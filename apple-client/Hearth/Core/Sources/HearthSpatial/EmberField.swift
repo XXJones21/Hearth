@@ -44,7 +44,7 @@
 //  STATUS: all four turns are drawn, plus the pinch-and-hold crossing. Idle is
 //  the BASE configuration and every other mood is written as what it changes
 //  about the fire, which is the thing worth being able to read at a glance.
-//  See sections 15 and 16 of `tasks/vision-phase-4-5.md`.
+//  See sections 15 and 16 of `tasks/clients/visionOS/phase-4-5.md`.
 //
 
 import Foundation
