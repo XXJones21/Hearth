@@ -37,6 +37,12 @@ pub const FIRST_PERSONA: &str = "Sulivan";
 /// functions of the OS this build runs on.
 pub const REL_MODELS: &str = "models";
 pub const REL_BACKEND: &str = "runtime/backend";
+/// The second-brain memory client (engram-mcp), vendored into the backend
+/// bundle by pack_backend.sh. First run establishes a brain for every new
+/// user, so the client that reads it deeply is product, not dev tooling:
+/// without this path the harness's EngramService stays dark and recall
+/// degrades to the legacy seams.
+pub const REL_ENGRAM_MCP: &str = "runtime/backend/vendor/engram-mcp";
 pub const REL_HOME: &str = "home";
 pub const REL_ENGRAM: &str = "home/engram";
 pub const REL_HF_CACHE: &str = "home/hf-cache";

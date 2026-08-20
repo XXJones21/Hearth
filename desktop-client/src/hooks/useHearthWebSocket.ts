@@ -25,6 +25,23 @@ function personaConfigUrl(personaName: string): string {
   );
 }
 
+/** Human-readable status line for a server stage. `working` carries a
+ *  `detail` string from the harness ("reading, 12 unread files remain"). */
+function runtimeStatusForStage(
+  stage: string,
+  data: Record<string, unknown>
+): string | null {
+  if (stage === 'working') {
+    const detail = String((data as { detail?: unknown }).detail || '').trim();
+    return detail ? `Working: ${detail}` : 'Working';
+  }
+  if (stage === 'transcribing') return 'Listening back';
+  if (stage === 'deciding') return 'Deciding';
+  if (stage === 'consulting') return 'Consulting';
+  if (stage === 'acting') return 'Acting';
+  return null;
+}
+
 function runtimeStatusFor(event: string): string | null {
   switch (event) {
     case 'start':
@@ -203,7 +220,21 @@ function routeMessage(raw: string, send: (o: Record<string, unknown>) => void) {
       break;
     }
     case 'state_update': {
-      s.setServerState({ state: String(data.state), stage: String(data.stage) });
+      const state = String(data.state);
+      const stage = String(data.stage);
+      s.setServerState({ state, stage });
+      // The server's own state machine drives the face. Without this the
+      // visualizer only ever moved on tts/speaking_complete, so the whole
+      // tool phase -- which can now run for minutes on a file sweep -- was
+      // invisible, and a turn that ended without speech never came to rest.
+      // `working` is the long-loop heartbeat; it reads as thinking.
+      if (state === 'thinking') {
+        s.setVisualState('thinking');
+        s.setRuntimeStatus(runtimeStatusForStage(stage, data));
+      } else if (state === 'idle') {
+        s.setVisualState('idle');
+        s.setRuntimeStatus(null);
+      }
       break;
     }
     case 'ui_component': {

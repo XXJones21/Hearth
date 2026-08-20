@@ -1,10 +1,11 @@
 """Local document tools under allow-listed roots.
 
 ``read_file`` opens an operator-named path. ``write_file`` drafts a *new*
-file beside a source (never overwrites the source). The model passes only
-short ``instructions``; the harness re-reads the source and asks the brain
-for the draft body. Putting full documents in tool-call JSON breaks
-llama-server argument parsing (live 2026-08-11).
+file beside a source (never overwrites the source). ``mkdir`` creates an
+empty folder. The model passes only short ``instructions`` on writes; the
+harness re-reads the source and asks the brain for the draft body. Putting
+full documents in tool-call JSON breaks llama-server argument parsing
+(live 2026-08-11).
 
 Text sources keep the same type; HTML and PDF sources always draft as
 Markdown. PDF text via pypdf on read only; writes are UTF-8 text.
@@ -1363,8 +1364,8 @@ def list_dir(args: dict) -> ToolResult:
     if not candidate.exists():
         return ToolResult.error(
             f"Nothing at {_display_path(candidate)}. The folder does not exist; "
-            "this is not a permission problem. Say so plainly, and offer to "
-            "create it if that is what they meant."
+            "this is not a permission problem. Say so plainly, and call mkdir "
+            "on that path if they asked you to create it."
         )
 
     if _under_root(candidate, roots) is None:
@@ -1422,4 +1423,153 @@ def list_dir(args: dict) -> ToolResult:
             "dirs": dirs,
             "truncated": truncated,
         },
+    )
+
+
+def mkdir(args: dict) -> ToolResult:
+    """Create an empty folder at an operator-named path.
+
+    Live 2026-08-16: Sulivan told the operator he could not create folders
+    because new_file only takes a file path. Folders under a root are a
+    first-class write; missing parents are created with them. Outside a root,
+    the existing create permission card runs (approve mkdirs, then retry).
+    """
+    raw_path = str((args or {}).get("path") or "").strip()
+    if not raw_path:
+        return ToolResult.error("mkdir needs a folder path.")
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error(
+            "No writable file roots are configured. Ask the operator to check file_roots.yaml."
+        )
+
+    try:
+        dest = _to_posix_path(raw_path).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that path: {exc}")
+
+    suffix = dest.suffix.lower()
+    if suffix in _WRITABLE_SUFFIXES or suffix in _ALLOWED_SUFFIXES:
+        return ToolResult.error(
+            f"{_display_path(dest)} looks like a file. Use new_file for a "
+            "document, mkdir for a folder."
+        )
+    if dest.exists() and dest.is_file():
+        return ToolResult.error(
+            f"{_display_path(dest)} is a file. Pick a folder path."
+        )
+    if dest.exists() and dest.is_dir():
+        shown = _display_path(dest)
+        logger.info("mkdir already exists %s", dest)
+        return ToolResult(
+            content=(
+                f"Folder already exists: {shown}\n"
+                "Do not claim you created it this turn. Confirm it is there."
+            ),
+            data={"path": shown, "created": False},
+        )
+
+    root_name = _under_root(dest, roots)
+    if root_name is None:
+        return _permission_result(dest, "create")
+
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("mkdir failed %s: %s", dest, exc)
+        return ToolResult.error(f"Could not create {_display_path(dest)}: {exc}")
+
+    shown = _display_path(dest)
+    logger.info("mkdir ok root=%s dest=%s", root_name, dest)
+    return ToolResult(
+        content=(
+            f"Created folder: {shown}\n"
+            f"Root: {root_name}\n"
+            "Speak a short confirmation naming this path. "
+            "Do not invent a path — only this one was created. "
+            "Call new_file next if they also wanted a document inside it."
+        ),
+        data={"path": shown, "root": root_name, "created": True},
+    )
+
+
+def open_note(args: dict) -> ToolResult:
+    """Create the destination note for a file sweep, and nothing else.
+
+    The counterpart to fold-as-you-go. Live 2026-08-16: the reading and the
+    writing never once landed in the same context window, so the final
+    new_file composed 2,555 chars of fiction from an unrelated memory recall
+    while the 24 files actually read had evaporated three sessions earlier.
+    With a note open, each folded batch is appended by the harness as it is
+    read, so the file on disk is the durable record and a restart, a session
+    end, or a crash cannot lose the work.
+
+    Deliberately NOT a brain call: it writes a literal heading. new_file
+    composes a body, which is the thing that invented a document.
+    """
+    raw_path = str((args or {}).get("path") or "").strip()
+    title = str((args or {}).get("title") or "").strip()
+    if not raw_path:
+        return ToolResult.error("open_note needs a path for the note.")
+
+    roots = _load_roots()
+    if not roots:
+        return ToolResult.error(
+            "No writable file roots are configured. Ask the operator to check file_roots.yaml."
+        )
+
+    try:
+        dest = _to_posix_path(raw_path).resolve()
+    except Exception as exc:  # noqa: BLE001
+        return ToolResult.error(f"Could not resolve that path: {exc}")
+
+    if dest.suffix.lower() not in _WRITABLE_SUFFIXES:
+        dest = dest.with_suffix(".md")
+    if dest.exists() and dest.is_dir():
+        return ToolResult.error(
+            f"{_display_path(dest)} is a folder. Give the note a filename."
+        )
+
+    root_name = _under_root(dest, roots)
+    if root_name is None:
+        root_name = _under_root(dest.parent, roots)
+    if root_name is None:
+        return _permission_result(dest.parent, "create")
+
+    heading = title or dest.stem.replace("-", " ").replace("_", " ").title()
+    stamp = datetime.now().strftime("%Y-%m-%d")
+    header = f"# {heading}\n\n_Opened {stamp}. Sections are appended as each batch of files is read._\n"
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        existing = dest.read_text(encoding="utf-8", errors="replace") if dest.exists() else ""
+        if existing.strip():
+            # Never truncate the operator's file. An existing note is
+            # continued, not replaced. Reopening the same note twice with
+            # nothing written between (live 2026-08-16) left two identical
+            # headings back to back, so a trailing one is not repeated.
+            if not existing.rstrip().endswith(f"## {heading} ({stamp})"):
+                with dest.open("a", encoding="utf-8", newline="\n") as fh:
+                    fh.write(("" if existing.endswith("\n") else "\n") + f"\n## {heading} ({stamp})\n")
+            opened = "continued"
+        else:
+            dest.write_text(header, encoding="utf-8", newline="\n")
+            opened = "created"
+    except OSError as exc:
+        logger.warning("open_note failed %s: %s", dest, exc)
+        return ToolResult.error(f"Could not open {_display_path(dest)}: {exc}")
+
+    shown = _display_path(dest)
+    logger.info("open_note %s root=%s path=%s", opened, root_name, dest)
+    return ToolResult(
+        content=(
+            f"Note open: {shown}\n"
+            f"Root: {root_name}\n"
+            "Now call list_dir and read_file on the source folder. What you "
+            "read is summarized and APPENDED to this note automatically after "
+            "each batch. Do not write the body yourself and do not call "
+            "new_file for it. Say only that the note is open and you are "
+            "reading."
+        ),
+        data={"path": shown, "root": root_name, "note_open": True, "opened": opened},
     )

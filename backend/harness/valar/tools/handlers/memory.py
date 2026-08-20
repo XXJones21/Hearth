@@ -19,6 +19,7 @@ import difflib
 import logging
 import re
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 from ...config.settings import hearth_engram
@@ -75,6 +76,139 @@ def _search_knowledge(query: str) -> list[tuple[str, str]]:
                 scored.append((score, label, para.strip()))
     scored.sort(key=lambda x: -x[0])
     return [(label, p[:_SNIPPET_CHARS]) for _, label, p in scored[:_MAX_SNIPPETS]]
+
+# --- day-shaped recall ------------------------------------------------------
+# "What did we do yesterday" is a DATE question, and lexical search cannot
+# answer it: everything in the brain is dated in slug form (2026-08-18-...),
+# so a query like "August 18, 2026" matches the words "August" and "2026" in
+# unrelated notes and misses the day entirely (observed 2026-08-19: the top
+# hit was an August 6 calendar-card session). When the query names a day,
+# recall reads that day's shelf directly -- the daily review plus the day's
+# session folders -- instead of gambling on tokenization.
+
+_MONTHS = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11,
+    "december": 12,
+}
+
+_ISO_DAY_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+# "August 18[, 2026]" / "Aug 18th" -- the day number must not run into a year
+# ("August 2026" alone names no day and must not parse as August 20).
+_MONTH_DAY_RE = re.compile(
+    r"\b([a-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?!\d)(?:,?\s+(\d{4}))?", re.I
+)
+_DAY_MONTH_RE = re.compile(
+    r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,9})\b(?:,?\s+(\d{4}))?", re.I
+)
+
+_MAX_REVIEW_CHARS = 1500
+_MAX_DAY_SESSIONS = 8
+
+
+def _month_number(word: str) -> int | None:
+    w = word.lower()
+    for name, num in _MONTHS.items():
+        if name.startswith(w) and len(w) >= 3:
+            return num
+    return None
+
+
+def _resolve_day(year: int | None, month: int, day: int) -> str | None:
+    """ISO date, defaulting a missing year to the most recent past occurrence."""
+    try:
+        if year is not None:
+            return date(year, month, day).isoformat()
+        today = date.today()
+        candidate = date(today.year, month, day)
+        if candidate > today:
+            candidate = date(today.year - 1, month, day)
+        return candidate.isoformat()
+    except ValueError:
+        return None
+
+
+def parse_day(query: str) -> str | None:
+    """The ISO day a query names, or None when it names no specific day."""
+    q = (query or "").lower()
+    m = _ISO_DAY_RE.search(q)
+    if m:
+        return _resolve_day(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    if "yesterday" in q:
+        return (date.today() - timedelta(days=1)).isoformat()
+    if "today" in q or "this morning" in q or "tonight" in q:
+        return date.today().isoformat()
+    m = _MONTH_DAY_RE.search(q)
+    if m:
+        month = _month_number(m.group(1))
+        if month:
+            year = int(m.group(3)) if m.group(3) else None
+            return _resolve_day(year, month, int(m.group(2)))
+    m = _DAY_MONTH_RE.search(q)
+    if m:
+        month = _month_number(m.group(2))
+        if month:
+            year = int(m.group(3)) if m.group(3) else None
+            return _resolve_day(year, month, int(m.group(1)))
+    return None
+
+
+def _session_heading(folder: Path) -> str:
+    """The session's own title line, from the diary or the chatlog."""
+    for name in ("claude.md", "chatlog.md"):
+        f = folder / name
+        if not f.is_file():
+            continue
+        try:
+            for line in f.read_text(encoding="utf-8", errors="replace").splitlines():
+                s = line.strip()
+                if s.startswith("#"):
+                    return s.lstrip("# ").removeprefix("Chat Log:").strip()
+                if s:
+                    return s[:80]
+        except OSError:
+            continue
+    return ""
+
+
+def _recall_day(day: str) -> ToolResult:
+    """Everything the brain holds for one day: the daily review (if written)
+    and the day's sessions. Deterministic -- no ranking, no near-misses."""
+    parts: list[str] = []
+    review_path = _ENGRAM_ROOT / "Reviews" / "daily" / f"{day}.md"
+    if review_path.is_file():
+        try:
+            text = review_path.read_text(encoding="utf-8", errors="replace").strip()
+            parts.append(f"Daily review for {day}:\n{text[:_MAX_REVIEW_CHARS]}")
+        except OSError as exc:
+            logger.warning("day recall: review unreadable (%s)", exc)
+    thoughts = _ENGRAM_ROOT / "Thoughts"
+    sessions: list[str] = []
+    if thoughts.is_dir():
+        for folder in sorted(thoughts.iterdir()):
+            if not (folder.is_dir() and folder.name.startswith(f"{day}-")):
+                continue
+            heading = _session_heading(folder)
+            sessions.append(f"- {folder.name}" + (f": {heading}" if heading else ""))
+            if len(sessions) >= _MAX_DAY_SESSIONS:
+                break
+    if sessions:
+        parts.append(f"Sessions on {day}:\n" + "\n".join(sessions))
+    if not parts:
+        return ToolResult(
+            content=(
+                f"I have no records for {day} -- no review and no sessions. "
+                "Say so plainly; do not reconstruct the day from memory."
+            ),
+            data={"day": day, "results": []},
+        )
+    logger.info("recall day fast-path: %s (%d session(s), review=%s)",
+                day, len(sessions), review_path.is_file())
+    return ToolResult(
+        content=f"Here is what I have for {day}.\n\n" + "\n\n".join(parts),
+        data={"day": day, "sessions": sessions, "review": review_path.is_file()},
+    )
+
 
 _brain_sync = None
 _import_failed = False
@@ -140,6 +274,14 @@ def recall(args: dict) -> ToolResult:
     client gets. Falls back to the legacy two-tier (brain_sync facts + the
     local knowledge grep) when the package is unavailable."""
     query = str(args.get("query") or args.get("text") or "").strip()
+    # Day fast-path (2026-08-19): a query that names a day is answered from
+    # that day's shelf directly. See the block comment above parse_day.
+    day = parse_day(query)
+    if day:
+        try:
+            return _recall_day(day)
+        except Exception as exc:  # noqa: BLE001 - fall through to search
+            logger.warning("day recall failed (%s); falling back to search", exc)
     # Intent scoping (2026-06-07): lexical ranking cannot tell "my time at
     # Apple" (career intent) from Apple Vision Pro project notes -- the MODEL
     # can, so the tool exposes the intent and we narrow the Engram scopes.
@@ -148,9 +290,9 @@ def recall(args: dict) -> ToolResult:
         "background": ["facts", "knowledge"],
         "personal_projects": ["projects"],
         "projects": ["projects"],  # legacy alias
-        "sessions": ["thoughts"],
+        "sessions": ["thoughts", "reviews"],
     }
-    scopes = scope_map.get(intent)  # None -> the service default (all four)
+    scopes = scope_map.get(intent)  # None -> the service default
 
     from ...memory.service import get_engram_service
 
@@ -159,7 +301,10 @@ def recall(args: dict) -> ToolResult:
         results = svc.search(query, scope=scopes, limit=10)
         if not results:
             return ToolResult(
-                content=f"I don't have anything stored about '{query}'.",
+                content=(
+                    f"I don't have anything stored about '{query}'. "
+                    "Say so plainly; do not invent a memory."
+                ),
                 data={"results": []},
             )
         # Context discipline (2026-06-07): the MODEL sees only the top few
@@ -183,6 +328,10 @@ def recall(args: dict) -> ToolResult:
             if scope == "thoughts":
                 when = f" ({r['date']})" if r.get("date") else ""
                 parts.append(f"From a past session{when}: {r.get('snippet', '')}")
+            elif scope == "reviews":
+                parts.append(
+                    f"From a daily review ({r.get('source', '?')}): {r.get('snippet', '')}"
+                )
             elif scope in ("projects", "knowledge"):
                 parts.append(
                     f"From my notes ({r.get('source', '?')}): {r.get('snippet', '')}"

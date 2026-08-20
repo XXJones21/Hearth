@@ -103,41 +103,17 @@ voice turn, unchanged.
 
 ## 2. Where the code lives
 
-- **`HearthCore`** keeps the logic: models, transport, audio, config, view
-  models, and the brand palette. The palette stays here rather than moving up
-  with the views because it writes each token once as both a SwiftUI `Color`
-  and a `SIMD3<Float>` scene value, and `PersonaPalette` in this layer reads
-  the latter; splitting it would break its own no-drift premise.
-
-  This section expected phase 0 to burn down `#if os(iOS)` fallout "first in
-  `Audio/`, `Cards/`, `Config/`". There was none to burn: HearthCore had no
-  platform guards at all. The whole of the xrOS fallout was three lines --
-  `UIImpactFeedbackGenerator` and `UINotificationFeedbackGenerator` are
-  unavailable on visionOS, so `Haptics` is silent there and its call sites
-  stay unguarded.
-- **`HearthUI`**, a second new library, and the one this section originally
-  missed. Section 7 promises the Vision app reuses `HearthSettingsView`,
-  `AppsView`, `CardLibraryView`, `TimelineFeed` and the journal views, and
-  section 5 mounts the journal views inside book entities -- but all of them
-  lived in the iOS app target, where a second target cannot see them. A
-  directory cannot fix that; only a library can. So `HearthUI` holds the
-  SwiftUI both platforms render: the card library, the persona chrome, and the
-  six surfaces. Its one platform shim is `hearthNavigationTitleInline()`,
-  wrapping the iOS-only `navigationBarTitleDisplayMode`; a second shim is the
-  signal that whatever asked for it is iOS-shaped and belongs back in the app
-  target.
+- **`HearthCore`** stays as it is but must compile for xrOS. The first task
+  of phase 0 is adding it to the Vision target and burning down the
+  `#if os(iOS)` fallout, expected first in `Audio/`, `Cards/`, `Config/`.
 - **`HearthSpatial`**, a new library target in the same Core package: the
   persona rig (orb, face texture, look-at), the behavior system,
   `CardOrbitLayout`, book and shelf entities, and the ported
-  `RealityKitSceneManager`. Platform floor iOS 26 and visionOS 27 -- the
-  package's floors, stated once in `Package.swift` and `Shared.xcconfig`.
-  (This section first said iOS 18 and visionOS 2, which were pre-renumbering
-  numbers carried over by hand; the build has never used them.) No
+  `RealityKitSceneManager`. Platform floor iOS 18 and visionOS 2. No
   `#if os(visionOS)` guards except where an API genuinely diverges. This is
   what makes the later iOS adoption of the RealityKit orb a target change
   rather than a rewrite, and it is enforced by a build gate: `HearthSpatial`
-  compiles for iOS before iOS uses it, which is why the iOS target links it
-  from phase 0.
+  compiles for iOS 18 even before iOS uses it.
 - **The Vision target** holds only scenes, hosts, `Info.plist`, and
   entitlements. Thin by design, like the iOS target already is.
 
@@ -244,13 +220,6 @@ Cards stay the shared SwiftUI library, mounted as RealityView attachments.
 position, take their slot in the column, and billboard toward the user
 continuously. They anchor to the rig, not the scene, so when the orb travels
 its cards follow with a soft spring lag: the orb reads as carrying its work.
-
-**Amended 2026-08-17: that anchoring is the IMMERSIVE house's, not the
-volume's.** In a room the orb genuinely travels and its work should go with it.
-In a box a metre wide the cards have nowhere to go, and prose that slides while
-you are reading it is worse than prose that sits still. The volume uses the
-absolute `position(index:count:)`; `offsetFromOrb` stays unused until phase 4,
-deliberately rather than by omission.
 Lifecycle, types, and rendering are `CardStore` unchanged. Nothing forks from
 iOS, which is deliberate: the card library stays universal across Apple
 devices.
@@ -272,37 +241,16 @@ All four open from the shelf ornament on the main volume.
 Ordered so each failure is cheap and the headset is needed as late as
 possible.
 
-**Phase 0, groundwork.** LANDED 2026-08-17 on `client/visionOS`, and this is
-now a record rather than a forecast. Branch from a `main` containing `a4930b0`
-and `43c66ee`. Split the Core package into three libraries and link all three
-into both app targets; the surfaces come out of the iOS target on the way.
+**Phase 0, groundwork.** Branch from a `main` containing `a4930b0` and
+`43c66ee`. Add HearthCore to the Vision target; burn down the xrOS fallout.
 Fix both plists: microphone, speech, local networking and ATS into the Vision
 plist; `NSWorldSensingUsageDescription` out of the iOS one, parked until
 phase 4. Delete the Xcode template entirely; write the scene skeleton
 (pairing window plus an empty main volume). No headset, no house.
 
-Two things the plan did not anticipate, both found by running the skeleton on
-the simulator rather than by reading:
-
-- The Vision plist's immersion style was the template's `Full`. It is `Mixed`
-  now, because passthrough is not a detail of the immersive house -- section 1
-  stages the shelf, the books and the roaming orb against the real room.
-- **Every surface renders in ember mode on visionOS, permanently.**
-  `HearthPalette.isEmber` asks `UITraitCollection` for
-  `userInterfaceStyle == .dark`, and visionOS answers dark always; it has no
-  light appearance. So `cream` resolves to `0x241B14` and `roast` to the light
-  ink on this platform. It is self-consistent and readable, and it may be the
-  right look for a headset -- but the palette calls light-first
-  non-negotiable, and nothing decided this: it fell out of a trait query
-  written for a phone. **Phase 5 owns the call**: accept ember as the
-  headset's mode and say so in the palette, or give visionOS its own
-  resolution path.
-
-**Phase 1, the compact house core.** LANDED 2026-08-17. **Gate 1 PASSED**
-2026-08-17 on the device: paired, connected, a full voice turn with reply
-playback. Parity with what the Valinor client reached.
-Port `RealityKitSceneManager` (volume path only) into `PersonaRig`. Pairing
-window live against the house. Cards as attachments through the ported
+**Phase 1, the compact house core.** Create `HearthSpatial`. Port
+`RealityKitSceneManager` (volume path only) into `PersonaRig`. Pairing window
+live against the house. Cards as billboarding attachments through the ported
 `CardOrbitLayout`. Composer and status ornaments.
 *Headset gate 1: a full voice turn in the volume.* Pinch the orb, speech
 recognized, reply spoken, a card beside the orb.
@@ -550,7 +498,7 @@ Extends `visionos-handoff.md` section 8, which still applies in full.
 
 - The Vision target links HearthCore and HearthSpatial and builds for xrOS
   device and simulator. No file from the Xcode template remains.
-- `HearthSpatial` compiles for iOS 26. A build gate only; iOS adoption of the
+- `HearthSpatial` compiles for iOS 18. A build gate only; iOS adoption of the
   RealityKit orb is its own later workstream.
 - `tools/apple-gates.sh` clean; `apple-scrub.py --check` reports no drift;
   new files are `generated` entries in the manifest; the caustics set is

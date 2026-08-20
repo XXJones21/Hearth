@@ -22,6 +22,14 @@ _SCHEMA_TYPES = frozenset(
     {"object", "string", "number", "integer", "boolean", "array", "null"}
 )
 _CALL_HEAD_RE = re.compile(r"call:([A-Za-z0-9_]+)(\{.*\})\s*$", re.DOTALL)
+# Gemma 4 spec requires <|"|> around every string. The 12B often omits it for
+# Windows paths (live 2026-08-16 mkdir: call:mkdir{path:D:\Tools\...} parsed
+# as {} because ident consumed only "D"). Recover undelimited paths before
+# the ident fallback.
+_UNQUOTED_WIN_PATH_RE = re.compile(r"[A-Za-z]:[\\/][^,}\]]*")
+_UNQUOTED_POSIX_PATH_RE = re.compile(
+    r"/(?:mnt|home|tmp|opt|Users)[^,}\]]*"
+)
 
 
 @dataclass
@@ -422,6 +430,14 @@ class _Scanner:
             self.i = i + num.end()
             token = num.group()
             return float(token) if "." in token else int(token)
+        win = _UNQUOTED_WIN_PATH_RE.match(s[i:])
+        if win:
+            self.i = i + win.end()
+            return win.group()
+        posix = _UNQUOTED_POSIX_PATH_RE.match(s[i:])
+        if posix:
+            self.i = i + posix.end()
+            return posix.group()
         ident = re.match(r"[A-Za-z_][A-Za-z0-9_]*", s[i:])
         if ident:
             self.i = i + ident.end()

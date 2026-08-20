@@ -308,6 +308,11 @@ export function mapVisualizerState(
   v: VisualizerState,
   inputFocused: boolean
 ): VisualizerState {
-  if (inputFocused) return 'listening';
+  // Focus only means "listening" when the persona has nothing else to do.
+  // This used to win unconditionally, so a focused input pinned the face to
+  // listening through thinking, working and speaking alike -- and left it
+  // there indefinitely once the turn ended (live 2026-08-16: eighty minutes
+  // idle, still listening).
+  if (inputFocused && v === 'idle') return 'listening';
   return v;
 }
