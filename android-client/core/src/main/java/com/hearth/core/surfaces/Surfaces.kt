@@ -224,8 +224,18 @@ data class SessionRow(
     val turns: Int,
     val summary: String,
     val synced: Boolean,
+    /**
+     * A journal row resumes by SLUG, a live record by session id. They are
+     * different verbs against the house and picking the wrong one silently
+     * resumes nothing.
+     */
     val fromJournal: Boolean,
-)
+    val slug: String = "",
+) {
+    /** Nothing to pick back up when no transcript was kept. */
+    val resumable: Boolean
+        get() = if (fromJournal) slug.isNotEmpty() else sessionId.isNotEmpty() && turns > 0
+}
 
 data class SessionsSurface(val rows: List<SessionRow>) {
     /** Newest first, grouped by day, as the Sessions screen renders them. */
@@ -260,6 +270,8 @@ data class SessionsSurface(val rows: List<SessionRow>) {
                         summary = it.optString("summary"),
                         fromJournal = true,
                         synced = true,
+                        slug = it.optString("slug")
+                            .ifEmpty { it.optString("thought_slug") },
                     )
                 }
 
@@ -313,4 +325,27 @@ data class JournalShelf(
             )
         }
     }
+}
+
+// ---- the health probe ------------------------------------------------------
+
+data class HealthProbe(
+    val latencyMs: Long,
+    val brainReady: Boolean,
+    val brainBackend: String,
+)
+
+/**
+ * Ask a house whether it is there. Settings' Test button uses this against
+ * whatever is TYPED rather than what is saved, so a wrong address is found
+ * without taking the live socket down.
+ */
+suspend fun probeHealth(config: ServerConfig): HealthProbe? {
+    val started = System.currentTimeMillis()
+    val json = fetch(config, "/health") ?: return null
+    return HealthProbe(
+        latencyMs = System.currentTimeMillis() - started,
+        brainReady = json.optBoolean("brain_ready"),
+        brainBackend = json.optString("brain_backend").ifEmpty { "unknown" },
+    )
 }

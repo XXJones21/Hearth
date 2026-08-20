@@ -69,6 +69,7 @@ class ChatViewModel(
     private var reconnectJob: Job? = null
     private var reconnectAttempt = 0
     private var inBackground = false
+    private var autoReconnectEnabled = true
 
     /** Caption for the sentence being heard right now, in playback time. */
     private val _caption = MutableStateFlow<String?>(null)
@@ -400,6 +401,27 @@ class ChatViewModel(
      */
     fun resumeSession(sessionId: String) = socket.resumeSession(sessionId = sessionId)
 
+    /** A written-up conversation is picked back up by its journal slug. */
+    fun resumeSlug(slug: String) = socket.resumeSession(slug = slug)
+
+    /** Settings' auto-reconnect switch. Off stops the client dialing back. */
+    fun setAutoReconnect(enabled: Boolean) {
+        autoReconnectEnabled = enabled
+        if (!enabled) reconnectJob?.cancel()
+    }
+
+    /** Apply in Settings: dial the newly committed address now. */
+    fun reconnectNow() {
+        reconnectAttempt = 0
+        reconnectJob?.cancel()
+        socket.disconnect()
+        connect()
+    }
+
+    /** Session verbs need a live socket and no turn in flight. */
+    fun canAct(): Boolean =
+        _connected.value && _state.value != HearthState.THINKING
+
     // ---- events -----------------------------------------------------------
 
     private fun handle(event: HearthEvent) {
@@ -585,6 +607,7 @@ class ChatViewModel(
     /** Exponential backoff, capped. Suppressed in background or unpaired. */
     private fun scheduleReconnect() {
         if (inBackground || _needsPairing.value || !config.isConfigured) return
+        if (!autoReconnectEnabled) return
         reconnectJob?.cancel()
         val delayMs = min(MAX_BACKOFF_MS, 2.0.pow(reconnectAttempt) * 1000).toLong()
         reconnectAttempt++

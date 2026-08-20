@@ -127,6 +127,7 @@ class MainActivity : ComponentActivity() {
                         // state is the stage alone, because history does not
                         // need to be on screen while the persona is talking.
                         var transcriptShown by remember { mutableStateOf(false) }
+                        var autoReconnect by remember { mutableStateOf(true) }
 
                         // A live turn holds the screen awake. Without this the
                         // display times out while the house is thinking, the
@@ -140,14 +141,23 @@ class MainActivity : ComponentActivity() {
 
                         // A surface is a full-screen visit, as on iOS: the
                         // stage stays underneath and Back returns to it.
-                        CompositionLocalProvider(
-                            LocalLayoutDirection provides LayoutDirection.Rtl
-                        ) {
                         when (destination) {
                             HouseDestination.SESSIONS -> SessionsScreen(
                                 config = config,
-                                onResume = { id ->
+                                // Session verbs need a live socket and no turn
+                                // in flight; the screen dims rather than
+                                // letting a tap fail into a system row.
+                                canAct = connected && state != HearthState.THINKING,
+                                onResumeSession = { id ->
                                     viewModel.resumeSession(id)
+                                    destination = null
+                                },
+                                onResumeSlug = { slug ->
+                                    viewModel.resumeSlug(slug)
+                                    destination = null
+                                },
+                                onNewSession = {
+                                    viewModel.newSession()
                                     destination = null
                                 },
                                 onBack = { destination = null },
@@ -164,6 +174,15 @@ class MainActivity : ComponentActivity() {
 
                             HouseDestination.SETTINGS -> SettingsScreen(
                                 config = config,
+                                autoReconnect = autoReconnect,
+                                onAutoReconnect = {
+                                    autoReconnect = it
+                                    viewModel.setAutoReconnect(it)
+                                },
+                                onApply = {
+                                    destination = null
+                                    viewModel.reconnectNow()
+                                },
                                 onForget = {
                                     Pairing.forget(config)
                                     destination = null
@@ -172,7 +191,15 @@ class MainActivity : ComponentActivity() {
                                 onBack = { destination = null },
                             )
 
-                            null -> ModalNavigationDrawer(
+                            // ONLY the drawer host is right-to-left, and its
+                            // contents are flipped back inside. Wrapping the
+                            // whole branch set flipped every surface screen
+                            // too: titles right-aligned, Back on the wrong
+                            // side, and sentences with the full stop leading.
+                            null -> CompositionLocalProvider(
+                                LocalLayoutDirection provides LayoutDirection.Rtl
+                            ) {
+                            ModalNavigationDrawer(
                                 drawerState = drawerState,
                                 drawerContent = {
                                     // The shelf comes in from the RIGHT, as on
@@ -245,7 +272,7 @@ class MainActivity : ComponentActivity() {
                                 )
                                 }
                             }
-                        }
+                            }
                         }
                     }
                 }
