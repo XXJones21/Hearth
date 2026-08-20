@@ -35,6 +35,17 @@ product; the inner screen is secondary.
 - Reachability away from home is met by the tailnet (M7); the phone should
   dial the full tailnet name (the iOS ATS lesson: short names fail).
 
+## Hardware status (2026-08-19)
+
+The delivered unit is NOT the ordered XT2321-3. Read over adb, serial
+ZY22HCL8N3: `ro.boot.hardware.sku = XT2321-5`, `ro.carrier = att`,
+`sys.oem_unlock_allowed = 0`, fingerprint `zeekr_gu/zeekr:13/T1TZ33.3-62-25`,
+security patch 2023-05-01. The OEM unlocking toggle is absent because the
+unlock path is closed on carrier units; Motorola refuses codes for AT&T.
+Return recommended (ordered -3, received -5, not as described). Phase 1
+runs fine on a -5 regardless; only the phase 2 AOSP path dies on it.
+Development continues on emulator either way.
+
 ## Day-1 moves that cost nothing
 
 - Enable Developer options and check the OEM unlocking toggle state; the
