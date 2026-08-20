@@ -53,16 +53,20 @@ class Ledger:
         decisions: list[dict],
         tools_invoked: list[str],
         answer_head: str,
+        open_task: dict | None = None,
     ) -> None:
         """The per-turn decision record (the first ledger emitter)."""
+        payload = {
+            "question": question[:300],
+            "decisions": decisions,
+            "tools_invoked": tools_invoked,
+            "answer_head": answer_head[:300],
+        }
+        if open_task is not None:
+            payload["open_task"] = open_task
         self.append(
             actor=persona,
             kind="turn.decision",
             session=session,
-            payload={
-                "question": question[:300],
-                "decisions": decisions,
-                "tools_invoked": tools_invoked,
-                "answer_head": answer_head[:300],
-            },
+            payload=payload,
         )

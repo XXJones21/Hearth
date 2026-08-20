@@ -154,8 +154,15 @@ public class ChatViewModel: ObservableObject {
     // Safety net for THINKING: the server said it is working, so the listen
     // timeout no longer applies — but if nothing arrives (server died
     // mid-pipeline), don't wedge the app in THINKING forever.
+    // Raised from 90s on 2026-08-16. Every state_update refreshes this, but a
+    // file sweep can spend minutes inside one tool phase and the harness only
+    // emitted a stage on the FIRST round of each batch, so a 240s ingest
+    // tripped the watchdog on a perfectly healthy turn: closeTurn() dropped to
+    // IDLE, the composer was up, and the face sat in `listening` indefinitely.
+    // The harness now sends a `working` heartbeat at every batch and every
+    // fold; this is only the backstop for when it genuinely goes quiet.
     private var thinkingWatchdogTask: Task<Void, Never>?
-    private let thinkingWatchdogTimeout: TimeInterval = 90.0
+    private let thinkingWatchdogTimeout: TimeInterval = 300.0
 
     // Safety net for SPEAKING. The state is normally closed by the sentinel
     // buffer draining (markSpeakingComplete -> onPlaybackComplete), but a

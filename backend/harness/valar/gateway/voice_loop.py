@@ -30,6 +30,29 @@ from ..persona import Persona
 from ..telemetry import Timer, TurnTelemetry
 from ..voice import SentenceSegmenter
 from .context import ContextAssembler, estimate_tokens
+from .open_task import (
+    BATCH_WALL_S,
+    CARRY_TTL_S,
+    FOLD_CHUNK_CHARS,
+    FOLD_MAX_CHARS,
+    FOLD_MIN_CHARS,
+    FOLD_MIN_READS,
+    APPEND_SLICE_CHARS,
+    FOLD_TOTAL_CHARS,
+    add_note,
+    apply_trace,
+    clear_state as clear_task_state,
+    format_note as format_open_task_note,
+    format_notes as format_task_notes,
+    has_file_work,
+    has_remainder,
+    is_stale as open_task_is_stale,
+    load_state as load_task_state,
+    ledger_head as open_task_ledger_head,
+    progress as open_task_progress,
+    remainder_phrase,
+    save_state as save_task_state,
+)
 from . import first_run
 from .session import Session, State
 from ..models import resolve as resolve_model
@@ -61,6 +84,152 @@ _ANNOUNCE_RE = re.compile(
     r"|present|offer|show|display|put)\b",
     re.IGNORECASE,
 )
+
+# Completion-claim detector (2026-08-16). Distinct from _ANNOUNCE_RE: this is
+# past/present tense asserting a world change that did not happen. Live cases:
+# 2026-08-06 calendar ("is now being presented on your screen"), 2026-08-16
+# Hearth ingest ("I have begun the ingestion" / "I am utilizing write_file" /
+# "I shall create the Hearth directory") with tools_invoked=[]. A false
+# completion must not stand in history or ai_response. No length cap: a long
+# lie is still a lie (the announce-guard's <240 window missed the ingest turn).
+_CLAIM_RE = re.compile(
+    r"(?:"
+    # Any adverb may sit between, not only "just". The live miss was
+    # "I have NOW consulted Selene" (2026-08-16 18:04, 261 chars).
+    r"\b(?:i have|i've)\s+(?:(?:just|now|already|finally|since)\s+)*"
+    r"(?:begun|started|saved|updated|recorded|displayed|written|wrote|"
+    r"created|synced|ingested|drafted|committed|utilized|"
+    # Live 2026-08-16 18:04: "I have now consulted Selene to establish the
+    # journal" with tools_invoked=[]. Consulting and auditing are
+    # world-changing claims too, not just writes.
+    r"consulted|checked|reviewed|retrieved|searched|merged|integrated|"
+    r"consolidated|processed|summarized|appended|logged)\b"
+    r"|"
+    r"\bi am (?:now\s+)?(?:utilizing|using|writing|creating|syncing|"
+    r"ingesting|saving|drafting)\b"
+    r"|"
+    r"\bi shall\s+(?:now\s+)?(?:create|write|sync|ingest|save|draft)\b"
+    r"|"
+    r"\bis now (?:being )?(?:presented|displayed|on (?:your|the) screen)\b"
+    r"|"
+    r"\b(?:the (?:file|document|draft|folder|card) (?:is|has been|was) "
+    r"(?:saved|written|created|presented|displayed))\b"
+    r")",
+    re.IGNORECASE,
+)
+
+_CLAIM_FALLBACK = (
+    "I have not written that yet. I will do it on the next turn."
+)
+
+_CLAIM_NUDGE = (
+    "[You claimed a file was written, saved, created, synced, ingested, "
+    "or displayed, but no tool ran this turn. That claim is false. Call "
+    "the needed tool NOW — mkdir for a folder, new_file for a document "
+    "that does not exist, write_file to draft beside an existing source, "
+    "list_dir if the path is a folder. Answer from the tool result. Do "
+    "not repeat the claim. Do not refuse. Do not say you are unable.]"
+)
+
+_RECOVERABLE_RE = re.compile(
+    r"(?:call\s+(?:list_dir|mkdir|new_file|write_file|read_file)\b"
+    r"|is a directory)",
+    re.IGNORECASE,
+)
+
+_RECOVER_NUDGE = (
+    "[The last tool was the wrong one for that path. Call the tool the "
+    "error named — list_dir for a folder, new_file for a missing document, "
+    "mkdir for a missing folder. Do not say you are unable. Do not invent "
+    "contents.]"
+)
+
+
+# A folded read keeps its path (so the model knows the file is done) and
+# loses its body (so the window does not fill).
+_FOLD_STUB = "[read and folded into the notes below: %s]"
+_FOLD_PREFIX = "[read and folded"
+# Fold failed outright: the body still has to go, or the final stream
+# inherits the window that just killed the fold.
+_FOLD_DROPPED = "[read, but its notes could not be made; content dropped to fit the window: %s]"
+_DIGEST_PREFIX = "[Notes from the files read so far]"
+
+
+def _slice_for_append(digest: str) -> list[str]:
+    """Split a digest into append_file-sized pieces at paragraph boundaries.
+
+    A multi-chunk fold runs 5,400-6,000 chars against append_file's 4,000
+    cap, so the whole section was rejected and the batch never reached the
+    note (live 2026-08-16: three folds covering 34 files lost that way,
+    while the one small fold landed).
+    """
+    text = (digest or "").strip()
+    if len(text) <= APPEND_SLICE_CHARS:
+        return [text] if text else []
+    sep = "\n\n"
+    pieces: list[str] = []
+    current = ""
+    for para in text.split(sep):
+        if current and len(current) + len(para) + 2 > APPEND_SLICE_CHARS:
+            pieces.append(current)
+            current = ""
+        # A single paragraph over the cap is hard-split; nothing is dropped.
+        while len(para) > APPEND_SLICE_CHARS:
+            pieces.append(para[:APPEND_SLICE_CHARS])
+            para = para[APPEND_SLICE_CHARS:]
+        current = current + sep + para if current else para
+    if current:
+        pieces.append(current)
+    return pieces
+
+
+def _batch_heading(unfolded: list) -> str:
+    """Name the appended section after the folder this batch came from."""
+    folders: list[str] = []
+    for m in unfolded:
+        head = str(getattr(m, "content", None) or "").split("\n", 1)[0]
+        if not head.startswith("File:"):
+            continue
+        path = head[5:].strip().replace("/", "\\")
+        parent = path.rsplit("\\", 1)[0] if "\\" in path else ""
+        leaf = parent.rsplit("\\", 1)[-1] if parent else ""
+        if leaf and leaf not in folders:
+            folders.append(leaf)
+    if not folders:
+        return "Files read"
+    return ", ".join(folders[:3]) + ("..." if len(folders) > 3 else "")
+
+
+def _fold_prompt(goal: str, bodies: list[str]) -> str:
+    return (
+        "Summarize the documents below into compact notes for this job: "
+        f"{goal or 'a file audit'}.\n\n"
+        "Keep every fact that would matter when writing a durable project "
+        "note: what each document covers, decisions, names, paths, numbers, "
+        "and anything that contradicts another document. Drop prose, "
+        "boilerplate, and formatting. Write terse markdown bullets grouped "
+        "by file. No preamble.\n\n"
+        + "\n\n".join(bodies)
+    )
+
+
+def _any_tool_success(messages: list) -> bool:
+    return any(
+        getattr(m, "role", None) == "tool"
+        and not str(getattr(m, "content", None) or "").startswith("[tool error]")
+        for m in messages
+    )
+
+
+def _last_tool_recoverable(messages: list) -> bool:
+    for m in reversed(messages):
+        if getattr(m, "role", None) == "tool":
+            content = str(getattr(m, "content", None) or "")
+            if not content.startswith("[tool error]"):
+                return False
+            return bool(_RECOVERABLE_RE.search(content))
+    return False
+
 
 # A tool call written into the TEXT channel: gemma's "call:name{json}" shape,
 # with or without its <|tool_call> marker. Used twice: to mute the TTS queue
@@ -380,6 +549,65 @@ class VoiceLoop:
             device_context=session.device_context,
             tool_specs=self._tool_priming_specs(persona, session),
         )
+        tl = persona.config.get("tool_loop") if isinstance(persona.config, dict) else None
+        tl = tl if isinstance(tl, dict) else {}
+        carry = bool(tl.get("carry"))
+        batches = max(1, int(tl.get("batches") or 1))
+        # A restart empties the session, but the sweep is not finished just
+        # because the process died. Reload the carry from disk before
+        # deciding what to inject.
+        if carry and not session.open_task and not session.task_dest:
+            disk_task, disk_notes, disk_dest = load_task_state(
+                self.ledger.sessions_dir
+            )
+            if disk_task or disk_notes or disk_dest:
+                session.open_task = disk_task
+                session.task_notes = list(disk_notes)
+                session.task_notes_at = time.time() if disk_notes else 0.0
+                session.task_dest = disk_dest
+                logger.info(
+                    "open task reloaded from disk: dest=%s notes=%d remaining=%d",
+                    disk_dest or "(none)", len(disk_notes),
+                    len((disk_task or {}).get("remaining_files") or []),
+                )
+        # Reopening the destination is the harness's job, not a thing the
+        # operator has to remember to say. A reloaded sweep already names its
+        # note; without this, "continue" after a restart read and folded forty
+        # files and appended none of them, because only the open_note TOOL
+        # could set the destination and the model had no reason to call it.
+        if carry and session.task_dest and has_remainder(session.open_task):
+            messages.append(
+                ChatMessage(
+                    role="user",
+                    content=(
+                        "[Note already open for this job]\n"
+                        f"{session.task_dest}\n"
+                        "It is open and its earlier sections are on disk. Keep "
+                        "reading; what you read is appended to it for you. Do "
+                        "NOT call open_note or new_file for it again, and do "
+                        "not start a different note."
+                    ),
+                )
+            )
+        if carry and open_task_is_stale(session.open_task):
+            logger.info("open task expired — dropping the carried remainder")
+            session.open_task = None
+        if (
+            session.task_notes
+            and session.task_notes_at
+            and (time.time() - session.task_notes_at) > CARRY_TTL_S
+        ):
+            logger.info("task notes expired — dropping %d", len(session.task_notes))
+            session.task_notes.clear()
+            session.task_notes_at = 0.0
+        if carry and session.task_notes:
+            messages.append(
+                ChatMessage(role="user", content=format_task_notes(session.task_notes))
+            )
+        if carry and has_remainder(session.open_task):
+            messages.append(
+                ChatMessage(role="user", content=format_open_task_note(session.open_task))
+            )
 
         # Persona-driven model routing + sampling. The "router" backend reads
         # persona_name + model_path (the persona's deep_model.path) to make the
@@ -431,37 +659,331 @@ class VoiceLoop:
             personas=getattr(self, "personas", None),
         )
         turn_decisions: list = []
+        tool_trace: list = []
+        t_tools0 = time.monotonic()
+
+        def _note_dest(traces: list) -> None:
+            """Latch the note the operator opened for this job."""
+            for tr in traces or []:
+                data = tr.get("data") or {}
+                if tr.get("ok") and data.get("note_open") and data.get("path"):
+                    if session.task_dest != str(data["path"]):
+                        session.task_dest = str(data["path"])
+                        logger.info("note destination set: %s", session.task_dest)
+
+        async def _emit_open_task_card(prev: dict | None, traces: list) -> None:
+            """One progress card per finished tool batch. The turn speaks a
+            single sentence however many files moved, so the counts and the
+            remainder go to the screen (live 2026-08-16 `41956a18`: 18 tool
+            calls, one sentence, nothing on the client)."""
+            if not carry or not session.capabilities.get("ui_render"):
+                return
+            from .composer import compose_open_task
+
+            for op in compose_open_task(
+                open_task_progress(session.open_task, prev, traces)
+            ):
+                try:
+                    await emit("ui_component", {"action": "ui_component", **op})
+                    logger.info("open task card emitted: %s", op["props"]["title"])
+                except Exception as exc:  # noqa: BLE001 - UI never breaks the turn
+                    logger.warning("open task card emit failed: %s", exc)
+
+        async def _emit_working(detail: str) -> None:
+            """Heartbeat for the long file sweep.
+
+            The tool phase can run for minutes now, and the only stage events
+            were `deciding` and `acting` on the FIRST round of each batch. The
+            iOS client arms a 90s THINKING watchdog that each state_update
+            refreshes, so a 240s sweep with a 40s fold in it tripped
+            "Server stopped responding mid-turn"; the desktop face meanwhile
+            had nothing to move it off whatever it showed last. `working`
+            says the loop is alive and what it is doing. Unknown stages are
+            ignored by contract, so old clients are unaffected.
+            """
+            try:
+                await emit(
+                    "state_update",
+                    {
+                        "action": "state_update",
+                        "state": "thinking",
+                        "stage": "working",
+                        "detail": detail,
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001 - events never break a turn
+                logger.warning("working heartbeat failed: %s", exc)
+
+        async def _fold_batch(msgs: list, force: bool = False) -> list:
+            """Summarize this batch's file reads and drop the raw bodies.
+
+            Batching alone cannot finish a tree bigger than the context
+            window, because every batch accumulates into the same message
+            list (live 2026-08-16 `939d446c`: 400 exceed_context_size at
+            66,615 tokens, on file 24 of 39). One digest in, the file bodies
+            out. The window stays flat and tree size stops mattering. The
+            tool messages are kept in place as stubs so the assistant
+            tool_call / tool result pairing the template needs survives.
+            """
+            unfolded = [
+                m for m in msgs
+                if getattr(m, "role", None) == "tool"
+                and getattr(m, "name", None) == "read_file"
+                and not str(getattr(m, "content", None) or "").startswith(_FOLD_PREFIX)
+                and not str(getattr(m, "content", None) or "").startswith("[tool error]")
+                # A deferred read carries no body to fold.
+                and not str(getattr(m, "content", None) or "").startswith("[deferred]")
+            ]
+            if len(unfolded) < FOLD_MIN_READS:
+                return msgs
+            bodies = [str(m.content or "") for m in unfolded]
+            if not force and sum(len(b) for b in bodies) < FOLD_MIN_CHARS:
+                # Not enough accumulated to be worth a 12-24s fold yet. The
+                # end-of-turn force-fold catches whatever is left, so waiting
+                # cannot lose a batch.
+                return msgs
+            # The fold prompt is itself a brain call, so it has to respect the
+            # same window as everything else. Live 2026-08-16 `cbf30b9f`: one
+            # round pulled 30 files, the fold tried to summarize all of them
+            # at once, and the fold ALSO took a 400 (82,186 tokens) — which
+            # left the raw bodies in place and killed the turn's final stream.
+            # Fold in window-sized chunks and join the digests.
+            fold_opts = replace(
+                opts,
+                tools=None,
+                enable_thinking=False,
+                max_tokens=max(512, FOLD_MAX_CHARS // 3),
+            )
+            chunks: list[list[str]] = []
+            current: list[str] = []
+            current_len = 0
+            for body in bodies:
+                if current and current_len + len(body) > FOLD_CHUNK_CHARS:
+                    chunks.append(current)
+                    current, current_len = [], 0
+                current.append(body)
+                current_len += len(body)
+            if current:
+                chunks.append(current)
+
+            digests: list[str] = []
+            for idx, chunk in enumerate(chunks):
+                await _emit_working(
+                    "summarising %d file(s), part %d of %d"
+                    % (len(unfolded), idx + 1, len(chunks))
+                )
+                try:
+                    result = BrainStreamResult()
+                    parts: list[str] = []
+                    async for delta in self.brain.chat(
+                        [ChatMessage(role="user", content=_fold_prompt(user_text, chunk))],
+                        fold_opts,
+                        result,
+                    ):
+                        parts.append(delta)
+                    piece = "".join(parts).strip()[:FOLD_MAX_CHARS]
+                    if piece:
+                        digests.append(piece)
+                except Exception as exc:  # noqa: BLE001 - a fold failure must not break the turn
+                    logger.warning(
+                        "fold chunk %d/%d failed: %s", idx + 1, len(chunks), exc
+                    )
+            digest = "\n\n".join(digests)[:FOLD_TOTAL_CHARS]
+            freed = sum(len(b) for b in bodies) - len(digest)
+            heading = _batch_heading(unfolded)
+            # Stub the bodies even when every chunk failed. Keeping them was
+            # the thing that guaranteed the final stream would 400 too and
+            # drop the client's socket; losing a batch's detail is bad, losing
+            # the turn is worse. The files stay recorded as read.
+            dropped = not digest
+            if dropped:
+                logger.warning(
+                    "fold produced nothing for %d reads; dropping bodies to "
+                    "save the turn", len(unfolded),
+                )
+            for m in unfolded:
+                # read_file bodies open with "File: <path>" (handlers/files.py).
+                head = str(m.content or "").split("\n", 1)[0]
+                path = head[5:].strip() if head.startswith("File:") else ""
+                m.content = (
+                    _FOLD_DROPPED % (path or "a file")
+                    if dropped
+                    else _FOLD_STUB % (path or "a file")
+                )
+            if dropped:
+                return msgs
+            # The digest IS the knowledge now. History keeps only the spoken
+            # sentence, so without this the next utterance would re-read the
+            # tree it just folded (the original bug, one level up).
+            add_note(session.task_notes, digest)
+            session.task_notes_at = time.time()
+            # Disk IS the carry. An in-memory digest dies with the process;
+            # a section already appended to the note survives a restart, a
+            # session end, and a crash. Live 2026-08-16: 24 files were read
+            # across three sessions and none of it ever reached the note.
+            if session.task_dest:
+                try:
+                    from ..tools.handlers.files import append_file
+
+                    ok_n = 0
+                    for i, piece in enumerate(_slice_for_append(digest)):
+                        body = (
+                            "\n## " + heading + "\n\n" + piece if i == 0
+                            else "\n" + piece
+                        )
+                        written = await asyncio.to_thread(
+                            append_file, {"path": session.task_dest, "text": body}
+                        )
+                        if getattr(written, "ok", False):
+                            ok_n += 1
+                        else:
+                            logger.warning(
+                                "append to note failed: %s",
+                                str(getattr(written, "content", ""))[:200],
+                            )
+                            break
+                    if ok_n:
+                        logger.info(
+                            "appended fold to note: %s (%d chars in %d slice(s))",
+                            session.task_dest, len(digest), ok_n,
+                        )
+                except Exception as exc:  # noqa: BLE001 - never break the turn
+                    logger.warning("append to note raised: %s", exc)
+            # Durable carry: remainder, digests and destination survive a
+            # house restart, so a later "continue" keeps writing to the same
+            # note instead of folding 40 files into nowhere.
+            save_task_state(
+                self.ledger.sessions_dir,
+                session.open_task,
+                session.task_notes,
+                session.task_dest,
+            )
+            logger.info(
+                "folded %d reads into %d chars (freed ~%d chars, ~%d tokens); "
+                "%d note(s) carried",
+                len(unfolded), len(digest), freed, freed // 4,
+                len(session.task_notes),
+            )
+            return msgs + [
+                ChatMessage(
+                    role="user",
+                    content=f"{_DIGEST_PREFIX}\n{digest}",
+                )
+            ]
+
         with Timer(telemetry, "tool_round_trip_ms"):
             messages, filler_task = await self._maybe_run_tools(
                 messages, opts, telemetry, session, emit, persona,
                 decisions_out=turn_decisions,
+                trace_out=tool_trace,
             )
+            if (
+                telemetry.tools_invoked
+                and not _any_tool_success(messages)
+                and _last_tool_recoverable(messages)
+            ):
+                logger.warning("recoverable tool miss — one retry round")
+                messages.append(ChatMessage(role="user", content=_RECOVER_NUDGE))
+                messages, filler_task = await self._maybe_run_tools(
+                    messages, opts, telemetry, session, emit, persona,
+                    decisions_out=turn_decisions,
+                    trace_out=tool_trace,
+                )
+            if carry:
+                prev_task = session.open_task
+                session.open_task = apply_trace(
+                    session.open_task, tool_trace, user_text
+                )
+                _note_dest(tool_trace)
+                await _emit_open_task_card(prev_task, tool_trace)
+                messages = await _fold_batch(messages)
+            batch_i = 1
+            while (
+                carry
+                and batch_i < batches
+                and has_remainder(session.open_task)
+                and (time.monotonic() - t_tools0) < BATCH_WALL_S
+            ):
+                logger.info(
+                    "open task remainder — batch %d/%d remaining_files=%d",
+                    batch_i + 1,
+                    batches,
+                    len((session.open_task or {}).get("remaining_files") or []),
+                )
+                await _emit_working(
+                    "reading, %s"
+                    % remainder_phrase(session.open_task).lower()
+                )
+                messages.append(
+                    ChatMessage(
+                        role="user",
+                        content=format_open_task_note(session.open_task),
+                    )
+                )
+                batch_trace: list = []
+                messages, filler_task = await self._maybe_run_tools(
+                    messages, opts, telemetry, session, emit, persona,
+                    decisions_out=turn_decisions,
+                    trace_out=batch_trace,
+                )
+                if _last_tool_recoverable(messages):
+                    messages.append(ChatMessage(role="user", content=_RECOVER_NUDGE))
+                    messages, filler_task = await self._maybe_run_tools(
+                        messages, opts, telemetry, session, emit, persona,
+                        decisions_out=turn_decisions,
+                        trace_out=batch_trace,
+                    )
+                tool_trace.extend(batch_trace)
+                prev_task = session.open_task
+                session.open_task = apply_trace(
+                    session.open_task, batch_trace, user_text
+                )
+                _note_dest(batch_trace)
+                await _emit_open_task_card(prev_task, batch_trace)
+                messages = await _fold_batch(messages)
+                batch_i += 1
+            # Whatever is still unfolded when the tool phase ends has to reach
+            # the note now: the turn is about to end and the digest would die
+            # with it. Ignores the size bar, keeps the 3-read one.
+            if carry:
+                messages = await _fold_batch(messages, force=True)
+            # Drop a carried task the moment the operator changes the subject.
+            # remaining_dirs keeps a remainder alive on purpose (the tree is
+            # walked across turns), but without this an unopened raw/ folder
+            # would staple "call read_file now, do not ask permission" onto
+            # every later utterance in the session.
+            if carry and session.open_task and not has_file_work(tool_trace):
+                logger.info("open task dropped — this turn did no file work")
+                session.open_task = None
+                clear_task_state(self.ledger.sessions_dir)
 
-        # Voice/screen split (2026-06-07): a grounded tool answer SPEAKS at most
-        # a few sentences -- the composer's cards already carry the detail to
-        # the screen, so the voice stops duplicating it (live finding: recall
-        # answers rambled, bloated history, and fed the empty-answer failure).
-        # The instruction rides the last tool message (template-safe, the
-        # force-answer idiom) and the final call's token budget is capped.
         if telemetry.tools_invoked:
-            # Screen-deflection honesty (2026-07-30): "the screen already shows
-            # the details" is only true when a tool SUCCEEDED -- on an all-failed
-            # turn the card carries no data, and deflecting to it reads as
-            # misdirection (live: Sulivan pointed at an empty trading-desk card
-            # twice). Failed turns get a say-it-plainly instruction instead.
-            any_success = any(
-                m.role == "tool"
-                and not str(m.content or "").startswith("[tool error]")
-                for m in messages
-            )
-            note = (
-                "\n\n[Speak your answer in at most three short sentences. "
-                "The screen already shows the details.]"
-                if any_success
-                else "\n\n[Speak your answer in at most three short sentences. "
-                "The tool could not provide data -- say so plainly. Do NOT "
-                "tell the user to check the screen; there is nothing on it.]"
-            )
+            any_success = _any_tool_success(messages)
+            if carry and has_remainder(session.open_task):
+                note = (
+                    "\n\n[Speak one short progress sentence. "
+                    f"{remainder_phrase(session.open_task)}. Do not claim the "
+                    "audit is finished. Do NOT tell the user to check the "
+                    "screen.]"
+                )
+            elif any_success:
+                note = (
+                    "\n\n[Speak your answer in at most three short sentences. "
+                    "The screen already shows the details.]"
+                )
+            elif _last_tool_recoverable(messages):
+                note = (
+                    "\n\n[Speak your answer in at most three short sentences. "
+                    "Do not say you are unable. The error named the next "
+                    "tool — say you will call it, not that the work is "
+                    "blocked. Do NOT tell the user to check the screen.]"
+                )
+            else:
+                note = (
+                    "\n\n[Speak your answer in at most three short sentences. "
+                    "The tool could not provide data -- say so plainly. Do NOT "
+                    "tell the user to check the screen; there is nothing on it.]"
+                )
             for m in reversed(messages):
                 if m.role == "tool":
                     m.content = (m.content or "") + note
@@ -652,21 +1174,29 @@ class VoiceLoop:
         # spoken (streaming TTS), so make it HONEST: run the tool round-trip
         # now with an act-now instruction and speak the real answer as the
         # follow-through. One retry, tool turns excluded (they already acted).
+        # Claim-lock folded in here (2026-08-16): a COMPLETION claim with no
+        # tool ("I have now consulted Selene to establish the journal") is
+        # worse than an announcement, because the next turn reads it as done.
+        # Same follow-through; the difference is that a false completion is
+        # REPLACED rather than appended to. No length cap on either: the
+        # announcement that motivated this was 243 characters and the old
+        # 240 window let it straight through.
+        _is_claim = bool(reply_text) and bool(_CLAIM_RE.search(reply_text))
         if (
             reply_text
             and not telemetry.tools_invoked
-            and len(reply_text) < 240
-            and _ANNOUNCE_RE.search(reply_text)
+            and (_is_claim or _ANNOUNCE_RE.search(reply_text))
         ):
             logger.warning(
-                "announced action with no tool call — following through: %r",
+                "%s with no tool call — following through: %r",
+                "completion claim" if _is_claim else "announced action",
                 reply_text[:120],
             )
             follow_msgs = messages + [
                 ChatMessage(role="assistant", content=reply_text),
                 ChatMessage(
                     role="user",
-                    content=(
+                    content=_CLAIM_NUDGE if _is_claim else (
                         "[You announced an action but no tool was called. Call "
                         "the needed tool NOW and answer from its result — or "
                         "answer directly from what you know. Do not repeat the "
@@ -674,11 +1204,24 @@ class VoiceLoop:
                     ),
                 ),
             ]
+            follow_trace: list = []
             with Timer(telemetry, "tool_round_trip_ms"):
                 follow_msgs, follow_filler = await self._maybe_run_tools(
                     follow_msgs, opts, telemetry, session, emit, persona,
                     decisions_out=turn_decisions,
+                    trace_out=follow_trace,
                 )
+            # A follow-through is where the ingest actually starts when the
+            # first pass only talked about it. Its reads count toward the
+            # remainder, and toward the ledger head recorded below.
+            if carry and follow_trace:
+                tool_trace.extend(follow_trace)
+                prev_follow = session.open_task
+                session.open_task = apply_trace(
+                    session.open_task, follow_trace, user_text
+                )
+                _note_dest(follow_trace)
+                await _emit_open_task_card(prev_follow, follow_trace)
             follow_text, more_spoken, _ = await _stream_once(
                 follow_msgs, follow_filler, time_it=False
             )
@@ -689,7 +1232,20 @@ class VoiceLoop:
                     len(follow_text),
                     telemetry.tools_invoked,
                 )
-                reply_text = (reply_text + " " + follow_text).strip()
+                # A false completion is REPLACED, never appended to: leaving
+                # it in ai_response and history lets the next turn treat the
+                # lie as done work. An announcement is future tense, so the
+                # follow-through honestly continues it.
+                reply_text = (
+                    follow_text if _is_claim
+                    else (reply_text + " " + follow_text).strip()
+                )
+            elif _is_claim:
+                logger.warning("claim correction produced nothing — speaking fallback")
+                reply_text = _CLAIM_FALLBACK
+                _, sentences_spoken = await self._speak(
+                    reply_text, session, emit, True, sentences_spoken, telemetry
+                )
 
         # Interview card guard (2026-08-08): the third shape of the same
         # failure. A proper tool round renders the card; a call leaked into
@@ -744,6 +1300,7 @@ class VoiceLoop:
             decisions=turn_decisions,
             tools_invoked=list(telemetry.tools_invoked),
             answer_head=reply_text,
+            open_task=open_task_ledger_head(session.open_task) if carry else None,
         )
 
         # Send the full text response (ai_response) for clients that display text.
@@ -759,6 +1316,15 @@ class VoiceLoop:
 
         # --- SPEAKING COMPLETE ------------------------------------------------
         await emit("speaking_complete", {"action": "speaking_complete"})
+        # Announce the close explicitly. speaking_complete was the only signal
+        # a healthy turn ever sent, so a client that keys its visualizer off
+        # state_update had nothing to return it to rest with (live 2026-08-16:
+        # a persona sat in listening for eighty minutes).
+        with contextlib.suppress(Exception):  # socket may already be gone
+            await emit(
+                "state_update",
+                {"action": "state_update", "state": "idle", "stage": "done"},
+            )
         session.state = State.IDLE
         session.record_turn(user_text, reply_text, persona.name)
 
@@ -866,6 +1432,7 @@ class VoiceLoop:
         emit: Emit,
         persona: Persona,
         decisions_out: list | None = None,
+        trace_out: list | None = None,
     ) -> tuple[list[ChatMessage], "asyncio.Task | None"]:
         """Flag-gated tool round-trip. Returns `(messages, filler_task)`:
         `messages` unchanged when the tool layer is disabled (default) or no tool
@@ -1008,6 +1575,13 @@ class VoiceLoop:
         ui_enabled = bool(session.capabilities.get("ui_render"))
 
         async def on_tool_result(name: str, result) -> None:
+            if trace_out is not None:
+                data = getattr(result, "data", None) or {}
+                trace_out.append({
+                    "name": name,
+                    "ok": bool(getattr(result, "ok", True)),
+                    "data": dict(data),
+                })
             # A handler that came back asking for permission has not done its
             # work yet: the card is on screen and the turn is parked on the
             # operator. Say nothing until they answer. Any other first return

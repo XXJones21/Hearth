@@ -324,7 +324,8 @@ tools:
       Use when they point at a folder and ask what is in it, or when you need
       the names before calling read_file. If the folder is outside the house's
       allowed roots, a permission card is shown; after they approve, call
-      list_dir again. Do not invent filenames.
+      list_dir again. Do not invent filenames. If the folder does not exist,
+      call mkdir -- do not say you cannot create folders.
     handler: valar.tools.handlers.files:list_dir
     domain: files
     risk: read
@@ -335,6 +336,57 @@ tools:
         path:
           type: string
           description: Absolute Windows or WSL path of the directory.
+      required: [path]
+
+  - name: mkdir
+    description: >-
+      Create an empty folder at a path the operator named. Use this when they
+      ask to make a directory, a project folder, or "a place for" notes -- not
+      when they want a document (that is new_file). Pass the folder path only.
+      Under an allowed root the folder is created immediately, including missing
+      parents. Outside a root, a permission card asks before it is created.
+      Never say you cannot create folders. Never claim the folder exists unless
+      this tool returns "Created folder:" or "Folder already exists:".
+    handler: valar.tools.handlers.files:mkdir
+    domain: files
+    risk: write
+    speak: Let me make that folder.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: >-
+            Absolute Windows or WSL path of the folder to create. Example:
+            "D:/Notes/projects". Do not pass a filename.
+      required: [path]
+
+  - name: open_note
+    description: >-
+      Open the destination note for a job where you will read a folder of
+      files and write up what you find. Call this FIRST, before list_dir or
+      read_file, whenever the operator asks you to read a directory and add
+      it to a note, a project file, or the second brain. Pass the note path
+      and a short title. It writes only a heading. As you then read the
+      files, the harness summarizes each batch and appends it to this note
+      for you, so the record is on disk as you go and nothing is lost if the
+      house restarts. Do not call new_file for that note afterwards and never
+      write its body yourself.
+    handler: valar.tools.handlers.files:open_note
+    domain: files
+    risk: write
+    speak: Let me open the note.
+    parameters:
+      type: object
+      properties:
+        path:
+          type: string
+          description: >-
+            Absolute path of the note to open. A missing extension becomes
+            .md. Example: "D:/Notes/projects/audit.md".
+        title:
+          type: string
+          description: Short heading for the note, e.g. "Hearth wiki audit".
       required: [path]
 
   - name: search_files
@@ -431,9 +483,10 @@ tools:
       list, a plan. Use when they ask you to write something down that does
       not exist yet. Pass the destination path and SHORT instructions saying
       what to write; the harness composes the document. Do NOT pass the body.
-      Markdown unless they ask otherwise. If the folder does not exist yet, a
-      permission card asks the operator before it is created. To revise a file
-      that already exists, use write_file instead.
+      Markdown unless they ask otherwise. To create an empty folder with no
+      document, use mkdir instead. If this file's parent folder is new and
+      outside an allowed root, a permission card asks before it is created.
+      To revise a file that already exists, use write_file instead.
     handler: valar.tools.handlers.files:new_file
     domain: files
     risk: write

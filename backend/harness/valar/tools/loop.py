@@ -34,7 +34,6 @@ contract and offers ``maybe_run_tools`` as the seam a future gateway change call
 
 from __future__ import annotations
 
-import ast
 import json
 import logging
 from typing import Any
@@ -43,46 +42,29 @@ from . import ToolRegistry, tools_enabled
 
 logger = logging.getLogger("valar.tools.loop")
 
-
-def parse_tool_args(raw_args: Any) -> dict[str, Any]:
-    """The model's arguments string into a dict, repairing what can be
-    repaired. Strict JSON first; then a fence-stripped retry; then a Python
-    literal (single quotes, trailing commas -- shapes a 12B actually emits).
-    An unparseable string logs itself before becoming {}: the live Pip
-    interview lost create_persona's evidence to a silent `except`, and a
-    failure nobody can see is a failure nobody can fix."""
-    if isinstance(raw_args, dict):
-        return raw_args
-    text = str(raw_args or "").strip()
-    if not text:
-        return {}
-    if text.startswith("```"):
-        text = text.strip("`")
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-    try:
-        parsed = json.loads(text)
-        return parsed if isinstance(parsed, dict) else {}
-    except ValueError:
-        pass
-    try:
-        parsed = ast.literal_eval(text)
-        if isinstance(parsed, dict):
-            logger.warning("tool args were a Python literal, repaired: %.200r", text)
-            return parsed
-    except (ValueError, SyntaxError):
-        pass
-    logger.warning("unparseable tool args dropped: %.500r", raw_args)
-    return {}
-
-
 # Cap tool round-trips per turn so a model that loops on tool calls cannot stall a
 # voice turn. The reactive design is ONE round-trip; allow a small margin.
 # Persona-overridable since 2026-07-31 (tool_loop.max_rounds): the discovery
 # chain (consult -> list_cards -> forge_card) needs 3+, and the fixed cap of 2
 # was the structural blocker in the live 12:01 turn.
 MAX_TOOL_ROUNDS = 2
+
+# How many characters of tool RESULT one BATCH may pull in, across all its
+# rounds, before further reads are deferred and the batch ends for folding.
+# Only bulk readers are capped: a list_dir or an mkdir is small and must
+# always run.
+#
+# This was a per-ROUND budget of 32k until the live logs showed the premise
+# was wrong. The model stops emitting tool calls after ONE of its four
+# rounds, so a per-round cap and a per-batch cap are the same thing in
+# practice, and 32k left ~44k tokens of a 65,536 window unused on every
+# batch while the sweep crawled at three files a batch (2026-08-16
+# `5398ed8c`: 7 files in 90s). Spanning the batch makes the cap honest when
+# the model DOES use several rounds, and 100k is what the window can carry:
+# base ~10k tokens + 112k chars (the cap plus one 12k overshoot) is ~38k,
+# leaving ~27k of headroom.
+BATCH_READ_CHARS = 100_000
+_BULK_READ_TOOLS = frozenset({"read_file", "search_files", "fetch_url"})
 
 
 class ToolCallingLoop:
@@ -131,14 +113,16 @@ class ToolCallingLoop:
         final stream (an empty spoken answer). So: a call identical to one already
         executed this turn (same name + same arguments) is dropped, and when a
         round contains ONLY repeats — or the round cap is hit with calls still
-        coming — the loop stops and appends an answer-now instruction to the last
+        coming — the loop stops and appends a speech-only instruction to the last
         tool result (template-safe: tool content, not a trailing system message)
-        so the final streaming call produces prose."""
+        so the final streaming call produces prose. That closer must not say the
+        job is done; leftover file work is session.open_task (2026-08-16)."""
         if not self.registry.names():
             return messages
         tools = self.registry.schemas()
         seen_calls: set[tuple[str, str]] = set()
         force_answer = False
+        batch_chars = 0
         for round_idx in range(self.max_rounds):
             response = await brain_tool_call(messages, tools)
             tool_calls = (response or {}).get("tool_calls") or []
@@ -184,10 +168,40 @@ class ToolCallingLoop:
                 fn = call.get("function", {})
                 name = fn.get("name", "")
                 raw_args = fn.get("arguments") or "{}"
-                # The raw string is the only record of what the model actually
-                # asked for; every handler-side mystery starts here.
-                logger.info("tool call %s args: %.300r", name, raw_args)
-                args = parse_tool_args(raw_args)
+                try:
+                    args = json.loads(raw_args) if isinstance(raw_args, str) else dict(raw_args)
+                except Exception:  # noqa: BLE001
+                    args = {}
+                # Reading budget. The fold that keeps the window flat runs
+                # BETWEEN batches, so a single round that reads the whole
+                # remaining tree blows the context before any fold can help:
+                # live 2026-08-16 `cbf30b9f` asked for 30 read_file calls in
+                # one round and took a 400 at 97,509 tokens. Over budget, the
+                # rest of the round is DEFERRED rather than executed. Each
+                # deferred call still gets a result so tool_call pairing
+                # holds, and the file stays unread in the open-task remainder,
+                # so the next round picks it up.
+                if name in _BULK_READ_TOOLS and batch_chars >= BATCH_READ_CHARS:
+                    # Un-see it. The duplicate guard keys on (name, args) and
+                    # was stamped when the round was assembled, so leaving it
+                    # there would make the retry look like a repeat and drop
+                    # the file for good.
+                    seen_calls.discard((name, str(fn.get("arguments") or "")))
+                    logger.info("deferring %s: batch reading budget spent", name)
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call.get("id", ""),
+                            "name": name,
+                            "content": (
+                                "[deferred] Not read yet: this batch of "
+                                "reading is full. The file is still on the "
+                                "list and nothing is lost. Keep going: ask "
+                                "for it again and it will be read."
+                            ),
+                        }
+                    )
+                    continue
                 result = await self.registry.invoke(name, args)
                 if on_tool_result is not None:
                     try:
@@ -208,12 +222,21 @@ class ToolCallingLoop:
                 # turn still survives (the existing recovery contract).
                 content = result.content
                 if not result.ok:
+                    # Live 2026-08-16: "is a directory, call list_dir" was
+                    # wrapped as "you could not do it / answer from what you
+                    # know" and the 12B gave up mid-ingest. Recoverable misses
+                    # must stay retries. Permanent failures still say so in
+                    # the handler text; this wrapper must not override that
+                    # with a stop.
                     content = (
                         "[tool error] " + (content or "unknown error")
-                        + "\n[This tool call FAILED. Do not present the text "
-                        "above as data. Briefly acknowledge you could not do "
-                        "it, and answer from what you already know.]"
+                        + "\n[This call did not succeed. Do not present the "
+                        "text above as if it were file contents. If it names "
+                        "another tool, call that tool NOW. If a path is "
+                        "missing, call mkdir or pick a file inside the "
+                        "folder. Do not give up. Do not invent contents.]"
                     )
+                batch_chars += len(content or "")
                 messages.append(
                     {
                         "role": "tool",
@@ -222,13 +245,27 @@ class ToolCallingLoop:
                         "content": content,
                     }
                 )
+            if batch_chars >= BATCH_READ_CHARS:
+                # Spent. Another round here could only defer, burning a
+                # decision call for nothing. End the batch so the caller
+                # folds and starts a fresh one.
+                logger.info(
+                    "batch reading budget spent (%d chars) after round %d",
+                    batch_chars, round_idx + 1,
+                )
+                break
             if round_idx == self.max_rounds - 1:
                 force_answer = True
         if force_answer and messages and messages[-1].get("role") == "tool":
+            # Speech has tools off. This closer must keep XML out of TTS
+            # without telling the model the JOB is done (live 2026-08-16:
+            # "Do not call any more tools" ended a 39-file wiki ingest
+            # after four reads). Unfinished file work is session.open_task.
             messages[-1]["content"] = (
                 str(messages[-1].get("content") or "")
-                + "\n\n[All tool calls are complete. Answer the user now in plain "
-                "spoken language using the results above. Do not call any more tools.]"
+                + "\n\n[This spoken answer cannot emit tools. Speak plain "
+                "language from the results above. If unread files remain, "
+                "say so in one sentence; do not claim the job is finished.]"
             )
         return messages
 
@@ -291,7 +328,12 @@ async def maybe_run_tools(
     if not reg.names():
         return messages
     loop = ToolCallingLoop(reg, max_rounds=max_rounds)
-    out = await loop.run(messages, brain_tool_call, on_tool_calls, on_tool_result)
-    if decisions_out is not None:
-        decisions_out.extend(loop.decisions)
-    return out
+    try:
+        # The rounds that DID run are the evidence for why a turn failed, so
+        # they must reach the ledger even when a later round raises. Live
+        # 2026-08-16 `939d446c`: a context-overflow 400 lost 19 executed tool
+        # calls from the decision record while telemetry still counted them.
+        return await loop.run(messages, brain_tool_call, on_tool_calls, on_tool_result)
+    finally:
+        if decisions_out is not None:
+            decisions_out.extend(loop.decisions)

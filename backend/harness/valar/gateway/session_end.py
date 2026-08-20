@@ -217,6 +217,13 @@ async def end_session(
     session.history.clear()
     session.session_id = str(uuid.uuid4())
     session.topic_hint = None
+    # open_task deliberately SURVIVES. Live 2026-08-16: the idle watchdog
+    # ended the session between two halves of one wiki ingest, the remainder
+    # was discarded here, and the next utterance re-read nine files it had
+    # already read. Unfinished mechanical work is not conversation, so a
+    # conversation boundary is the wrong place to throw it away. The voice
+    # loop drops it on CARRY_TTL_S instead, so an abandoned task cannot
+    # ambush an unrelated chat hours later.
     session.touch()
     session.state = State.IDLE
 

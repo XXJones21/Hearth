@@ -59,6 +59,23 @@ class Session:
     # Engram topic for this chat (project or life-root name). Passed into
     # memory.recall so every turn loads that claude.md. Cleared on session end.
     topic_hint: str | None = None
+    # Leftover file work from tool_loop.carry (list_dir files not yet read).
+    # Mechanical, not spoken history. Survives session end; retired on TTL.
+    open_task: dict | None = None
+    # Fold digests: what the files already read actually said. History keeps
+    # only the spoken sentence, so without this the knowledge from a 24-file
+    # sweep evaporates at turn end and the next utterance re-reads the tree.
+    task_notes: list[str] = field(default_factory=list)
+    # When the newest digest was written, for the notes' own expiry. The
+    # remainder and the notes retire separately: the remainder carries an
+    # INSTRUCTION ("read these now") that must not leak into an unrelated
+    # turn, while the notes are inert knowledge worth keeping through a
+    # detour ("what did you find?" then "now write it up").
+    task_notes_at: float = 0.0
+    # Destination note opened by the open_note tool. Each folded batch is
+    # appended here as it is read, so the file on disk is the durable record
+    # rather than in-memory state a restart can lose.
+    task_dest: str = ""
 
     def record_turn(self, user: str, assistant: str, persona: str = "") -> None:
         self.history.append(Turn(user=user, assistant=assistant))
