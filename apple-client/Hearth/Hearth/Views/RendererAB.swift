@@ -21,11 +21,14 @@ enum PersonaRenderer: String, CaseIterable, Identifiable {
     /// Whatever the persona's own config asks for -- for Sulivan today, the
     /// drawn face. The control, not a candidate.
     case shipped
-    /// Route A: the flame drawn with vector primitives in a SwiftUI Canvas.
+    /// The flame drawn with vector primitives in a SwiftUI Canvas.
+    ///
+    /// The decision, taken 2026-08-20. The RealityKit route was built, looked
+    /// excellent, and lost on the two things that decide a phone: it cost more
+    /// (18.2ms against 16.7ms) and it would have been a second persona renderer
+    /// on a platform that already needs this one for widgets. One
+    /// implementation beats a better-looking second one.
     case canvasFire
-    /// Route B: the headset's rig in a flat RealityView, lights off, embers
-    /// kept.
-    case reality
 
     var id: String { rawValue }
 
@@ -33,7 +36,6 @@ enum PersonaRenderer: String, CaseIterable, Identifiable {
         switch self {
         case .shipped:    return "Shipped"
         case .canvasFire: return "Canvas fire"
-        case .reality:    return "RealityKit fire"
         }
     }
 

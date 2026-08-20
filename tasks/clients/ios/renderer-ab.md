@@ -1,6 +1,6 @@
 ---
 area: clients/ios
-status: investigating
+status: decided
 branch: investigate/ios-flame-renderer
 depends_on: []
 blocks: [sulivan-realityview.md]
@@ -194,12 +194,51 @@ gives the width there -- rising past the tip and widening as they go, shrinking
 as they cool. Speaking keeps the shell, since what carries the amplitude is its
 radius.
 
-## Decision, when it comes
+## Decision: the canvas -- 2026-08-20
 
-Whichever wins, **the loser does not stay.** Two persona renderers behind a
-preference is the divergence this whole exercise is trying to end -- with the
-single exception of `PersonaOrb`, which survives for widgets and must say so in
-its own header.
+**Route A wins, and route B is removed rather than kept behind a preference.**
 
-Record the outcome here and fold it into
-[sulivan-realityview.md](sulivan-realityview.md).
+Route B looked excellent. Its fbm striations are real structure that a drawn
+flame cannot have, and nobody is pretending otherwise. It lost on the two things
+that decide a phone:
+
+- **Cost.** 18.2ms / 55fps against 16.7ms / 60fps, measured the one way that
+  readout can actually measure -- a renderer heavy enough to drag the main
+  thread pulls the switch's own timeline down with it.
+- **Count.** A SwiftUI flame had to exist regardless, because widgets can host
+  neither a RealityView nor a compute pass. Keeping B would have meant TWO
+  persona renderers on the phone, which is the divergence this whole exercise
+  set out to end. **One implementation beats a better-looking second one.**
+
+So `PersonaFlameView` is deleted and `PersonaRenderer` loses its `.reality`
+case. The rig stays exactly where it was -- shared, building for iOS, and the
+headset's renderer. Nothing about that changed; it simply is not what the phone
+draws.
+
+### The eyes went flat black with it
+
+`PersonaFaceView.inkColor()` mixes the persona's glow toward roast, which on a
+cream head belongs to the same palette family as everything around it. On a
+FLAME the background is bright saturated gold, and a brown two steps from cream
+is one step from fire -- the eyes wash out exactly where the body is brightest,
+which is where they sit. Flat black when `drawsHead` is false, which is also
+what the headset's kernel draws, so the two renderers agree rather than diverge.
+
+### What is left on the branch
+
+The switch stays for now, two-way: **Shipped** against **Canvas fire**. Not as
+a preference -- as a comparison, while the canvas flame is still being tuned
+against the persona it replaces. It leaves when the fire becomes the
+config-driven default, which is [sulivan-realityview.md](sulivan-realityview.md)
+minus its original premise.
+
+### Still to do before it ships
+
+- The flame is only judged at IDLE. Thinking and speaking are where the states
+  diverge most, and the speaking shell is untested on device.
+- `PersonaOrb` must say in its own header that it survives for widgets only,
+  or the next person reads two persona renderers and cannot tell which is
+  current.
+- How a persona's config selects the fire. Sulivan's says `procedural_face`,
+  and the renderer is chosen from the config by design -- so the fire needs a
+  name there rather than a hardcoded branch.

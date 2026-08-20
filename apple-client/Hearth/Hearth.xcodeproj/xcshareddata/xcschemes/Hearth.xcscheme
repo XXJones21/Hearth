@@ -30,16 +30,43 @@
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
    </TestAction>
+   <!--
+      THE DEBUGGER IS OFF FOR RUN, matching `Hearth Vision.xcscheme` and for a
+      related reason.
+
+      The Vision scheme turned it off because injected checkers wedged dyld
+      before main(). This one turns it off because LLDB kept failing on a
+      DEVICE launch in ways that had nothing to do with the app: minutes spent
+      resolving symbols off the phone after a DeviceSupport wipe, and then
+      "Xcode has killed the LLDB RPC server to allow the debugger to detach",
+      which leaves a process to terminate by hand.
+
+      An EMPTY selectedDebuggerIdentifier is Edit Scheme, Run, Info, "Debug
+      executable" unchecked. Xcode builds, installs and launches; LLDB never
+      attaches.
+
+      The LAUNCHER stays LLDB and must -- see the long note on the Vision
+      scheme. It is what installs onto and starts a process on a remote device,
+      which is independent of whether a debugger attaches. PosixSpawn empties
+      the destination picker.
+
+      TO PUT IT BACK, for a session that genuinely needs breakpoints: tick
+      "Debug executable". Nothing else here has to change. The cost of running
+      without it is that `print` goes to stdout, which is not the unified log --
+      use `os.Logger`, and read it with `xcrun devicectl device console` or
+      Console.app. Everything in the persona path already logs that way.
+   -->
    <LaunchAction
       buildConfiguration = "Debug"
-      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedDebuggerIdentifier = ""
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
       useCustomWorkingDirectory = "NO"
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES">
+      allowLocationSimulation = "YES"
+      disableMainThreadChecker = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference

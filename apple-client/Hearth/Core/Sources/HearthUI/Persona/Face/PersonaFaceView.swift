@@ -164,7 +164,20 @@ public struct PersonaFaceView: View {
     // invented its own colours would drift from the orb it replaces.
 
     private func inkColor() -> Color {
-        Self.color(mix(palette.glow(for: state), HearthPalette.Scene.roast, t: 0.62))
+        // FLAT BLACK WHEN THERE IS NO HEAD, and it is a contrast decision
+        // rather than a stylistic one.
+        //
+        // On a cream head the warm brown belongs to the same palette family as
+        // everything around it, which is what makes the face read as drawn
+        // rather than stuck on. On a FLAME the background is bright saturated
+        // gold, and a brown that was two steps from cream is barely one step
+        // from fire -- the eyes wash out exactly where the body is brightest,
+        // which is where they sit.
+        //
+        // The headset's face kernel draws flat black on the flame for the same
+        // reason, so this is the two renderers agreeing rather than diverging.
+        guard drawsHead else { return .black }
+        return Self.color(mix(palette.glow(for: state), HearthPalette.Scene.roast, t: 0.62))
     }
 
     private func rimColor() -> Color {

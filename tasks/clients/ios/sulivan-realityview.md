@@ -8,6 +8,14 @@ updated: 2026-08-20
 
 # Sulivan becomes the fire on the phone
 
+> **The premise in this title was tested and lost.** The A/B in
+> [renderer-ab.md](renderer-ab.md) built both a RealityView route and a SwiftUI
+> one, and the SwiftUI flame won on cost and on count -- a drawn flame has to
+> exist for widgets regardless, so hosting the rig would have meant two persona
+> renderers on one platform. What remains true below is everything about WHY
+> the phone should show the fire at all, and the survey of what the phone's
+> Canvas choice originally bought. Read the RealityView specifics as history.
+
 The headset draws Sulivan as a real flame: geometry, a computed texture, a face
 on a curved card, and an ember field that changes with the turn. The phone still
 draws the orb -- `PersonaOrb`, a SwiftUI `Canvas`, a painterly glow with a

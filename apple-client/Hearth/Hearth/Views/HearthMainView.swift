@@ -270,13 +270,6 @@ struct HearthMainView: View {
                             faceGeometry: viewModel.personaVisualization.faceGeometry
                         )
                     }
-                } else if investigateRenderer == PersonaRenderer.reality.rawValue {
-                    PersonaFlameView(
-                        state: stageState,
-                        level: viewModel.ttsAmplitude,
-                        palette: viewModel.personaPalette,
-                        visualization: viewModel.personaVisualization
-                    )
                 } else if viewModel.personaVisualization.canRenderFace,
                    let faceGeometry = viewModel.personaVisualization.faceGeometry {
                     PersonaFaceView(
