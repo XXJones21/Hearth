@@ -1,5 +1,6 @@
 package com.hearth.app.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -73,15 +74,18 @@ private val HearthLight = lightColorScheme(
 )
 
 /**
- * LIGHT by default, because that is what iOS ships to the alpha testers: the
- * stage is cream with roast ink, and a phone that renders the same house in
- * the negative is not the same product.
+ * Follows the OS, as the iOS client does: switch the phone between light and
+ * dark and the house changes with it.
  *
- * The dark scheme stays for the appliance's closed lid, which is a lit face
- * in a dim room, and is selected explicitly rather than by system preference.
+ * Both schemes are the same brand tokens seen from either end, never a second
+ * unrelated palette: cream ground with roast ink by day, roast ground with
+ * cream ink by night, and fennec/honey/ember carrying the accents in both.
  */
 @Composable
-fun HearthTheme(dark: Boolean = false, content: @Composable () -> Unit) {
+fun HearthTheme(
+    dark: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
         colorScheme = if (dark) HearthDark else HearthLight,
         content = content,

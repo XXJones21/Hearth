@@ -132,7 +132,15 @@ class ChatViewModel(
 
         player?.onSegmentPlaying = { idx ->
             // removeValue: each cue is one-shot, as on iOS.
-            captionsBySegment.remove(idx)?.let { _caption.value = it }
+            captionsBySegment.remove(idx)?.let { sentence ->
+                // APPENDED, not replaced: the band fills at the pace of the
+                // voice and holds the whole reply. Replacing per sentence
+                // made it flicker one line at a time and left nothing behind
+                // when the turn ended.
+                val existing = _caption.value
+                _caption.value =
+                    if (existing.isNullOrBlank()) sentence else "$existing $sentence"
+            }
             expressionsBySegment.remove(idx)?.let {
                 _faceCue.value = it to System.currentTimeMillis()
             }
@@ -141,7 +149,9 @@ class ChatViewModel(
             _ttsAmplitude.value = if (_state.value == HearthState.SPEAKING) level else 0f
         }
         player?.onPlaybackComplete = {
-            _caption.value = null
+            // The caption STAYS. On iOS the last reply is still on the stage
+            // while the house is idle; clearing it here emptied the screen
+            // the moment the voice stopped.
             if (_state.value == HearthState.SPEAKING) {
                 _state.value = HearthState.IDLE
                 // Post-speak listening window, unless the turn was cut off.
@@ -174,6 +184,7 @@ class ChatViewModel(
                 _micLevel.value = 0f
             } else {
                 appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = text))
+                beginTurn()
                 Log.i(TAG, "sending transcript (${text.length} chars)")
                 if (socket.sendClientTranscription(text)) {
                     _state.value = HearthState.THINKING
@@ -314,6 +325,7 @@ class ChatViewModel(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = trimmed))
+        beginTurn()
         if (socket.sendTextQuery(trimmed)) {
             _state.value = HearthState.THINKING
         } else {
@@ -330,6 +342,13 @@ class ChatViewModel(
      * automatic, so this says what happened and invites the retry rather
      * than pretending to be thinking.
      */
+    /** A new turn wipes the last reply from the stage. */
+    private fun beginTurn() {
+        _caption.value = null
+        captionsBySegment.clear()
+        expressionsBySegment.clear()
+    }
+
     private fun reportUnsent() {
         _state.value = HearthState.IDLE
         _thinkingStage.value = null

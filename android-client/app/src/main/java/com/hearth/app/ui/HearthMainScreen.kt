@@ -24,6 +24,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -151,15 +155,20 @@ fun HearthMainScreen(
             )
         }
 
-        // The house lives behind one affordance in the top corner, as on iOS.
-        TextButton(
+        // The house lives behind one affordance in the top corner, as on iOS:
+        // a hamburger, not a word.
+        IconButton(
             onClick = onShelf,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
                 .padding(4.dp),
         ) {
-            Text("House", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Icon(
+                Icons.Outlined.Menu,
+                contentDescription = "House",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -230,9 +239,11 @@ private fun PersonaStage(
                 }
             }
 
-            // The clock crowns an EMPTY stage; once something is resting on it
-            // the clock would be chrome stacked on content.
-            if (isIdle && caption.isNullOrBlank()) {
+            // The clock crowns an idle stage. It shares the screen with the
+            // last reply quite happily: the iOS stage at rest shows the clock
+            // above the persona AND the caption below it. What displaces the
+            // clock is a CARD, not a caption.
+            if (isIdle) {
                 IdleClock(modifier = Modifier.align(Alignment.TopCenter))
             }
         }
@@ -244,7 +255,11 @@ private fun PersonaStage(
             val ceilingPx = stageHeightPx * (if (transcriptShown) 0.30f else 0.36f)
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                ),
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .widthIn(max = 520.dp),

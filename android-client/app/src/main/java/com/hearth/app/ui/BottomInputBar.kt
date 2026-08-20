@@ -10,7 +10,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -60,15 +71,34 @@ fun BottomInputBar(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // What the mic has heard so far, above the button that will send it.
+        // What the mic has heard so far, in its own bubble above the button
+        // that will send it, with the rule written underneath: people do not
+        // know a pause sends until they are told once.
         partialTranscript?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
-            )
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        "sends when you pause, or tap the button",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+            }
         }
 
         if (typing) {
@@ -134,6 +164,12 @@ private fun TalkRow(
                 .widthIn(min = 200.dp, max = 240.dp)
                 .scale(scale),
         ) {
+            Icon(
+                talkIcon(state),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(10.dp))
             Text(
                 talkLabel(state, hasWords),
                 style = MaterialTheme.typography.titleSmall,
@@ -147,8 +183,12 @@ private fun TalkRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End,
         ) {
-            TextButton(onClick = onKeyboard, modifier = Modifier.size(56.dp)) {
-                Text("Aa", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            IconButton(onClick = onKeyboard) {
+                Icon(
+                    Icons.Outlined.Keyboard,
+                    contentDescription = "Type a message",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -158,6 +198,13 @@ private fun TalkRow(
  * The label is the contract: once there are words, a tap SENDS them (a pause
  * sends on its own). Discarding is the stage tap, not this button.
  */
+private fun talkIcon(state: HearthState) = when (state) {
+    HearthState.LISTENING -> Icons.Outlined.GraphicEq
+    HearthState.THINKING -> Icons.Outlined.MoreHoriz
+    HearthState.SPEAKING -> Icons.AutoMirrored.Outlined.VolumeUp
+    else -> Icons.Outlined.Mic
+}
+
 private fun talkLabel(state: HearthState, hasWords: Boolean): String = when (state) {
     HearthState.LISTENING -> if (hasWords) "Tap to send" else "Listening"
     HearthState.THINKING -> "Thinking"
