@@ -366,7 +366,15 @@ class FaceDirector(
     now: Double,
     private val random: Random = Random.Default,
 ) {
-    private var pose: FacePose = neutralPose(geometry)
+    /**
+     * The eased base pose, the only thing that carries between frames.
+     * Mutated in place; a frame allocates nothing.
+     */
+    private val pose: FacePose = neutralPose(geometry)
+
+    /** Scratch buffers, reused every tick. */
+    private val target: FacePose = FacePose()
+    private val frame: FacePose = FacePose()
     private var state: FaceState = FaceState.IDLE
     private var beatIndex = 0
     private var beatStartedAt: Double = now
@@ -421,33 +429,25 @@ class FaceDirector(
             beatIndex = (beatIndex + 1) % anim.beats.size
             beatStartedAt = now
         }
-        val target = applyExpression(neutralPose(geometry), anim.beats[beatIndex].expr, 1.0)
+        writeNeutral(geometry, target)
+        applyExpression(target, anim.beats[beatIndex].expr, 1.0)
 
         // Ease every channel toward the beat's pose. Reduce motion snaps.
         val alpha = if (reduceMotion) 1.0 else 1 - exp(-dt / EASE_TAU)
-        val eased = pose.values.toMutableMap()
-        for (channel in PoseChannel.entries) {
-            val current = pose[channel]
-            eased[channel] = current + (target[channel] - current) * alpha
-        }
-        pose = FacePose(eased)
+        val pv = pose.v
+        val tv = target.v
+        for (i in pv.indices) pv[i] += (tv[i] - pv[i]) * alpha
 
-        var frame = pose
+        // The frame is the eased base plus this tick's layers; the base
+        // itself must not accumulate them.
+        frame.setFrom(pose)
 
         // While listening, the face watches where the words are coming from,
         // converged near. Saccades still ride on top, so the watch stays alive.
         if (state == FaceState.LISTENING && lookTarget != null) {
-            frame = applyExpression(
-                frame,
-                FaceExpression(
-                    add = mapOf(
-                        PoseChannel.GAZE_X to (lookTarget.x - frame.gazeX) * 0.85,
-                        PoseChannel.GAZE_Y to (lookTarget.y - frame.gazeY) * 0.85,
-                        PoseChannel.FOCUS to (lookTarget.focus - frame.focus) * 0.85,
-                    )
-                ),
-                1.0,
-            )
+            frame[PoseChannel.GAZE_X] += (lookTarget.x - frame.gazeX) * 0.85
+            frame[PoseChannel.GAZE_Y] += (lookTarget.y - frame.gazeY) * 0.85
+            frame[PoseChannel.FOCUS] += (lookTarget.focus - frame.focus) * 0.85
         }
 
         // Micro-saccades: the gaze jumps a little at irregular intervals, and
@@ -459,39 +459,23 @@ class FaceDirector(
                 nextSaccadeAt =
                     now + SACCADE_MIN_MS + random.nextDouble() * (SACCADE_MAX_MS - SACCADE_MIN_MS)
             }
-            frame = applyExpression(
-                frame,
-                FaceExpression(
-                    add = mapOf(
-                        PoseChannel.GAZE_X to saccadeX,
-                        PoseChannel.GAZE_Y to saccadeY,
-                    )
-                ),
-                1.0,
-            )
+            frame[PoseChannel.GAZE_X] += saccadeX
+            frame[PoseChannel.GAZE_Y] += saccadeY
             // Breathing sway: continuous, slow, never still.
-            frame = applyExpression(
-                frame,
-                FaceExpression(
-                    add = mapOf(
-                        PoseChannel.HEAD_TILT to sin((now * 2 * PI) / SWAY_PERIOD_MS) * SWAY_AMP
-                    )
-                ),
-                1.0,
-            )
+            frame[PoseChannel.HEAD_TILT] += sin((now * 2 * PI) / SWAY_PERIOD_MS) * SWAY_AMP
         }
 
         // The harness's transient cue: full weight through its hold, then a
-        // decay -- with the cue's own motion envelope riding on top.
+        // decay, with the cue's own motion envelope riding on top.
         if (cue != null) {
             val age = now - cue.at
             val profile = TRANSIENTS[cue.name] ?: DEFAULT_TRANSIENT
             val weight = transientWeight(age, profile)
             if (weight > 0) {
-                frame = applyNamedExpression(frame, cue.name, weight)
+                applyNamedExpression(frame, cue.name, weight)
                 val motion = profile.motion
                 if (motion != null && !reduceMotion) {
-                    frame = applyExpression(frame, motion(age, weight), 1.0)
+                    applyExpression(frame, motion(age, weight), 1.0)
                 }
             }
         }
@@ -506,7 +490,7 @@ class FaceDirector(
             if (blinkStartedAt >= 0) {
                 val w = blinkWeight(now - blinkStartedAt, blinkDuration)
                 if (w != null) {
-                    frame = applyExpression(frame, FACE_EXPRESSIONS[ExpressionName.BLINK]!!, w)
+                    applyExpression(frame, FACE_EXPRESSIONS[ExpressionName.BLINK]!!, w)
                 } else {
                     blinkStartedAt = -1.0
                     nextBlinkAt = now + anim.blink.min +
@@ -515,19 +499,13 @@ class FaceDirector(
             }
         }
 
-        // The mouth follows the sound itself, not the state -- and a talking
-        // mouth is a clean round oval whose height rides the amplitude.
+        // The mouth follows the SOUND THE HOUSE IS MAKING, never the state
+        // and never the microphone. Feeding the mic level here is what made
+        // the persona's mouth move while the operator was talking.
         if (speechLevel > 0.01) {
-            frame = applyExpression(
-                frame,
-                FaceExpression(
-                    add = mapOf(
-                        PoseChannel.MOUTH_OPEN to speechLevel,
-                        PoseChannel.MOUTH_ROUND to 1.0,
-                    )
-                ),
-                1.0,
-            )
+            frame[PoseChannel.MOUTH_OPEN] =
+                (frame.mouthOpen + speechLevel).coerceIn(0.0, 1.0)
+            frame[PoseChannel.MOUTH_ROUND] = 1.0
         }
 
         return frame

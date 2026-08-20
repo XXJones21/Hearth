@@ -45,77 +45,88 @@ enum class PoseChannel {
 }
 
 /**
- * Geometry plus the channels only motion owns. A channel map rather than 27
- * fields so the director's easing and [applyExpression] can iterate.
+ * Geometry plus the channels only motion owns.
+ *
+ * A flat [DoubleArray] indexed by [PoseChannel.ordinal], NOT a Map. The face
+ * ticks sixty times a second and every layer used to copy a 27-entry map:
+ * roughly two hundred allocations per frame, which the emulator hid and a
+ * real device did not. The array is mutable in place and the director keeps
+ * one scratch instance, so a frame allocates nothing.
+ *
+ * The read surface is unchanged, so the drawing code and the tests do not
+ * know the difference.
  */
-data class FacePose(val values: Map<PoseChannel, Double>) {
+class FacePose(internal val v: DoubleArray = DoubleArray(CHANNEL_COUNT)) {
 
-    operator fun get(c: PoseChannel): Double = values[c] ?: 0.0
+    operator fun get(c: PoseChannel): Double = v[c.ordinal]
 
-    fun with(c: PoseChannel, v: Double): FacePose =
-        FacePose(values.toMutableMap().apply { put(c, v) })
+    operator fun set(c: PoseChannel, value: Double) {
+        v[c.ordinal] = value
+    }
 
-    val headWidth get() = this[PoseChannel.HEAD_WIDTH]
-    val headHeight get() = this[PoseChannel.HEAD_HEIGHT]
-    val headRoundness get() = this[PoseChannel.HEAD_ROUNDNESS]
-    val eyeSize get() = this[PoseChannel.EYE_SIZE]
-    val eyeSpacing get() = this[PoseChannel.EYE_SPACING]
-    val eyeHeight get() = this[PoseChannel.EYE_HEIGHT]
-    val eyeLength get() = this[PoseChannel.EYE_LENGTH]
-    val eyeTilt get() = this[PoseChannel.EYE_TILT]
-    val mouthWidth get() = this[PoseChannel.MOUTH_WIDTH]
-    val mouthThickness get() = this[PoseChannel.MOUTH_THICKNESS]
-    val mouthCurve get() = this[PoseChannel.MOUTH_CURVE]
-    val eyelidL get() = this[PoseChannel.EYELID_L]
-    val eyelidR get() = this[PoseChannel.EYELID_R]
-    val eyeArc get() = this[PoseChannel.EYE_ARC]
-    val focus get() = this[PoseChannel.FOCUS]
-    val headBob get() = this[PoseChannel.HEAD_BOB]
-    val eyeScaleL get() = this[PoseChannel.EYE_SCALE_L]
-    val eyeScaleR get() = this[PoseChannel.EYE_SCALE_R]
-    val eyeTiltL get() = this[PoseChannel.EYE_TILT_L]
-    val eyeTiltR get() = this[PoseChannel.EYE_TILT_R]
-    val eyeRaiseL get() = this[PoseChannel.EYE_RAISE_L]
-    val eyeRaiseR get() = this[PoseChannel.EYE_RAISE_R]
-    val gazeX get() = this[PoseChannel.GAZE_X]
-    val gazeY get() = this[PoseChannel.GAZE_Y]
-    val headTilt get() = this[PoseChannel.HEAD_TILT]
-    val mouthOpen get() = this[PoseChannel.MOUTH_OPEN]
-    val mouthRound get() = this[PoseChannel.MOUTH_ROUND]
+    /** A detached copy. Used where a pose must outlive the scratch buffer. */
+    fun copy(): FacePose = FacePose(v.copyOf())
+
+    /** Overwrite this pose from another, without allocating. */
+    fun setFrom(other: FacePose) {
+        other.v.copyInto(v)
+    }
+
+    val headWidth get() = v[PoseChannel.HEAD_WIDTH.ordinal]
+    val headHeight get() = v[PoseChannel.HEAD_HEIGHT.ordinal]
+    val headRoundness get() = v[PoseChannel.HEAD_ROUNDNESS.ordinal]
+    val eyeSize get() = v[PoseChannel.EYE_SIZE.ordinal]
+    val eyeSpacing get() = v[PoseChannel.EYE_SPACING.ordinal]
+    val eyeHeight get() = v[PoseChannel.EYE_HEIGHT.ordinal]
+    val eyeLength get() = v[PoseChannel.EYE_LENGTH.ordinal]
+    val eyeTilt get() = v[PoseChannel.EYE_TILT.ordinal]
+    val mouthWidth get() = v[PoseChannel.MOUTH_WIDTH.ordinal]
+    val mouthThickness get() = v[PoseChannel.MOUTH_THICKNESS.ordinal]
+    val mouthCurve get() = v[PoseChannel.MOUTH_CURVE.ordinal]
+    val eyelidL get() = v[PoseChannel.EYELID_L.ordinal]
+    val eyelidR get() = v[PoseChannel.EYELID_R.ordinal]
+    val eyeArc get() = v[PoseChannel.EYE_ARC.ordinal]
+    val focus get() = v[PoseChannel.FOCUS.ordinal]
+    val headBob get() = v[PoseChannel.HEAD_BOB.ordinal]
+    val eyeScaleL get() = v[PoseChannel.EYE_SCALE_L.ordinal]
+    val eyeScaleR get() = v[PoseChannel.EYE_SCALE_R.ordinal]
+    val eyeTiltL get() = v[PoseChannel.EYE_TILT_L.ordinal]
+    val eyeTiltR get() = v[PoseChannel.EYE_TILT_R.ordinal]
+    val eyeRaiseL get() = v[PoseChannel.EYE_RAISE_L.ordinal]
+    val eyeRaiseR get() = v[PoseChannel.EYE_RAISE_R.ordinal]
+    val gazeX get() = v[PoseChannel.GAZE_X.ordinal]
+    val gazeY get() = v[PoseChannel.GAZE_Y.ordinal]
+    val headTilt get() = v[PoseChannel.HEAD_TILT.ordinal]
+    val mouthOpen get() = v[PoseChannel.MOUTH_OPEN.ordinal]
+    val mouthRound get() = v[PoseChannel.MOUTH_ROUND.ordinal]
+
+    companion object {
+        val CHANNELS = PoseChannel.entries.toTypedArray()
+        val CHANNEL_COUNT = CHANNELS.size
+    }
 }
 
 /** A geometry at rest: motion channels zeroed, sizes at their resting 1. */
-fun neutralPose(g: FaceGeometry): FacePose = FacePose(
-    mapOf(
-        PoseChannel.HEAD_WIDTH to g.headWidth,
-        PoseChannel.HEAD_HEIGHT to g.headHeight,
-        PoseChannel.HEAD_ROUNDNESS to g.headRoundness,
-        PoseChannel.EYE_SIZE to g.eyeSize,
-        PoseChannel.EYE_SPACING to g.eyeSpacing,
-        PoseChannel.EYE_HEIGHT to g.eyeHeight,
-        PoseChannel.EYE_LENGTH to g.eyeLength,
-        PoseChannel.EYE_TILT to g.eyeTilt,
-        PoseChannel.MOUTH_WIDTH to g.mouthWidth,
-        PoseChannel.MOUTH_THICKNESS to g.mouthThickness,
-        PoseChannel.MOUTH_CURVE to g.mouthCurve,
-        PoseChannel.EYELID_L to 0.0,
-        PoseChannel.EYELID_R to 0.0,
-        PoseChannel.EYE_ARC to 0.0,
-        PoseChannel.FOCUS to 0.0,
-        PoseChannel.HEAD_BOB to 0.0,
-        PoseChannel.EYE_SCALE_L to 1.0,
-        PoseChannel.EYE_SCALE_R to 1.0,
-        PoseChannel.EYE_TILT_L to 0.0,
-        PoseChannel.EYE_TILT_R to 0.0,
-        PoseChannel.EYE_RAISE_L to 0.0,
-        PoseChannel.EYE_RAISE_R to 0.0,
-        PoseChannel.GAZE_X to 0.0,
-        PoseChannel.GAZE_Y to 0.0,
-        PoseChannel.HEAD_TILT to 0.0,
-        PoseChannel.MOUTH_OPEN to 0.0,
-        PoseChannel.MOUTH_ROUND to 0.0,
-    )
-)
+fun neutralPose(g: FaceGeometry): FacePose = FacePose().also { writeNeutral(g, it) }
+
+/** The same, into an existing pose, so a frame allocates nothing. */
+fun writeNeutral(g: FaceGeometry, into: FacePose) {
+    val v = into.v
+    java.util.Arrays.fill(v, 0.0)
+    v[PoseChannel.HEAD_WIDTH.ordinal] = g.headWidth
+    v[PoseChannel.HEAD_HEIGHT.ordinal] = g.headHeight
+    v[PoseChannel.HEAD_ROUNDNESS.ordinal] = g.headRoundness
+    v[PoseChannel.EYE_SIZE.ordinal] = g.eyeSize
+    v[PoseChannel.EYE_SPACING.ordinal] = g.eyeSpacing
+    v[PoseChannel.EYE_HEIGHT.ordinal] = g.eyeHeight
+    v[PoseChannel.EYE_LENGTH.ordinal] = g.eyeLength
+    v[PoseChannel.EYE_TILT.ordinal] = g.eyeTilt
+    v[PoseChannel.MOUTH_WIDTH.ordinal] = g.mouthWidth
+    v[PoseChannel.MOUTH_THICKNESS.ordinal] = g.mouthThickness
+    v[PoseChannel.MOUTH_CURVE.ordinal] = g.mouthCurve
+    v[PoseChannel.EYE_SCALE_L.ordinal] = 1.0
+    v[PoseChannel.EYE_SCALE_R.ordinal] = 1.0
+}
 
 data class FaceExpression(
     /** multiplicative: v * (1 + delta * weight) */
@@ -250,24 +261,26 @@ val FACE_EXPRESSIONS: Map<ExpressionName, FaceExpression> = mapOf(
 )
 
 /**
- * Resolve a pose + expression + weight into a pose. Weight 0 is the input
- * unchanged; 1 is the full expression. Layering is applying again: state pose
- * first, then a transient, then blink, each with its own weight.
+ * Layer an expression onto a pose, IN PLACE. Weight 0 leaves it untouched; 1
+ * is the full expression. Layering is applying again: state pose first, then
+ * a transient, then blink, each with its own weight.
+ *
+ * Mutating rather than returning a new pose is what keeps a frame free of
+ * allocation; the director layers roughly six times per tick.
  */
-fun applyExpression(base: FacePose, e: FaceExpression, weight: Double): FacePose {
-    if (weight == 0.0) return base
+fun applyExpression(pose: FacePose, e: FaceExpression, weight: Double) {
+    if (weight == 0.0) return
     val w = weight.coerceIn(0.0, 1.0)
-    val values = base.values.toMutableMap()
-    for ((c, d) in e.scale) values[c] = (values[c] ?: 0.0) * (1 + d * w)
-    for ((c, d) in e.add) values[c] = (values[c] ?: 0.0) + d * w
+    val v = pose.v
+    for ((c, d) in e.scale) v[c.ordinal] = v[c.ordinal] * (1 + d * w)
+    for ((c, d) in e.add) v[c.ordinal] = v[c.ordinal] + d * w
     // Channels with hard physical ranges stay in them, whatever was layered.
-    values[PoseChannel.EYELID_L] = (values[PoseChannel.EYELID_L] ?: 0.0).coerceIn(0.0, 1.0)
-    values[PoseChannel.EYELID_R] = (values[PoseChannel.EYELID_R] ?: 0.0).coerceIn(0.0, 1.0)
-    values[PoseChannel.EYE_ARC] = (values[PoseChannel.EYE_ARC] ?: 0.0).coerceIn(-1.0, 1.0)
-    values[PoseChannel.FOCUS] = (values[PoseChannel.FOCUS] ?: 0.0).coerceIn(0.0, 1.0)
-    values[PoseChannel.MOUTH_OPEN] = (values[PoseChannel.MOUTH_OPEN] ?: 0.0).coerceIn(0.0, 1.0)
-    values[PoseChannel.MOUTH_ROUND] = (values[PoseChannel.MOUTH_ROUND] ?: 0.0).coerceIn(0.0, 1.0)
-    return FacePose(values)
+    v[PoseChannel.EYELID_L.ordinal] = v[PoseChannel.EYELID_L.ordinal].coerceIn(0.0, 1.0)
+    v[PoseChannel.EYELID_R.ordinal] = v[PoseChannel.EYELID_R.ordinal].coerceIn(0.0, 1.0)
+    v[PoseChannel.EYE_ARC.ordinal] = v[PoseChannel.EYE_ARC.ordinal].coerceIn(-1.0, 1.0)
+    v[PoseChannel.FOCUS.ordinal] = v[PoseChannel.FOCUS.ordinal].coerceIn(0.0, 1.0)
+    v[PoseChannel.MOUTH_OPEN.ordinal] = v[PoseChannel.MOUTH_OPEN.ordinal].coerceIn(0.0, 1.0)
+    v[PoseChannel.MOUTH_ROUND.ordinal] = v[PoseChannel.MOUTH_ROUND.ordinal].coerceIn(0.0, 1.0)
 }
 
 /**
@@ -275,8 +288,8 @@ fun applyExpression(base: FacePose, e: FaceExpression, weight: Double): FacePose
  * this client names an expression it has not learned, and the face must go on
  * rather than break.
  */
-fun applyNamedExpression(base: FacePose, name: String, weight: Double): FacePose {
-    val named = ExpressionName.fromWire(name) ?: return base
-    val e = FACE_EXPRESSIONS[named] ?: return base
-    return applyExpression(base, e, weight)
+fun applyNamedExpression(pose: FacePose, name: String, weight: Double) {
+    val named = ExpressionName.fromWire(name) ?: return
+    val e = FACE_EXPRESSIONS[named] ?: return
+    applyExpression(pose, e, weight)
 }

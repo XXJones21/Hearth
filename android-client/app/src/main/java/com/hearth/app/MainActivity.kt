@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import com.hearth.app.ui.theme.HearthTheme
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,10 +72,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             HearthTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    var ready by remember {
-                        mutableStateOf(config.isConfigured && config.isPaired)
+                    // Null until the Keystore has been read on a background
+                    // thread. Reading it during composition is what stalled
+                    // the first frame for seconds on a real device.
+                    var ready by remember { mutableStateOf<Boolean?>(null) }
+                    LaunchedEffect(Unit) {
+                        config.warm()
+                        ready = config.isConfigured && config.isPaired
+                        if (ready == true) viewModel.connect()
                     }
-                    if (!ready) {
+
+                    if (ready == null) {
+                        Splash()
+                    } else if (ready == false) {
                         FirstRunScreen(
                             config = config,
                             onDone = {
@@ -94,7 +104,8 @@ class MainActivity : ComponentActivity() {
                         val stage by viewModel.thinkingStage.collectAsState()
                         val messages by viewModel.messages.collectAsState()
                         val caption by viewModel.caption.collectAsState()
-                        val level by viewModel.audioLevel.collectAsState()
+                        val ttsLevel by viewModel.ttsAmplitude.collectAsState()
+                        val micLevel by viewModel.micLevel.collectAsState()
                         val partial by viewModel.partialTranscript.collectAsState()
                         val palette by viewModel.palette.collectAsState()
                         val faceGeometry by viewModel.faceGeometry.collectAsState()
@@ -169,7 +180,8 @@ class MainActivity : ComponentActivity() {
                                     faceGeometry = faceGeometry,
                                     faceCue = faceCue,
                                     caption = caption,
-                                    audioLevel = level,
+                                    ttsAmplitude = ttsLevel,
+                                    micLevel = micLevel,
                                     partialTranscript = partial,
                                     onSend = viewModel::sendText,
                                     onMic = {
@@ -186,13 +198,31 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @androidx.compose.runtime.Composable
+    private fun Splash() {
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            androidx.compose.material3.Text(
+                "Hearth",
+                style = androidx.compose.material3.MaterialTheme.typography.headlineLarge,
+            )
+        }
+    }
+
     private fun hasMic(): Boolean = ContextCompat.checkSelfPermission(
         this, Manifest.permission.RECORD_AUDIO
     ) == PackageManager.PERMISSION_GRANTED
 
     override fun onStart() {
         super.onStart()
-        if (config.isConfigured && config.isPaired) viewModel.enterForeground()
+        // isPaired can touch the Keystore, so the check happens off the main
+        // thread; warm() is a no-op once primed.
+        lifecycleScope.launch {
+            config.warm()
+            if (config.isConfigured && config.isPaired) viewModel.enterForeground()
+        }
     }
 
     override fun onStop() {

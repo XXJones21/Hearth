@@ -7,6 +7,8 @@ import android.media.AudioTrack
 import android.util.Log
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -59,6 +61,15 @@ class TtsStreamPlayer {
     private var track: AudioTrack? = null
     private var sampleRate = 0
     private var pollThread: Thread? = null
+
+    /**
+     * PCM waiting to be written. The socket reader hands chunks here and
+     * returns immediately: AudioTrack.write with WRITE_BLOCKING parks until
+     * the speaker has room, and parking the WebSocket reader means the whole
+     * protocol stalls behind the audio.
+     */
+    private val queue = LinkedBlockingQueue<FloatArray>(256)
+    private var writerThread: Thread? = null
 
     @Volatile
     private var running = false
@@ -124,6 +135,8 @@ class TtsStreamPlayer {
         resetSegmentTracking()
         running = true
         completePending = false
+        queue.clear()
+        startWriter()
         startPolling()
         Log.i(TAG, "stream started @ ${sampleRate}Hz")
     }
@@ -158,8 +171,32 @@ class TtsStreamPlayer {
         smoothedAmplitude = smoothedAmplitude * 0.6f + level * 0.4f
         onAmplitude?.invoke(smoothedAmplitude)
 
-        t.write(floats, 0, frameCount, AudioTrack.WRITE_BLOCKING)
+        // Counted as scheduled the moment it is queued, so a segment mark
+        // taken right after this lands at the right frame offset.
         synchronized(markLock) { scheduledFrames += frameCount }
+        if (!queue.offer(floats)) {
+            // The speaker is further behind than a full queue. Dropping the
+            // oldest keeps the voice live rather than growing latency
+            // forever; a starved head stalls the caption, which is correct.
+            queue.poll()
+            queue.offer(floats)
+        }
+    }
+
+    private fun startWriter() {
+        writerThread?.interrupt()
+        writerThread = thread(name = "hearth-tts-writer", isDaemon = true) {
+            while (running) {
+                try {
+                    val chunk = queue.poll(100, TimeUnit.MILLISECONDS) ?: continue
+                    track?.write(chunk, 0, chunk.size, AudioTrack.WRITE_BLOCKING)
+                } catch (e: InterruptedException) {
+                    return@thread
+                } catch (e: Exception) {
+                    Log.w(TAG, "write failed: ${e.message}")
+                }
+            }
+        }
     }
 
     /**
@@ -172,8 +209,8 @@ class TtsStreamPlayer {
             return
         }
         val silence = FloatArray(sampleRate / 20) // 50 ms, as on iOS
-        track?.write(silence, 0, silence.size, AudioTrack.WRITE_BLOCKING)
         synchronized(markLock) { scheduledFrames += silence.size }
+        queue.offer(silence)
         completePending = true
     }
 
@@ -258,6 +295,9 @@ class TtsStreamPlayer {
         completePending = false
         pollThread?.interrupt()
         pollThread = null
+        writerThread?.interrupt()
+        writerThread = null
+        queue.clear()
         try {
             track?.pause()
             track?.flush()

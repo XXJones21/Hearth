@@ -3,9 +3,10 @@ package com.hearth.app.ui.persona
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -68,32 +69,64 @@ fun PersonaFace(
     // with a clock of its own, not a value to recreate per frame.
     val director = remember(geometry) { FaceDirector(geometry, now = nowMs()) }
 
-    val faceState = faceStateFor(state, composerUp)
-    val liveCue = remember(cue) { cue?.let { FaceCue(it.first, it.second.toDouble()) } }
+    // The loop reads its inputs from here rather than being KEYED on them.
+    // Keying meant the coroutine was cancelled and restarted on every change
+    // of speechLevel, which changes continuously while the house talks.
+    val inputs = remember { FaceInputs() }
+    inputs.state = faceStateFor(state, composerUp)
+    inputs.speechLevel = speechLevel.toDouble()
+    inputs.reduceMotion = reduceMotion
+    inputs.composerUp = composerUp
+    if (cue != null && cue.second != inputs.cueStamp) {
+        inputs.cueStamp = cue.second
+        inputs.cue = FaceCue(cue.first, cue.second.toDouble())
+    }
 
-    // The frame clock. Never paused, even under reduce motion: the director
-    // suppresses blink, saccades and sway itself, and the mouth still has to
-    // follow the voice. A paused clock would freeze the speech too.
-    val pose by produceState(initialValue = director.tick(
-        nowMs(), faceState, null, 0.0, reduceMotion,
-    ), director, faceState, liveCue, speechLevel, reduceMotion) {
+    // One pose instance, mutated by the director and read by the Canvas. The
+    // frame counter is what recomposes: an Int changing is cheap where a new
+    // 27-channel object every frame is not.
+    val pose = remember { FacePose() }
+    var frameTick by remember { mutableIntStateOf(0) }
+
+    // Starts ONCE and runs for the life of the composable.
+    LaunchedEffect(director) {
         while (true) {
             withFrameMillis {
-                value = director.tick(
-                    now = nowMs(),
-                    state = faceState,
-                    cue = liveCue,
-                    speechLevel = speechLevel.toDouble(),
-                    reduceMotion = reduceMotion,
-                    // Someone typing is someone talking to it: the face looks
-                    // down at the keyboard while the composer is up.
-                    lookTarget = if (composerUp) KEYBOARD_TARGET else null,
+                pose.setFrom(
+                    director.tick(
+                        now = nowMs(),
+                        state = inputs.state,
+                        cue = inputs.cue,
+                        speechLevel = inputs.speechLevel,
+                        reduceMotion = inputs.reduceMotion,
+                        lookTarget = if (inputs.composerUp) KEYBOARD_TARGET else null,
+                    )
                 )
+                frameTick++
             }
         }
     }
 
-    Canvas(modifier = modifier) { drawFace(pose, palette, state, size) }
+    Canvas(modifier = modifier) {
+        // Read the counter so the draw is tied to the frame clock; the pose
+        // itself is mutable and Compose cannot see into it.
+        @Suppress("UNUSED_EXPRESSION")
+        frameTick
+        drawFace(pose, palette, state, size)
+    }
+}
+
+/**
+ * What the frame loop reads. A holder rather than loop keys, so the
+ * coroutine starts once instead of restarting sixty times a second.
+ */
+private class FaceInputs {
+    var state: FaceState = FaceState.IDLE
+    var speechLevel: Double = 0.0
+    var reduceMotion: Boolean = false
+    var composerUp: Boolean = false
+    var cue: FaceCue? = null
+    var cueStamp: Long = 0
 }
 
 private fun nowMs(): Double = System.currentTimeMillis().toDouble()

@@ -77,9 +77,21 @@ class ChatViewModel(
     private val _faceCue = MutableStateFlow<Pair<String, Long>?>(null)
     val faceCue: StateFlow<Pair<String, Long>?> = _faceCue.asStateFlow()
 
-    /** Speech amplitude while the house talks; mic level while it listens. */
-    private val _audioLevel = MutableStateFlow(0f)
-    val audioLevel: StateFlow<Float> = _audioLevel.asStateFlow()
+    /**
+     * The amplitude of the sound THE HOUSE IS MAKING. Drives the face's mouth
+     * and nothing else.
+     *
+     * Deliberately separate from [micLevel]: one shared level meant the
+     * microphone drove the mouth, so the persona's mouth moved while the
+     * operator was talking. iOS keeps these apart for the same reason, and
+     * the face only ever reads the TTS side.
+     */
+    private val _ttsAmplitude = MutableStateFlow(0f)
+    val ttsAmplitude: StateFlow<Float> = _ttsAmplitude.asStateFlow()
+
+    /** What the MICROPHONE hears. Drives the composer's glow, never the face. */
+    private val _micLevel = MutableStateFlow(0f)
+    val micLevel: StateFlow<Float> = _micLevel.asStateFlow()
 
     /** What the mic has heard so far, for the composer. */
     private val _partialTranscript = MutableStateFlow<String?>(null)
@@ -122,7 +134,7 @@ class ChatViewModel(
             }
         }
         player?.onAmplitude = { level ->
-            if (_state.value == HearthState.SPEAKING) _audioLevel.value = level
+            _ttsAmplitude.value = if (_state.value == HearthState.SPEAKING) level else 0f
         }
         player?.onPlaybackComplete = {
             _caption.value = null
@@ -135,7 +147,7 @@ class ChatViewModel(
 
         speech?.onPartialResult = { _partialTranscript.value = it }
         speech?.onLevel = { level ->
-            if (_state.value == HearthState.LISTENING) _audioLevel.value = level
+            _micLevel.value = if (_state.value == HearthState.LISTENING) level else 0f
         }
         speech?.onFinalResult = { text ->
             _partialTranscript.value = null
@@ -202,7 +214,7 @@ class ChatViewModel(
             if (_state.value == HearthState.LISTENING) {
                 stt.stop()
                 _state.value = HearthState.IDLE
-                _audioLevel.value = 0f
+                _micLevel.value = 0f
             }
         }
     }
@@ -214,7 +226,8 @@ class ChatViewModel(
         captionsBySegment.clear()
         expressionsBySegment.clear()
         _caption.value = null
-        _audioLevel.value = 0f
+        _ttsAmplitude.value = 0f
+        _micLevel.value = 0f
         _state.value = HearthState.IDLE
     }
 
@@ -239,7 +252,8 @@ class ChatViewModel(
         player?.stop()
         socket.disconnect()
         _connected.value = false
-        _audioLevel.value = 0f
+        _ttsAmplitude.value = 0f
+        _micLevel.value = 0f
     }
 
     fun enterForeground() {

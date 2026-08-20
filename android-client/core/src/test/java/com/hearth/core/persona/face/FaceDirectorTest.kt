@@ -90,21 +90,40 @@ class FaceDirectorTest {
      */
     @Test
     fun unknownExpressionIsNeutral() {
-        val base = neutralPose(warm)
-        val out = applyNamedExpression(base, "jubilation", 1.0)
-        assertEquals(base.eyelidL, out.eyelidL, 1e-9)
-        assertEquals(base.eyeArc, out.eyeArc, 1e-9)
+        val before = neutralPose(warm)
+        val pose = neutralPose(warm)
+        applyNamedExpression(pose, "jubilation", 1.0)
+        assertEquals(before.eyelidL, pose.eyelidL, 1e-9)
+        assertEquals(before.eyeArc, pose.eyeArc, 1e-9)
     }
 
     /** Hard-ranged channels stay in range however deltas are layered. */
     @Test
     fun clampedChannelsStayInRange() {
-        var pose = neutralPose(warm)
+        val pose = neutralPose(warm)
         repeat(5) {
-            pose = applyExpression(pose, FACE_EXPRESSIONS[ExpressionName.BLINK]!!, 1.0)
+            applyExpression(pose, FACE_EXPRESSIONS[ExpressionName.BLINK]!!, 1.0)
         }
         assertTrue(pose.eyelidL <= 1.0)
         assertTrue(pose.eyelidR <= 1.0)
+    }
+
+    /**
+     * The tick must not allocate a new pose per frame, and must not let one
+     * frame's layers accumulate into the next. Both were true of the map
+     * version and the second is what a scratch buffer can quietly break.
+     */
+    @Test
+    fun repeatedIdleTicksDoNotAccumulate() {
+        val d = FaceDirector(warm, now = 0.0)
+        var t = 0.0
+        var last = 0.0
+        while (t <= 4000) {
+            val p = d.tick(t, FaceState.IDLE, null, 0.0, reduceMotion = true)
+            last = p.headTilt
+            assertTrue("headTilt ran away: $last", kotlin.math.abs(last) < 1.0)
+            t += 16.7
+        }
     }
 
     /** A backwards clock must not drive channels away from target or NaN out. */

@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.Request
 
 /**
@@ -20,7 +22,14 @@ class ServerConfig private constructor(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** Keystore-backed store for the one secret this client holds. */
+    /**
+     * Keystore-backed store for the one secret this client holds.
+     *
+     * Building this does real Keystore crypto, which takes long enough on a
+     * cold start to be a visible stall. It must therefore never be touched
+     * from the main thread: [warm] primes it on a background dispatcher and
+     * [cachedToken] answers every later read from memory.
+     */
     private val secure: SharedPreferences by lazy {
         val key = MasterKey.Builder(context.applicationContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
@@ -62,14 +71,42 @@ class ServerConfig private constructor(context: Context) {
      * exempts loopback and requires a token from everything else, so a phone
      * always needs one.
      */
+    @Volatile
+    private var cachedToken: String? = null
+
+    @Volatile
+    private var tokenLoaded = false
+
     var deviceToken: String?
-        get() = secure.getString(KEY_TOKEN, null)?.takeIf { it.isNotEmpty() }
+        get() {
+            if (tokenLoaded) return cachedToken
+            // A read before warm() finished. Rare (the UI waits on warm), but
+            // it must answer correctly rather than lie, so it pays the cost
+            // once and caches.
+            cachedToken = secure.getString(KEY_TOKEN, null)?.takeIf { it.isNotEmpty() }
+            tokenLoaded = true
+            return cachedToken
+        }
         set(value) {
-            val trimmed = value?.trim()
+            val trimmed = value?.trim()?.takeIf { it.isNotEmpty() }
+            cachedToken = trimmed
+            tokenLoaded = true
             secure.edit().apply {
-                if (!trimmed.isNullOrEmpty()) putString(KEY_TOKEN, trimmed) else remove(KEY_TOKEN)
+                if (trimmed != null) putString(KEY_TOKEN, trimmed) else remove(KEY_TOKEN)
             }.apply()
         }
+
+    /**
+     * Prime the Keystore off the main thread. Called once at startup before
+     * anything reads [isPaired]; until it returns, the UI has nothing to show
+     * but a splash anyway.
+     */
+    suspend fun warm() = withContext(Dispatchers.IO) {
+        if (!tokenLoaded) {
+            cachedToken = secure.getString(KEY_TOKEN, null)?.takeIf { it.isNotEmpty() }
+            tokenLoaded = true
+        }
+    }
 
     /** True when someone has told this client where the house is. */
     val isConfigured: Boolean get() = serverHost != null

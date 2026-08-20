@@ -60,7 +60,8 @@ fun HearthMainScreen(
     faceGeometry: FaceGeometry?,
     faceCue: Pair<String, Long>?,
     caption: String?,
-    audioLevel: Float,
+    ttsAmplitude: Float,
+    micLevel: Float,
     partialTranscript: String?,
     onSend: (String) -> Unit,
     onMic: () -> Unit,
@@ -102,14 +103,15 @@ fun HearthMainScreen(
                         geometry = faceGeometry,
                         state = state,
                         palette = palette,
-                        speechLevel = audioLevel,
+                        // The face hears the HOUSE, never the microphone.
+                        speechLevel = ttsAmplitude,
                         cue = faceCue,
                         modifier = Modifier.size(180.dp),
                     )
                 } else {
                     Box(
                         modifier = Modifier
-                            .size((140 + (audioLevel * 30f)).dp)
+                            .size((140 + (ttsAmplitude * 30f)).dp)
                             .clip(CircleShape)
                             .background(
                                 if (connected) MaterialTheme.colorScheme.primaryContainer
