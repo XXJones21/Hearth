@@ -6,6 +6,7 @@ related:
   - ../first-run.md
   - windows.md
   - macos.md
+  - visionos.md
 sources:
   - wiki/raw/apple-client.md
   - wiki/raw/apple-project-architecture.md
@@ -149,8 +150,9 @@ thing entirely, wearing someone else's memory and personas.
   built out.
 - **No persona imagery.** Personas render as an orb or a drawn face; a 3D or
   animated persona model is not bundled with any persona yet.
-- **visionOS is a skeleton**, not a full app. It builds and can host the
-  orb, but the volumetric window and full scene are not built.
+- **visionOS is a separate app**, not this one running larger. As of
+  2026-08-20 it has its own volume, immersive space and persona rig; see
+  [Hearth on Apple Vision Pro](visionos.md).
 - **No away-from-home access.** Reaching a house from outside your own
   network, for example over Tailscale, is planned but not part of the app
   today.

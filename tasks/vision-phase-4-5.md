@@ -4,6 +4,11 @@ An immersive quality-of-life pass, scoped 2026-08-18, to run after phase 4's
 round trip works. Nothing here blocks a gate; it is the difference between a
 persona standing in a room and a persona LIGHTING one.
 
+> **CLOSED 2026-08-20.** Everything scoped here is built and confirmed on
+> device. Section 20 has the summary, the three rules the phase produced, and
+> the four things still open -- none of which block anything. The user-facing
+> write-up is [wiki/clients/visionos.md](../wiki/clients/visionos.md).
+
 ## What this is about
 
 Valinor's immersive scene projects an animated caustics pattern onto the real
