@@ -56,6 +56,7 @@ class SpeechRecognitionManager(private val context: Context) {
     private var offlineRetried = false
     private val silenceRunnable = Runnable {
         if (isRunning && !hasFiredFinal && lastPartialText.isNotBlank()) {
+            Log.i(TAG, "silence timer commits")
             hasFiredFinal = true
             commit(lastPartialText)
         }
@@ -95,6 +96,7 @@ class SpeechRecognitionManager(private val context: Context) {
                 putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
             }
             isRunning = true
+            Log.i(TAG, "listening (offline=$preferOffline)")
             r.startListening(intent)
         }
     }
@@ -119,6 +121,7 @@ class SpeechRecognitionManager(private val context: Context) {
 
     fun stop() {
         main.post {
+            if (isRunning) Log.i(TAG, "mic stood down (partial='${lastPartialText.take(30)}')")
             cancelSilenceTimer()
             isRunning = false
             try {
@@ -133,6 +136,7 @@ class SpeechRecognitionManager(private val context: Context) {
     }
 
     private fun commit(text: String) {
+        Log.i(TAG, "commit '${text.take(40)}'")
         cancelSilenceTimer()
         isRunning = false
         onFinalResult?.invoke(text)
@@ -157,6 +161,7 @@ class SpeechRecognitionManager(private val context: Context) {
                 // Belt and braces: some engines deliver partials without ever
                 // firing onBeginningOfSpeech, and a window that closes on a
                 // person mid-sentence is the worst failure this class has.
+                if (lastPartialText.isEmpty()) Log.i(TAG, "first partial: ${text.take(40)}")
                 onSpeechStarted?.invoke()
                 lastPartialText = text
                 onPartialResult?.invoke(text)
@@ -171,9 +176,14 @@ class SpeechRecognitionManager(private val context: Context) {
                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 ?.firstOrNull()
                 .orEmpty()
-            if (hasFiredFinal) return
+            if (hasFiredFinal) {
+                Log.i(TAG, "onResults after final; ignored")
+                return
+            }
             hasFiredFinal = true
-            commit(text.ifBlank { lastPartialText })
+            val chosen = text.ifBlank { lastPartialText }
+            Log.i(TAG, "final: '${chosen.take(40)}' (${chosen.length} chars)")
+            commit(chosen)
         }
 
         override fun onRmsChanged(rmsdB: Float) {
@@ -218,6 +228,7 @@ class SpeechRecognitionManager(private val context: Context) {
                 else -> "I could not catch that."
             }
             isRunning = false
+            Log.i(TAG, "error $error ends the turn (surfaced=${message != null})")
             message?.let { onError?.invoke(it) }
             stop()
         }
@@ -225,6 +236,7 @@ class SpeechRecognitionManager(private val context: Context) {
         override fun onReadyForSpeech(params: Bundle?) = Unit
 
         override fun onBeginningOfSpeech() {
+            Log.i(TAG, "speech began")
             onSpeechStarted?.invoke()
         }
         override fun onBufferReceived(buffer: ByteArray?) = Unit

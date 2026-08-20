@@ -170,6 +170,7 @@ class ChatViewModel(
                 _micLevel.value = 0f
             } else {
                 appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = text))
+                Log.i(TAG, "sending transcript (${text.length} chars)")
                 if (socket.sendClientTranscription(text)) {
                     _state.value = HearthState.THINKING
                 } else {
@@ -228,6 +229,7 @@ class ChatViewModel(
         speechInterrupted = false
         _state.value = HearthState.LISTENING
         _partialTranscript.value = null
+        Log.i(TAG, "window opens (${windowMs}ms to begin)")
         stt.start()
         listenJob?.cancel()
         listenJob = scope.launch {
@@ -235,6 +237,7 @@ class ChatViewModel(
             // Nobody started talking. Stand the mic down quietly rather than
             // holding it open forever.
             if (_state.value == HearthState.LISTENING && _partialTranscript.value == null) {
+                Log.i(TAG, "window closed with nothing said")
                 stt.stop()
                 _state.value = HearthState.IDLE
                 _micLevel.value = 0f
