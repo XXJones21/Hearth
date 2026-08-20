@@ -43,11 +43,42 @@ setup incomplete, so the flow is reset-first:
    `DeviceAdminReceiver`); one artifact, no separate admin app.
 5. `adb shell dpm set-device-owner com.hearth/.DeviceOwnerReceiver`, the
    one-shot that grants the dedicated-device toolkit.
-6. Run the strip script (Section 2).
+6. Install Tailscale and join the tailnet (Section 1a).
+7. Run the strip script (Section 2).
 
 Preflight (step 0 of the runbook): accounts must list zero, `pm list
 users` must show only user 0, `settings get global device_provisioned`
 informs whether reset is required.
+
+### Section 1a: Tailscale, the same as every other platform
+
+Every Hearth surface reaches a house away from home the same way: the
+operator installs Tailscale's own app for that platform and signs it into
+the tailnet. iOS, macOS and Windows each took that step by hand, and
+Android is no different. Nothing is bundled and nothing is embedded: a VPN
+app holds `BIND_VPN_SERVICE` and needs the user's system consent dialog,
+so one app can never install or carry another's VPN. The client's only
+part is dialing a tailnet hostname, which is just a hostname to it.
+
+The step, in the runbook between provisioning and the strip:
+
+1. Install Tailscale (`com.tailscale.ipn`), from the Play Store before it
+   is stripped, or by sideloading its APK.
+2. Sign in and approve the system VPN consent dialog. Confirm the device
+   appears in the tailnet.
+3. Verify from the device that the house resolves by its FULL tailnet
+   name (`vytal.tail22b3ca.ts.net`). Short names fail, which iOS proved.
+4. Set Tailscale to start on boot so the appliance rejoins the tailnet
+   without a person present.
+
+Consequences for the sections below, each already reflected there:
+
+- Tailscale joins the Section 2 do-not-touch allowlist. Stripping it
+  strands the appliance the moment it leaves the house.
+- Tailscale joins `setLockTaskPackages` in Section 3, so the VPN keeps
+  running under Lock Task.
+- If Play Store is stripped in Tier 1, Tailscale updates arrive by
+  sideload afterwards. Install it before the strip, not after.
 
 ## Section 2: The strip inventory
 
@@ -68,7 +99,9 @@ verifiable at each tier:
   keyboard (if we ship one), themes, screensaver; stripped only after
   Hearth is HOME and the DPC owns the shade.
 
-Guard rails: a do-not-touch allowlist at the top of the script (SystemUI,
+Guard rails: a do-not-touch allowlist at the top of the script (Tailscale
+`com.tailscale.ipn`, whose removal strands the appliance away from home;
+SystemUI,
 the DPC itself, GMS/GSF, Settings, the package resolver, the wifi and
 network stack); every removal logged with a one-line reason; a mirror
 restore script (`cmd package install-existing <pkg>`) that reverses any
@@ -80,8 +113,9 @@ Standard dedicated-device APIs, all reversible:
 
 - Hearth carries a `CATEGORY_HOME` intent filter; the DPC sets it as the
   persistent preferred HOME. Power-on lands in the persona.
-- `setLockTaskPackages` allowlists Hearth (plus the GMS speech
-  component); Hearth calls `startLockTask` when it is device owner.
+- `setLockTaskPackages` allowlists Hearth, the GMS speech component, and
+  Tailscale (`com.tailscale.ipn`, so the VPN keeps running under Lock
+  Task); Hearth calls `startLockTask` when it is device owner.
 - `setStatusBarDisabled(true)` and Lock Task features without the
   notification and system-info flags: the shade and stock notifications
   never render. Notification content routes through

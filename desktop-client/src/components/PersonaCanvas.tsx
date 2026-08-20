@@ -6,6 +6,7 @@ const GlbScene = lazy(() => import('./GlbScene'));
 const SphereScene = lazy(() => import('./SphereScene'));
 
 import { PersonaFace } from './stage/PersonaFace';
+import { PersonaFlame } from './PersonaFlame';
 import { VisualizationErrorBoundary } from './VisualizationErrorBoundary';
 import type { PersonaConfig } from '../types/persona';
 import { mapVisualizerState, useAppStore } from '../store/appStore';
@@ -46,6 +47,18 @@ export default function PersonaCanvas({ config }: Props) {
     return (
       <div className="h-full w-full" key={config.name}>
         <PersonaFace geometry={v.geometry} visualState={effective} stateColors={stateColors} />
+      </div>
+    );
+  }
+
+  // The fire (persona-flame-spec.md, 2D recipe): the canvas flame the phones
+  // draw -- one body path and gradient, licks, a bounded tip feather, the
+  // same face director in features-only flat black, additive embers, the
+  // halo. Flat like the SVG face branch: no three.js, no camera.
+  if (v.type === 'flame') {
+    return (
+      <div className="h-full w-full" key={config.name}>
+        <PersonaFlame geometry={v.geometry} visualState={effective} />
       </div>
     );
   }

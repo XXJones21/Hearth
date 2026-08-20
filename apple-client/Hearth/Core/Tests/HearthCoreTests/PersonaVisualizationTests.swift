@@ -31,6 +31,23 @@ final class PersonaVisualizationTests: XCTestCase {
         XCTAssertEqual(v.faceGeometry?.eyeSize ?? 0, 0.1, accuracy: 1e-9)
     }
 
+    /// The flame wears the same face, so it needs the same numbers -- and it
+    /// draws with or without them, because a fire with no eyes is still a
+    /// fire where a face with no numbers is nothing at all.
+    func testDecodesFlameAndKeepsItsFace() {
+        var json = faceJSON
+        json["type"] = "flame"
+        let v = PersonaVisualization.from(visualization: json, personaName: "Sulivan")
+        XCTAssertEqual(v.kind, .flame)
+        XCTAssertTrue(v.canRenderFlame)
+        XCTAssertEqual(v.faceGeometry?.eyeLength ?? 0, 2.4, accuracy: 1e-9)
+
+        // No geometry: still the fire, just without eyes.
+        let bare = PersonaVisualization.from(visualization: ["type": "flame"], personaName: "X")
+        XCTAssertTrue(bare.canRenderFlame)
+        XCTAssertNil(bare.faceGeometry)
+    }
+
     func testUnknownTypeStillFallsBackToOrb() {
         let v = PersonaVisualization.from(
             visualization: ["type": "holo_projection"], personaName: "X")

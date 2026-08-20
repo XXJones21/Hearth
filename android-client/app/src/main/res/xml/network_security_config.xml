@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext ws:// and http:// to the house.
+
+  Valar terminates no TLS: it is a LAN and tailnet appliance, reached by IP or
+  by a tailnet name, and there is no certificate to present. Android blocks
+  cleartext by default since API 28, which is what the Echo Show client hit as
+  "CLEARTEXT communication to 10.1.95.5 not permitted".
+
+  This permits cleartext GLOBALLY rather than per domain, and that is
+  deliberate after getting it wrong once: a domain entry matches a DNS name,
+  never a CIDR range, so listing "10.0.0.0" with includeSubdomains does NOT
+  cover 10.1.95.5. It covers hostnames ending in ".10.0.0.0", which is
+  nothing. The first cut of this file did exactly that, and the client refused
+  its own house while every other device on the network reached it fine.
+
+  A per-domain list cannot express "whatever address this operator's house is
+  at", which is the actual requirement: the address is typed in at first run
+  and can be any private IP or any tailnet name. When Valar grows TLS this
+  becomes a base-config of false with the house's name as the exception.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

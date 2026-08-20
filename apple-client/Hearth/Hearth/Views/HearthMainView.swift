@@ -44,11 +44,6 @@ struct HearthMainView: View {
     /// been sitting unwired in PersonaCanvasView since it was ported.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// INVESTIGATION BRANCH ONLY -- which persona renderer the stage uses.
-    /// See RendererAB.swift.
-    @AppStorage(PersonaRenderer.storageKey) private var investigateRenderer
-        = PersonaRenderer.shipped.rawValue
-
     private var isIdle: Bool {
         stageState == .IDLE || stageState == .LOADING
     }
@@ -240,18 +235,17 @@ struct HearthMainView: View {
             ZStack {
                 // The renderer is chosen by the persona's own config, never by
                 // name: `sphere_particle` keeps the 2D canvas, `glb_animated`
-                // mounts RealityKit, `procedural_face` draws the face. A glb
-                // persona whose USDZ clips have not reached the server yet --
-                // or a face whose geometry has not -- falls back to its orb
-                // rather than showing an empty volume, so Sage arrives with no
-                // code change.
-                // INVESTIGATION BRANCH ONLY, and it is checked FIRST on
-                // purpose. The chain below picks a renderer from the persona's
-                // own config, and Sulivan's config says `procedural_face` --
-                // so an A/B appended to the END of it was unreachable for the
-                // exact persona it was built to compare. An override has to
-                // override.
-                if investigateRenderer == PersonaRenderer.canvasFire.rawValue {
+                // mounts RealityKit, `procedural_face` draws the face, `flame`
+                // draws the fire. A glb persona whose USDZ clips have not
+                // reached the server yet -- or a face whose geometry has not --
+                // falls back to its orb rather than showing an empty volume, so
+                // Sage arrives with no code change.
+                //
+                // THE A/B IS GONE, as PersonaRenderer said it would be: the
+                // decision was taken on 2026-08-20 and Sulivan's config now
+                // names the fire, so a setting that overrides the config would
+                // be scaffolding outliving its investigation.
+                if viewModel.personaVisualization.canRenderFlame {
                     // A CANVAS DOES NOT ANIMATE ITSELF. `date: .now` is
                     // evaluated once, when the body is built, so without a
                     // clock driving re-evaluation the flame only moves when

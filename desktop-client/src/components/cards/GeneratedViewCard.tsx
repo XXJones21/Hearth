@@ -42,10 +42,44 @@ function Grid({ columns, heading, cells }: { columns: number; heading?: string; 
   );
 }
 
+/* A headed text section, styled like a journal page's section blocks:
+   uppercase ember eyebrow over bullet-aware body lines in a soft panel. */
+function HeadedTextBlock({ heading, body }: { heading: string; body: string }) {
+  const lines = body
+    .split('**').join('')
+    .split('\n')
+    .map((l: string) => l.trim())
+    .filter(Boolean);
+  return (
+    <div className="rounded-xl border border-linen bg-parchment px-3.5 py-3">
+      <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-ember">
+        {heading}
+      </div>
+      <div className="flex flex-col gap-1">
+        {lines.map((line, i) => {
+          const isBullet = line.startsWith('-') || line.startsWith('*');
+          return (
+            <div key={i} className="flex items-start gap-1.5 text-[13px] text-roast">
+              {isBullet && (
+                <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-fawn" />
+              )}
+              <span>{isBullet ? line.slice(1).trim() : line}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Section({ section, hero }: { section: GeneratedViewSection; hero: boolean }) {
   switch (section.kind) {
     case 'text':
-      return <p className="text-[14px] text-roast">{section.body}</p>;
+      return section.heading ? (
+        <HeadedTextBlock heading={section.heading} body={section.body} />
+      ) : (
+        <p className="text-[14px] text-roast">{section.body}</p>
+      );
     case 'stat':
       return (
         <div>

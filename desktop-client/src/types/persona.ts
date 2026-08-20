@@ -83,10 +83,27 @@ export type VisualizationProceduralFace = {
   particle_system?: { enabled: boolean };
 };
 
+/**
+ * The same face on a body of fire. A separate member rather than a second
+ * spelling on the face's own `type`, because a union discriminated by a
+ * SINGLE literal per member is what lets the negative branch of a check
+ * narrow -- widening the face's discriminant to `'procedural_face' | 'flame'`
+ * left the GLB branch below believing a face could reach it.
+ *
+ * Rendered by PersonaFlame (2026-08-20): the 2D canvas composite the phones
+ * draw -- one flame family across every screen client -- with the same face
+ * director on top in features-only flat black, additive embers, and the
+ * halo a walls-less window needs. See wiki/raw/persona-flame-spec.md.
+ */
+export type VisualizationFlame = Omit<VisualizationProceduralFace, 'type'> & {
+  type: 'flame';
+};
+
 export type PersonaVisualization =
   | VisualizationSphereParticle
   | VisualizationGlb
-  | VisualizationProceduralFace;
+  | VisualizationProceduralFace
+  | VisualizationFlame;
 
 export type PersonaConfig = {
   name: string;

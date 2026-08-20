@@ -4,7 +4,8 @@
   "description": "A highly capable AI butler with understated wit",
   "classification": "abstract",
   "visualization": {
-    "type": "procedural_face",
+    "_type_comment": "The renderer, chosen by TYPE and never by name. 'flame' is Sulivan's own: a fire wearing the face below. Kept in step with backend/personas/Sulivan/sulivan.json, which is the source of truth. Spec: wiki/raw/persona-flame-spec.md.",
+    "type": "flame",
     "archetype": "warm_round",
     "geometry": {
       "head_width": 1.0,

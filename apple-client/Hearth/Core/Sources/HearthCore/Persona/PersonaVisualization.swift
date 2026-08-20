@@ -51,11 +51,20 @@ public struct PersonaVisualization: Equatable {
         case glbAnimated = "glb_animated"
         /// The eyes-first procedural face. Rendered by PersonaFaceView.
         case proceduralFace = "procedural_face"
+        /// Sulivan's fire, wearing that same face on a body of flame.
+        /// Rendered by PersonaFlameCanvas here and by the mesh rig on the
+        /// headset -- ONE name for both, because it says what he IS rather
+        /// than how a given platform draws him.
+        /// Spec: wiki/raw/persona-flame-spec.md.
+        case flame
+
+        /// Whether this form wears the persona's drawn face.
+        var wearsFace: Bool { self == .proceduralFace || self == .flame }
     }
 
     public var kind: Kind = .sphereParticle
-    /// Present only for a `procedural_face` config that carried a geometry
-    /// block. Nil is the honest state for a face whose numbers never arrived.
+    /// Present only for a face-wearing config that carried a geometry block.
+    /// Nil is the honest state for a face whose numbers never arrived.
     public var faceGeometry: FaceGeometry?
     /// State name -> Valar-relative USDZ path, e.g.
     /// "idle" -> "Selene/Assets/usdz/selene-idle.usdz".
@@ -79,6 +88,10 @@ public struct PersonaVisualization: Equatable {
         kind == .proceduralFace && faceGeometry != nil
     }
 
+    /// The fire draws with or without a face -- a flame with no eyes is still
+    /// a flame, where a face with no numbers is nothing at all.
+    public var canRenderFlame: Bool { kind == .flame }
+
     public static func from(visualization: [String: Any]?, personaName: String) -> PersonaVisualization {
         guard let visualization else { return .fallback }
         var out = PersonaVisualization()
@@ -93,7 +106,10 @@ public struct PersonaVisualization: Equatable {
                 print("PersonaVisualization: unknown type '\(raw)' for \(personaName); rendering the orb")
             }
         }
-        if out.kind == .proceduralFace, let geo = visualization["geometry"] as? [String: Any] {
+        // BOTH face-wearing forms need the numbers. The flame wears the same
+        // face on a body of fire, so gating this on `proceduralFace` alone
+        // would draw Sulivan's fire blind.
+        if out.kind.wearsFace, let geo = visualization["geometry"] as? [String: Any] {
             var g = FaceGeometry()
             func f(_ key: String, _ fallback: Double) -> Double { personaNum(geo[key]) ?? fallback }
             g.headWidth = f("head_width", g.headWidth)

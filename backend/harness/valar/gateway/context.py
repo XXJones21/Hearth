@@ -145,7 +145,12 @@ def _render_tool_priming(specs: list | None) -> str:
         "for weather, use the operator's location from '# Current context' rather "
         "than asking them where they are. Only answer directly when no tool fits. "
         "When the topic changes, call the tool again with a NEW query -- do not "
-        "reuse earlier tool results from the conversation."
+        "reuse earlier tool results from the conversation. For questions about a "
+        "specific day or period (yesterday, last week, this month), put the period "
+        "in the memory query -- the journal is dated, and only dated records prove "
+        "WHEN something happened; treat any undated or old-dated note as background, "
+        "never as recent work. When a follow-up narrows the topic, search again "
+        "with the refined words instead of answering from what you already found."
     )
     return "\n".join(lines)
 

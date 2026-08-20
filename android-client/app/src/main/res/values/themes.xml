@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose owns the real theming; this is the window shell it opens in.
+         NoActionBar because the stage is the whole screen, as on iOS. The
+         background is the light ground; values-night overrides it so a
+         dark-mode launch does not flash cream before Compose paints. -->
+    <style name="Theme.Hearth" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FAF4EA</item>
+    </style>
+</resources>
