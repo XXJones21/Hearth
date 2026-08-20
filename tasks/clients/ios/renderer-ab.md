@@ -1,0 +1,96 @@
+---
+area: clients/ios
+status: investigating
+branch: investigate/ios-flame-renderer
+depends_on: []
+blocks: [sulivan-realityview.md]
+updated: 2026-08-20
+---
+
+# Which renderer draws Sulivan on the phone
+
+Sulivan is a fire on the headset and an orb on the phone: two characters wearing
+one name. Two ways to close that, and this branch exists to look at both on a
+device rather than argue about them from a desk.
+
+- **A -- SwiftUI.** Draw the flame with vector primitives the way `PersonaOrb`
+  already draws the bead. Recipe in
+  [wiki/raw/persona-flame-spec.md](../../../wiki/raw/persona-flame-spec.md).
+- **B -- RealityView.** Host the SAME rig the headset runs, lights off,
+  particles kept.
+
+## Why B was built first
+
+Not because it is favoured. Because it was nearly free, and that is not luck --
+every seam it needed was cut before there was anything to put through it:
+
+- `HearthSpatial` builds for iOS deliberately, and the iOS target already links
+  it.
+- `PersonaRig.init(embedCamera:)` exists with the comment *"a flat iOS
+  RealityView needs the scene to carry its own camera"*.
+- `EffectBudget.flat` already states what a phone may do -- no surroundings
+  light, no proximity spot, a thinner ember field.
+
+So B is roughly ninety lines of wiring, and A is building the thing. Looking at
+the cheap one first is not the same as preferring it.
+
+## The reframe that matters
+
+**This is not A versus B.** Widgets can host neither a `RealityView` nor a
+compute pass, so if Sulivan is to appear in a widget at all, **A has to exist
+regardless of what the app uses.**
+
+The real question is therefore: *given that the SwiftUI flame will be built
+anyway, does the live app use it too, or does it use the rig?*
+
+That is a much better question, and it has a default answer -- use A everywhere,
+one implementation, no divergence -- which B has to beat on evidence.
+
+## What B has to beat it on
+
+**Looks.** The fbm gives fine grain that broad strokes cannot. Whether that
+reads at phone size, in a panel a few centimetres tall, is exactly the kind of
+thing the desk gets wrong.
+
+**Cost, and this is the one that could decide it.** A Metal kernel, a live mesh
+rebuild and a particle simulator running behind a conversation is a very
+different proposition to a `Canvas`, and the phone is where that shows up first
+-- battery, thermals, and what happens to the audio path under load.
+
+## What is on the branch
+
+- `Hearth/Views/PersonaFlameView.swift` -- route B.
+- `Hearth/Views/RendererAB.swift` -- a segmented switch on the stage plus a
+  rolling frame-time readout. The switch is `@AppStorage`-backed so a decision
+  survives a relaunch, and it sits ON the stage rather than in Settings because
+  an A/B you have to go and find is an A/B nobody runs twice.
+
+The readout is a blunt instrument -- it measures how often SwiftUI redraws that
+view -- and it is enough to tell a 60fps answer from a 40fps one, which is the
+distinction that matters. Do not quote the number.
+
+Builds clean for device (`iPhone (60)`, iOS 26.6) and simulator as of
+2026-08-20.
+
+## What to look at on device
+
+1. **Side by side at conversation size.** Flip mid-turn, not while idle. The
+   states are where the two diverge most.
+2. **The face.** Same texture, same director, but B draws it on a curved card
+   riding a moving surface and A would draw it flat on top. At phone size the
+   curvature may buy nothing.
+3. **Thermals over a long conversation**, not a thirty-second look.
+4. **The glow.** B currently inherits the headset's decision to drop the painted
+   halo, which was right when a real light did that job and is wrong here -- see
+   the spec's note on this being the one genuine loss. If B looks flat next to
+   the orb, that is the first thing to try rather than evidence against it.
+
+## Decision, when it comes
+
+Whichever wins, **the loser does not stay.** Two persona renderers behind a
+preference is the divergence this whole exercise is trying to end -- with the
+single exception of `PersonaOrb`, which survives for widgets and must say so in
+its own header.
+
+Record the outcome here and fold it into
+[sulivan-realityview.md](sulivan-realityview.md).

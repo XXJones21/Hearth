@@ -13,6 +13,7 @@ outlives the work.
 
 | Area | What it is | Status |
 | --- | --- | --- |
+| [renderer-ab.md](renderer-ab.md) | SwiftUI flame or the headset's rig? An A/B on device. | investigating |
 | [sulivan-realityview.md](sulivan-realityview.md) | Sulivan becomes the fire on the phone, which needs a `RealityView`. | open |
 | [qol-fixes.md](qol-fixes.md) | A running list of smaller app fixes. | open |
 | [persona-face-review.md](persona-face-review.md) | Review notes on the drawn face as shipped on the phone. | open |

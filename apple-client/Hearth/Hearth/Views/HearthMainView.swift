@@ -44,6 +44,11 @@ struct HearthMainView: View {
     /// been sitting unwired in PersonaCanvasView since it was ported.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// INVESTIGATION BRANCH ONLY -- which persona renderer the stage uses.
+    /// See RendererAB.swift.
+    @AppStorage(PersonaRenderer.storageKey) private var investigateRenderer
+        = PersonaRenderer.canvas.rawValue
+
     private var isIdle: Bool {
         stageState == .IDLE || stageState == .LOADING
     }
@@ -253,6 +258,17 @@ struct HearthMainView: View {
                         visualization: viewModel.personaVisualization,
                         state: stageState
                     )
+                } else if investigateRenderer == PersonaRenderer.reality.rawValue {
+                    // INVESTIGATION BRANCH ONLY. The A/B for whether the phone
+                    // should draw Sulivan's fire in SwiftUI or host the
+                    // headset's rig. See RendererAB.swift; this branch and its
+                    // switch leave together.
+                    PersonaFlameView(
+                        state: stageState,
+                        level: viewModel.ttsAmplitude,
+                        palette: viewModel.personaPalette,
+                        visualization: viewModel.personaVisualization
+                    )
                 } else {
                     PersonaCanvasView(
                         state: stageState,
@@ -267,6 +283,12 @@ struct HearthMainView: View {
                     IdleClockOverlay()
                         .transition(.opacity)
                 }
+                // INVESTIGATION BRANCH ONLY.
+                VStack {
+                    Spacer()
+                    RendererSwitch()
+                }
+                .padding(.bottom, 6)
             }
             .frame(minHeight: height * 0.22, maxHeight: .infinity)
 
