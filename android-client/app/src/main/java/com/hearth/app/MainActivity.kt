@@ -165,8 +165,14 @@ class MainActivity : ComponentActivity() {
                                 onBack = { destination = null },
                             )
 
-                            HouseDestination.JOURNAL ->
-                                JournalScreen(config) { destination = null }
+                            HouseDestination.JOURNAL -> JournalScreen(
+                                config = config,
+                                onStartSession = { title ->
+                                    viewModel.startTopicSession(title)
+                                    destination = null
+                                },
+                                onBack = { destination = null },
+                            )
 
                             HouseDestination.APPS -> AppsScreen(
                                 config = config,

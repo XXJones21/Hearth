@@ -395,6 +395,13 @@ class ChatViewModel(
     fun newSession() = socket.newSession()
 
     /**
+     * Open a fresh session pointed at a book. Not a resume: there is no
+     * transcript to rehydrate, only a subject for the house to load context
+     * for.
+     */
+    fun startTopicSession(name: String) = socket.startTopicSession(name)
+
+    /**
      * Reopen a past conversation. The house answers with session_ended (the
      * wipe) then session_resumed (the turns), so the transcript repaints
      * rather than appending to whatever was on screen.

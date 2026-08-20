@@ -223,11 +223,24 @@ private fun GeneratedViewCard(card: CardDescriptor, modifier: Modifier) {
     CardSurface(modifier, eyebrow = card.str("title").ifEmpty { null }) {
         for (section in card.objList("sections").take(12)) {
             when (section.optString("kind")) {
-                "text" -> Text(
-                    section.optString("text"),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
+                // The wire field is `body` (matches iOS/desktop); `text` kept
+                // as a legacy fallback. A section may carry a `heading`
+                // (memory/journal cards, 2026-08-20): those render like a
+                // journal page's section blocks.
+                "text" -> {
+                    val body = section.optString("body")
+                        .ifEmpty { section.optString("text") }
+                    val heading = section.optString("heading")
+                    if (heading.isEmpty()) {
+                        Text(
+                            body,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    } else {
+                        HeadedTextBlock(heading = heading, text = body)
+                    }
+                }
 
                 "stat" -> StatBlock(
                     label = section.optString("label"),
@@ -257,6 +270,53 @@ private fun GeneratedViewCard(card: CardDescriptor, modifier: Modifier) {
 
                 // image sections arrive with the image work.
                 else -> Unit
+            }
+        }
+    }
+}
+
+/**
+ * A headed text section, styled like a journal page's section blocks
+ * (iOS `HeadedTextBlock` / web `HeadedTextBlock`): uppercase eyebrow over
+ * bullet-aware body lines in a soft panel. Bold markers are stripped, not
+ * rendered -- the bodies arrive as light markdown from Selene's reviews.
+ */
+@Composable
+private fun HeadedTextBlock(heading: String, text: String) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp)) {
+            Text(
+                heading.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            val lines = text.replace("**", "")
+                .split("\n")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+            for (line in lines) {
+                val isBullet = line.startsWith("-") || line.startsWith("*")
+                Row(modifier = Modifier.padding(top = 5.dp)) {
+                    if (isBullet) {
+                        Text(
+                            "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 6.dp),
+                        )
+                    }
+                    Text(
+                        if (isBullet) line.drop(1).trim() else line,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         }
     }

@@ -117,25 +117,50 @@ fun SurfaceTitle(title: String, subtitle: String? = null, note: String? = null) 
  */
 @Composable
 fun SectionHeading(label: String, caption: String? = null) {
-    Row(
+    // A long label takes the line to itself and the caption sits under it.
+    // Side by side, "THE HEART OF THE LIBRARY" left its caption two wrapped
+    // lines that collided with the heading.
+    val stacked = label.length > 16
+    Column(
         modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            label.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = HearthColors.ember,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.2.sp,
-        )
-        caption?.let {
+        if (stacked) {
             Text(
-                it,
+                label.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
-                fontStyle = FontStyle.Italic,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = HearthColors.ember,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.2.sp,
             )
+            caption?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontStyle = FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    label.uppercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = HearthColors.ember,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.2.sp,
+                )
+                caption?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontStyle = FontStyle.Italic,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
