@@ -38,26 +38,33 @@ What is a singleton is everything AROUND it:
   `persona` and `library`.
 - **`ServerConfig.shared`**, which is fine -- one house is one house.
 
-## The real question is not rendering
+## Who is talking: answered
 
-Two rigs will draw. The question this feature actually asks is **who is
-talking**, and it is a house question before it is a client one.
+This looked like the hard part and is not, because the client already knows.
 
-A turn currently has no addressee. `ChatViewModel` sends a message and receives
-a reply; nothing in the protocol says which persona it came from, because until
-now the answer was always "the one on screen." With two in the room, every one
-of these needs an answer:
+**You have to pinch a persona to talk to it.** That pinch names an entity, the
+entity belongs to a rig, and the rig knows which persona it is wearing. The
+addressee is therefore decided at the moment the turn starts, on the client,
+with no guessing and no heuristic.
 
-- A pinch starts a voice turn -- **with whom?** The pinched one is the obvious
-  answer and probably the right one.
-- A reply arrives -- **who speaks it?** If the house does not say, the client
-  has to guess, and a guess here is a persona lip-syncing someone else's words.
-- Two personas, **one microphone.** Does the un-addressed one listen? A persona
-  that visibly reacts to a conversation it is not in is a much better idea than
-  one that freezes, and it is also much harder.
-- **Cards.** They are rooted to the persona by decision (see
-  [_index.md](_index.md)), which is a rule that only starts paying rent here:
-  with two personas, a card that belongs to neither has nowhere to be.
+All that is missing is that the information is currently thrown away.
+`ChatViewModel` sends a message with no persona on it, because until now the
+answer was always "the one on screen". **The work is a persona field on the
+outbound message**, which is a small addition to what the client sends and a
+small addition to what the house reads.
+
+That single field settles the rest of it by construction:
+
+- **The reply comes back attributed**, so no persona lip-syncs another's words.
+- **The house knows who was addressed**, which is what it needs anyway the
+  moment personas differ in prompt, memory or tools.
+- **Cards land on the persona that produced them**, which is the rule
+  ([_index.md](_index.md)) finally having something to be a rule about.
+
+What is still open is not the addressing but the ETIQUETTE: whether an
+un-addressed persona listens, reacts, or idles. A persona that visibly attends
+to a conversation it is not in is a much better idea than one that freezes, and
+it is also much harder -- it wants a state the rig does not have yet.
 
 ## What it would touch
 
@@ -87,9 +94,10 @@ where the client starts knowing things about Sulivan and Selene specifically.
 
 ## Open questions
 
-- Whether the house needs to address replies before this can ship, or whether a
-  first version is "the pinched persona is the speaker" and the house stays
-  unchanged.
-- Whether two personas can share one conversation or whether each gets a
-  session. The house has sessions already; that may be the seam.
-- What the un-addressed persona DOES. Idle is the safe answer and a dull one.
+- Whether two personas share one conversation or whether each gets a session.
+  The house has sessions already; that may be the seam.
+- What the un-addressed persona DOES while another is speaking. Idle is the safe
+  answer and a dull one; attending is the good one and needs a rig state that
+  does not exist.
+- Whether personas can address EACH OTHER, which is where
+  [neighborhoods.md](neighborhoods.md) is heading and is out of scope here.

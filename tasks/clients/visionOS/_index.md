@@ -35,14 +35,23 @@ much a part of the backlog as the open items, and cost more when they are lost.
 | Area | What it is | Status |
 | --- | --- | --- |
 | [motion-room-scale.md](motion-room-scale.md) | The persona walks the room it is standing in. | scoped |
-| [follower.md](follower.md) | It comes with you between rooms. | open |
+| [follower.md](follower.md) | It comes with you, like a puppy. Asked for out loud. | scoped |
 | [multi-persona.md](multi-persona.md) | More than one persona in the space at once. | open |
 | [room-surfaces.md](room-surfaces.md) | Persona and Apps have nowhere to live in the immersive space. | open |
 | [away-from-home.md](away-from-home.md) | Reaching a house from outside its network. | blocked |
-| [multiple-houses.md](multiple-houses.md) | More than one house on one headset. | open |
+| [neighborhoods.md](neighborhoods.md) | Many people and their personas, together. | design |
 
 Ordering is a dependency, not a priority: `follower` builds on
-`motion-room-scale`, and `multi-persona` is worth more once both exist.
+`motion-room-scale`, and `multi-persona` is the local rehearsal for
+`neighborhoods` -- same problem, minus the network and minus the second person.
+
+`design` is a fifth status and means the opposite of `open`: do not build from
+this file. `neighborhoods` carries it because its design work is happening
+elsewhere, and a placeholder that looks buildable is worse than no file.
+
+**Next up is not on this list.** [persona-chibi-face](../../persona-chibi-face.md)
+comes first, and it sits above the client folders because it needs a counterpart
+on the phone before any persona could wear it.
 
 ## Settled decisions
 
@@ -73,7 +82,12 @@ Read in order, they are the whole build:
 
 - [tasks/persona-chibi-face.md](../../persona-chibi-face.md) is parked and is
   NOT visionOS-only: it needs a counterpart on the phone before any persona
-  could wear it, which is why it did not move here.
+  could wear it, which is why it did not move here. It is next.
+- [clients/ios](../ios/_index.md) is the phone's backlog, on the same
+  convention. Its first item --
+  [sulivan-realityview.md](../ios/sulivan-realityview.md) -- is downstream of
+  everything phase 4.5 built: the phone gets the same fire, which needs a
+  `RealityView` there for the first time.
 - The user-facing article is
   [wiki/clients/visionos.md](../../../wiki/clients/visionos.md). It says what
   the app is; these files say what it owes.

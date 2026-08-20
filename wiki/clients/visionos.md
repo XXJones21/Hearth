@@ -188,7 +188,9 @@ a house in a room is that it is somewhere rather than everywhere.
   the volume; in the immersive space they have nowhere to be shown yet.
 - **No away-from-home access.** Reaching a house from outside your own
   network is planned, not built.
-- **One house.** There is no directory of houses and no cloud account.
+- **One house.** There is no directory of houses and no cloud account. Several
+  people and their personas working together is a real goal, and a long way
+  off.
 
 ## A note on what this is for
 
