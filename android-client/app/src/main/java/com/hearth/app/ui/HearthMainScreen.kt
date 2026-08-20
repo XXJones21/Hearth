@@ -51,6 +51,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.LocalDensity
 import com.hearth.app.ui.cards.DynamicCard
 import com.hearth.app.ui.persona.PersonaFace
+import com.hearth.app.ui.persona.PersonaFlame
 import com.hearth.core.cards.CardDescriptor
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
@@ -192,6 +193,15 @@ fun HearthMainScreen(
 }
 
 /**
+ * Mount the flame for every persona while it is being built.
+ *
+ * TEMPORARY, and section 6 of `tasks/android-client-implementation.md` deletes
+ * it: at that point `visualization.type` names the fire, Sulivan's config asks
+ * for it, and the stage picks a renderer the way every other client does.
+ */
+private const val FLAME_PREVIEW = true
+
+/**
  * Persona on top keeping the slack, the caption below taking exactly the
  * height it needs. Stacked rather than overlaid: overlaying let a tall
  * caption bury the persona, and the persona being visible at all times is the
@@ -233,7 +243,18 @@ private fun PersonaStage(
             // the first real device.
             BoxWithConstraints(contentAlignment = Alignment.Center) {
                 val side = minOf(maxWidth, maxHeight) * 0.82f
-                if (faceGeometry != null) {
+                // SCAFFOLDING, and it leaves in section 6. The renderer is
+                // chosen from the persona's own config by design -- nothing in
+                // a client should say "if Sulivan" -- but the config cannot
+                // name the fire until every client can draw it, so the flame is
+                // mounted unconditionally while it is being built and tuned.
+                if (FLAME_PREVIEW) {
+                    PersonaFlame(
+                        state = state,
+                        pulse = ttsAmplitude,
+                        modifier = Modifier.size(side),
+                    )
+                } else if (faceGeometry != null) {
                     PersonaFace(
                         geometry = faceGeometry,
                         state = state,
