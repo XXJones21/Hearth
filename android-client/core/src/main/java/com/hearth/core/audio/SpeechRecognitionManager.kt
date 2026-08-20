@@ -35,6 +35,13 @@ class SpeechRecognitionManager(private val context: Context) {
     var onFinalResult: ((String) -> Unit)? = null
     var onError: ((String) -> Unit)? = null
 
+    /**
+     * Someone started talking. The host uses this to cancel its
+     * open-the-window timeout: the window is time for speech to BEGIN, and
+     * once it has, only the silence timer may end the turn.
+     */
+    var onSpeechStarted: (() -> Unit)? = null
+
     /** Microphone level 0..1, for the composer's glow. */
     var onLevel: ((Float) -> Unit)? = null
 
@@ -147,6 +154,10 @@ class SpeechRecognitionManager(private val context: Context) {
                 ?.firstOrNull()
                 .orEmpty()
             if (text.isNotBlank()) {
+                // Belt and braces: some engines deliver partials without ever
+                // firing onBeginningOfSpeech, and a window that closes on a
+                // person mid-sentence is the worst failure this class has.
+                onSpeechStarted?.invoke()
                 lastPartialText = text
                 onPartialResult?.invoke(text)
                 // Re-armed on every partial, so the window is silence AFTER
@@ -212,7 +223,10 @@ class SpeechRecognitionManager(private val context: Context) {
         }
 
         override fun onReadyForSpeech(params: Bundle?) = Unit
-        override fun onBeginningOfSpeech() = Unit
+
+        override fun onBeginningOfSpeech() {
+            onSpeechStarted?.invoke()
+        }
         override fun onBufferReceived(buffer: ByteArray?) = Unit
         override fun onEndOfSpeech() = Unit
         override fun onEvent(eventType: Int, params: Bundle?) = Unit

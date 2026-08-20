@@ -146,6 +146,16 @@ class ChatViewModel(
         }
 
         speech?.onPartialResult = { _partialTranscript.value = it }
+        speech?.onSpeechStarted = {
+            // The window was time to START talking. Someone did, so the
+            // deadline is off and the silence timer owns the ending. Without
+            // this the window was a hard cap on the whole utterance: a
+            // question longer than five seconds was cut off mid-sentence and
+            // the recognizer destroyed before it could return anything, which
+            // read as the client ignoring the person.
+            listenJob?.cancel()
+            listenJob = null
+        }
         speech?.onLevel = { level ->
             _micLevel.value = if (_state.value == HearthState.LISTENING) level else 0f
         }
@@ -207,6 +217,12 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Open the microphone. [windowMs] is how long to wait for someone to
+     * START speaking, NOT a cap on how long they may speak: the first partial
+     * or beginning-of-speech cancels it, and from then on the recognizer's
+     * own silence timer ends the turn.
+     */
     private fun startListening(windowMs: Long) {
         val stt = speech ?: return
         speechInterrupted = false
@@ -216,9 +232,9 @@ class ChatViewModel(
         listenJob?.cancel()
         listenJob = scope.launch {
             delay(windowMs)
-            // The window closed with nothing said: stand down quietly rather
-            // than holding the mic open forever.
-            if (_state.value == HearthState.LISTENING) {
+            // Nobody started talking. Stand the mic down quietly rather than
+            // holding it open forever.
+            if (_state.value == HearthState.LISTENING && _partialTranscript.value == null) {
                 stt.stop()
                 _state.value = HearthState.IDLE
                 _micLevel.value = 0f
