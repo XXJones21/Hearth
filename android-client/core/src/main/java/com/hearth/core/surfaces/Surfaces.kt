@@ -70,6 +70,8 @@ data class HouseApp(
     val needs: List<String>,
     /** Tools beyond the ones listed. */
     val more: Int,
+    /** read | write | control: how much this app can do. */
+    val risk: String,
 )
 
 data class CardKind(
@@ -99,6 +101,7 @@ data class AppsSurface(
                         who = it.optJSONArray("who").strings(),
                         needs = it.optJSONArray("needs").strings(),
                         more = it.optInt("more"),
+                        risk = it.optString("risk"),
                     )
                 },
                 cards = json.optJSONArray("cards").objects().map {

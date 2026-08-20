@@ -55,18 +55,20 @@ class MainActivity : ComponentActivity() {
     private lateinit var socket: HearthWebSocketClient
     private lateinit var viewModel: ChatViewModel
     private lateinit var micPermission: ActivityResultLauncher<String>
+    private lateinit var speechManager: SpeechRecognitionManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         config = ServerConfig.get(this)
+        speechManager = SpeechRecognitionManager(this)
         socket = HearthWebSocketClient(config)
         viewModel = ChatViewModel(
             config = config,
             scope = lifecycleScope,
             socket = socket,
             player = TtsStreamPlayer(),
-            speech = SpeechRecognitionManager(this),
+            speech = speechManager,
         )
 
         // One deliberate moment for the mic, as on iOS, rather than a system
@@ -166,8 +168,12 @@ class MainActivity : ComponentActivity() {
                             HouseDestination.JOURNAL ->
                                 JournalScreen(config) { destination = null }
 
-                            HouseDestination.APPS ->
-                                AppsScreen(config) { destination = null }
+                            HouseDestination.APPS -> AppsScreen(
+                                config = config,
+                                speechAvailable = speechManager.isAvailable,
+                                onCards = { },
+                                onBack = { destination = null },
+                            )
 
                             HouseDestination.PERSONA ->
                                 PersonaScreen(config) { destination = null }
