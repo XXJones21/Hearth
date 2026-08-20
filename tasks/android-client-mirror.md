@@ -46,6 +46,21 @@ Return recommended (ordered -3, received -5, not as described). Phase 1
 runs fine on a -5 regardless; only the phase 2 AOSP path dies on it.
 Development continues on emulator either way.
 
+**No brute-force unlock exists for this unit, and age does not change
+that.** Read over adb: `flash.locked 1`, `vbmeta.device_state locked`,
+`verifiedbootstate green`, `secure_hardware 1`, platform `taro`
+(Snapdragon 8+ Gen 1 / SM8475), bootloader MBM-3.0, baseband
+M8475_DE305. The unlock is a Motorola-signed cryptographic code, not a
+guessable secret; AT&T units are refused signing, and there is no code
+space to brute force. The old escape hatches are closed by secure_hardware:
+EDL (Qualcomm 9008) needs a signed firehose and does not defeat verified
+boot anyway, and there is no known public bootloader exploit for the
+SM8475 as of early 2026. The only real later-paths are paid gray-market
+unlock services (mostly scams, low odds for a secured zeekr) or an
+unscheduled community exploit. Clean path for the phase 2 OS overhaul:
+return the -5, buy a verified retail XT2321-3, which unlocks through
+Motorola's own portal.
+
 ## Day-1 moves that cost nothing
 
 - Enable Developer options and check the OEM unlocking toggle state; the
