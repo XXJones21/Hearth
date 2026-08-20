@@ -297,12 +297,6 @@ struct HearthMainView: View {
                     IdleClockOverlay()
                         .transition(.opacity)
                 }
-                // INVESTIGATION BRANCH ONLY.
-                VStack {
-                    Spacer()
-                    RendererSwitch()
-                }
-                .padding(.bottom, 6)
             }
             .frame(minHeight: height * 0.22, maxHeight: .infinity)
 

@@ -226,11 +226,32 @@ what the headset's kernel draws, so the two renderers agree rather than diverge.
 
 ### What is left on the branch
 
-The switch stays for now, two-way: **Shipped** against **Canvas fire**. Not as
-a preference -- as a comparison, while the canvas flame is still being tuned
-against the persona it replaces. It leaves when the fire becomes the
-config-driven default, which is [sulivan-realityview.md](sulivan-realityview.md)
-minus its original premise.
+The switch moved off the stage and into **Settings > Persona > Drawing**, two-
+way: **Shipped** against **Fire**. On the stage is where an A/B belongs -- one
+you have to go and find is one nobody runs twice -- but the comparison is
+decided, and what is left is a way to hold the new flame against the persona it
+replaces while the flame is still being tuned. That is not a choice anybody
+makes twice a day.
+
+`PersonaRenderer` moved into HearthUI with it, because the settings surface is
+shared code and cannot see the app target.
+
+It leaves entirely when a persona's config can name the fire, which is
+[sulivan-realityview.md](sulivan-realityview.md) minus its original premise. A
+setting that overrides the config is scaffolding, not a feature.
+
+### A trap: do not hand-edit the iOS scheme's debugger
+
+Turning the debugger off by writing `selectedDebuggerIdentifier = ""` into
+`Hearth.xcscheme` -- the exact shape that works on `Hearth Vision.xcscheme`,
+LLDB launcher kept -- **emptied Xcode's destination picker entirely**. Not "no
+devices": zero destinations, simulators included, so nothing could be built at
+all. Reverting the file restored them immediately.
+
+The Vision scheme's own note says PosixSpawn is what empties the picker. That
+note is incomplete: on the iOS scheme an empty debugger identifier does it too.
+If the debugger has to come off there, untick "Debug executable" in Edit Scheme
+and let Xcode write whatever it considers valid.
 
 ### Still to do before it ships
 
