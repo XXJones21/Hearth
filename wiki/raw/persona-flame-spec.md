@@ -596,6 +596,100 @@ That inversion is the general rule for this port: **the headset spent effort on
 the room and none on the composite; a screen has to spend it the other way
 round.**
 
+## Drawing it without a shader
+
+The alternative to porting the mesh is not porting a shader either: draw the
+flame with ordinary vector primitives, the way `PersonaOrb` already draws the
+bead in a SwiftUI `Canvas` and the desktop draws the face in React.
+
+**There is precedent and it is the same character.** `PersonaOrb` is a radial
+gradient for the halo, filled circles for the particles, a radial gradient for
+the body and a stroked ring for the edge. No shader, no per-pixel work, no 3D --
+and nobody looking at the phone and the headset thinks they are two personas.
+The bar is **the same character, not the same pixels**, and what carried the orb
+across was its palette and its motion rather than its fidelity.
+
+**And one client forces the question anyway.** Widgets cannot host a
+`RealityView` or run a compute pass. If Sulivan is to appear in a widget at all,
+a shader-free flame has to exist regardless of what desktop and Android choose.
+
+### The silhouette ports EXACTLY, which is most of the battle
+
+This is the part worth knowing before deciding anything else. The flame is very
+nearly a surface of revolution, so its outline seen from the front is just the
+profile evaluated at the two meridians perpendicular to the view:
+
+```
+for v in 0...1:
+    x = ±surfaceRadius(v, angle: ±π/2, phase) + lean(v).x
+    y = rise(v)
+```
+
+Twenty-nine points down each side, joined into one closed path. `profile`,
+`rise`, `lean` and the wobble are **plain arithmetic with no platform in them**
+-- they port to Swift, TypeScript or Kotlin unchanged, and the shape that comes
+out is not an approximation of the headset's flame. It is the same curve.
+
+Since the silhouette is what the mesh was built for in the first place, and the
+silhouette is the single biggest carrier of the character, a 2D client gets the
+expensive lesson for free and only has to approximate the interior.
+
+### Two noise functions, and only one needs to port
+
+This is the piece that makes the whole thing cheap, and it is easy to miss
+because the two live in different files.
+
+- **The Metal `fbm`** -- five octaves, domain-warped, per pixel. This is what
+  needs a shader, and it is what a 2D client gives up.
+- **`FlameMesh.noise`** -- three sines of integer multiples of the angle,
+  damped toward the base. Per vertex, deterministic, seamless, and **already the
+  thing that describes how the flame's edges move.**
+
+On a 2D client, promote the cheap one to do both jobs: the same trig noise that
+wobbles the outline also places and animates the interior striations. Same
+clock, same function, same character -- and it runs in a `for` loop over a few
+dozen values rather than a few hundred thousand.
+
+### The recipe, back to front
+
+Each layer maps onto something the 3D version does:
+
+| Layer | 3D original | 2D drawing |
+| --- | --- | --- |
+| Halo | (deliberately absent -- the real light does it) | Radial gradient behind everything. See the note on this being a LOSS, above. |
+| Body | Mesh silhouette | Closed path from `profile`/`rise`/`lean`/wobble |
+| Colour | Heat ramp perturbed by fbm | Linear gradient, bottom to top, the same five stops -- straw, gold, amber, red, ash |
+| Interior | Domain-warped fbm density | A handful of tapered vertical strokes at low alpha, placed and swayed by `FlameMesh.noise` |
+| Tip | `1 - smoothstep(0.88, 0.99, v)` on density | The same window as an alpha fade on the fill, or on a mask |
+| Breath | `1 + 0.012·sin(phase·1.6)` on the profile | Identical -- it is already just a scalar on the path |
+| Face | Curved card riding the surface | Drawn on top, in order. No sorting, no tracking, no curvature |
+| Embers | Particle emitter | Filled circles, exactly as `PersonaOrb` already draws its field |
+| Flicker | Drives the point light | Drives the halo's opacity |
+
+### What is actually given up
+
+Be honest about it so nobody chases it later:
+
+- **Fine grain.** The fbm gives tattered, small-scale licks. Broad strokes give
+  broad structure. Looking at device captures, the flame reads as shape first,
+  vertical gold-to-red gradient second, and broad striations third -- fine grain
+  is a fourth-order term, but it is the one that makes the fire look *hot* up
+  close.
+- **Depth.** No parallax between the near and far walls of the flame, because
+  there are no walls.
+- **Any path to rotating it**, as noted above.
+
+None of those are what makes it Sulivan. The shape, the palette and the motion
+are, and all three port.
+
+### If a client already has a 3D canvas
+
+The desktop's three.js scene is a third option and probably the better one
+there: port the Metal kernel to GLSL as a `ShaderMaterial` and keep the mesh.
+That is a closer match than either alternative, and it is available because the
+desktop already pays for a WebGL context. **The shader-free recipe above is for
+the places that genuinely cannot -- widgets first, and Android if it goes flat.**
+
 ## Porting notes
 
 **What is RealityKit-specific and needs a local answer:**
