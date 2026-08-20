@@ -165,14 +165,18 @@ class ChatViewModel(
 
         speech?.onPartialResult = { _partialTranscript.value = it }
         speech?.onSpeechStarted = {
-            // The window was time to START talking. Someone did, so the
-            // deadline is off and the silence timer owns the ending. Without
-            // this the window was a hard cap on the whole utterance: a
-            // question longer than five seconds was cut off mid-sentence and
-            // the recognizer destroyed before it could return anything, which
-            // read as the client ignoring the person.
-            listenJob?.cancel()
-            listenJob = null
+            // Someone (or something) started making noise. The
+            // start-talking deadline no longer applies, but it must not be
+            // cancelled outright: Android reports beginning-of-speech for
+            // room noise and for the tail of our own voice bleeding into the
+            // mic, and if no partial ever follows there is then NOTHING left
+            // to end the turn. That hung the mic open until it was tapped.
+            //
+            // So the deadline is REPLACED by a ceiling on the whole
+            // utterance. The silence timer still ends a normal turn long
+            // before this; the ceiling only catches the turn that never
+            // produces words.
+            armListenDeadline(UTTERANCE_CEILING_MS)
         }
         speech?.onLevel = { level ->
             _micLevel.value = if (_state.value == HearthState.LISTENING) level else 0f
@@ -250,16 +254,30 @@ class ChatViewModel(
         _partialTranscript.value = null
         Log.i(TAG, "window opens (${windowMs}ms to begin)")
         stt.start()
+        armListenDeadline(windowMs)
+    }
+
+    /**
+     * The one timer that can end a listening turn from the outside. Always
+     * armed while the mic is open, re-armed rather than cancelled when speech
+     * starts, so there is no path where nothing is watching.
+     */
+    private fun armListenDeadline(afterMs: Long) {
         listenJob?.cancel()
         listenJob = scope.launch {
-            delay(windowMs)
-            // Nobody started talking. Stand the mic down quietly rather than
-            // holding it open forever.
-            if (_state.value == HearthState.LISTENING && _partialTranscript.value == null) {
-                Log.i(TAG, "window closed with nothing said")
-                stt.stop()
+            delay(afterMs)
+            if (_state.value != HearthState.LISTENING) return@launch
+            val heard = _partialTranscript.value
+            if (heard.isNullOrBlank()) {
+                Log.i(TAG, "listening ended with nothing said")
+                speech?.stop()
                 _state.value = HearthState.IDLE
                 _micLevel.value = 0f
+            } else {
+                // Words were heard but the engine never finalised them.
+                // Sending beats discarding: the person said something.
+                Log.i(TAG, "ceiling reached with words; committing")
+                speech?.finishAndCommit()
             }
         }
     }
@@ -595,6 +613,13 @@ class ChatViewModel(
 
         /** The shorter window offered after the house finishes speaking. */
         private const val POST_SPEAK_WINDOW_MS = 5_000L
+
+        /**
+         * The longest a single utterance may hold the mic once noise has
+         * started. A backstop, not a normal path: the 1.5 second silence
+         * timer ends a real sentence long before this.
+         */
+        private const val UTTERANCE_CEILING_MS = 20_000L
         const val DEFAULT_PERSONA = "Sulivan"
     }
 }
