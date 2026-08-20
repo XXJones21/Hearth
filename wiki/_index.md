@@ -43,6 +43,7 @@ What Hearth is on each platform, written for someone meeting it cold.
 | Windows desktop | [`clients/windows.md`](clients/windows.md) |
 | macOS | [`clients/macos.md`](clients/macos.md) |
 | iOS | [`clients/ios.md`](clients/ios.md) |
+| Apple Vision Pro | [`clients/visionos.md`](clients/visionos.md) |
 
 ## The features
 
@@ -81,7 +82,7 @@ research are staged in `raw/` as sources, no longer canonical articles.
 
 The consumer-facing layer landed 2026-08-08 and was restructured 2026-08-09:
 getting started, the install walkthrough, three platform pages under
-`clients/`, four feature pages, and the contributor guide, sitting on top of
+`clients/` (four as of 2026-08-20, with Apple Vision Pro), four feature pages, and the contributor guide, sitting on top of
 the engineering record (six backend articles plus the install, updates,
 first-run, and card-forge pages). The five Apple migration documents and the
 two macOS field notes moved to `raw/` as staged sources.

@@ -41,6 +41,7 @@ One page per platform, for someone meeting Hearth cold.
 - [Hearth on Windows](clients/windows.md)
 - [Hearth on macOS](clients/macos.md)
 - [Hearth on iOS](clients/ios.md)
+- [Hearth on Apple Vision Pro](clients/visionos.md)
 
 ## Using Hearth
 

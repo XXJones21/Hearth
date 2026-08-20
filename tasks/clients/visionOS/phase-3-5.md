@@ -2,7 +2,7 @@
 
 **CLOSED 2026-08-18.** All four items landed, plus three corrections the device
 turned up that the desk could not have. Phase 4 is scoped in
-[vision-phase-4.md](vision-phase-4.md), and three things built here are carried
+[vision-phase-4.md](phase-4.md), and three things built here are carried
 into it deliberately: `modelPresentationScale`, `modelVerticalOffset` and
 `personaAnchor`.
 

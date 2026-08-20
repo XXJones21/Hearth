@@ -61,6 +61,9 @@ struct FaceParams {
     // Colours (linear sRGB 0...1)
     float3 ink;
     float3 glint;
+    float3 iris;          // the eye's colour inside the ink rim
+    float irisAmount;     // 0 draws no iris at all
+    float eyeStyle;       // 0 = the ink capsule, 1 = the chibi oval
     // Projection
     float lonOffset;      // radians; where the front of the sphere sits in u
     float extent;         // how much of the front hemisphere the face spans
@@ -123,6 +126,132 @@ static inline float sdEye(float2 p, float baseHalfW, float lid, float scale,
     // and mid-blink it read as a rendering fault rather than an eyelid.
     float halfH = max(halfW * 0.55, halfW * max(eyeLength, 0.2) * (1.0 - l * 0.95));
     return sdRoundBox(p, float2(halfW, halfH), min(halfW, halfH));
+}
+
+// MARK: - The chibi eye
+//
+// A DIFFERENT EYE, not a dressed-up version of the other one. The ink language
+// draws a dark capsule and lets the persona's own surface show around it -- it
+// is a mark ON a face. This is an eye IN a face: a white oval with a coloured
+// iris, a dark pupil, a heavy lash line along the top and two highlights, which
+// is the shape animation reaches for when a character has to read as ALIVE at a
+// small size.
+//
+// It is a second style rather than a replacement because the first is device
+// tested, shipped, and correct for the bead. Reference is RWBY Chibi.
+
+struct EyeLayers {
+    float sclera;
+    float outline;
+    float lash;
+    float iris;
+    float pupil;
+    float glint;
+};
+
+/// An oval whose width varies with height: narrow at the top, WIDE at the base.
+///
+/// This is the shape the style actually has, and a plain ellipse is not it. The
+/// reference reads as round, but its lower half carries most of the width --
+/// closer to an egg standing on its wide end than to a circle. Tapering the
+/// horizontal radius as a function of height gets there with one extra line,
+/// where trying to reach it by squashing an ellipse only ever produced
+/// something that looked squashed.
+///
+/// The distance is approximate: a true distance to a tapered oval is an
+/// iterative solve, and the error here is a fraction of a texel at this size.
+static inline float sdTaperedOval(float2 p, float2 r, float topWidth) {
+    // 0 at the top of the shape, 1 at the bottom.
+    //
+    // MEASURED, not derived. The comment here used to say "face space has y
+    // pointing down, so the bottom is +r.y" and the device drew the taper
+    // upside down -- wide across the top, drawn to a point underneath. This is
+    // the fourth axis convention in this file that has gone the opposite way to
+    // the reasoning, so it is now written the way it renders.
+    float t = clamp(0.5 - p.y / (2.0 * max(r.y, 1e-4)), 0.0, 1.0);
+    float width = max(r.x * mix(topWidth, 1.0, t), 1e-4);
+    return (length(float2(p.x / width, p.y / r.y)) - 1.0) * min(width, r.y);
+}
+
+static inline EyeLayers chibiEye(float2 q, float halfWidth, float lengthScale,
+                                 float lid, float px, float gazeX, float gazeY) {
+    EyeLayers layers = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+    // BIGGER THAN THE INK EYE ASKS FOR, and that is the style rather than a
+    // fudge. `eyeSize` comes from the persona and was chosen for a small dark
+    // mark on a bead; this style puts most of the face's character in the eyes,
+    // so it scales what the persona asked for rather than replacing it -- a
+    // persona with small eyes still has smaller eyes than one without.
+    halfWidth *= 1.42;
+
+    // NEARLY ROUND, on the direct reference. Not the lozenge the last pass
+    // made: these eyes are as tall as they are wide, or a shade taller, with
+    // the width still carrying the persona's `eyeLength` so a narrow-eyed
+    // persona stays narrow-eyed.
+    //
+    //
+    // `lengthScale` is the persona's `eyeLength`, and it is 2.4 by default --
+    // authored to make a tall CAPSULE tall. Multiplying the height by it here
+    // produced an eye three times taller than it was wide, which is the shape
+    // this style is least like. It belongs on the width instead: the same
+    // number that stretched the old eye vertically stretches this one across.
+    // Wider than tall now, which is the chibi proportion: the eye is a broad
+    // oval, not the near-circle the last pass drew.
+    float2 r = float2(halfWidth * max(lengthScale, 0.6) * 0.62, halfWidth * 1.52);
+    const float topWidth = 0.74;
+
+    // The lid comes down as a horizontal cut travelling from the top of the
+    // eye toward the bottom.
+    float lidY = -r.y + 2.0 * r.y * clamp(lid, 0.0, 1.0);
+    float open = smoothstep(lidY - px, lidY + px, q.y);
+
+    float d = sdTaperedOval(q, r, topWidth);
+    float body = coverage(d, px) * open;
+    layers.sclera = body;
+
+    // A thin rim all the way round, so the white never bleeds into whatever is
+    // behind it.
+    float2 rim = max(r - float2(halfWidth * 0.10), float2(1e-3));
+    layers.outline = clamp(body - coverage(sdTaperedOval(q, rim, topWidth), px) * open,
+                           0.0, 1.0);
+
+    // THE LASH FOLLOWS THE EYE'S CURVE. It was a horizontal cut across the top,
+    // and a straight line through a round shape makes a D -- which is exactly
+    // what the device drew: a flat-topped half-moon. It also sliced the top off
+    // the iris, which pushed the pupil into the upper corner of what was left
+    // and made him look shifty. One wrong shape, three wrong-looking things.
+    //
+    // A lash is a thickened contour, so it is the rim again -- the oval minus a
+    // smaller oval -- weighted toward the top rather than cut there. The eye
+    // keeps its curve and the black follows it.
+    float2 lashR = max(r - float2(halfWidth * 0.26), float2(1e-3));
+    float lashBand = clamp(body - coverage(sdTaperedOval(q, lashR, topWidth), px) * open,
+                           0.0, 1.0);
+    layers.lash = lashBand * smoothstep(0.10, -0.62, q.y / max(r.y, 1e-4));
+
+    // THE WHITE IS A REAL AREA. At 0.86 the iris left almost no sclera and the
+    // eye read as a coloured disc with a rim; the reference shows a broad white
+    // around and above a circle that takes up perhaps two thirds of the height.
+    // The white is what makes it an EYE rather than a lens.
+    float2 centre = float2(gazeX * halfWidth * 0.26,
+                           r.y * 0.12 + gazeY * halfWidth * 0.22);
+    float irisR = min(r.x, r.y) * 0.66;
+    layers.iris = coverage(length(q - centre) - irisR, px) * body;
+
+    // And the pupil is SMALL against it -- a dot, not a slit. That ratio is
+    // most of what separates a friendly face from an unsettling one.
+    layers.pupil = coverage(length(q - centre) - irisR * 0.38, px) * body;
+
+    // Two highlights, unequal: a large one up and to the left, a small one down
+    // and to the right. One centred glint reads as a doll's eye; two unequal
+    // ones read as a wet surface under a light that is somewhere in particular.
+    float big = coverage(length(q - (centre + float2(-irisR * 0.38, -irisR * 0.40)))
+                         - irisR * 0.34, px);
+    float small = coverage(length(q - (centre + float2(irisR * 0.40, irisR * 0.38)))
+                           - irisR * 0.18, px);
+    layers.glint = max(big, small) * body;
+
+    return layers;
 }
 
 // MARK: - Kernel
@@ -190,12 +319,93 @@ kernel void face_kernel(texture2d<float, access::write> out [[texture(0)]],
     float2 leftC  = float2(-eyeDx + gx + converge, eyeY + gy + f.eyeRaiseL * 2.0);
     float2 rightC = float2( eyeDx + gx - converge, eyeY + gy + f.eyeRaiseR * 2.0);
 
+    // THE CHIBI BRANCH. It leaves the whole ink path below untouched: this
+    // draws a complete eye and returns, because the two styles share the pose
+    // and nothing else. Trying to make one composition serve both is how the
+    // iris ended up as a blue blob with no pupil.
+    if (f.eyeStyle > 0.5) {
+        EyeLayers left = chibiEye(rotate(p - leftC, -(f.eyeTilt + f.eyeTiltL)),
+                                  baseHalfW * f.eyeScaleL, f.eyeLength,
+                                  f.eyelidL, px, f.gazeX, f.gazeY);
+        EyeLayers right = chibiEye(rotate(p - rightC, -(f.eyeTilt + f.eyeTiltR)),
+                                   baseHalfW * f.eyeScaleR, f.eyeLength,
+                                   f.eyelidR, px, f.gazeX, f.gazeY);
+        EyeLayers eye = left.sclera >= right.sclera ? left : right;
+
+        // EYES ONLY in this style, for now. The mouth is drawn further down in
+        // the ink language and is hidden at rest anyway, so wiring it through
+        // here would be work in service of something nobody has seen yet. If
+        // the style survives the test, the mouth follows it.
+        float alphaC = eye.sclera * limb;
+        if (alphaC <= 0.001) {
+            out.write(float4(0.0), gid);
+            return;
+        }
+
+        // Sclera, iris over it, pupil, then the strokes, then the highlights --
+        // and the mouth in the same ink as the lash so a face reads as one
+        // drawing rather than two.
+        // Deep at the top, bright at the bottom, and a wider spread than the
+        // ink eye's because the iris is doing nearly all of the work here --
+        // a flat fill at this size reads as plastic.
+        // Deeper at both ends than the first pass. Against a white sclera the
+        // light end was washing out to nearly grey, and the reference's blue
+        // holds its saturation all the way down.
+        float3 irisTopC = f.iris * 0.55;
+        float3 irisBottomC = mix(f.iris, float3(1.0), 0.16);
+        float3 irisColourC = mix(irisTopC, irisBottomC,
+                                 clamp(0.5 + (p.y - eyeY) / max(baseHalfW * 2.0, 1e-3),
+                                       0.0, 1.0));
+
+        float3 rgbC = float3(1.0, 0.99, 0.97);
+        rgbC = mix(rgbC, irisColourC, min(eye.iris, 1.0));
+        rgbC = mix(rgbC, f.ink, min(eye.pupil, 1.0));
+        rgbC = mix(rgbC, f.ink, min(eye.outline, 1.0));
+        rgbC = mix(rgbC, f.ink, min(eye.lash, 1.0));
+        rgbC = mix(rgbC, f.glint, min(eye.glint, 1.0));
+
+        out.write(float4(rgbC, alphaC), gid);
+        return;
+    }
+
     float arc = clamp(f.eyeArc, -1.0, 1.0);
     float dLeft  = sdEye(rotate(p - leftC,  -(f.eyeTilt + f.eyeTiltL)),
                          baseHalfW, f.eyelidL, f.eyeScaleL, arc, f.eyeLength);
     float dRight = sdEye(rotate(p - rightC, -(f.eyeTilt + f.eyeTiltR)),
                          baseHalfW, f.eyelidR, f.eyeScaleR, arc, f.eyeLength);
     float eyeCov = max(coverage(dLeft, px), coverage(dRight, px));
+
+    // MARK: Iris and pupil -- the eye's colour, and the dark it surrounds.
+    //
+    // THREE RINGS FROM ONE SHAPE, each the eye eroded a little further. Adding
+    // a positive number to a signed distance field shrinks the region it
+    // describes, so the ink rim, the coloured iris and the dark pupil are the
+    // SAME silhouette at three insets. They cannot disagree about where the eye
+    // is, whatever the pose does to it -- and separately-drawn shapes would
+    // have to track the blink, the tilt, the arc, the scale and the gaze
+    // independently, drifting apart the first time any one of them moved.
+    //
+    // They also blink for free, because the eyelid is already inside `sdEye`.
+    //
+    // THE PUPIL IS THE POINT. An iris with no dark centre is a coloured blob:
+    // the reference has a bright ring around a black middle, and it is the
+    // black that makes it read as an eye looking at you rather than as a
+    // painted dot.
+    float irisCov = 0.0;
+    float pupilCov = 0.0;
+    float irisShade = 0.5;
+    if (f.irisAmount > 0.001) {
+        irisCov = max(coverage(dLeft + baseHalfW * 0.26, px),
+                      coverage(dRight + baseHalfW * 0.26, px)) * f.irisAmount;
+        pupilCov = max(coverage(dLeft + baseHalfW * 0.74, px),
+                       coverage(dRight + baseHalfW * 0.74, px)) * f.irisAmount;
+
+        // Where this pixel sits up the eye it belongs to, for the iris's own
+        // gradient. Face space has y pointing DOWN, so larger is lower.
+        float2 local = (dLeft < dRight) ? (p - leftC) : (p - rightC);
+        float halfH = max(baseHalfW * max(f.eyeLength, 0.2), 1e-3);
+        irisShade = clamp(0.5 + local.y / (2.0 * halfH), 0.0, 1.0);
+    }
 
     // MARK: Glints -- the one highlight, and what stops the eyes reading flat.
 
@@ -256,6 +466,22 @@ kernel void face_kernel(texture2d<float, access::write> out [[texture(0)]],
         return;
     }
 
-    float3 rgb = mix(f.ink, f.glint, glintCov > 0.0 ? glintCov / max(alpha, 1e-4) : 0.0);
+    // Ink, then iris over it, then the glint on top of both -- the order a
+    // painter would use, and the order that keeps the glint reading as light on
+    // a wet surface rather than a hole in one.
+    // DEEPER AT THE TOP, brighter toward the bottom, which is what gives a flat
+    // colour the look of a curved wet surface catching light from above. Both
+    // ends are derived from the one iris colour rather than being two more
+    // uniforms: a caller should be able to say "blue" and get an eye.
+    float3 irisTop = f.iris * 0.62;
+    float3 irisBottom = mix(f.iris, float3(1.0), 0.35);
+    float3 irisColour = mix(irisTop, irisBottom, irisShade);
+
+    // Ink, iris over it, pupil back to ink inside that, glint on top of all
+    // three -- the order a painter would use, and the order that keeps the
+    // glint reading as light on a wet surface rather than a hole in one.
+    float3 rgb = mix(f.ink, irisColour, min(irisCov, 1.0));
+    rgb = mix(rgb, f.ink, min(pupilCov, 1.0));
+    rgb = mix(rgb, f.glint, glintCov > 0.0 ? glintCov / max(alpha, 1e-4) : 0.0);
     out.write(float4(rgb, alpha), gid);
 }

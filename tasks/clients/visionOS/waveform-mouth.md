@@ -59,6 +59,6 @@ one" -- reads as (1) with (2) as the ambition. Confirm before building.
 ## Not in scope
 
 The particle waveform's SIZE, which is
-[vision-visual-polish.md](vision-visual-polish.md) item 2. The wave being too
+[vision-visual-polish.md](visual-polish.md) item 2. The wave being too
 wide and the mouth being the wrong shape are different complaints, and fixing
 them together would make it impossible to tell which change did what.

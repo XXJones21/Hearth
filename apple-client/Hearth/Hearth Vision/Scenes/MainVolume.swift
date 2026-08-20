@@ -144,259 +144,7 @@ struct MainVolume: View {
 
     private var stage: some View {
         GeometryReader3D { geometry in
-        RealityView { content, _ in
-            content.add(stageRoot)
-            // Palm-sized and low in the box. The full transform is set rather
-            // than just the position because in phase 4 the rig may be
-            // returning from the room, carrying a world transform of its own.
-            rig.rootEntity.transform = Transform(
-                scale: SIMD3<Float>(repeating: Self.beadScale),
-                rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0)),
-                translation: SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
-            )
-            // Through the rig rather than by writing the scale above alone: the
-            // model's size and the anchor's offsets are both fractions OF this,
-            // and setting it behind their back leaves them stale. The transform
-            // above still sets position and rotation, which nothing derives
-            // from.
-            rig.setRigScale(Self.beadScale)
-            stageRoot.addChild(rig.rootEntity)
-
-            // Where the orb lives, and the three places a behaviour can send
-            // it. Registered by the host because only the host knows where it
-            // put things -- the director resolves names, it does not survey the
-            // scene. Design section 4's targets "are entities, and the entities
-            // are simply closer" in the volume: these are that, at desk scale.
-            rig.homePosition = SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
-            // Toward the library. There is no shelf ENTITY in the stage any
-            // more -- the books live in the Journal panel, where they can be
-            // scrolled -- so this names where that panel opens. The orb flying
-            // toward the library it is about to open is the point; whether the
-            // books are already on screen is not.
-            rig.behavior.setTarget("shelf",
-                at: SIMD3<Float>(0.16, CardOrbitLayout.orbY + 0.05, 0.02))
-            // Out over the cards, where work is visible.
-            rig.behavior.setTarget("workspace",
-                at: SIMD3<Float>(CardOrbitLayout.leftX * 0.55, CardOrbitLayout.orbY + 0.05, 0.02))
-            // Up and back a little: the spatial version of looking away to
-            // think, which is what the face's thinking beats already do.
-            rig.behavior.setTarget("recall",
-                at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
-
-
-            // The centre slot's 3D half, hidden until the Journal button asks
-            // for it; the orb slides left to make room.
-            //
-            // A tenth under life size. The geometry stays authored at 1 --
-            // that is what lets the persona's prop be the same tree at a tenth
-            // -- and this is presentation: a bookcase that fits the box it is
-            // shown in without the books stopping being books. It still reaches
-            // past the volume's bounds, which is accepted: it can be scrolled
-            // and selected, and that is the whole reason to open it.
-            //
-            // Placed HIGH because shelves hang downward from their own origin.
-            // An origin near the middle of the box put the lowest board over
-            // the composer and the shelf ornament.
-            // 0.9 less a further fifteenth-and-a-half: 0.765, judged on the
-            // device rather than derived. The geometry underneath is still
-            // authored at life size, so this is only how big the bookcase is
-            // shown -- the books have not stopped being 21cm books.
-            libraryEntity.presentationScale = 0.765
-            // Position first: the travel is measured from where the library
-            // sits down to the floor, so the floor has to be set last.
-
-            // 0.36, and the number is the settled one rather than a first
-            // guess: 0.32 crowded the composer, 0.40 pushed the masthead into
-            // the ceiling, and this is the half-way point that was judged on
-            // the device between them.
-            libraryEntity.root.position = SIMD3<Float>(0.10, 0.36, 0.02)
-            // Nothing draws below this, ever. The composer and the button
-            // shelf own the bottom of the box, and a bookcase is not allowed to
-            // reach into them: a library that hides the way to talk to the
-            // house is a library that has taken the house over.
-            //
-            // Stated in the VOLUME's units rather than the library's, so the
-            // number means what it says -- this is where the ornaments begin.
-            libraryEntity.clipBelowInParent = Self.clipFloorY
-            libraryEntity.root.isEnabled = false
-            stageRoot.addChild(libraryEntity.root)
-
-            // The prop, beside where the orb flies to consult a journal. Spines
-            // turned a quarter to face the orb, so the house reads it side-on
-            // the way a person reads a shelf. Starts at nothing.
-            propLibrary.root.position = SIMD3<Float>(0.30, CardOrbitLayout.orbY + 0.04, 0.02)
-            propLibrary.root.orientation = simd_quatf(angle: -.pi / 2,
-                                                      axis: SIMD3<Float>(0, 1, 0))
-            // A tenth, declared once. The show and hide animate to and from
-            // this, so the prop's size lives in one place rather than being
-            // repeated in the transform that reveals it.
-            propLibrary.presentationScale = Self.propScale
-            propLibrary.root.scale = .zero
-            stageRoot.addChild(propLibrary.root)
-
-            // A model persona is shown at a fraction of life size in here.
-            // Set on the rig rather than folded into the rig root's own scale,
-            // because that scale says how big the BEAD is and a person is not
-            // sized by a bead. See PersonaRig.modelPresentationScale.
-            rig.modelPresentationScale = Self.personaModelScale
-            rig.modelVerticalOffset = Self.personaModelLift
-
-            rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
-            rig.enableInteraction()
-            rig.updateState(PersonaState(viewModel.hearthState))
-            rig.setConnected(viewModel.connectionAlive)
-
-            // No tick source here any more, and its absence is the point.
-            //
-            // This host used to own the rig's heartbeat through
-            // `content.subscribe(to: SceneEvents.Update.self)`. A subscription
-            // belongs to the scene that issued it, so the moment this volume
-            // dismisses for the immersive house the rig would stop ticking and
-            // freeze in the room with nothing reported. The rig ticks itself
-            // now, through a ClosureComponent on its own root -- see that file
-            // for the whole argument.
-            //
-            // The persona reads that closure used to poll sixty times a second
-            // moved to `onChange` below, where they fire when the value
-            // actually changes. They were polling only because there was no
-            // observer to hand.
-            rig.apply(viewModel.personaPalette)
-            rig.apply(visualization: viewModel.personaVisualization)
-            if let geometry = viewModel.personaVisualization.faceGeometry {
-                rig.apply(faceGeometry: geometry)
-            }
-        } update: { content, attachments in
-            // The whole reason this is in the update closure and not `make`:
-            // resizing the window does not rebuild the scene, it re-runs this.
-            let viewBounds = content.convert(geometry.frame(in: .local),
-                                             from: .local, to: .scene)
-            let scale = Float(viewBounds.extents.x) / Self.designWidth
-            // Written to the ENTITY and nowhere else.
-            //
-            // The first cut also mirrored this into @State so a gesture could
-            // read it, which made resizing unresponsive: writing state from
-            // inside an update closure invalidates the body, the body re-runs
-            // update, and that writes again -- a loop that fires on every frame
-            // of a live drag. The entity already knows its own scale, so
-            // anything that needs it reads `stageRoot.scale` instead.
-            stageRoot.scale = SIMD3<Float>(repeating: scale)
-            // THE PERSONA COMES HOME HERE, not in `make`.
-            //
-            // Closing a window BACKGROUNDS its scene rather than destroying it,
-            // so returning from the room re-shows this same RealityView and
-            // `make` never runs again. Meanwhile the rig was re-parented into
-            // the immersive scene on the way out and is not a child of anything
-            // here any more -- which is why the box came back empty with its
-            // ornaments still on it.
-            //
-            // Re-parenting is idempotent and costs a pointer comparison, so it
-            // belongs in the closure that always runs rather than the one that
-            // runs once.
-            adoptPersona()
-            layoutAttachments(content: content, attachments: attachments)
-        } attachments: {
-            ForEach(cardStore.cards) { card in
-                Attachment(id: card.id) {
-                    DynamicComponent(descriptor: card)
-                        .frame(maxWidth: 260)
-                        .padding(12)
-                        .overlay(alignment: .topTrailing) {
-                            Button {
-                                cardStore.dismiss(card.id)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .padding(10)
-                        }
-                        .glassBackgroundEffect()
-                }
-            }
-            // What is being said, right now, above the bead. The one piece of
-            // conversation the volume shows: history is the transcript window's
-            // job (design section 1), not a mode of the stage.
-            Attachment(id: Self.liveTextID) {
-                LiveText(viewModel: viewModel)
-            }
-            // The face, when the compute path could not start.
-            //
-            // Degraded, never faceless: a device without a usable Metal
-            // pipeline, or a build whose metallib did not make it into the
-            // bundle, gets the same SwiftUI face the phone draws, billboarded
-            // in front of the bead. It is flat and it does not bloom, but it is
-            // the SAME director driving it, so it blinks and talks correctly.
-            // ...and only for a persona who HAS a face. A model persona wears
-            // her own; billboarding Sulivan's in front of Selene would be two
-            // personas on one stage.
-            if !rig.hasComputeFace, !rig.modelActive {
-                Attachment(id: Self.faceFallbackID) {
-                    PersonaFaceView(
-                        geometry: viewModel.personaVisualization.faceGeometry ?? FaceGeometry(),
-                        state: viewModel.hearthState,
-                        palette: viewModel.personaPalette)
-                        .frame(width: 220, height: 220)
-                }
-            }
-            // An opened journal. JournalBookView, the phone's own reading
-            // view, unchanged -- the library is new; what is written in a
-            // journal is not.
-            if let reading {
-                Attachment(id: Self.readerID) {
-                    VStack(spacing: 0) {
-                        HStack {
-                            Button {
-                                self.reading = nil
-                            } label: {
-                                Label("Shelves", systemImage: "chevron.left")
-                                    .font(.system(size: 13, weight: .medium))
-                            }
-                            .buttonStyle(.plain)
-                            .tint(HearthPalette.ember)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(HearthPalette.parchment)
-
-                        JournalBookView(book: reading)
-                    }
-                    .frame(width: 420, height: 560)
-                    .background(HearthPalette.cream)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                }
-            }
-            // The room labels are GEOMETRY now, inside the library, not
-            // attachments here. An attachment renders in points and needed its
-            // own scale factor reconciled against the library's metres -- which
-            // is why they never appeared, and which would break again the
-            // moment the library is presented at two sizes. See
-            // JournalLibraryEntity.text.
-
-            // The centre slot, for the four FLAT destinations. Journal is not
-            // one: its centre slot is the library's entities, and a panel
-            // behind them was a plane standing in front of the shelves.
-            if let surface, surface != .journal {
-                Attachment(id: Self.surfaceID) {
-                    HouseSurfacePanel(viewModel: viewModel,
-                                      surface: surface,
-                                      width: Self.surfaceWidth(railOpen: rail != nil)) {
-                        self.surface = nil
-                    }
-                }
-            }
-            // The right rail. Docked rather than floating: it takes width from
-            // the centre slot the way the desktop's grid column does, which is
-            // what `surfaceWidth` above is answering.
-            if let rail {
-                Attachment(id: Self.railID) {
-                    HouseRailPanel(viewModel: viewModel, tab: rail) {
-                        self.rail = nil
-                    }
-                }
-            }
-        }
+            stageScene(geometry)
         // A plain pinch starts a voice turn; a two-second hold crosses into the
         // room. One gesture carrying both, because two gestures on one entity
         // race -- see PersonaHold.
@@ -537,15 +285,283 @@ struct MainVolume: View {
         .onChange(of: rail) { _, _ in
             withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
         }
-        .onChange(of: surface) { _, open in
+        .onChange(of: surface) { (_, open: HouseSurface?) in
             // Journal fills the centre slot with ENTITIES rather than a panel:
             // its books are three-dimensional and an attachment is a SwiftUI
             // view rendered onto a plane. The orb slides for it like any other
             // destination, because it is one.
-            libraryEntity.root.isEnabled = (open == .journal)
+            let showingJournal: Bool = open == HouseSurface.journal
+            libraryEntity.root.isEnabled = showingJournal
             if open != .journal { reading = nil }
             withAnimation(.easeInOut(duration: 0.35)) { slideStage() }
         }
+        }
+    }
+
+    /// The RealityView itself, lifted out of `stage`.
+    ///
+    /// SPLIT FOR THE COMPILER. `stage` is one expression as far as type
+    /// inference is concerned -- a RealityView with three closures, then a
+    /// dozen chained gestures and `onChange`s -- and it went over the solver's
+    /// budget the first time the shared package changed underneath it. The
+    /// giveaway was that the reported line MOVED as small edits shifted the
+    /// blame around: that is a body which is too large, not a line which is
+    /// wrong. Cutting it where the scene ends and the modifiers begin is the
+    /// natural seam, and it costs one argument -- the proxy, which only the
+    /// update closure reads.
+    private func stageScene(_ geometry: GeometryProxy3D) -> some View {
+        RealityView { content, _ in
+            content.add(stageRoot)
+            // Palm-sized and low in the box. The full transform is set rather
+            // than just the position because in phase 4 the rig may be
+            // returning from the room, carrying a world transform of its own.
+            rig.rootEntity.transform = Transform(
+                scale: SIMD3<Float>(repeating: Self.beadScale),
+                rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0)),
+                translation: SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
+            )
+            // Through the rig rather than by writing the scale above alone: the
+            // model's size and the anchor's offsets are both fractions OF this,
+            // and setting it behind their back leaves them stale. The transform
+            // above still sets position and rotation, which nothing derives
+            // from.
+            rig.setRigScale(Self.beadScale)
+            stageRoot.addChild(rig.rootEntity)
+
+            // Where the orb lives, and the three places a behaviour can send
+            // it. Registered by the host because only the host knows where it
+            // put things -- the director resolves names, it does not survey the
+            // scene. Design section 4's targets "are entities, and the entities
+            // are simply closer" in the volume: these are that, at desk scale.
+            rig.homePosition = SIMD3<Float>(0, CardOrbitLayout.orbY, 0)
+            // Toward the library. There is no shelf ENTITY in the stage any
+            // more -- the books live in the Journal panel, where they can be
+            // scrolled -- so this names where that panel opens. The orb flying
+            // toward the library it is about to open is the point; whether the
+            // books are already on screen is not.
+            rig.behavior.setTarget("shelf",
+                at: SIMD3<Float>(0.16, CardOrbitLayout.orbY + 0.05, 0.02))
+            // Out over the cards, where work is visible.
+            rig.behavior.setTarget("workspace",
+                at: SIMD3<Float>(CardOrbitLayout.leftX * 0.55, CardOrbitLayout.orbY + 0.05, 0.02))
+            // Up and back a little: the spatial version of looking away to
+            // think, which is what the face's thinking beats already do.
+            rig.behavior.setTarget("recall",
+                at: SIMD3<Float>(-0.05, CardOrbitLayout.orbY + 0.11, -0.05))
+
+
+            // The centre slot's 3D half, hidden until the Journal button asks
+            // for it; the orb slides left to make room.
+            //
+            // A tenth under life size. The geometry stays authored at 1 --
+            // that is what lets the persona's prop be the same tree at a tenth
+            // -- and this is presentation: a bookcase that fits the box it is
+            // shown in without the books stopping being books. It still reaches
+            // past the volume's bounds, which is accepted: it can be scrolled
+            // and selected, and that is the whole reason to open it.
+            //
+            // Placed HIGH because shelves hang downward from their own origin.
+            // An origin near the middle of the box put the lowest board over
+            // the composer and the shelf ornament.
+            // 0.9 less a further fifteenth-and-a-half: 0.765, judged on the
+            // device rather than derived. The geometry underneath is still
+            // authored at life size, so this is only how big the bookcase is
+            // shown -- the books have not stopped being 21cm books.
+            libraryEntity.presentationScale = 0.765
+            // Position first: the travel is measured from where the library
+            // sits down to the floor, so the floor has to be set last.
+
+            // 0.36, and the number is the settled one rather than a first
+            // guess: 0.32 crowded the composer, 0.40 pushed the masthead into
+            // the ceiling, and this is the half-way point that was judged on
+            // the device between them.
+            libraryEntity.root.position = SIMD3<Float>(0.10, 0.36, 0.02)
+            // Nothing draws below this, ever. The composer and the button
+            // shelf own the bottom of the box, and a bookcase is not allowed to
+            // reach into them: a library that hides the way to talk to the
+            // house is a library that has taken the house over.
+            //
+            // Stated in the VOLUME's units rather than the library's, so the
+            // number means what it says -- this is where the ornaments begin.
+            libraryEntity.clipBelowInParent = Self.clipFloorY
+            libraryEntity.root.isEnabled = false
+            stageRoot.addChild(libraryEntity.root)
+
+            // The prop, beside where the orb flies to consult a journal. Spines
+            // turned a quarter to face the orb, so the house reads it side-on
+            // the way a person reads a shelf. Starts at nothing.
+            propLibrary.root.position = SIMD3<Float>(0.30, CardOrbitLayout.orbY + 0.04, 0.02)
+            propLibrary.root.orientation = simd_quatf(angle: -.pi / 2,
+                                                      axis: SIMD3<Float>(0, 1, 0))
+            // A tenth, declared once. The show and hide animate to and from
+            // this, so the prop's size lives in one place rather than being
+            // repeated in the transform that reveals it.
+            propLibrary.presentationScale = Self.propScale
+            propLibrary.root.scale = .zero
+            stageRoot.addChild(propLibrary.root)
+
+            // A model persona is shown at a fraction of life size in here.
+            // Set on the rig rather than folded into the rig root's own scale,
+            // because that scale says how big the BEAD is and a person is not
+            // sized by a bead. See PersonaRig.modelPresentationScale.
+            rig.modelPresentationScale = Self.personaModelScale
+            rig.modelVerticalOffset = Self.personaModelLift
+
+            // THE SAME SULIVAN THE ROOM SHOWS. The volume was still lighting
+            // the bead while the room burned, which made the crossing a change
+            // of PERSONA rather than a change of place -- the one thing the
+            // hold gesture is not supposed to mean.
+            //
+            // The rig's own default is still `.fireflies`, deliberately: it is
+            // what a new house shows and what the flame falls back to when its
+            // Metal machinery is unavailable. Both hosts opting in explicitly is
+            // what keeps that fallback real instead of theoretical.
+            //
+            // Whether it lands is still the rig's decision -- the fire belongs
+            // to a bead, so a switch to Selene puts it out without this line
+            // having to know her name.
+            rig.effectStyle = .fire
+            rig.configure(for: .volumetric)   // billboard halo; bloom is phase 4
+            rig.enableInteraction()
+            rig.updateState(PersonaState(viewModel.hearthState))
+            rig.setConnected(viewModel.connectionAlive)
+
+            // No tick source here any more, and its absence is the point.
+            //
+            // This host used to own the rig's heartbeat through
+            // `content.subscribe(to: SceneEvents.Update.self)`. A subscription
+            // belongs to the scene that issued it, so the moment this volume
+            // dismisses for the immersive house the rig would stop ticking and
+            // freeze in the room with nothing reported. The rig ticks itself
+            // now, through a ClosureComponent on its own root -- see that file
+            // for the whole argument.
+            //
+            // The persona reads that closure used to poll sixty times a second
+            // moved to `onChange` below, where they fire when the value
+            // actually changes. They were polling only because there was no
+            // observer to hand.
+            rig.apply(viewModel.personaPalette)
+            rig.apply(visualization: viewModel.personaVisualization)
+            if let geometry = viewModel.personaVisualization.faceGeometry {
+                rig.apply(faceGeometry: geometry)
+            }
+        } update: { content, attachments in
+            // The whole reason this is in the update closure and not `make`:
+            // resizing the window does not rebuild the scene, it re-runs this.
+            let viewBounds = content.convert(geometry.frame(in: .local),
+                                             from: .local, to: .scene)
+            let scale = Float(viewBounds.extents.x) / Self.designWidth
+            // Written to the ENTITY and nowhere else.
+            //
+            // The first cut also mirrored this into @State so a gesture could
+            // read it, which made resizing unresponsive: writing state from
+            // inside an update closure invalidates the body, the body re-runs
+            // update, and that writes again -- a loop that fires on every frame
+            // of a live drag. The entity already knows its own scale, so
+            // anything that needs it reads `stageRoot.scale` instead.
+            stageRoot.scale = SIMD3<Float>(repeating: scale)
+            // THE PERSONA COMES HOME HERE, not in `make`.
+            //
+            // Closing a window BACKGROUNDS its scene rather than destroying it,
+            // so returning from the room re-shows this same RealityView and
+            // `make` never runs again. Meanwhile the rig was re-parented into
+            // the immersive scene on the way out and is not a child of anything
+            // here any more -- which is why the box came back empty with its
+            // ornaments still on it.
+            //
+            // Re-parenting is idempotent and costs a pointer comparison, so it
+            // belongs in the closure that always runs rather than the one that
+            // runs once.
+            adoptPersona()
+            layoutAttachments(content: content, attachments: attachments)
+        } attachments: {
+            ForEach(cardStore.cards) { card in
+                Attachment(id: card.id) {
+                    StageCard(card: card) { cardStore.dismiss(card.id) }
+                }
+            }
+            // What is being said, right now, above the bead. The one piece of
+            // conversation the volume shows: history is the transcript window's
+            // job (design section 1), not a mode of the stage.
+            Attachment(id: Self.liveTextID) {
+                LiveText(viewModel: viewModel)
+            }
+            // The face, when the compute path could not start.
+            //
+            // Degraded, never faceless: a device without a usable Metal
+            // pipeline, or a build whose metallib did not make it into the
+            // bundle, gets the same SwiftUI face the phone draws, billboarded
+            // in front of the bead. It is flat and it does not bloom, but it is
+            // the SAME director driving it, so it blinks and talks correctly.
+            // ...and only for a persona who HAS a face. A model persona wears
+            // her own; billboarding Sulivan's in front of Selene would be two
+            // personas on one stage.
+            if !rig.hasComputeFace, !rig.modelActive {
+                Attachment(id: Self.faceFallbackID) {
+                    PersonaFaceView(
+                        geometry: viewModel.personaVisualization.faceGeometry ?? FaceGeometry(),
+                        state: viewModel.hearthState,
+                        palette: viewModel.personaPalette)
+                        .frame(width: 220, height: 220)
+                }
+            }
+            // An opened journal. JournalBookView, the phone's own reading
+            // view, unchanged -- the library is new; what is written in a
+            // journal is not.
+            if let reading {
+                Attachment(id: Self.readerID) {
+                    VStack(spacing: 0) {
+                        HStack {
+                            Button {
+                                self.reading = nil
+                            } label: {
+                                Label("Shelves", systemImage: "chevron.left")
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .buttonStyle(.plain)
+                            .tint(HearthPalette.ember)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(HearthPalette.parchment)
+
+                        JournalBookView(book: reading)
+                    }
+                    .frame(width: 420, height: 560)
+                    .background(HearthPalette.cream)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+            // The room labels are GEOMETRY now, inside the library, not
+            // attachments here. An attachment renders in points and needed its
+            // own scale factor reconciled against the library's metres -- which
+            // is why they never appeared, and which would break again the
+            // moment the library is presented at two sizes. See
+            // JournalLibraryEntity.text.
+
+            // The centre slot, for the four FLAT destinations. Journal is not
+            // one: its centre slot is the library's entities, and a panel
+            // behind them was a plane standing in front of the shelves.
+            if let surface, surface != .journal {
+                Attachment(id: Self.surfaceID) {
+                    HouseSurfacePanel(viewModel: viewModel,
+                                      surface: surface,
+                                      width: Self.surfaceWidth(railOpen: rail != nil)) {
+                        self.surface = nil
+                    }
+                }
+            }
+            // The right rail. Docked rather than floating: it takes width from
+            // the centre slot the way the desktop's grid column does, which is
+            // what `surfaceWidth` above is answering.
+            if let rail {
+                Attachment(id: Self.railID) {
+                    HouseRailPanel(viewModel: viewModel, tab: rail) {
+                        self.rail = nil
+                    }
+                }
+            }
         }
     }
 
@@ -787,6 +803,24 @@ struct MainVolume: View {
         rig.modelPresentationScale = Self.personaModelScale
         rig.modelVerticalOffset = Self.personaModelLift
         rig.configure(for: .volumetric)
+        // Facing OUT OF THE BOX, not at you. Billboarding is a room behaviour:
+        // there you walk around her, so she has to turn. A volume is a window
+        // you are already square to, and a persona swivelling inside it as you
+        // lean is a persona who looks nervous.
+        rig.facesViewer = false
+        rig.workFacesViewer = false
+        // A box on a desk gets a quarter of the light -- see EffectBudget. It
+        // reaches the real room from here, which was a surprise, but a bead in
+        // a window throwing a hearth's worth of light across the room is a lamp
+        // somebody would turn off.
+        rig.configure(for: .volumetric)
+        // The volume has no reconstructed room, so nothing for a proximity
+        // spotlight to find. Let go of the room's probe with the rest of it.
+        rig.nearbySurfaces = nil
+        // And let go of the room's world-tracking provider with it. The rig
+        // outlives the room, so a closure left behind here would keep an ARKit
+        // session alive for a scene that has closed.
+        rig.viewerTransform = nil
         let home = SIMD3<Float>(surface == nil ? 0 : Self.stageLeftX,
                                 CardOrbitLayout.orbY, 0)
         rig.homePosition = home
@@ -817,5 +851,37 @@ struct MainVolume: View {
             }
         }
         return ""
+    }
+}
+
+/// One card on the stage, with its dismiss affordance.
+///
+/// EXTRACTED FOR THE COMPILER, not for reuse, and that is worth saying plainly.
+/// `MainVolume.stage` is a RealityView with two closures and a dozen chained
+/// gestures, and the whole thing is one expression as far as type inference is
+/// concerned. It went over the solver's budget the first time the package
+/// changed underneath it -- the error moved from line to line as small edits
+/// shifted the blame, which is the signature of a body that is simply too large
+/// rather than one line that is wrong. Lifting the card out is the smallest cut
+/// that brings it back under, and it costs nothing: a view with two inputs and
+/// no state.
+private struct StageCard: View {
+    let card: UiComponentDescriptor
+    let dismiss: () -> Void
+
+    var body: some View {
+        DynamicComponent(descriptor: card)
+            .frame(maxWidth: 260)
+            .padding(12)
+            .overlay(alignment: .topTrailing) {
+                Button(action: dismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .padding(10)
+            }
+            .glassBackgroundEffect()
     }
 }

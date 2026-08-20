@@ -177,6 +177,10 @@ struct ImmersiveHouse: View {
     /// What the room remembers about where things were left.
     @StateObject private var anchors = RoomAnchors()
 
+    /// The real room as occluding geometry. Phase 4.5: the light needs a
+    /// surface to land on, and virtual things need somewhere to go behind.
+    @State private var roomMesh = RoomMesh()
+
     /// The journal being read, or nil for the shelves.
     ///
     /// The books were pinchable from the moment the bookcase existed -- they
@@ -212,13 +216,14 @@ struct ImmersiveHouse: View {
             // most needed and was least present.
             place()
             content.add(rig.rootEntity)
+            content.add(roomMesh.root)
 
             // `.volumetric`, in a room, deliberately: that mode keeps the
             // billboard halo, and the halo is what the bead's glow IS until
             // bloom is tuned. Switching to `.immersive` here took the halo away
             // and put an untuned bloom in its place, which is how the persona
             // arrived in the room looking like a different persona.
-            rig.configure(for: .volumetric)
+            rig.configure(for: .immersive)
             rig.enableInteraction()
             rig.updateState(PersonaState(viewModel.hearthState))
             rig.setConnected(viewModel.connectionAlive)
@@ -376,13 +381,24 @@ struct ImmersiveHouse: View {
             // pushed through the floor, which in a room is a real place rather
             // than an abstraction.
             onDrag: { position in
-                var home = position
+                // A two-handed pinch reads as a drag as well. Being asked to
+                // move and resize at once is how a persona ends up somewhere
+                // nobody put her.
+                guard !rig.isResizing else { return }
+                var home = stoppedAtTheRoom(moving: rig.rootEntity.position, to: position)
                 home.y = max(home.y, floorClearance)
                 rig.homePosition = home
                 rig.rootEntity.position = home
             },
             onDragEnded: {
-                anchors.remember(.persona, at: rig.rootEntity.transformMatrix(relativeTo: nil))
+                // METRES, like everywhere else that talks about her size. This
+                // read `rootEntity.scale.x` for one revision, which is a rig
+                // scale -- so pinching Sulivan down to a tennis ball stored
+                // 0.14 and the restore read it back as fourteen centimetres.
+                // He snapped to a grapefruit on every gesture end, and the
+                // scaling maths was never wrong: the units were.
+                anchors.remember(.persona, at: Self.pose(of: rig.rootEntity),
+                                 scale: rig.presentedSize)
             },
             progress: { rig.transitionProgress = $0 }
         )
@@ -417,9 +433,14 @@ struct ImmersiveHouse: View {
         // it does not travel with the persona and must not be moved by her.
         .gesture(
             DragGesture()
-                .targetedToEntity(library.dragSurface)
+                // ANY entity, then checked -- not `targetedToEntity(handle)`.
+                // See `grabbed(_:by:)`: naming the target is not the same as
+                // requiring it, and a two-handed gesture elsewhere in the room
+                // was arriving here anyway.
+                .targetedToAnyEntity()
                 .onChanged { value in
-                    guard libraryPlaced else { return }
+                    guard libraryPlaced,
+                          Self.grabbed(value.entity, by: libraryPlacement) else { return }
                     // Across the floor only. A bookcase you can lift into the
                     // air is a bookcase you can lose above the ceiling, and its
                     // height is already right -- it is standing on the floor.
@@ -429,9 +450,34 @@ struct ImmersiveHouse: View {
                         onFloor: true)
                 }
                 .onEnded { _ in
+                    // Only if this gesture was ours. An end that never had a
+                    // beginning would re-anchor the bookcase for nothing.
+                    guard libraryPlacement.isManipulating else { return }
                     libraryPlacement.endGesture()
                     // Anchored where it was LET GO, not where it was grabbed.
-                    anchors.remember(.library, at: libraryPlacement.worldTransform)
+                    rememberLibrary()
+                }
+        )
+        // NO RESIZE ON THE BOOKCASE, and that is a decision rather than an
+        // omission. Furniture has a size; a bookcase that is a different size
+        // in every room is a prop. Move it and turn it -- the two things you do
+        // to furniture -- and leave how big it is to the geometry.
+        // Turn it to face somewhere else. The half of placement that moving
+        // cannot do: a bookcase you can carry but not turn faces whichever way
+        // it spawned, which for a thing meant to stand against a wall is the
+        // one direction guaranteed to be wrong.
+        .simultaneousGesture(
+            RotateGesture()
+                .targetedToAnyEntity()
+                .onChanged { value in
+                    guard libraryPlaced,
+                          Self.grabbed(value.entity, by: libraryPlacement) else { return }
+                    libraryPlacement.turn(by: value.rotation)
+                }
+                .onEnded { _ in
+                    guard libraryPlacement.isManipulating else { return }
+                    libraryPlacement.endGesture()
+                    rememberLibrary()
                 }
         )
         // And the book you are reading, carried anywhere you like -- including
@@ -442,9 +488,10 @@ struct ImmersiveHouse: View {
                 // The HANDLE, not the root: a root has no collision shape, and
                 // a gesture reaches an entity through one. See
                 // PlacedObject.addGrabHandle.
-                .targetedToEntity(readerPlacement.grabHandle ?? readerPlacement.root)
+                .targetedToAnyEntity()
                 .onChanged { value in
-                    guard reading != nil else { return }
+                    guard reading != nil,
+                          Self.grabbed(value.entity, by: readerPlacement) else { return }
                     readerPlacement.drag(
                         to: SIMD3<Float>(value.convert(value.location3D,
                                                        from: .local, to: .scene)),
@@ -452,6 +499,9 @@ struct ImmersiveHouse: View {
                 }
                 .onEnded { _ in readerPlacement.endGesture() }
         )
+        // Move only. A page you have brought to where you are sitting is at
+        // the size it is; turning it is what billboarding already does for you,
+        // and resizing it is a thing you would only ever have to undo.
         // Pinch a spine to read it. Targeted at the library's whole subtree
         // because the hit lands on a book, and `book(for:)` is what turns an
         // entity back into a journal -- the same call the box makes. A hit on
@@ -465,11 +515,48 @@ struct ImmersiveHouse: View {
             SpatialTapGesture()
                 .targetedToEntity(library.root)
                 .onEnded { value in
-                    guard libraryPlaced else { return }
+                    guard libraryPlaced, !libraryPlacement.isManipulating else { return }
                     openReader(library.book(for: value.entity))
                 }
         )
+        // The persona moves and resizes, and does not turn: she billboards, so
+        // she is always already facing you.
+        //
+        // Through `rig.resize`, which asks whichever knob actually governs her
+        // size -- `modelPresentationScale` for a body, the rig scale for a
+        // bead. They are not interchangeable: the rig scale is deliberately
+        // CANCELLED for a model, so a pinch routed through it moves a corporeal
+        // persona not at all.
+        //
+        // What is remembered is a SIZE IN METRES, not a scale factor. A scale
+        // means nothing without knowing which knob it belonged to and what was
+        // on stage at the time; "she was 40cm tall" survives a persona switch,
+        // a host change and a re-fit.
+        .simultaneousGesture(
+            MagnifyGesture()
+                .targetedToAnyEntity()
+                .onChanged { value in
+                    guard Self.entity(value.entity, isUnder: rig.rootEntity) else { return }
+                    rig.magnify(by: Float(value.magnification))
+                }
+                .onEnded { _ in
+                    guard rig.isResizing else { return }
+                    rig.endGesture()
+                    anchors.remember(.persona, at: Self.pose(of: rig.rootEntity),
+                                     scale: rig.presentedSize)
+                }
+        )
+        // A remembered SIZE cannot be applied to a body that has not been
+        // fitted yet: `resize` measures her to work out what her authored
+        // height is, and before the fit lands that measurement is of whatever
+        // the artist exported. The anchor usually arrives first, so the size is
+        // put on again the moment she is real.
+        .onChange(of: rig.modelFramed) { _, framed in
+            guard framed, let size = anchors.scales[.persona] else { return }
+            rig.resize(to: size)
+        }
         .task { await anchors.run() }
+        .task { await roomMesh.run() }
         // Restoring is not a startup step, because an anchor arrives when ARKit
         // recognises the place -- which may be seconds after the room opens, or
         // never if you are somewhere else. So it is applied whenever it turns
@@ -571,7 +658,12 @@ struct ImmersiveHouse: View {
         // furniture away.
         if let close = attachments.entity(for: Self.libraryCloseID) {
             if close.parent !== libraryPlacement.root { libraryPlacement.root.addChild(close) }
-            close.position = SIMD3<Float>(-Self.libraryCloseReach, Self.libraryCloseRise, 0.1)
+            // Above the handle and in line with it, rather than at its own
+            // guess of where the left-hand side is. One number for "the left
+            // of this bookcase", and the handle owns it.
+            close.position = SIMD3<Float>(libraryPlacement.handleAnchor.x,
+                                          libraryPlacement.handleTop + Self.closeAboveHandle,
+                                          0.1)
         }
 
         // The reader hangs at its own placement's origin, because the
@@ -636,8 +728,9 @@ struct ImmersiveHouse: View {
         // Sized to the panel it hangs under: 420 x 560 points is 0.31 x 0.41
         // metres at visionOS's 1360 points to the metre, and the bar is a good
         // deal narrower than that so it reads as a handle.
-        readerPlacement.addGrabHandle(width: Self.readerHandleWidth,
-                                      drop: Self.readerHandleDrop)
+        readerPlacement.addGrabHandle(height: Self.readerHandleHeight,
+                                      at: SIMD3<Float>(-(Self.readerPanelWidth * 0.5
+                                                         + Self.readerHandleReach), 0, 0))
         // A book you are holding faces you. The bookcase it came off does not:
         // furniture that turned to follow you around the room could never be
         // put against a wall.
@@ -672,6 +765,20 @@ struct ImmersiveHouse: View {
         let bounds = library.root.visualBounds(relativeTo: libraryPlacement.root)
         guard bounds.extents.y > 0.0001 else { return }
         library.root.position.y -= bounds.min.y
+
+        // A SPINE DOWN ITS LEFT SIDE, standing off the carcass by a hand's
+        // width. A gesture reaches an entity through a collision shape, and
+        // every shape this bookcase has belongs to a book -- the drag surface
+        // sits BEHIND the spines by design, so grabbing the furniture meant
+        // finding a gap between them, and missing meant opening a journal.
+        //
+        // Beside rather than above or below, because those two were tried and
+        // both depend on how tall the bookcase turns out to be: one put the
+        // handle at your ankles and the other over your head. Its left edge is
+        // its left edge whatever is on the shelves.
+        let handleX = bounds.min.x - Self.sideHandleReach
+        libraryPlacement.addGrabHandle(height: bounds.extents.y * Self.libraryHandleSpan,
+                                       at: SIMD3<Float>(handleX, bounds.extents.y * 0.5, 0))
     }
 
     private func removeLibrary() {
@@ -695,10 +802,19 @@ struct ImmersiveHouse: View {
             let home = SIMD3<Float>(t.columns.3.x, t.columns.3.y, t.columns.3.z)
             rig.homePosition = home
             rig.rootEntity.position = home
+            // Her facing is not restored, and does not need to be: she
+            // billboards, so the only right answer is whichever way you are
+            // standing now. Her SIZE is the thing the anchor could not keep.
+            if let size = anchors.scales[.persona] { rig.resize(to: size) }
         }
         if let t = placements[.library] {
             if !libraryPlaced { placeLibrary() }
             libraryPlacement.root.setTransformMatrix(t, relativeTo: nil)
+            // setTransformMatrix wrote a unit scale, because that is what the
+            // anchor's pose carries. Put the size back before the placement is
+            // told this is its new home, or "home" records a bookcase that was
+            // never that size.
+            if let scale = anchors.scales[.library] { libraryPlacement.resize(to: scale) }
             libraryPlacement.spawn(at: libraryPlacement.root.position,
                                    facing: libraryPlacement.root.orientation)
             // The anchor remembers where the bookcase STANDS -- the placement
@@ -707,6 +823,140 @@ struct ImmersiveHouse: View {
             // nothing about the anchor knows how many books arrived.
             standLibraryOnFloor()
         }
+    }
+
+    /// Every reconstructed surface within reach along `directions`.
+    ///
+    /// The same query the drag clamp makes, asked for a different reason: the
+    /// clamp wants to know whether to stop, the flame wants to know whether
+    /// there is anything close enough to light. One raycast against
+    /// `RoomMesh.surfaces` answers both, and the hit already carries the normal
+    /// -- which is why this needed no plane detection and no trigger volumes.
+    ///
+    /// Every direction is cast SEPARATELY and bounded at `reach`, so each hit's
+    /// distance is measured from the flame along that ray in world metres --
+    /// the same units `spotReach` is written in. The nearest across all of them
+    /// wins.
+    ///
+    /// ONE THING IT CANNOT SEE: a reconstructed surface whose collision shape
+    /// has not been generated yet. `RoomMesh` builds those asynchronously per
+    /// anchor, so a wall can be visible and occluding for a moment before it is
+    /// castable. The honest failure is a flame that lights nothing for a beat
+    /// after a surface first appears, never a wrong distance.
+    /// ALL of them, not the nearest. Picking a winner here would throw away
+    /// exactly what the flame needs to find a corner -- two surfaces close at
+    /// once -- and would push that decision into a place that cannot see the
+    /// second one. See `PersonaRig.aimDirection`.
+    private func roomSurfaces(from origin: SIMD3<Float>,
+                              along directions: [SIMD3<Float>],
+                              within reach: Float) -> [PersonaRig.SurfaceHit] {
+        guard let scene = rig.rootEntity.scene else { return [] }
+        var found: [PersonaRig.SurfaceHit] = []
+        for direction in directions {
+            let hits = scene.raycast(from: origin,
+                                     to: origin + direction * reach,
+                                     query: .nearest,
+                                     mask: RoomMesh.surfaces)
+            guard let hit = hits.first else { continue }
+            found.append(PersonaRig.SurfaceHit(point: hit.position,
+                                               normal: hit.normal,
+                                               distance: hit.distance))
+        }
+        return found
+    }
+
+    /// Stop a drag where the real room stops it.
+    ///
+    /// RealityKit will not do this for us. A transform written directly is
+    /// obeyed -- there is no physics body here, and adding one to a persona so
+    /// she can be carried is a much larger idea than "do not go through the
+    /// wall". So the move is TESTED before it is made: cast from where she is
+    /// to where the hand wants her, against the room's surfaces only, and stop
+    /// short by her own radius if anything is in the way.
+    ///
+    /// Her radius matters. A ray stops at the wall, but she is not a point --
+    /// stopping her centre at the plaster puts half of her inside it, which
+    /// occlusion then hides, which looks exactly like the bug this fixes.
+    ///
+    /// Degrades to the requested position whenever there is nothing to ask:
+    /// before the mesh arrives, on a device without reconstruction, or when the
+    /// entity is not yet in a scene. A room that has not been seen yet cannot
+    /// stop anything, and refusing to move her until it has would be worse.
+    private func stoppedAtTheRoom(moving from: SIMD3<Float>,
+                                  to wanted: SIMD3<Float>) -> SIMD3<Float> {
+        guard let scene = rig.rootEntity.scene else { return wanted }
+        let travel = wanted - from
+        let distance = simd_length(travel)
+        guard distance > 0.0001 else { return wanted }
+
+        let heading = travel / distance
+        let radius = max(rig.presentedSize * 0.5, 0.02)
+        let hits = scene.raycast(from: from,
+                                 to: wanted + heading * radius,
+                                 query: .nearest,
+                                 mask: RoomMesh.surfaces)
+        guard let wall = hits.first else { return wanted }
+        return from + heading * max(0, min(distance, wall.distance - radius))
+    }
+
+    /// Whether a gesture that landed on `entity` was a grab of `placement` --
+    /// meaning it landed on that placement's own handle and nothing else.
+    ///
+    /// WHY THIS EXISTS. `targetedToEntity(_:)` names a target; it does not, on
+    /// its own, keep a two-handed gesture that began somewhere else from
+    /// arriving. Scaling the persona turned the bookcase -- across the room,
+    /// with nothing near it -- because her magnify and its rotate are both
+    /// two-handed, and the rotate recogniser happily read the twist out of the
+    /// same pair of hands. It did not happen the other way round, which is what
+    /// gave it away: one gesture was being read by two recognisers, not two
+    /// gestures colliding.
+    ///
+    /// So the target is checked rather than declared. A handle is the only way
+    /// in, which is also why the handle had to become a thing you can reliably
+    /// find.
+    private static func grabbed(_ entity: Entity, by placement: PlacedObject) -> Bool {
+        guard let handle = placement.grabHandle else { return false }
+        return entity === handle
+    }
+
+    /// Whether an entity is this one or anything hanging beneath it. The
+    /// persona has no single handle -- her whole self is the target -- so hers
+    /// is an ancestry test rather than an identity one.
+    private static func entity(_ entity: Entity, isUnder root: Entity) -> Bool {
+        var node: Entity? = entity
+        while let current = node {
+            if current === root { return true }
+            node = current.parent
+        }
+        return false
+    }
+
+    /// Remember the bookcase: where it stands, which way it faces, and how big
+    /// it was left. Three gestures end in this, so it is one call.
+    private func rememberLibrary() {
+        anchors.remember(.library,
+                         at: libraryPlacement.worldPose,
+                         scale: libraryPlacement.placedScale)
+    }
+
+    /// An entity's place and facing with its size divided back out.
+    ///
+    /// The persona is never at scale 1 -- the volume shows her at 0.22 and the
+    /// room at 1.0, and now a pinch can put her anywhere between -- so handing
+    /// her transform straight to a `WorldAnchor`, which holds a pose and has
+    /// nowhere to put a scale, is asking ARKit to keep something it cannot.
+    /// The same normalisation `PlacedObject.worldPose` does, for the one placed
+    /// thing that is not a `PlacedObject`.
+    private static func pose(of entity: Entity) -> simd_float4x4 {
+        var m = entity.transformMatrix(relativeTo: nil)
+        for column in 0..<3 {
+            let axis = SIMD3<Float>(m[column].x, m[column].y, m[column].z)
+            let length = simd_length(axis)
+            guard length > 0.0001 else { continue }
+            let unit = axis / length
+            m[column] = SIMD4<Float>(unit.x, unit.y, unit.z, m[column].w)
+        }
+        return m
     }
 
     private static let liveTextID = "hearth.live-text"
@@ -758,8 +1008,24 @@ struct ImmersiveHouse: View {
 
     /// Where the bookcase's close button sits: off its left edge, at reading
     /// height, so it is beside the shelves rather than among the spines.
-    private static let libraryCloseReach: Float = 0.5
-    private static let libraryCloseRise: Float = 1.3
+    /// How far a grab bar stands off the thing it belongs to -- a hand's
+    /// width, so there is room to pinch it without catching the object.
+    private static let sideHandleReach: Float = 0.15
+
+    /// How much of the bookcase's height its spine runs down.
+    ///
+    /// Cut by seventy per cent from the first attempt on the operator's read,
+    /// 2026-08-18. Six-tenths of a life-size bookcase is a metre of bar, which
+    /// is not a handle -- it is a railing, and it reads as part of the
+    /// furniture rather than as something to take hold of. A spine's worth is
+    /// about the height of an actual book spine, which is the reference the
+    /// shape was chosen for in the first place.
+
+    /// How far above the grab bar a close button sits.
+    private static let libraryHandleSpan: Float = 0.18
+
+    /// How far above the grab bar a close button sits.
+    private static let closeAboveHandle: Float = 0.25
 
     /// Where an opened journal stands: off the bookcase's other side, so the
     /// shelves stay visible beside what you are reading rather than behind it,
@@ -770,8 +1036,18 @@ struct ImmersiveHouse: View {
     /// The reader's grab bar: about two thirds the panel's width, hanging just
     /// under its lower edge. The panel is 560pt tall, which is 0.41m, so half
     /// of it plus a little clearance is where the bar goes.
-    private static let readerHandleWidth: Float = 0.20
-    private static let readerHandleDrop: Float = 0.24
+    /// The reader panel's size in metres: 420 x 560 points at visionOS's 1360
+    /// points to the metre. The handle is measured off its edge, so this is the
+    /// panel's own frame restated in the units the room works in.
+    private static let readerPanelWidth: Float = 0.31
+    private static let readerPanelHeight: Float = 0.41
+
+    /// The reader's spine: the same seventy per cent cut the bookcase took, and
+    /// held CLOSE. A page is a thing you have already brought to yourself, so
+    /// its handle wants to be part of it rather than floating a hand's width
+    /// off to one side the way a piece of furniture's does.
+    private static let readerHandleHeight: Float = 0.12
+    private static let readerHandleReach: Float = 0.05
 
     // MARK: - Placement
 
@@ -793,6 +1069,44 @@ struct ImmersiveHouse: View {
         rig.setRigScale(Self.beadScale)
         rig.modelPresentationScale = 1
         rig.modelVerticalOffset = 0
+        // Facing you, because in a room you move and she does not. Off again
+        // whenever motion needs her facing where she is going -- see
+        // PersonaRig.facesViewer.
+        //
+        // UPRIGHT, which is the whole difference between a body and a bead
+        // here: she turns to you and never leans toward you. A persona shrunk
+        // to a desk toy and stood on the floor would otherwise tip backwards to
+        // look up at whoever is standing over her. Sulivan is not grounded in
+        // anything and keeps the free billboard; the rig picks which by what is
+        // on stage, so this is one setting for both.
+        // The ember style, chosen EXPLICITLY -- the rig's default is the bead
+        // and its fireflies, which is what a new house shows and what the flame
+        // falls back to. This line is the room opting in while phase 4.5 is
+        // being built, and it is the one place to change when the flame is
+        // ready to be somebody's default.
+        //
+        // Whether it lands is still the rig's decision: the ember style belongs
+        // to a bead, so a switch to Selene puts the fire out without anything
+        // here having to know her name.
+        rig.effectStyle = .fire
+        // The room is where the effects are allowed to be themselves. This also
+        // hands the rig the room's own raycast, so the proximity spotlight can
+        // find a wall without HearthSpatial ever importing ARKit.
+        rig.configure(for: .immersive)
+        rig.nearbySurfaces = { origin, directions, reach in
+            roomSurfaces(from: origin, along: directions, within: reach)
+        }
+        rig.facingAxes = .upright
+        rig.viewerTransform = { anchors.viewerTransform() }
+        // She still turns to face you if she has a BODY -- that is the
+        // constrained look-at, and it is not a billboard. A bead does not turn
+        // at all any more: a flame is a surface of revolution and turning it
+        // was always a no-op that cost a stuttering drag.
+        rig.facesViewer = true
+        // What DOES have to face you is the work hung around her, so the anchor
+        // billboards instead of the root. Nothing targets the anchor for input,
+        // so no gesture converts through the thing being re-oriented.
+        rig.workFacesViewer = true
 
         // WHERE she stood in the box, if the crossing measured it, and a
         // sensible spot in front of the person if it did not -- the first run
@@ -830,11 +1144,21 @@ struct ImmersiveHouse: View {
         return min(max(captured, Self.beadFloor), Self.beadCeiling)
     }
 
-    /// The lowest the persona may be dragged, so a bead cannot be pushed into
-    /// the carpet and a body cannot be sunk through the floorboards. Valinor's
-    /// number for the same gesture; a body needs its own half-height on top.
+    /// The lowest the persona may be dragged: where she TOUCHES the floor.
+    ///
+    /// Measured from whoever is standing there rather than fixed, and both
+    /// halves were wrong before. A bead was held at `beadFloor` -- 0.7m, a
+    /// resting height borrowed from where a conversation happens -- so Sulivan
+    /// stopped half a metre in the air with nothing under him. A body was held
+    /// at her own CROWN height, which would have floated her a full body above
+    /// the floorboards.
+    ///
+    /// Her origin is at her feet, so a body's floor is zero. A bead's origin is
+    /// its centre, so a bead's floor is its own radius -- which is what "resting
+    /// on the floor" means for a sphere, and it now follows the pinch that
+    /// resized him without anything here being told.
     private var floorClearance: Float {
-        rig.isCorporeal ? rig.crownHeight : Self.beadFloor
+        rig.isCorporeal ? 0 : rig.presentedSize * 0.5
     }
 
     /// How far in front of where the person was standing.
