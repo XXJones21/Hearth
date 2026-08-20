@@ -1453,7 +1453,7 @@ public final class PersonaRig: ObservableObject {
         return directions
     }()
 
-    /// Keep the flame moving, and the light breathing with it.    /// Keep the flame moving, and the light breathing with it.
+    /// Keep the flame moving, and the light breathing with it.
     ///
     /// The flicker is the whole reason this is not just a warm lamp. A fire's
     /// signature from across a room is not its shape -- it is that the light on

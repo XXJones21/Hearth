@@ -3,6 +3,7 @@ title: Persona Face (procedural_face)
 status: canonical
 last_reviewed: 2026-08-15
 related:
+  - persona-flame-spec.md
   - clients/desktop-client.md
   - architecture/harness/valar.md
   - architecture/engram-knowledge-system.md
