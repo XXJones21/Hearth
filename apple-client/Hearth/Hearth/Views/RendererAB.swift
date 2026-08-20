@@ -18,17 +18,22 @@ import SwiftUI
 
 /// Which persona renderer the stage is using.
 enum PersonaRenderer: String, CaseIterable, Identifiable {
-    /// The shipped SwiftUI Canvas orb.
-    case canvas
-    /// The headset's rig in a flat RealityView, lights off, embers kept.
+    /// Whatever the persona's own config asks for -- for Sulivan today, the
+    /// drawn face. The control, not a candidate.
+    case shipped
+    /// Route A: the flame drawn with vector primitives in a SwiftUI Canvas.
+    case canvasFire
+    /// Route B: the headset's rig in a flat RealityView, lights off, embers
+    /// kept.
     case reality
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .canvas:  return "Canvas orb"
-        case .reality: return "RealityKit fire"
+        case .shipped:    return "Shipped"
+        case .canvasFire: return "Canvas fire"
+        case .reality:    return "RealityKit fire"
         }
     }
 
@@ -70,7 +75,7 @@ struct FrameCostReadout: View {
 /// The switch itself. Sits on the stage rather than in Settings, because an
 /// A/B you have to go and find is an A/B nobody runs twice.
 struct RendererSwitch: View {
-    @AppStorage(PersonaRenderer.storageKey) private var raw = PersonaRenderer.canvas.rawValue
+    @AppStorage(PersonaRenderer.storageKey) private var raw = PersonaRenderer.shipped.rawValue
 
     var body: some View {
         VStack(spacing: 4) {

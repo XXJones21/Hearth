@@ -47,7 +47,7 @@ struct HearthMainView: View {
     /// INVESTIGATION BRANCH ONLY -- which persona renderer the stage uses.
     /// See RendererAB.swift.
     @AppStorage(PersonaRenderer.storageKey) private var investigateRenderer
-        = PersonaRenderer.canvas.rawValue
+        = PersonaRenderer.shipped.rawValue
 
     private var isIdle: Bool {
         stageState == .IDLE || stageState == .LOADING
@@ -245,7 +245,28 @@ struct HearthMainView: View {
                 // or a face whose geometry has not -- falls back to its orb
                 // rather than showing an empty volume, so Sage arrives with no
                 // code change.
-                if viewModel.personaVisualization.canRenderFace,
+                // INVESTIGATION BRANCH ONLY, and it is checked FIRST on
+                // purpose. The chain below picks a renderer from the persona's
+                // own config, and Sulivan's config says `procedural_face` --
+                // so an A/B appended to the END of it was unreachable for the
+                // exact persona it was built to compare. An override has to
+                // override.
+                if investigateRenderer == PersonaRenderer.canvasFire.rawValue {
+                    PersonaFlameCanvas(
+                        state: stageState,
+                        pulse: Double(viewModel.ttsAmplitude),
+                        date: .now,
+                        reducedMotion: reduceMotion,
+                        palette: viewModel.personaPalette
+                    )
+                } else if investigateRenderer == PersonaRenderer.reality.rawValue {
+                    PersonaFlameView(
+                        state: stageState,
+                        level: viewModel.ttsAmplitude,
+                        palette: viewModel.personaPalette,
+                        visualization: viewModel.personaVisualization
+                    )
+                } else if viewModel.personaVisualization.canRenderFace,
                    let faceGeometry = viewModel.personaVisualization.faceGeometry {
                     PersonaFaceView(
                         geometry: faceGeometry,
@@ -257,17 +278,6 @@ struct HearthMainView: View {
                     PersonaModelView(
                         visualization: viewModel.personaVisualization,
                         state: stageState
-                    )
-                } else if investigateRenderer == PersonaRenderer.reality.rawValue {
-                    // INVESTIGATION BRANCH ONLY. The A/B for whether the phone
-                    // should draw Sulivan's fire in SwiftUI or host the
-                    // headset's rig. See RendererAB.swift; this branch and its
-                    // switch leave together.
-                    PersonaFlameView(
-                        state: stageState,
-                        level: viewModel.ttsAmplitude,
-                        palette: viewModel.personaPalette,
-                        visualization: viewModel.personaVisualization
                     )
                 } else {
                     PersonaCanvasView(

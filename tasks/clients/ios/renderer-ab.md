@@ -57,10 +57,30 @@ rebuild and a particle simulator running behind a conversation is a very
 different proposition to a `Canvas`, and the phone is where that shows up first
 -- battery, thermals, and what happens to the audio path under load.
 
+## A bug worth recording, found on the first device run
+
+The switch appeared and did nothing, and the reason was the branch ORDER.
+
+`HearthMainView` picks a renderer from the persona's own config -- face, then
+model, then orb -- and the A/B was appended to the END of that chain. Sulivan's
+shipped config is `procedural_face` **with** geometry, so `canRenderFace` is
+true and the first branch always won. The override was unreachable for the exact
+persona it existed to compare.
+
+**An override has to override.** The toggle is now checked before the
+config-driven chain, and `shipped` is the control case rather than one of the
+candidates -- which also makes the picker honest, since "whatever the config
+says" is a third thing and not the same as "the Canvas orb".
+
 ## What is on the branch
 
+- `Core/Sources/HearthUI/Persona/FlameProfile.swift` -- the flame's shape as
+  pure arithmetic, lifted from `FlameMesh`. Duplicated rather than shared
+  because HearthUI must not depend on RealityKit; what is copied is a page of
+  trigonometry with no platform in it.
+- `Core/Sources/HearthUI/Persona/PersonaFlameCanvas.swift` -- route A.
 - `Hearth/Views/PersonaFlameView.swift` -- route B.
-- `Hearth/Views/RendererAB.swift` -- a segmented switch on the stage plus a
+- `Hearth/Views/RendererAB.swift` -- a three-way switch on the stage plus a
   rolling frame-time readout. The switch is `@AppStorage`-backed so a decision
   survives a relaunch, and it sits ON the stage rather than in Settings because
   an A/B you have to go and find is an A/B nobody runs twice.
