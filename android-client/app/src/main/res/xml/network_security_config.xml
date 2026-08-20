@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext ws:// and http:// to the house. Valar terminates no TLS, so a LAN
+  address and a tailnet name both need this; the Echo Show client learned it
+  the hard way ("CLEARTEXT communication not permitted"). Scoped to private
+  ranges and the tailnet rather than opened globally.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- LAN -->
+        <domain includeSubdomains="true">10.0.0.0</domain>
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <!-- Tailnet. Always the FULL name: short names fail, as iOS ATS
+             proved when the Mac client could not resolve them. -->
+        <domain includeSubdomains="true">tail22b3ca.ts.net</domain>
+    </domain-config>
+</network-security-config>
