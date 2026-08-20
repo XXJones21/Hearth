@@ -60,10 +60,17 @@ import kotlinx.coroutines.delay
  * what makes it read as one surface rearranging rather than two layouts
  * swapping.
  *
- * **The caption expires.** A reply that stays up forever holds the persona in
- * its raised position forever, which on a screen this size means the stage
- * never returns to rest. Thirty seconds after the house stops talking, if
- * nothing follows, the caption goes and the persona settles back to centre.
+ * **The turn's leftovers expire, in order.** Anything still showing holds the
+ * persona in its raised position, which on a screen this size means the stage
+ * never returns to rest. So thirty seconds after the house stops talking the
+ * caption goes, and thirty after that the card follows -- words first, because
+ * the caption is what a turn SAID and the card is what it LEFT, and the thing
+ * left behind should outlive the sentence about it. Then the persona settles
+ * back to centre.
+ *
+ * The exception is a timer still counting: that is the whole reason a card is
+ * worth putting on a closed phone, so its grace period ends when the timer
+ * does rather than on a clock of its own.
  *
  * The expiry is deliberately NOT in the ViewModel: the inner display shows the
  * last reply at rest on purpose, matching iOS, and it has the room to. This is
@@ -81,24 +88,39 @@ fun CoverStage(
     ttsAmplitude: Float,
     onChoice: (String) -> Unit,
 ) {
-    // What the caption looks like to THIS screen: present until it goes stale.
-    // Keyed on the text so a new reply always arrives visible, and on the state
-    // so the countdown restarts when a turn begins.
+    // What the turn's leftovers look like to THIS screen: present until they
+    // go stale, and they go stale IN ORDER. The caption is what a turn just
+    // said and the card is what it left behind, so the words clear first and
+    // the thing outlives them -- then it goes too and the stage is at rest.
+    //
+    // One effect rather than two so the second delay starts where the first
+    // ended. Keyed on the turn's own contents, so a new reply or a new card
+    // brings both back and restarts the sequence.
     var captionFresh by remember { mutableStateOf(true) }
-    LaunchedEffect(caption, state) {
-        if (caption.isNullOrBlank()) return@LaunchedEffect
+    var cardFresh by remember { mutableStateOf(true) }
+    LaunchedEffect(state, caption, card?.id) {
         captionFresh = true
+        cardFresh = true
         // Only run the clock once the house has stopped talking. Counting
-        // during the reply would expire a long answer while it was still
-        // being spoken.
-        if (state == HearthState.IDLE) {
-            delay(CAPTION_LIFE_MS)
-            captionFresh = false
-        }
+        // during the reply would expire a long answer mid-sentence.
+        if (state != HearthState.IDLE) return@LaunchedEffect
+
+        delay(CAPTION_LIFE_MS)
+        captionFresh = false
+
+        delay(CARD_GRACE_MS)
+        // A COUNTDOWN STILL RUNNING IS THE EXCEPTION, and it is the whole
+        // reason a card is worth putting on a closed phone: a timer you can
+        // read without opening it. Clearing one at sixty seconds would take
+        // the card away while the thing it is counting has not happened yet.
+        // So the grace period ends when the timer does.
+        while (card != null && stillCounting(card)) delay(1_000)
+        cardFresh = false
     }
 
     val showCaption = !caption.isNullOrBlank() && captionFresh
-    val busy = showCaption || card != null
+    val showCard = card != null && cardFresh
+    val busy = showCaption || showCard
 
     // -1 is the top of the box, 0 its middle. The persona rides between them
     // rather than being re-parented, so nothing about it is torn down and
@@ -176,7 +198,7 @@ fun CoverStage(
         // strongest case for a card on a closed phone -- a countdown you can
         // read without opening it -- and a dashboard is the weakest, so the
         // ceiling is deliberately tight.
-        if (card != null) {
+        if (showCard && card != null) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -216,8 +238,23 @@ fun CoverStage(
     }
 }
 
-/** Thirty seconds of nothing following, and the stage returns to rest. */
+/** Thirty seconds of nothing following, and the words go. */
 private const val CAPTION_LIFE_MS = 30_000L
+
+/** Then the card gets its own thirty, so the two do not vanish together. */
+private const val CARD_GRACE_MS = 30_000L
+
+/**
+ * Whether a card is still counting toward something.
+ *
+ * Only timers can be, and they say so: each carries `fire_at` as an epoch
+ * second. A card with a timer that has not fired yet is the one thing on this
+ * screen worth outstaying its welcome.
+ */
+private fun stillCounting(card: CardDescriptor): Boolean {
+    val now = System.currentTimeMillis()
+    return card.objList("timers").any { it.optLong("fire_at") * 1000 > now }
+}
 
 /**
  * Below this, the client is on the cover screen rather than the inner one.
