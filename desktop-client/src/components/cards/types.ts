@@ -83,7 +83,9 @@ export type GridCell = {
 };
 
 export type GeneratedViewSection =
-  | { kind: 'text'; body: string }
+  /* `heading` (2026-08-20): memory/journal cards send headed blocks that
+     render like journal-page sections; absent = plain body text. */
+  | { kind: 'text'; body: string; heading?: string }
   | { kind: 'stat'; label: string; value: string }
   | { kind: 'stat_row'; stats: { label: string; value: string }[] }
   | { kind: 'image'; src: string }
