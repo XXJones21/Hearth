@@ -91,21 +91,32 @@ class HearthWebSocketClient(
         return s.send(payload.toString())
     }
 
-    /** The handshake. Sent the moment the socket opens. */
+    /**
+     * The handshake. Sent the moment the socket opens.
+     *
+     * Capabilities are NESTED, as iOS sends them: the house reads
+     * `cmd.get("capabilities")` and gates features on what it finds there.
+     * The first Android cut put these flags at the top level, so the house
+     * saw an empty capability set and never emitted a single card, silently
+     * and with the voice working perfectly.
+     */
     fun sendClientInfo(deviceContext: JSONObject) {
+        val capabilities = JSONObject()
+            .put("audio", true)
+            .put("spatial", false)
+            .put("voice_input", true)
+            .put("text_input", true)
+            .put("vision", false)
+            // STT is on-device, as on iOS: audio never leaves the phone,
+            // only the text does.
+            .put("stt", "local")
+            .put("stt_engine", "android_speech")
+            .put("ui_render", true)
         send(
             JSONObject()
                 .put("action", "client_info")
                 .put("platform", "android")
-                .put("audio", true)
-                .put("voice", true)
-                .put("text", true)
-                .put("vision", false)
-                .put("ui_render", true)
-                // STT is on-device, as on iOS: audio never leaves the phone,
-                // only the text does.
-                .put("stt", "local")
-                .put("stt_engine", "android_speech")
+                .put("capabilities", capabilities)
                 .put("device_context", deviceContext)
         )
     }

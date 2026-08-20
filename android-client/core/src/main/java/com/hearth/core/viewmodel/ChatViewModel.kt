@@ -2,6 +2,7 @@ package com.hearth.core.viewmodel
 
 import android.util.Log
 import com.hearth.core.audio.SpeechRecognitionManager
+import com.hearth.core.cards.CardStore
 import com.hearth.core.audio.TtsStreamPlayer
 import com.hearth.core.config.ServerConfig
 import com.hearth.core.models.ChatMessage
@@ -100,6 +101,9 @@ class ChatViewModel(
     /** The persona's colours per state; the face and the orb share them. */
     private val _palette = MutableStateFlow(PersonaPalette.fallback)
     val palette: StateFlow<PersonaPalette> = _palette.asStateFlow()
+
+    /** The cards the house has drawn this session, oldest first. */
+    val cardStore = CardStore(scope)
 
     /** Tools running this turn, from pipeline_stage. The status bar reads them. */
     private val _activeTools = MutableStateFlow<List<String>>(emptyList())
@@ -363,6 +367,12 @@ class ChatViewModel(
 
     fun switchPersona(name: String) = socket.switchPersona(name)
 
+    /**
+     * A choice chip was picked. It is re-sent as the person's own turn, so
+     * the conversation reads as though they said the word themselves.
+     */
+    fun pickChoice(option: String) = sendText(option)
+
     fun newSession() = socket.newSession()
 
     /**
@@ -435,6 +445,8 @@ class ChatViewModel(
                 // of the pipeline is the house's business.
                 _activeTools.value = if (event.stage == "tools") event.tools else emptyList()
 
+            is HearthEvent.UiComponent -> cardStore.apply(event.payload)
+
             is HearthEvent.StateUpdate -> handleStateUpdate(event.state, event.stage)
 
             is HearthEvent.PersonasList -> {
@@ -467,6 +479,7 @@ class ChatViewModel(
 
             is HearthEvent.SessionEnded -> {
                 _messages.value = emptyList()
+                cardStore.clearAll()
                 _state.value = HearthState.IDLE
             }
 

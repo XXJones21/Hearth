@@ -46,7 +46,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalDensity
+import com.hearth.app.ui.cards.DynamicCard
 import com.hearth.app.ui.persona.PersonaFace
+import com.hearth.core.cards.CardDescriptor
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
 import com.hearth.core.persona.PersonaPalette
@@ -85,10 +90,12 @@ fun HearthMainScreen(
     faceGeometry: FaceGeometry?,
     faceCue: Pair<String, Long>?,
     caption: String?,
+    cards: List<CardDescriptor>,
     ttsAmplitude: Float,
     micLevel: Float,
     partialTranscript: String?,
     transcriptShown: Boolean,
+    onChoice: (String) -> Unit,
     onSend: (String) -> Unit,
     onTalk: () -> Unit,
     onStageTap: () -> Unit,
@@ -122,6 +129,12 @@ fun HearthMainScreen(
                 val stageHeightPx = constraints.maxHeight.toFloat()
                 PersonaStage(
                     stageHeightPx = stageHeightPx,
+                    // Collapsed, the stage is the ONLY surface, so the newest
+                    // card stays put after the turn ends. Expanded, the feed
+                    // below is holding it and two copies on one screen is the
+                    // redundancy iOS removed.
+                    stageCard = cards.lastOrNull(),
+                    onChoice = onChoice,
                     state = state,
                     connected = connected,
                     palette = palette,
@@ -135,7 +148,12 @@ fun HearthMainScreen(
             }
 
             AnimatedVisibility(visible = transcriptShown) {
-                Timeline(messages = messages, modifier = Modifier.fillMaxWidth())
+                Timeline(
+                    messages = messages,
+                    cards = cards,
+                    onChoice = onChoice,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             HouseStatusBar(
@@ -182,6 +200,8 @@ fun HearthMainScreen(
 @Composable
 private fun PersonaStage(
     stageHeightPx: Float,
+    stageCard: CardDescriptor?,
+    onChoice: (String) -> Unit,
     state: HearthState,
     connected: Boolean,
     palette: PersonaPalette,
@@ -243,8 +263,26 @@ private fun PersonaStage(
             // last reply quite happily: the iOS stage at rest shows the clock
             // above the persona AND the caption below it. What displaces the
             // clock is a CARD, not a caption.
-            if (isIdle) {
+            if (isIdle && stageCard == null) {
                 IdleClock(modifier = Modifier.align(Alignment.TopCenter))
+            }
+        }
+
+        // The card takes a bounded share and scrolls inside it. It must never
+        // take so much that the persona is squeezed out: the visualization is
+        // the point of the stage and stays visible at all times.
+        if (stageCard != null) {
+            val ceiling = with(LocalDensity.current) {
+                (stageHeightPx * (if (transcriptShown) 0.34f else 0.46f)).toDp()
+            }
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .widthIn(max = 460.dp)
+                    .heightIn(max = ceiling)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                DynamicCard(card = stageCard, onChoice = onChoice)
             }
         }
 
@@ -307,11 +345,38 @@ private fun IdleClock(modifier: Modifier = Modifier) {
     }
 }
 
+/** One row of the feed: a spoken line or a card the house drew. */
+private sealed interface FeedEntry {
+    val at: Long
+    val key: String
+
+    data class Line(val message: ChatMessage) : FeedEntry {
+        override val at get() = message.timestamp
+        override val key get() = "m-${message.id}"
+    }
+
+    data class Card(val card: CardDescriptor) : FeedEntry {
+        override val at get() = card.receivedAt
+        override val key get() = "c-${card.id}"
+    }
+}
+
 @Composable
-private fun Timeline(messages: List<ChatMessage>, modifier: Modifier = Modifier) {
+private fun Timeline(
+    messages: List<ChatMessage>,
+    cards: List<CardDescriptor>,
+    onChoice: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Messages and cards INTERLEAVED by arrival, as iOS does: a card belongs
+    // where it happened in the conversation, not in a separate tray.
+    val feed = remember(messages, cards) {
+        (messages.map(FeedEntry::Line) + cards.map(FeedEntry::Card))
+            .sortedBy { it.at }
+    }
     val listState = rememberLazyListState()
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    LaunchedEffect(feed.size) {
+        if (feed.isNotEmpty()) listState.animateScrollToItem(feed.lastIndex)
     }
     LazyColumn(
         state = listState,
@@ -319,7 +384,12 @@ private fun Timeline(messages: List<ChatMessage>, modifier: Modifier = Modifier)
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(messages, key = { it.id }) { MessageRow(it) }
+        items(feed, key = { it.key }) { entry ->
+            when (entry) {
+                is FeedEntry.Line -> MessageRow(entry.message)
+                is FeedEntry.Card -> DynamicCard(entry.card, onChoice = onChoice)
+            }
+        }
     }
 }
 

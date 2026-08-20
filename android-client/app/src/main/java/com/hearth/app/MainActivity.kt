@@ -112,6 +112,7 @@ class MainActivity : ComponentActivity() {
                         val micLevel by viewModel.micLevel.collectAsState()
                         val partial by viewModel.partialTranscript.collectAsState()
                         val tools by viewModel.activeTools.collectAsState()
+                        val cards by viewModel.cardStore.cards.collectAsState()
                         val palette by viewModel.palette.collectAsState()
                         val faceGeometry by viewModel.faceGeometry.collectAsState()
                         val faceCue by viewModel.faceCue.collectAsState()
@@ -215,10 +216,12 @@ class MainActivity : ComponentActivity() {
                                     faceGeometry = faceGeometry,
                                     faceCue = faceCue,
                                     caption = caption,
+                                    cards = cards,
                                     ttsAmplitude = ttsLevel,
                                     micLevel = micLevel,
                                     partialTranscript = partial,
                                     transcriptShown = transcriptShown,
+                                    onChoice = viewModel::pickChoice,
                                     onSend = viewModel::sendText,
                                     onTalk = {
                                         if (hasMic()) viewModel.toggleListening()
