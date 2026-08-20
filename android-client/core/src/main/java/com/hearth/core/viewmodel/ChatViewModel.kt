@@ -264,6 +264,13 @@ class ChatViewModel(
 
     fun newSession() = socket.newSession()
 
+    /**
+     * Reopen a past conversation. The house answers with session_ended (the
+     * wipe) then session_resumed (the turns), so the transcript repaints
+     * rather than appending to whatever was on screen.
+     */
+    fun resumeSession(sessionId: String) = socket.resumeSession(sessionId = sessionId)
+
     // ---- events -----------------------------------------------------------
 
     private fun handle(event: HearthEvent) {

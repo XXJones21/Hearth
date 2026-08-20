@@ -15,11 +15,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import com.hearth.app.ui.FirstRunScreen
 import com.hearth.app.ui.HearthMainScreen
+import com.hearth.app.ui.HouseDestination
+import com.hearth.app.ui.HouseShelf
+import com.hearth.app.ui.surfaces.AppsScreen
+import com.hearth.app.ui.surfaces.JournalScreen
+import com.hearth.app.ui.surfaces.PersonaScreen
+import com.hearth.app.ui.surfaces.SessionsScreen
+import com.hearth.app.ui.surfaces.SettingsScreen
+import com.hearth.core.config.Pairing
+import kotlinx.coroutines.launch
 import androidx.core.content.ContextCompat
 import com.hearth.core.audio.SpeechRecognitionManager
 import com.hearth.core.audio.TtsStreamPlayer
@@ -88,24 +101,86 @@ class MainActivity : ComponentActivity() {
                         val faceGeometry by viewModel.faceGeometry.collectAsState()
                         val faceCue by viewModel.faceCue.collectAsState()
 
-                        HearthMainScreen(
-                            state = state,
-                            connected = connected,
-                            personaName = persona,
-                            thinkingStage = stage,
-                            messages = messages,
-                            palette = palette,
-                            faceGeometry = faceGeometry,
-                            faceCue = faceCue,
-                            caption = caption,
-                            audioLevel = level,
-                            partialTranscript = partial,
-                            onSend = viewModel::sendText,
-                            onMic = {
-                                if (hasMic()) viewModel.toggleListening()
-                                else micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                            },
-                        )
+                        val personas by viewModel.personas.collectAsState()
+                        val drawerState = rememberDrawerState(DrawerValue.Closed)
+                        val scope = rememberCoroutineScope()
+                        var destination by remember {
+                            mutableStateOf<HouseDestination?>(null)
+                        }
+
+                        // A surface is a full-screen visit, as on iOS: the
+                        // stage stays underneath and Back returns to it.
+                        when (destination) {
+                            HouseDestination.SESSIONS -> SessionsScreen(
+                                config = config,
+                                onResume = { id ->
+                                    viewModel.resumeSession(id)
+                                    destination = null
+                                },
+                                onBack = { destination = null },
+                            )
+
+                            HouseDestination.JOURNAL ->
+                                JournalScreen(config) { destination = null }
+
+                            HouseDestination.APPS ->
+                                AppsScreen(config) { destination = null }
+
+                            HouseDestination.PERSONA ->
+                                PersonaScreen(config) { destination = null }
+
+                            HouseDestination.SETTINGS -> SettingsScreen(
+                                config = config,
+                                onForget = {
+                                    Pairing.forget(config)
+                                    destination = null
+                                    ready = false
+                                },
+                                onBack = { destination = null },
+                            )
+
+                            null -> ModalNavigationDrawer(
+                                drawerState = drawerState,
+                                drawerContent = {
+                                    HouseShelf(
+                                        personas = personas,
+                                        currentPersona = persona,
+                                        onPersona = {
+                                            viewModel.switchPersona(it)
+                                            scope.launch { drawerState.close() }
+                                        },
+                                        onOpen = {
+                                            destination = it
+                                            scope.launch { drawerState.close() }
+                                        },
+                                        onNewSession = {
+                                            viewModel.newSession()
+                                            scope.launch { drawerState.close() }
+                                        },
+                                    )
+                                },
+                            ) {
+                                HearthMainScreen(
+                                    state = state,
+                                    connected = connected,
+                                    personaName = persona,
+                                    thinkingStage = stage,
+                                    messages = messages,
+                                    palette = palette,
+                                    faceGeometry = faceGeometry,
+                                    faceCue = faceCue,
+                                    caption = caption,
+                                    audioLevel = level,
+                                    partialTranscript = partial,
+                                    onSend = viewModel::sendText,
+                                    onMic = {
+                                        if (hasMic()) viewModel.toggleListening()
+                                        else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                                    },
+                                    onShelf = { scope.launch { drawerState.open() } },
+                                )
+                            }
+                        }
                     }
                 }
             }

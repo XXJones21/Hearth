@@ -64,6 +64,7 @@ fun HearthMainScreen(
     partialTranscript: String?,
     onSend: (String) -> Unit,
     onMic: () -> Unit,
+    onShelf: () -> Unit,
 ) {
     // The IME resizes the whole stage, not just the composer: padding an
     // inner row instead squeezes the timeline to nothing while the keyboard
@@ -75,6 +76,16 @@ fun HearthMainScreen(
             .navigationBarsPadding()
             .statusBarsPadding()
     ) {
+
+        // The house lives behind one affordance, as the iOS drawer does.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = onShelf) { Text("House") }
+        }
 
         // ---- the stage: persona plus status ----
         Box(
