@@ -1,6 +1,8 @@
 package com.hearth.core.viewmodel
 
 import android.util.Log
+import com.hearth.core.audio.SpeechRecognitionManager
+import com.hearth.core.audio.TtsStreamPlayer
 import com.hearth.core.config.ServerConfig
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
@@ -33,6 +35,8 @@ class ChatViewModel(
     private val config: ServerConfig,
     private val scope: CoroutineScope,
     private val socket: HearthWebSocketClient = HearthWebSocketClient(config),
+    private val player: TtsStreamPlayer? = null,
+    private val speech: SpeechRecognitionManager? = null,
 ) {
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -63,13 +67,145 @@ class ChatViewModel(
     private var reconnectAttempt = 0
     private var inBackground = false
 
+    /** Caption for the sentence being heard right now, in playback time. */
+    private val _caption = MutableStateFlow<String?>(null)
+    val caption: StateFlow<String?> = _caption.asStateFlow()
+
+    /** Face cue for the sentence being heard, released by the karaoke clock. */
+    private val _faceCue = MutableStateFlow<Pair<String, Long>?>(null)
+    val faceCue: StateFlow<Pair<String, Long>?> = _faceCue.asStateFlow()
+
+    /** Speech amplitude while the house talks; mic level while it listens. */
+    private val _audioLevel = MutableStateFlow(0f)
+    val audioLevel: StateFlow<Float> = _audioLevel.asStateFlow()
+
+    /** What the mic has heard so far, for the composer. */
+    private val _partialTranscript = MutableStateFlow<String?>(null)
+    val partialTranscript: StateFlow<String?> = _partialTranscript.asStateFlow()
+
+    /**
+     * Captions and face cues parked by segment index, released when that
+     * segment's audio is actually heard. The house pushes a whole reply in a
+     * second or two while speaking it takes far longer, so these wait.
+     */
+    private val captionsBySegment = mutableMapOf<Int, String>()
+    private val expressionsBySegment = mutableMapOf<Int, String>()
+
+    /**
+     * A reply the operator cut off. Late segments of a killed turn must not
+     * reopen SPEAKING, which is what this flag prevents.
+     */
+    private var speechInterrupted = false
+
+    private var listenJob: Job? = null
+
     init {
         // The handshake is the client's first word; without it the house
         // never sends client_info_ack and the turn machine never starts.
         socket.onOpen = { sendHandshake() }
+
+        player?.onSegmentPlaying = { idx ->
+            // removeValue: each cue is one-shot, as on iOS.
+            captionsBySegment.remove(idx)?.let { _caption.value = it }
+            expressionsBySegment.remove(idx)?.let {
+                _faceCue.value = it to System.currentTimeMillis()
+            }
+        }
+        player?.onAmplitude = { level ->
+            if (_state.value == HearthState.SPEAKING) _audioLevel.value = level
+        }
+        player?.onPlaybackComplete = {
+            _caption.value = null
+            if (_state.value == HearthState.SPEAKING) {
+                _state.value = HearthState.IDLE
+                // Post-speak listening window, unless the turn was cut off.
+                if (!speechInterrupted) startListening(POST_SPEAK_WINDOW_MS)
+            }
+        }
+
+        speech?.onPartialResult = { _partialTranscript.value = it }
+        speech?.onLevel = { level ->
+            if (_state.value == HearthState.LISTENING) _audioLevel.value = level
+        }
+        speech?.onFinalResult = { text ->
+            _partialTranscript.value = null
+            listenJob?.cancel()
+            if (text.isNotBlank()) {
+                appendMessage(ChatMessage(role = ChatMessage.Role.USER, text = text))
+                _state.value = HearthState.THINKING
+                socket.sendClientTranscription(text)
+            } else {
+                _state.value = HearthState.IDLE
+            }
+        }
+        speech?.onError = { message ->
+            _partialTranscript.value = null
+            listenJob?.cancel()
+            _state.value = HearthState.IDLE
+            appendMessage(ChatMessage(role = ChatMessage.Role.SYSTEM, text = message))
+        }
+
         scope.launch {
             socket.events.collect { handle(it) }
         }
+    }
+
+    // ---- voice ------------------------------------------------------------
+
+    /**
+     * The mic button. During SPEAKING this is barge-in: the reply is cut off
+     * and the turn becomes a listening one, exactly as on iOS.
+     */
+    fun toggleListening() {
+        when (_state.value) {
+            HearthState.SPEAKING -> {
+                interruptSpeaking()
+                startListening(INITIAL_WINDOW_MS)
+            }
+
+            HearthState.LISTENING -> {
+                // A second tap commits what has been heard rather than
+                // waiting out the silence timer.
+                if (speech?.finishAndCommit() != true) {
+                    listenJob?.cancel()
+                    _state.value = HearthState.IDLE
+                }
+            }
+
+            HearthState.IDLE -> startListening(INITIAL_WINDOW_MS)
+
+            else -> Unit
+        }
+    }
+
+    private fun startListening(windowMs: Long) {
+        val stt = speech ?: return
+        speechInterrupted = false
+        _state.value = HearthState.LISTENING
+        _partialTranscript.value = null
+        stt.start()
+        listenJob?.cancel()
+        listenJob = scope.launch {
+            delay(windowMs)
+            // The window closed with nothing said: stand down quietly rather
+            // than holding the mic open forever.
+            if (_state.value == HearthState.LISTENING) {
+                stt.stop()
+                _state.value = HearthState.IDLE
+                _audioLevel.value = 0f
+            }
+        }
+    }
+
+    /** Cut off a reply in flight. */
+    fun interruptSpeaking() {
+        speechInterrupted = true
+        player?.stop()
+        captionsBySegment.clear()
+        expressionsBySegment.clear()
+        _caption.value = null
+        _audioLevel.value = 0f
+        _state.value = HearthState.IDLE
     }
 
     // ---- lifecycle --------------------------------------------------------
@@ -88,8 +224,12 @@ class ChatViewModel(
         inBackground = true
         stopKeepalive()
         reconnectJob?.cancel()
+        listenJob?.cancel()
+        speech?.stop()
+        player?.stop()
         socket.disconnect()
         _connected.value = false
+        _audioLevel.value = 0f
     }
 
     fun enterForeground() {
@@ -132,14 +272,42 @@ class ChatViewModel(
                 if (event.persona.isNotEmpty()) _personaName.value = event.persona
                 appendMessage(ChatMessage(role = ChatMessage.Role.AI, text = event.text))
                 _thinkingStage.value = null
-                // SPEAKING is owned by the audio path; with no player wired
-                // yet a text turn closes here.
-                if (_state.value == HearthState.THINKING) _state.value = HearthState.IDLE
+                // SPEAKING is owned by the audio path, so a reply that will be
+                // spoken leaves the state alone: tts_chunk_start moves it, and
+                // playback completion moves it back.
+                if (_state.value == HearthState.THINKING && player == null) {
+                    _state.value = HearthState.IDLE
+                }
             }
 
             is HearthEvent.ErrorMessage -> {
                 appendMessage(ChatMessage(role = ChatMessage.Role.SYSTEM, text = event.text))
                 _thinkingStage.value = null
+                _state.value = HearthState.IDLE
+            }
+
+            is HearthEvent.TtsChunkStart -> {
+                if (speechInterrupted) return
+                _state.value = HearthState.SPEAKING
+                _thinkingStage.value = null
+                player?.startStream(event.sampleRate)
+                player?.segmentStarted(event.segIdx)
+                // Parked, not shown: both wait for this segment's audio.
+                event.text?.let { captionsBySegment[event.segIdx] = it }
+                event.expression?.let { expressionsBySegment[event.segIdx] = it }
+            }
+
+            is HearthEvent.PcmChunk -> {
+                if (!speechInterrupted) player?.receivePcmChunk(event.bytes)
+            }
+
+            is HearthEvent.SpeakingComplete -> {
+                if (!speechInterrupted) player?.markSpeakingComplete()
+            }
+
+            is HearthEvent.TtsError -> {
+                appendMessage(ChatMessage(role = ChatMessage.Role.SYSTEM, text = event.text))
+                player?.stop()
                 _state.value = HearthState.IDLE
             }
 
@@ -269,6 +437,12 @@ class ChatViewModel(
         private const val TAG = "ChatViewModel"
         private const val KEEPALIVE_MS = 20_000L
         private const val MAX_BACKOFF_MS = 30_000.0
+
+        /** How long the mic stays open when a turn is started deliberately. */
+        private const val INITIAL_WINDOW_MS = 15_000L
+
+        /** The shorter window offered after the house finishes speaking. */
+        private const val POST_SPEAK_WINDOW_MS = 5_000L
         const val DEFAULT_PERSONA = "Sulivan"
     }
 }

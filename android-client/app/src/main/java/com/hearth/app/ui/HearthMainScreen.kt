@@ -53,7 +53,11 @@ fun HearthMainScreen(
     personaName: String,
     thinkingStage: String?,
     messages: List<ChatMessage>,
+    caption: String?,
+    audioLevel: Float,
+    partialTranscript: String?,
     onSend: (String) -> Unit,
+    onMic: () -> Unit,
 ) {
     // The IME resizes the whole stage, not just the composer: padding an
     // inner row instead squeezes the timeline to nothing while the keyboard
@@ -74,10 +78,12 @@ fun HearthMainScreen(
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Placeholder for the persona face (phase 3).
+                // Placeholder for the persona face (phase 3). The size rides
+                // the audio level so speech and listening are visible before
+                // the real face exists.
                 Box(
                     modifier = Modifier
-                        .size(140.dp)
+                        .size((140 + (audioLevel * 30f)).dp)
                         .clip(CircleShape)
                         .background(
                             if (connected) MaterialTheme.colorScheme.primaryContainer
@@ -95,6 +101,29 @@ fun HearthMainScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+
+                // The karaoke caption: the sentence being HEARD right now,
+                // released by playback position rather than arrival.
+                caption?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    )
+                }
+
+                // What the mic has heard so far, while it is still hearing it.
+                partialTranscript?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    )
+                }
             }
         }
 
@@ -114,7 +143,7 @@ fun HearthMainScreen(
             items(messages, key = { it.id }) { MessageRow(it) }
         }
 
-        Composer(onSend = onSend)
+        Composer(state = state, onSend = onSend, onMic = onMic)
     }
 }
 
@@ -151,7 +180,11 @@ private fun MessageRow(message: ChatMessage) {
  * text field is the whole turn.
  */
 @Composable
-private fun Composer(onSend: (String) -> Unit) {
+private fun Composer(
+    state: HearthState,
+    onSend: (String) -> Unit,
+    onMic: () -> Unit,
+) {
     var draft by remember { mutableStateOf("") }
     Row(
         modifier = Modifier
@@ -166,13 +199,27 @@ private fun Composer(onSend: (String) -> Unit) {
             modifier = Modifier.weight(1f),
             maxLines = 4,
         )
-        TextButton(
-            enabled = draft.isNotBlank(),
-            onClick = {
-                onSend(draft)
-                draft = ""
-            },
-        ) { Text("Send") }
+        if (draft.isNotBlank()) {
+            TextButton(
+                onClick = {
+                    onSend(draft)
+                    draft = ""
+                },
+            ) { Text("Send") }
+        } else {
+            // The mic is the primary affordance, as on iOS: "Tap to talk"
+            // with the keyboard as the secondary path. During SPEAKING it is
+            // barge-in, and during LISTENING it commits early.
+            TextButton(onClick = onMic) {
+                Text(
+                    when (state) {
+                        HearthState.LISTENING -> "Stop"
+                        HearthState.SPEAKING -> "Interrupt"
+                        else -> "Talk"
+                    }
+                )
+            }
+        }
     }
 }
 
