@@ -252,49 +252,103 @@ public struct PersonaFlameCanvas: View {
         return path
     }
 
-    /// The idle plume. Deterministic per index, so a widget's single frame is
-    /// the same frame every client would have drawn.
+    /// The embers.
+    ///
+    /// REWRITTEN AFTER THE FIRST SIDE-BY-SIDE, where they read as a scatter of
+    /// crumbs around the mouth. Three faults, and only the last one was a
+    /// number:
+    ///
+    /// 1. **They were born at the axis.** Their sideways drift came from
+    ///    `FlameProfile.noise`, which is damped to nothing below `domeTop` --
+    ///    correct for a silhouette that must stay attached to its base, wrong
+    ///    for a particle, which spends its early life exactly there. Every
+    ///    ember therefore started on the centre line and stayed near it.
+    /// 2. **They were drawn INSIDE the body.** An opaque amber dot on a bright
+    ///    gold flame is mud. The headset never has this problem because its
+    ///    embers are additive: inside the fire they are indistinguishable from
+    ///    it, and outside they glow. Same fix here -- `plusLighter`.
+    /// 3. They were small and too few.
+    ///
+    /// So they are now born ACROSS the flame's upper body, rise past its tip,
+    /// and widen as they go -- which is what the plume does on the headset and
+    /// what makes it read as coming off a fire rather than sitting on one.
     private func drawEmbers(into ctx: GraphicsContext, flame: FlameProfile,
                             cx: Double, baseY: Double, elapsed: Double,
                             state: HearthState, pulse: Double) {
         guard !reducedMotion else { return }
-        let count = 18
-        // SPEAKING gathers them into a shell that pulses with the voice, which
-        // is what the headset's embers do -- see EmberField. The other states
-        // keep the rising plume; the difference between them is its speed and
-        // spread, which is the same distinction the emitter makes.
+        var ctx = ctx
+        // ADDITIVE, for the same reason the headset's are: adding light to
+        // light is order-independent, so nothing has to be sorted, and it is
+        // what fire actually does.
+        ctx.blendMode = .plusLighter
+
+        let count = 26
+        let sink = flame.radius * FlameProfile.domeDepth
         let speaking = state == .SPEAKING
         let listening = state == .LISTENING
-        let rise = listening ? 0.9 : 0.62
-        let spread = listening ? 0.55 : 1.0
 
         for i in 0..<count {
-            let seed = Double(i) * 12.9898
-            let r0 = seed.truncatingRemainder(dividingBy: 1.0)
-            let r1 = (seed * 1.7).truncatingRemainder(dividingBy: 1.0)
-            let life = 2.4 + r1 * 1.1
-            let t = ((elapsed * rise + r0 * life) / life).truncatingRemainder(dividingBy: 1.0)
+            let r0 = Self.hash(Double(i) * 1.13)
+            let r1 = Self.hash(Double(i) * 2.71 + 5.2)
+            let r2 = Self.hash(Double(i) * 4.37 + 11.9)
 
-            let x: Double, y: Double
+            let life = 2.2 + r1 * 1.4
+            // Listening draws the plume up faster and narrower; idle is slow
+            // and wide. The same distinction the emitter makes between the two.
+            let speed = listening ? 1.35 : 1.0
+            let t = (((elapsed * speed) / life) + r0).truncatingRemainder(dividingBy: 1.0)
+
+            var x: Double, y: Double, size: Double, alpha: Double
+
             if speaking {
-                // The shell, opened by the amplitude.
-                let angle = Double(i) / Double(count) * 2 * .pi
-                let shell = flame.radius * (1.7 + 0.85 * pulse)
+                // THE SHELL, opened by the voice -- the headset's speaking
+                // state in two dimensions. A ring rather than a plume, because
+                // what carries the amplitude is its RADIUS.
+                let angle = (Double(i) / Double(count)) * 2 * .pi + elapsed * 0.25
+                let shell = flame.radius * (1.55 + 0.95 * pulse) * (0.9 + r2 * 0.2)
                 x = cx + cos(angle) * shell
-                y = baseY - flame.height * 0.42 + sin(angle) * shell
+                y = baseY - sink - flame.height * 0.30 + sin(angle) * shell * 0.85
+                size = flame.radius * (0.05 + r2 * 0.03)
+                alpha = 0.55 + 0.45 * pulse
             } else {
-                let drift = FlameProfile.noise(angle: seed, height: t, phase: elapsed * 0.4)
-                x = cx + drift * flame.radius * 1.3 * spread
-                    + (r1 - 0.5) * flame.radius * 0.8 * spread
-                y = baseY - flame.height * (0.15 + t * 1.25)
+                // BORN ACROSS THE BODY, not on the axis. `r2` places the birth
+                // meridian and the silhouette gives the width there, so an
+                // ember starts somewhere on the fire rather than in the middle
+                // of it.
+                let birthV = 0.25 + r2 * 0.5
+                let halfWidth = flame.surface(at: birthV, angle: r2 * 6.28, phase: elapsed)
+                let birthX = cx + (r0 - 0.5) * 2 * halfWidth * 0.85
+                let birthY = baseY - (flame.rise(at: birthV) + sink)
+
+                // Rise past the tip, and WIDEN on the way -- a plume opens.
+                let climb = flame.height * (0.55 + r1 * 0.55) * t
+                let spread = flame.radius * (0.35 + r2 * 0.5) * t * t
+                let sway = sin(elapsed * (0.7 + r1) + Double(i)) * spread
+                x = birthX + sway
+                y = birthY - climb
+                // Shrink as they cool, which is what stops a fading dot leaving
+                // a ghost of its original size.
+                size = flame.radius * (0.055 + r1 * 0.045) * (1 - t * 0.75)
+                // In over the first fifth, out over the last half.
+                alpha = min(t / 0.2, 1) * (1 - FlameProfile.smoothstep(0.5, 1.0, t))
             }
-            let fade = speaking ? 1 - abs(0.5 - t) * 0.8 : (1 - t) * (1 - t)
-            let dot = flame.radius * 0.055 * (0.5 + r1 * 0.6) * (speaking ? 1 : (1 - t * 0.7))
+
+            // Hot at birth, cooling to ember red -- the ramp the kernel runs,
+            // with the middle taken out because a spark's whole life is short.
+            let colour = t < 0.5 ? Self.straw : Self.amber
             ctx.fill(
-                Path(ellipseIn: CGRect(x: x - dot, y: y - dot, width: dot * 2, height: dot * 2)),
-                with: .color(Self.amber.opacity(min(max(fade, 0), 1) * 0.85))
+                Path(ellipseIn: CGRect(x: x - size, y: y - size,
+                                       width: size * 2, height: size * 2)),
+                with: .color(colour.opacity(min(max(alpha, 0), 1) * 0.7))
             )
         }
+    }
+
+    /// The shader's own hash, so the field is the same field on every client
+    /// rather than merely a similar one.
+    private static func hash(_ x: Double) -> Double {
+        let v = sin(x * 12.9898) * 43758.5453
+        return v - v.rounded(.down)
     }
 
     /// Three sines at incommensurable rates -- the same correlation the rig

@@ -157,6 +157,43 @@ Also framed rather than scaled. `scaleEffect` shrinks stroke widths and blur
 radii along with the drawing; a frame lets the face lay out at the size it is
 actually shown, which is what its own geometry numbers are relative to.
 
+## Third run: both drawing, and the embers were the tell
+
+Side by side at last. Route B renders beautifully -- the fbm's striations are
+visible and are the thing a drawn flame cannot have. Route A reads as the same
+character: same silhouette, same ramp, same eyes.
+
+**Cost, for the first time meaningfully:** B at 18.2ms / 55fps against A at
+16.7ms / 60fps. That is the one case the readout CAN see -- a renderer heavy
+enough to drag the main thread pulls the switch's own timeline down with it. So
+the number is a real signal here even though it was meaningless when A was
+frozen.
+
+**The operator's read: the canvas has earned its keep.**
+
+### The embers, and why they were wrong
+
+They read as a scatter of crumbs around the mouth. Three faults, and only the
+last was a number:
+
+1. **They were born at the axis.** Their sideways drift came from
+   `FlameProfile.noise`, which is damped to nothing below `domeTop` -- correct
+   for a silhouette that must stay attached to its base, and wrong for a
+   particle, which spends its early life exactly there. Every ember started on
+   the centre line and stayed near it.
+2. **They were drawn inside the body.** An opaque amber dot on a bright gold
+   flame is mud. The headset never has this problem because its embers are
+   ADDITIVE: inside the fire they are indistinguishable from it, outside they
+   glow. The canvas now sets `plusLighter` for the same reason -- and it is the
+   third time in this project that additive blending has turned out to be the
+   correct answer rather than a stylistic one.
+3. Too small and too few.
+
+Now born ACROSS the upper body -- `r2` picks a birth meridian and the silhouette
+gives the width there -- rising past the tip and widening as they go, shrinking
+as they cool. Speaking keeps the shell, since what carries the amplitude is its
+radius.
+
 ## Decision, when it comes
 
 Whichever wins, **the loser does not stay.** Two persona renderers behind a
