@@ -101,6 +101,10 @@ class ChatViewModel(
     private val _palette = MutableStateFlow(PersonaPalette.fallback)
     val palette: StateFlow<PersonaPalette> = _palette.asStateFlow()
 
+    /** Tools running this turn, from pipeline_stage. The status bar reads them. */
+    private val _activeTools = MutableStateFlow<List<String>>(emptyList())
+    val activeTools: StateFlow<List<String>> = _activeTools.asStateFlow()
+
     /** Non-null only for a procedural_face persona that sent its numbers. */
     private val _faceGeometry = MutableStateFlow<FaceGeometry?>(null)
     val faceGeometry: StateFlow<FaceGeometry?> = _faceGeometry.asStateFlow()
@@ -245,6 +249,20 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * Throw away what the mic has heard without sending it. The stage tap
+     * does this while listening; the talk button SENDS, so the two gestures
+     * are not the same and must not share a path.
+     */
+    fun discardListening() {
+        if (_state.value != HearthState.LISTENING) return
+        listenJob?.cancel()
+        speech?.stop()
+        _partialTranscript.value = null
+        _micLevel.value = 0f
+        _state.value = HearthState.IDLE
+    }
+
     /** Cut off a reply in flight. */
     fun interruptSpeaking() {
         speechInterrupted = true
@@ -350,6 +368,7 @@ class ChatViewModel(
             }
 
             is HearthEvent.AiResponse -> {
+                _activeTools.value = emptyList()
                 if (event.persona.isNotEmpty()) _personaName.value = event.persona
                 appendMessage(ChatMessage(role = ChatMessage.Role.AI, text = event.text))
                 _thinkingStage.value = null
@@ -391,6 +410,11 @@ class ChatViewModel(
                 player?.stop()
                 _state.value = HearthState.IDLE
             }
+
+            is HearthEvent.PipelineStage ->
+                // Only the tools stage carries names worth showing; the rest
+                // of the pipeline is the house's business.
+                _activeTools.value = if (event.stage == "tools") event.tools else emptyList()
 
             is HearthEvent.StateUpdate -> handleStateUpdate(event.state, event.stage)
 

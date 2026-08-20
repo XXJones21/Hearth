@@ -108,6 +108,7 @@ class MainActivity : ComponentActivity() {
                         val ttsLevel by viewModel.ttsAmplitude.collectAsState()
                         val micLevel by viewModel.micLevel.collectAsState()
                         val partial by viewModel.partialTranscript.collectAsState()
+                        val tools by viewModel.activeTools.collectAsState()
                         val palette by viewModel.palette.collectAsState()
                         val faceGeometry by viewModel.faceGeometry.collectAsState()
                         val faceCue by viewModel.faceCue.collectAsState()
@@ -118,6 +119,10 @@ class MainActivity : ComponentActivity() {
                         var destination by remember {
                             mutableStateOf<HouseDestination?>(null)
                         }
+                        // The transcript is opt-in, as on iOS: the resting
+                        // state is the stage alone, because history does not
+                        // need to be on screen while the persona is talking.
+                        var transcriptShown by remember { mutableStateOf(false) }
 
                         // A live turn holds the screen awake. Without this the
                         // display times out while the house is thinking, the
@@ -178,6 +183,11 @@ class MainActivity : ComponentActivity() {
                                             viewModel.newSession()
                                             scope.launch { drawerState.close() }
                                         },
+                                        transcriptShown = transcriptShown,
+                                        onToggleTranscript = {
+                                            transcriptShown = !transcriptShown
+                                            scope.launch { drawerState.close() }
+                                        },
                                     )
                                 },
                             ) {
@@ -185,7 +195,7 @@ class MainActivity : ComponentActivity() {
                                     state = state,
                                     connected = connected,
                                     personaName = persona,
-                                    thinkingStage = stage,
+                                    activeTools = tools,
                                     messages = messages,
                                     palette = palette,
                                     faceGeometry = faceGeometry,
@@ -194,10 +204,28 @@ class MainActivity : ComponentActivity() {
                                     ttsAmplitude = ttsLevel,
                                     micLevel = micLevel,
                                     partialTranscript = partial,
+                                    transcriptShown = transcriptShown,
                                     onSend = viewModel::sendText,
-                                    onMic = {
+                                    onTalk = {
                                         if (hasMic()) viewModel.toggleListening()
                                         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                                    },
+                                    // Three meanings, none of them the talk
+                                    // button's: quiet a reply, discard a
+                                    // partial, or start a turn.
+                                    onStageTap = {
+                                        when (state) {
+                                            HearthState.SPEAKING -> viewModel.interruptSpeaking()
+                                            HearthState.LISTENING -> viewModel.discardListening()
+                                            HearthState.IDLE ->
+                                                if (connected) {
+                                                    if (hasMic()) viewModel.toggleListening()
+                                                    else micPermission.launch(
+                                                        Manifest.permission.RECORD_AUDIO
+                                                    )
+                                                }
+                                            else -> Unit
+                                        }
                                     },
                                     onShelf = { scope.launch { drawerState.open() } },
                                 )

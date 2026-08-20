@@ -33,6 +33,8 @@ fun HouseShelf(
     onPersona: (String) -> Unit,
     onOpen: (HouseDestination) -> Unit,
     onNewSession: () -> Unit,
+    transcriptShown: Boolean,
+    onToggleTranscript: () -> Unit,
 ) {
     ModalDrawerSheet {
         Column(
@@ -58,6 +60,11 @@ fun HouseShelf(
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
             ShelfRow(label = "New conversation", onClick = onNewSession)
+            ShelfRow(
+                label = "Chat log",
+                trailing = if (transcriptShown) "Shown" else "Hidden",
+                onClick = onToggleTranscript,
+            )
             for (destination in HouseDestination.entries) {
                 ShelfRow(label = destination.label, onClick = { onOpen(destination) })
             }

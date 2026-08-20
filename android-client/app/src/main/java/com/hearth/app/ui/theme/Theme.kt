@@ -73,12 +73,15 @@ private val HearthLight = lightColorScheme(
 )
 
 /**
- * Dark by default, and not by system preference: the appliance's closed lid
- * is a lit face in a dim room, so the phone client matches the surface it is
- * heading toward rather than following the OS.
+ * LIGHT by default, because that is what iOS ships to the alpha testers: the
+ * stage is cream with roast ink, and a phone that renders the same house in
+ * the negative is not the same product.
+ *
+ * The dark scheme stays for the appliance's closed lid, which is a lit face
+ * in a dim room, and is selected explicitly rather than by system preference.
  */
 @Composable
-fun HearthTheme(dark: Boolean = true, content: @Composable () -> Unit) {
+fun HearthTheme(dark: Boolean = false, content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (dark) HearthDark else HearthLight,
         content = content,

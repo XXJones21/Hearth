@@ -1,25 +1,30 @@
 package com.hearth.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -34,27 +40,42 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hearth.app.ui.persona.PersonaFace
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
 import com.hearth.core.persona.PersonaPalette
 import com.hearth.core.persona.face.FaceGeometry
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * The stage, shaped like the iOS `HearthMainView`: the persona occupies the
- * top, the timeline runs beneath it, and one composer sits at the bottom.
+ * The unified portrait scene, ported from the iOS `HearthMainView`. One
+ * continuous layout in two states:
  *
- * The persona area is a placeholder until phase 3 brings the Compose face;
- * the LAYOUT is the part that matters now, because phase 3 fills this box
- * rather than rearranging the screen.
+ *   COLLAPSED (the default): the stage owns everything above the composer.
+ *     The conversation IS the persona, its caption and its voice.
+ *   EXPANDED: the stage takes the upper 45 percent and yields the rest to the
+ *     timeline.
+ *
+ * The persona is never covered in either state; it keeps whatever slack is
+ * left after the caption takes the height it needs.
+ *
+ * The stage is a tap target with three meanings, which is why it is NOT the
+ * same gesture as the talk button:
+ *   SPEAKING   quiet the voice without opening the mic
+ *   LISTENING  throw the partial away
+ *   IDLE       start a turn
  */
 @Composable
 fun HearthMainScreen(
     state: HearthState,
     connected: Boolean,
     personaName: String,
-    thinkingStage: String?,
+    activeTools: List<String>,
     messages: List<ChatMessage>,
     palette: PersonaPalette,
     faceGeometry: FaceGeometry?,
@@ -63,116 +84,227 @@ fun HearthMainScreen(
     ttsAmplitude: Float,
     micLevel: Float,
     partialTranscript: String?,
+    transcriptShown: Boolean,
     onSend: (String) -> Unit,
-    onMic: () -> Unit,
+    onTalk: () -> Unit,
+    onStageTap: () -> Unit,
     onShelf: () -> Unit,
 ) {
-    // The IME resizes the whole stage, not just the composer: padding an
-    // inner row instead squeezes the timeline to nothing while the keyboard
-    // is up, which reads as a client that lost the conversation.
+    var composerUp by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+                .navigationBarsPadding()
+                .statusBarsPadding()
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(if (transcriptShown) 0.45f else 1f)
+                    // No ripple: the stage is a surface you touch, not a button.
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onStageTap,
+                    )
+            ) {
+                val stageHeightPx = constraints.maxHeight.toFloat()
+                PersonaStage(
+                    stageHeightPx = stageHeightPx,
+                    state = state,
+                    connected = connected,
+                    palette = palette,
+                    faceGeometry = faceGeometry,
+                    faceCue = faceCue,
+                    caption = caption,
+                    ttsAmplitude = ttsAmplitude,
+                    composerUp = composerUp,
+                    transcriptShown = transcriptShown,
+                )
+            }
+
+            AnimatedVisibility(visible = transcriptShown) {
+                Timeline(messages = messages, modifier = Modifier.fillMaxWidth())
+            }
+
+            HouseStatusBar(
+                state = state,
+                personaName = personaName,
+                activeTools = activeTools,
+            )
+
+            BottomInputBar(
+                state = state,
+                connected = connected,
+                micLevel = micLevel,
+                partialTranscript = partialTranscript,
+                onTalk = onTalk,
+                onSend = onSend,
+                onTypingChanged = { composerUp = it },
+            )
+        }
+
+        // The house lives behind one affordance in the top corner, as on iOS.
+        TextButton(
+            onClick = onShelf,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(4.dp),
+        ) {
+            Text("House", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * Persona on top keeping the slack, the caption below taking exactly the
+ * height it needs. Stacked rather than overlaid: overlaying let a tall
+ * caption bury the persona, and the persona being visible at all times is the
+ * whole point of the stage.
+ */
+@Composable
+private fun PersonaStage(
+    stageHeightPx: Float,
+    state: HearthState,
+    connected: Boolean,
+    palette: PersonaPalette,
+    faceGeometry: FaceGeometry?,
+    faceCue: Pair<String, Long>?,
+    caption: String?,
+    ttsAmplitude: Float,
+    composerUp: Boolean,
+    transcriptShown: Boolean,
+) {
+    val isIdle = state == HearthState.IDLE || state == HearthState.LOADING
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding()
-            .navigationBarsPadding()
-            .statusBarsPadding()
+            .padding(bottom = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-
-        // The house lives behind one affordance, as the iOS drawer does.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.End,
-        ) {
-            TextButton(onClick = onShelf) { Text("House") }
-        }
-
-        // ---- the stage: persona plus status ----
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.38f),
+                .weight(1f),
             contentAlignment = Alignment.Center,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // A procedural_face persona draws its face; anything else
-                // keeps the orb, the same fallback contract iOS uses.
+            // Sized against the SMALLER dimension of the space it is given, so
+            // the inner display, the cover screen and a tablet all work. A
+            // fixed dp was written against one emulator and looked wrong on
+            // the first real device.
+            BoxWithConstraints(contentAlignment = Alignment.Center) {
+                val side = minOf(maxWidth, maxHeight) * 0.82f
                 if (faceGeometry != null) {
                     PersonaFace(
                         geometry = faceGeometry,
                         state = state,
                         palette = palette,
-                        // The face hears the HOUSE, never the microphone.
                         speechLevel = ttsAmplitude,
                         cue = faceCue,
-                        modifier = Modifier.size(180.dp),
+                        composerUp = composerUp,
+                        modifier = Modifier.size(side),
                     )
                 } else {
+                    // A persona whose face numbers have not arrived falls back
+                    // to its orb rather than showing nothing, the same
+                    // contract iOS uses for a model with no clips.
                     Box(
                         modifier = Modifier
-                            .size((140 + (ttsAmplitude * 30f)).dp)
+                            .size(side * 0.7f)
                             .clip(CircleShape)
                             .background(
-                                if (connected) MaterialTheme.colorScheme.primaryContainer
+                                if (connected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surfaceVariant
                             )
                     )
                 }
-                Text(
-                    personaName,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-                Text(
-                    statusLine(state, connected, thinkingStage),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
+            }
 
-                // The karaoke caption: the sentence being HEARD right now,
-                // released by playback position rather than arrival.
-                caption?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    )
-                }
-
-                // What the mic has heard so far, while it is still hearing it.
-                partialTranscript?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    )
-                }
+            // The clock crowns an EMPTY stage; once something is resting on it
+            // the clock would be chrome stacked on content.
+            if (isIdle && caption.isNullOrBlank()) {
+                IdleClock(modifier = Modifier.align(Alignment.TopCenter))
             }
         }
 
-        // ---- the timeline ----
-        val listState = rememberLazyListState()
-        LaunchedEffect(messages.size) {
-            if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+        // The caption band: the reply so far, filling at the pace of the
+        // VOICE, bounded so it stays a caption sharing the stage rather than
+        // becoming a second transcript.
+        if (!caption.isNullOrBlank()) {
+            val ceilingPx = stageHeightPx * (if (transcriptShown) 0.30f else 0.36f)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .widthIn(max = 520.dp),
+            ) {
+                Text(
+                    caption,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    // Roughly a line per 19pt of the ceiling, as on iOS.
+                    maxLines = captionLines(ceilingPx),
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                )
+            }
         }
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.62f),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(messages, key = { it.id }) { MessageRow(it) }
-        }
+    }
+}
 
-        Composer(state = state, onSend = onSend, onMic = onMic)
+private fun captionLines(ceilingPx: Float): Int =
+    (ceilingPx / 52f).toInt().coerceIn(2, 12)
+
+@Composable
+private fun IdleClock(modifier: Modifier = Modifier) {
+    val now by produceState(initialValue = Date()) {
+        while (true) {
+            value = Date()
+            delay(20_000)
+        }
+    }
+    Column(
+        modifier = modifier.padding(top = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            remember(now) { SimpleDateFormat("h:mm", Locale.getDefault()).format(now) },
+            style = MaterialTheme.typography.displayMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            remember(now) { SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(now) },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun Timeline(messages: List<ChatMessage>, modifier: Modifier = Modifier) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.lastIndex)
+    }
+    LazyColumn(
+        state = listState,
+        modifier = modifier.heightIn(max = 600.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(messages, key = { it.id }) { MessageRow(it) }
     }
 }
 
@@ -201,70 +333,5 @@ private fun MessageRow(message: ChatMessage) {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }
-    }
-}
-
-/**
- * One composer, as on iOS. The voice button arrives with phase 2; today the
- * text field is the whole turn.
- */
-@Composable
-private fun Composer(
-    state: HearthState,
-    onSend: (String) -> Unit,
-    onMic: () -> Unit,
-) {
-    var draft by remember { mutableStateOf("") }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            placeholder = { Text("Say something") },
-            modifier = Modifier.weight(1f),
-            maxLines = 4,
-        )
-        if (draft.isNotBlank()) {
-            TextButton(
-                onClick = {
-                    onSend(draft)
-                    draft = ""
-                },
-            ) { Text("Send") }
-        } else {
-            // The mic is the primary affordance, as on iOS: "Tap to talk"
-            // with the keyboard as the secondary path. During SPEAKING it is
-            // barge-in, and during LISTENING it commits early.
-            TextButton(onClick = onMic) {
-                Text(
-                    when (state) {
-                        HearthState.LISTENING -> "Stop"
-                        HearthState.SPEAKING -> "Interrupt"
-                        else -> "Talk"
-                    }
-                )
-            }
-        }
-    }
-}
-
-/** The house's own language for what it is doing, as the iOS status bar does. */
-private fun statusLine(state: HearthState, connected: Boolean, stage: String?): String {
-    if (!connected) return "Not connected"
-    return when (state) {
-        HearthState.LOADING -> "Waking the house"
-        HearthState.IDLE -> "Ready"
-        HearthState.LISTENING -> "Listening"
-        HearthState.THINKING -> when (stage) {
-            "transcribing" -> "Catching that"
-            "deciding" -> "Thinking it through"
-            "acting" -> "Working on it"
-            else -> "Thinking"
-        }
-        HearthState.SPEAKING -> "Speaking"
     }
 }
