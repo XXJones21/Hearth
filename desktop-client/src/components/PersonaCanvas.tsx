@@ -40,7 +40,10 @@ export default function PersonaCanvas({ config }: Props) {
 
   // The face is SVG, not three.js: no Canvas, no camera, no error boundary
   // for GLB loads. It keys on the persona so a switch remounts the loop.
-  if (v.type === 'procedural_face') {
+  // `flame` lands here too. Without that it would fall through to the GLB
+  // branch below, ask for an asset no persona carries, and trip the error
+  // boundary -- a visible failure where the contract is a graceful fallback.
+  if (v.type === 'procedural_face' || v.type === 'flame') {
     const stateColors = (v as { state_colors?: Record<string, { r: number; g: number; b: number }> })
       .state_colors;
     return (

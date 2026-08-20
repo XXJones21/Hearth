@@ -6,6 +6,8 @@ related:
   - persona-face-spec.md
   - hearth-vision-design.md
 sources:
+  - android-client/core/src/main/java/com/hearth/core/persona/FlameProfile.kt
+  - android-client/app/src/main/java/com/hearth/app/ui/persona/PersonaFlame.kt
   - apple-client/Hearth/Core/Sources/HearthUI/Persona/FlameProfile.swift
   - apple-client/Hearth/Core/Sources/HearthUI/Persona/PersonaFlameCanvas.swift
   - apple-client/Hearth/Core/Sources/HearthSpatial/FlameMesh.swift
@@ -34,8 +36,9 @@ right one depends on what the client is:
 | A spatial stage -- a headset, or a scene with a movable camera | **The mesh flame.** Real geometry, a compute kernel, a light in the room. | [For 3D spatial platforms](#for-3d-spatial-platforms) |
 
 They are not a first draft and a real version. They are the same character drawn
-two ways, and **both are shipping**: the headset runs the mesh, the phone runs
-the canvas. The iOS client built both and chose the canvas on device -- it cost
+two ways, and **both are shipping**: the headset runs the mesh, and both phones
+run the canvas -- iOS since 2026-08-20 and Android the same day. The iOS client
+built both and chose the canvas on device -- it cost
 less and, more importantly, a canvas flame had to exist anyway for widgets,
 which can host neither a 3D view nor a compute pass. One implementation beats a
 better-looking second one. The full comparison is in
@@ -792,13 +795,40 @@ there and probably the best one: **port the Metal kernel to GLSL as a
 `ShaderMaterial` and keep the mesh.** That is a closer match than either
 alternative.
 
-**Android is undecided**, and it is a decision to take deliberately rather than
-by default:
+**Android took the flat composite**, on 2026-08-20, and it is a shipped
+implementation: `PersonaFlame.kt` plus `FlameProfile.kt` in
+`android-client/`, a literal port of the iOS canvas. The reasoning was the
+iOS reasoning -- a phone has one viewpoint, and a flat flame will be wanted
+for the cover screen and the home-screen widget, neither of which can host a
+3D scene. The alternative, a 3D scene in a view, would have cost what desktop
+costs and bought a persona you can turn on a device nobody turns.
 
-- A **3D scene in a view** costs what desktop costs and gains a persona you can
-  turn.
-- A **flat composite** is much cheaper, is proven on the phone, and gives up
-  rotation permanently.
+Two places Compose does better than SwiftUI, both worth carrying to the next
+canvas port:
+
+- **The tip feather is a real erase.** `BlendMode.DstOut` subtracts alpha, so
+  the tip goes to nothing and the halo shows through it. SwiftUI cannot take
+  alpha back out of a fill it has already made, so the iOS version washes the
+  tip toward ash instead. It needs the body, the licks and the feather to share
+  one `saveLayer`: an erase has to be bounded, or it takes the halo with it.
+- **The frame clock is `withFrameMillis`**, which the face already ran on, so
+  the flame did not need a second clock mechanism beside it.
+
+**How a config selects it:** `visualization.type` names the renderer, and the
+fire's name is **`flame`** -- one name for both implementations, because the
+type says what a persona IS rather than how a platform draws it. `canvas_flame`
+would have baked one client's drawing into a cross-client contract.
+
+Two things a client adding the name has to get right, both of which bit during
+the Android wiring:
+
+- **Both face-wearing forms need the geometry.** Gating the geometry decode on
+  `procedural_face` alone draws the fire blind.
+- **An unknown type must fall back to the ORB, not to the model branch.** The
+  desktop client's renderer chain ended in a GLB `else`, so `flame` asked for an
+  asset no persona carries and tripped its error boundary -- a visible failure
+  where the contract is a graceful fallback. It now draws the face, which is
+  what it drew before the name existed.
 
 ### What drops on every non-spatial client
 
@@ -891,10 +921,9 @@ the same character, not whether it is the same picture. That is the bar
 
 **2D only:**
 
-- How a persona's config selects the fire. The renderer is chosen from the
-  config by design -- `sphere_particle` keeps the orb, `glb_animated` mounts a
-  model, `procedural_face` draws the face -- so the fire needs a name there
-  rather than a client-side switch.
 - Colour bands are level where the shader's wander. Perturbing the gradient
   stops per-frame by the same noise would close some of that gap and has not
   been tried.
+- Thinking has no whirl on either canvas. The state table above gives it one,
+  and both flat clients draw it as idle. Adding it to one only would make the
+  two flames different characters, so it is a shared item or nothing.

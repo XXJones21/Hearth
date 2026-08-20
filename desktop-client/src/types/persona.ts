@@ -83,10 +83,28 @@ export type VisualizationProceduralFace = {
   particle_system?: { enabled: boolean };
 };
 
+/**
+ * The same face on a body of fire. A separate member rather than a second
+ * spelling on the face's own `type`, because a union discriminated by a
+ * SINGLE literal per member is what lets the negative branch of a check
+ * narrow -- widening the face's discriminant to `'procedural_face' | 'flame'`
+ * left the GLB branch below believing a face could reach it.
+ *
+ * This client has no fire of its own yet. It is a 3D scene with an orbit
+ * control, so the spec's recommendation here is the mesh with the kernel
+ * ported to GLSL rather than the phone's flat drawing -- until then it wears
+ * the face, which is exactly what it drew before the config learned the name.
+ * See wiki/raw/persona-flame-spec.md.
+ */
+export type VisualizationFlame = Omit<VisualizationProceduralFace, 'type'> & {
+  type: 'flame';
+};
+
 export type PersonaVisualization =
   | VisualizationSphereParticle
   | VisualizationGlb
-  | VisualizationProceduralFace;
+  | VisualizationProceduralFace
+  | VisualizationFlame;
 
 export type PersonaConfig = {
   name: string;

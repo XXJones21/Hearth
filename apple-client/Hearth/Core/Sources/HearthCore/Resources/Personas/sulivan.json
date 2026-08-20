@@ -5,7 +5,8 @@
   "classification": "abstract",
   "shipped": true,
   "visualization": {
-    "type": "procedural_face",
+    "_type_comment": "The renderer, chosen by TYPE and never by name. 'flame' is Sulivan's own: a fire wearing the face below. Kept in step with backend/personas/Sulivan/sulivan.json, which is the source of truth. Spec: wiki/raw/persona-flame-spec.md.",
+    "type": "flame",
     "archetype": "warm_round",
     "_orb_comment": "The sphere and particle_system colour objects survive the move to procedural_face on purpose: every orb-fallback path (first run, pre-connect frames, widgets, face geometry missing) reads them, and deleting them silently swapped Sulivan's authored colours for brand defaults.",
     "sphere": {
