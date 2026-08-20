@@ -8,6 +8,7 @@ related:
 sources:
   - android-client/core/src/main/java/com/hearth/core/persona/FlameProfile.kt
   - android-client/app/src/main/java/com/hearth/app/ui/persona/PersonaFlame.kt
+  - desktop-client/src/components/PersonaFlame.tsx
   - apple-client/Hearth/Core/Sources/HearthUI/Persona/FlameProfile.swift
   - apple-client/Hearth/Core/Sources/HearthUI/Persona/PersonaFlameCanvas.swift
   - apple-client/Hearth/Core/Sources/HearthSpatial/FlameMesh.swift
@@ -790,10 +791,29 @@ viewer can walk around the persona. That is a 3D scene in a window, and it keeps
 almost everything a headset needs: the billboard, the card's curvature, the
 surface tracking and the sort group all still earn their keep.
 
-It also already pays for a WebGL context, which makes a third option available
-there and probably the best one: **port the Metal kernel to GLSL as a
-`ShaderMaterial` and keep the mesh.** That is a closer match than either
-alternative.
+It also already pays for a WebGL context, which keeps a third option open
+there: port the Metal kernel to GLSL as a `ShaderMaterial` and keep the mesh.
+A first cut of exactly that was built and rendering on 2026-08-20 -- and the
+operator called it back to **the flat composite the phones draw**, which is
+what shipped: `PersonaFlame.tsx` in `desktop-client/src/components/`
+(mirrored in the Valinor testbed's `hearth-client`). One flame family across
+every screen client beats a second character only the desktop has; the mesh
+cut proved the GLSL route works if a movable camera ever earns its keep.
+
+Three desktop-specific notes from the port:
+
+- **The face reuses the SVG face lib directly.** The desktop face is the
+  renderer-free `FaceDirector` plus `facePaths`, and `Path2D` accepts those
+  path strings as-is -- so the flame draws the same director on top, features
+  only, flat black, no head fill. Same numbers, no second face
+  implementation. The two `facePaths` transform shapes (`translate` and
+  `rotate` about a pivot) replay onto the 2D context with one small parser.
+- **The tip feather is a real erase, like Compose's.** HTML5 canvas has
+  `destination-out`; the body, the licks and the feather share one offscreen
+  layer so the erase is bounded and the halo survives it.
+- **The frame clock is the rAF timestamp**, and the whole frame body is
+  wrapped so an exception skips the frame instead of silently ending the
+  chain -- the same freeze the SVG face guards against.
 
 **Android took the flat composite**, on 2026-08-20, and it is a shipped
 implementation: `PersonaFlame.kt` plus `FlameProfile.kt` in
@@ -827,8 +847,8 @@ the Android wiring:
 - **An unknown type must fall back to the ORB, not to the model branch.** The
   desktop client's renderer chain ended in a GLB `else`, so `flame` asked for an
   asset no persona carries and tripped its error boundary -- a visible failure
-  where the contract is a graceful fallback. It now draws the face, which is
-  what it drew before the name existed.
+  where the contract is a graceful fallback. It drew the face as the interim
+  fallback, and since 2026-08-20 draws the canvas flame itself.
 
 ### What drops on every non-spatial client
 

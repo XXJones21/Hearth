@@ -6,6 +6,7 @@ const GlbScene = lazy(() => import('./GlbScene'));
 const SphereScene = lazy(() => import('./SphereScene'));
 
 import { PersonaFace } from './stage/PersonaFace';
+import { PersonaFlame } from './PersonaFlame';
 import { VisualizationErrorBoundary } from './VisualizationErrorBoundary';
 import type { PersonaConfig } from '../types/persona';
 import { mapVisualizerState, useAppStore } from '../store/appStore';
@@ -40,15 +41,24 @@ export default function PersonaCanvas({ config }: Props) {
 
   // The face is SVG, not three.js: no Canvas, no camera, no error boundary
   // for GLB loads. It keys on the persona so a switch remounts the loop.
-  // `flame` lands here too. Without that it would fall through to the GLB
-  // branch below, ask for an asset no persona carries, and trip the error
-  // boundary -- a visible failure where the contract is a graceful fallback.
-  if (v.type === 'procedural_face' || v.type === 'flame') {
+  if (v.type === 'procedural_face') {
     const stateColors = (v as { state_colors?: Record<string, { r: number; g: number; b: number }> })
       .state_colors;
     return (
       <div className="h-full w-full" key={config.name}>
         <PersonaFace geometry={v.geometry} visualState={effective} stateColors={stateColors} />
+      </div>
+    );
+  }
+
+  // The fire (persona-flame-spec.md, 2D recipe): the canvas flame the phones
+  // draw -- one body path and gradient, licks, a bounded tip feather, the
+  // same face director in features-only flat black, additive embers, the
+  // halo. Flat like the SVG face branch: no three.js, no camera.
+  if (v.type === 'flame') {
+    return (
+      <div className="h-full w-full" key={config.name}>
+        <PersonaFlame geometry={v.geometry} visualState={effective} />
       </div>
     );
   }

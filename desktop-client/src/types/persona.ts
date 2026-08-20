@@ -90,11 +90,10 @@ export type VisualizationProceduralFace = {
  * narrow -- widening the face's discriminant to `'procedural_face' | 'flame'`
  * left the GLB branch below believing a face could reach it.
  *
- * This client has no fire of its own yet. It is a 3D scene with an orbit
- * control, so the spec's recommendation here is the mesh with the kernel
- * ported to GLSL rather than the phone's flat drawing -- until then it wears
- * the face, which is exactly what it drew before the config learned the name.
- * See wiki/raw/persona-flame-spec.md.
+ * Rendered by PersonaFlame (2026-08-20): the 2D canvas composite the phones
+ * draw -- one flame family across every screen client -- with the same face
+ * director on top in features-only flat black, additive embers, and the
+ * halo a walls-less window needs. See wiki/raw/persona-flame-spec.md.
  */
 export type VisualizationFlame = Omit<VisualizationProceduralFace, 'type'> & {
   type: 'flame';
