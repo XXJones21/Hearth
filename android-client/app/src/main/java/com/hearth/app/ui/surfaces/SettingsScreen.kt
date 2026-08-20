@@ -36,8 +36,13 @@ import kotlinx.coroutines.launch
  * TYPED and then puts the saved value back, so a wrong address is discovered
  * without taking the live socket down. Apply commits and redials, and
  * pointing at a different house also surrenders the old house's key, because
- * presenting house A's token to house B earns a 1008 close and a reconnect
- * loop behind it.
+ * presenting house A's token to house B earns a refusal and a reconnect loop
+ * behind it.
+ *
+ * WHICH IS WHY APPLY CAN LAND ON PAIRING. Test reaches `/health`, which is
+ * open to anyone; the socket is not. So a typed address can answer a probe
+ * perfectly and still refuse the connection, and the honest next screen is
+ * the one asking for a code -- not a stage that says "not connected".
  */
 @Composable
 fun SettingsScreen(
@@ -45,6 +50,7 @@ fun SettingsScreen(
     autoReconnect: Boolean,
     onAutoReconnect: (Boolean) -> Unit,
     onApply: () -> Unit,
+    onPair: () -> Unit,
     onForget: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -136,12 +142,16 @@ fun SettingsScreen(
             }
 
             item {
+                // Both states are actionable, and the unpaired one is the
+                // point: a row that only offers Forget is a dead end for the
+                // device that most needs a way forward.
                 SurfaceRowItem(
                     title = "Paired",
                     detail = if (config.isPaired) "This device has a key"
-                    else "Not paired with any house",
-                    trailing = if (config.isPaired) "Forget" else null,
-                    onClick = if (config.isPaired) onForget else null,
+                    else "No key for ${config.address.ifBlank { "this house" }}. " +
+                        "Pair to get one.",
+                    trailing = if (config.isPaired) "Forget" else "Pair",
+                    onClick = if (config.isPaired) onForget else onPair,
                 )
             }
 

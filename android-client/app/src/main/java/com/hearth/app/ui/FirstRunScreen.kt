@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun FirstRunScreen(
     config: ServerConfig,
+    reason: PairingReason = PairingReason.FIRST_RUN,
     onDone: () -> Unit,
 ) {
     var address by remember { mutableStateOf(config.address) }
@@ -55,9 +56,14 @@ fun FirstRunScreen(
     ) {
         Text("Hearth", style = MaterialTheme.typography.headlineLarge)
         Text(
-            when (step) {
-                Step.ADDRESS -> "Where is your house?"
-                Step.CODE -> "Enter the code your house is showing."
+            when {
+                step == Step.ADDRESS -> "Where is your house?"
+                // Say WHY the phone is back here. Arriving at a code field
+                // mid-session with no explanation reads as the app having lost
+                // its place rather than as the house having turned you away.
+                reason == PairingReason.REFUSED ->
+                    "${config.address} turned this device away. Pair it again."
+                else -> "Enter the code your house is showing."
             },
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
@@ -121,6 +127,20 @@ fun FirstRunScreen(
                         .padding(top = 16.dp),
                 ) { Text("Pair") }
 
+                // WHERE THE CODE COMES FROM, said on the screen that needs it.
+                // /pair/open is loopback-only on purpose -- a stolen paired
+                // phone must not be able to pair its thief's phone -- so the
+                // code can only be shown on the machine running the house, and
+                // a field labelled "Pairing code" with nothing else on the
+                // screen leaves no way to find that out.
+                Text(
+                    "Show a code on the machine running the house: " +
+                        "Settings, Connection, Pair a device. It lasts five minutes.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+
                 TextButton(
                     onClick = { step = Step.ADDRESS },
                     enabled = !busy,
@@ -144,3 +164,18 @@ fun FirstRunScreen(
 }
 
 private enum class Step { ADDRESS, CODE }
+
+/**
+ * Why this screen is up. It changes only what the screen SAYS -- the two
+ * steps and the redemption are identical -- but "pair your phone" and "your
+ * house just turned this phone away" are different facts and a person acting
+ * on the second one needs to be told it.
+ */
+enum class PairingReason {
+    /** No house, or no key for it yet. */
+    FIRST_RUN,
+
+    /** There was a key and the house refused it: revoked, or a different
+     *  house is answering at this address now. */
+    REFUSED,
+}

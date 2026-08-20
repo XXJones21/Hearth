@@ -21,7 +21,16 @@ sealed interface HearthEvent {
     /** The socket closed. [authRejected] means 1008: the token was refused. */
     data class Closed(val code: Int, val reason: String, val authRejected: Boolean) : HearthEvent
 
-    data class Failure(val message: String) : HearthEvent
+    /**
+     * The socket never opened.
+     *
+     * [authRejected] means the house refused this device rather than the
+     * network failing. It carries the SAME meaning as [Closed.authRejected]
+     * and a different cause: the gate closes the handshake before accepting
+     * it, so the refusal arrives as an HTTP 403 on the upgrade rather than as
+     * a 1008 close frame. Both are "re-pair", not "retry".
+     */
+    data class Failure(val message: String, val authRejected: Boolean = false) : HearthEvent
 
     // ---- the turn ----
 

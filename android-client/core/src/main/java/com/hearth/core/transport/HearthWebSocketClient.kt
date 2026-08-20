@@ -198,7 +198,18 @@ class HearthWebSocketClient(
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             isConnected = false
             isInPcmStreamMode = false
-            _events.tryEmit(HearthEvent.Failure(t.message ?: "socket failed"))
+            // THE REFUSAL ARRIVES HERE, NOT IN onClosing, and dropping the
+            // response is what hid it. The gate closes the handshake BEFORE
+            // accepting it, so the house never sends a 1008 close frame -- the
+            // upgrade itself answers 403 and OkHttp reports a failure.
+            //
+            // Left unread, a refused device is indistinguishable from a flaky
+            // network: reconnect is never suppressed, so the client redials
+            // every thirty seconds forever against a door it has no key for,
+            // and the stage says only "not connected".
+            val authRejected = response?.code == 403 || response?.code == 401
+            if (authRejected) Log.w(TAG, "house refused this device (${response?.code})")
+            _events.tryEmit(HearthEvent.Failure(t.message ?: "socket failed", authRejected))
         }
     }
 
