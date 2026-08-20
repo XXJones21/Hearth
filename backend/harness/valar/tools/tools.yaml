@@ -564,7 +564,11 @@ tools:
       Search past conversations for a word or phrase and return the sessions
       that mention it, with dates. Use for "when did we talk about X", "what
       did I say about Y", or to find the conversation before answering from
-      it. For facts about the operator prefer recall; this is for finding a
+      it. For questions scoped to a time ("what did we do last week", "the
+      visionOS work this month") ALWAYS use this or recall with the period in
+      the query -- the journal is dated; memory notes are not. When a
+      follow-up narrows the topic, search AGAIN with the refined words. For
+      facts about the operator prefer recall; this is for finding a
       CONVERSATION.
     handler: valar.tools.handlers.memory:search_journal
     domain: memory
@@ -575,7 +579,16 @@ tools:
       properties:
         query:
           type: string
-          description: Word or phrase to look for.
+          description: >-
+            Word or phrase to look for. May include a period ("last week",
+            "yesterday", "August 18") to restrict WHEN; the remaining words
+            are what is searched for.
+        since:
+          type: string
+          description: Earliest day to search, YYYY-MM-DD. Optional.
+        until:
+          type: string
+          description: Latest day to search, YYYY-MM-DD. Optional.
         limit:
           type: integer
           description: Maximum sessions to return (default 8, cap 20).
@@ -655,7 +668,9 @@ tools:
       sessions, projects, life context) and report back a synthesis. Use for
       DEEP or multi-part questions about the operator's past -- "what did I
       work on at...", "summarize my time at...", "tell me about my history
-      with...". For a single quick fact, use recall instead.
+      with...". For a single quick fact, use recall instead. For "what did
+      we do <day/week/month>" questions, prefer recall or search_journal
+      with the period -- the notes Selene reads are background, not a diary.
     handler: valar.tools.handlers.consult:consult_memory
     domain: memory
     risk: read
@@ -682,11 +697,14 @@ tools:
       Quick search of the operator's long-term memory: saved personal facts,
       session diaries, project notes, background knowledge. Use for a SINGLE
       specific fact or detail -- "what did I tell you about...", "do you
-      remember my...". Scope the search by INTENT: background for career,
-      employers, jobs, education, life history; projects for the operator's
-      project work; sessions for past conversations. For deep or multi-part
-      questions about the operator's past, use consult_memory instead. Prefer
-      either over guessing or answering from general knowledge.
+      remember my...". A query naming a day or period ("yesterday", "last
+      week", "August 18") returns that period's journal directly -- the
+      right call for "what did we do <when>". Scope the search by INTENT:
+      background for career, employers, jobs, education, life history;
+      projects for the operator's project work; sessions for past
+      conversations. For deep or multi-part questions about the operator's
+      past, use consult_memory instead. Prefer either over guessing or
+      answering from general knowledge.
     handler: valar.tools.handlers.memory:recall
     domain: memory
     risk: read

@@ -102,8 +102,13 @@ _DAY_MONTH_RE = re.compile(
     r"\b(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,9})\b(?:,?\s+(\d{4}))?", re.I
 )
 
+_PERIOD_DAYS_RE = re.compile(r"\b(?:past|last)\s+(\d{1,2})\s+days?\b")
+
 _MAX_REVIEW_CHARS = 1500
 _MAX_DAY_SESSIONS = 8
+_MAX_PERIOD_DAYS = 31
+_MAX_PERIOD_SESSIONS = 20
+_MAX_HIGHLIGHT_CHARS = 400
 
 
 def _month_number(word: str) -> int | None:
@@ -151,6 +156,93 @@ def parse_day(query: str) -> str | None:
             year = int(m.group(3)) if m.group(3) else None
             return _resolve_day(year, month, int(m.group(1)))
     return None
+
+
+def parse_period(query: str) -> tuple[str, str] | None:
+    """The (start, end) ISO window a query names, or None. Spoken periods are
+    fuzzy: "last week" spans the previous Monday through yesterday, covering
+    both the calendar week and "the last several days" readings without
+    dragging in older weeks. Ported from Valinor (2026-08-20), the period
+    extension of the 2026-08-19 day fast-path."""
+    q = (query or "").lower()
+    today = date.today()
+    m = _PERIOD_DAYS_RE.search(q)
+    if m:
+        n = max(1, min(int(m.group(1)), _MAX_PERIOD_DAYS))
+        return ((today - timedelta(days=n)).isoformat(), today.isoformat())
+    monday = today - timedelta(days=today.weekday())
+    if "last week" in q or "past week" in q:
+        start = monday - timedelta(days=7)
+        return (start.isoformat(), (today - timedelta(days=1)).isoformat())
+    if "this week" in q:
+        return (monday.isoformat(), today.isoformat())
+    if "last month" in q or "past month" in q:
+        last_prev = today.replace(day=1) - timedelta(days=1)
+        return (last_prev.replace(day=1).isoformat(), last_prev.isoformat())
+    if "this month" in q:
+        return (today.replace(day=1).isoformat(), today.isoformat())
+    if "recently" in q or "lately" in q or "these days" in q:
+        return ((today - timedelta(days=7)).isoformat(), today.isoformat())
+    return None
+
+
+def _age_label(iso_day: str) -> str:
+    """Plain-words age for a dated source, so the model never does date math:
+    'today', 'yesterday', '5 days ago', '3 weeks ago', '2 months ago'."""
+    try:
+        d = date.fromisoformat(iso_day[:10])
+    except ValueError:
+        return ""
+    days = (date.today() - d).days
+    if days <= 0:
+        return "today"
+    if days == 1:
+        return "yesterday"
+    if days < 14:
+        return f"{days} days ago"
+    if days < 60:
+        return f"{days // 7} weeks ago"
+    return f"{days // 30} months ago"
+
+
+def _date_from_source(source: str) -> str:
+    """ISO date recoverable from an Engram-relative source path: the slug date
+    for Thoughts/ and Reviews/, the file mtime for undated notes (projects,
+    knowledge). Empty string when nothing is recoverable."""
+    m = _ISO_DAY_RE.search(source or "")
+    if m:
+        return m.group(0)
+    try:
+        f = _ENGRAM_ROOT / source
+        if f.is_file():
+            import time as _time
+
+            return _time.strftime("%Y-%m-%d", _time.localtime(f.stat().st_mtime))
+    except OSError:
+        pass
+    return ""
+
+
+_CARD_MAX_BLOCKS = 12  # generated_view renderers cap sections at 12
+_CARD_BLOCK_CHARS = 420
+
+
+def _journal_card(title: str, blocks: list[tuple[str, str]]) -> dict:
+    """A generated_view card shaped like a journal page: each block renders as
+    an eyebrow heading over its body (the `heading` field on text sections,
+    2026-08-20 -- older clients ignore it and show the body alone). This is
+    the screen half of a memory answer; the spoken `content` stays prose."""
+    sections: list[dict] = []
+    for heading, body in blocks[-_CARD_MAX_BLOCKS:]:
+        sec: dict = {"kind": "text", "body": body[:_CARD_BLOCK_CHARS]}
+        if heading:
+            sec["heading"] = heading
+        sections.append(sec)
+    return {
+        "version": 1,
+        "type": "generated_view",
+        "props": {"template": "brief", "title": title, "sections": sections},
+    }
 
 
 def _session_heading(folder: Path) -> str:
@@ -204,9 +296,105 @@ def _recall_day(day: str) -> ToolResult:
         )
     logger.info("recall day fast-path: %s (%d session(s), review=%s)",
                 day, len(sessions), review_path.is_file())
+    blocks: list[tuple[str, str]] = []
+    for part in parts:
+        head, _, body = part.partition(":\n")
+        blocks.append((head, body.strip() or part))
     return ToolResult(
         content=f"Here is what I have for {day}.\n\n" + "\n\n".join(parts),
-        data={"day": day, "sessions": sessions, "review": review_path.is_file()},
+        data={
+            "day": day,
+            "sessions": sessions,
+            "review": review_path.is_file(),
+            "ui_component": _journal_card(f"Journal · {day}", blocks),
+        },
+    )
+
+
+def _extract_highlights(text: str) -> str:
+    """The Highlights (or Review) section of a daily review, else the head
+    with its title line stripped."""
+    for name in ("Highlights", "Review"):
+        m = re.search(rf"##\s*{name}\s*\n(.*?)(?=\n##\s|\Z)", text, re.S)
+        if m:
+            return m.group(1).strip()[:_MAX_HIGHLIGHT_CHARS]
+    body = re.sub(r"^#\s.*\n+", "", text.strip())
+    return body.strip()[:_MAX_HIGHLIGHT_CHARS]
+
+
+def _recall_period(start: str, end: str) -> ToolResult:
+    """The journal for a date window, day by day: each day's review highlights
+    plus its session titles. The week-scale analog of _recall_day."""
+    d0, d1 = date.fromisoformat(start), date.fromisoformat(end)
+    if d1 < d0:
+        d0, d1 = d1, d0
+    if (d1 - d0).days + 1 > _MAX_PERIOD_DAYS:
+        d0 = d1 - timedelta(days=_MAX_PERIOD_DAYS - 1)
+    start, end = d0.isoformat(), d1.isoformat()
+
+    # One pass over Thoughts/, bucketed by day prefix.
+    by_day: dict[str, list[str]] = {}
+    thoughts = _ENGRAM_ROOT / "Thoughts"
+    if thoughts.is_dir():
+        for folder in sorted(thoughts.iterdir()):
+            if not folder.is_dir():
+                continue
+            iso = folder.name[:10]
+            if not (start <= iso <= end and _ISO_DAY_RE.match(iso)):
+                continue
+            heading = _session_heading(folder)
+            by_day.setdefault(iso, []).append(heading or folder.name)
+
+    parts: list[str] = []
+    blocks: list[tuple[str, str]] = []
+    n_sessions = 0
+    reviews = 0
+    day = d0
+    while day <= d1:
+        iso = day.isoformat()
+        day_lines: list[str] = []
+        review = _ENGRAM_ROOT / "Reviews" / "daily" / f"{iso}.md"
+        if review.is_file():
+            try:
+                text = review.read_text(encoding="utf-8", errors="replace")
+                day_lines.append(_extract_highlights(text))
+                reviews += 1
+            except OSError as exc:
+                logger.warning("period recall: review unreadable (%s)", exc)
+        titles = by_day.get(iso, [])
+        if titles and n_sessions < _MAX_PERIOD_SESSIONS:
+            keep = titles[: _MAX_PERIOD_SESSIONS - n_sessions]
+            n_sessions += len(keep)
+            day_lines.append("Sessions: " + "; ".join(keep))
+        if day_lines:
+            parts.append(f"{iso} ({day.strftime('%A')}):\n" + "\n".join(day_lines))
+            blocks.append((f"{day.strftime('%A')} · {iso}", "\n".join(day_lines)))
+        day += timedelta(days=1)
+
+    if not parts:
+        return ToolResult(
+            content=(
+                f"I have no records between {start} and {end} -- no reviews and "
+                "no sessions. Say so plainly; do not reconstruct the period "
+                "from memory."
+            ),
+            data={"start": start, "end": end, "results": []},
+        )
+    logger.info("recall period fast-path: %s..%s (%d day(s), %d session(s), %d review(s))",
+                start, end, len(parts), n_sessions, reviews)
+    return ToolResult(
+        content=(
+            f"The journal from {start} to {end}. Answer ONLY from this record; "
+            "older memories are not evidence of work in this period.\n\n"
+            + "\n\n".join(parts)
+        ),
+        data={
+            "start": start,
+            "end": end,
+            "days": len(parts),
+            "sessions": n_sessions,
+            "ui_component": _journal_card(f"Journal · {start} to {end}", blocks),
+        },
     )
 
 
@@ -274,6 +462,14 @@ def recall(args: dict) -> ToolResult:
     client gets. Falls back to the legacy two-tier (brain_sync facts + the
     local knowledge grep) when the package is unavailable."""
     query = str(args.get("query") or args.get("text") or "").strip()
+    # Period fast-path (2026-08-20): "last week" names no single day; answer
+    # it from the window's journal before trying the day path.
+    period = parse_period(query)
+    if period:
+        try:
+            return _recall_period(*period)
+        except Exception as exc:  # noqa: BLE001 - fall through to search
+            logger.warning("period recall failed (%s); falling back to search", exc)
     # Day fast-path (2026-08-19): a query that names a day is answered from
     # that day's shelf directly. See the block comment above parse_day.
     day = parse_day(query)
@@ -317,28 +513,46 @@ def recall(args: dict) -> ToolResult:
         except (TypeError, ValueError):
             max_results = 5
         parts: list[str] = []
+        blocks: list[tuple[str, str]] = []
         top = results[:max_results]
         facts = [r for r in top if r.get("scope") == "facts"]
         if facts:
-            parts.append(
-                "Saved facts: " + "; ".join(r.get("snippet", "") for r in facts)
-            )
+            fact_line = "; ".join(r.get("snippet", "") for r in facts)
+            parts.append("Saved facts: " + fact_line)
+            blocks.append(("Saved facts", fact_line))
         for r in top:
             scope = r.get("scope")
+            # Every hit is dated (2026-08-20): a snippet with no age reads as
+            # current, which is how months-old project notes get presented as
+            # recent work. Recover the date from the slug or the file mtime
+            # and say it in plain words so the model never does date math.
+            when_iso = str(r.get("date") or "") or _date_from_source(
+                str(r.get("source") or "")
+            )
+            age = _age_label(when_iso) if when_iso else ""
+            when = f" ({when_iso}, {age})" if age else (f" ({when_iso})" if when_iso else "")
+            snippet = r.get("snippet", "")
             if scope == "thoughts":
-                when = f" ({r['date']})" if r.get("date") else ""
-                parts.append(f"From a past session{when}: {r.get('snippet', '')}")
+                parts.append(f"From a past session{when}: {snippet}")
+                blocks.append((f"Past session · {age or when_iso or '?'}", snippet))
             elif scope == "reviews":
                 parts.append(
-                    f"From a daily review ({r.get('source', '?')}): {r.get('snippet', '')}"
+                    f"From a daily review ({r.get('source', '?')}{when}): {snippet}"
                 )
+                blocks.append((f"Daily review · {age or when_iso or '?'}", snippet))
             elif scope in ("projects", "knowledge"):
+                stamp = f", last updated {when_iso}, {age}" if age else ""
                 parts.append(
-                    f"From my notes ({r.get('source', '?')}): {r.get('snippet', '')}"
+                    f"From my notes ({r.get('source', '?')}{stamp}): {snippet}"
                 )
+                label = str(r.get("source", "?"))
+                blocks.append((f"{label} · {age}" if age else label, snippet))
         return ToolResult(
             content="Here is what I remember.\n\n" + "\n\n".join(parts),
-            data={"results": results},
+            data={
+                "results": results,
+                "ui_component": _journal_card("From memory", blocks),
+            },
         )
 
     bs = _ensure_brain_sync()
@@ -456,17 +670,52 @@ def forget(args: dict) -> ToolResult:
     )
 
 
+_PERIOD_PHRASES = (
+    "last week", "past week", "this week", "last month", "past month",
+    "this month", "yesterday", "today", "recently", "lately",
+)
+
+
 def search_journal(args: dict) -> ToolResult:
-    """args: {query: str, limit?: int}. Full text across past conversations.
+    """args: {query: str, limit?: int, since?: str, until?: str}. Full text
+    across past conversations, optionally restricted to a date window.
 
     ``recall`` searches the memory layer's own index; this reads the diaries
     themselves, which is what answers "when did we talk about X" with a date
-    and a session to open.
+    and a session to open. A window comes from explicit since/until args or
+    from period words in the query itself ("last week", "yesterday"); a
+    window with no remaining search words returns the period's journal.
     """
     query = str((args or {}).get("query") or "").strip()
     limit = int((args or {}).get("limit") or 8)
-    if len(query) < 2:
+
+    # Date window: explicit args win; else period/day words in the query.
+    since = str((args or {}).get("since") or "").strip()
+    until = str((args or {}).get("until") or "").strip()
+    window: tuple[str, str] | None = None
+    if since or until:
+        window = (since or "0000-01-01", until or date.today().isoformat())
+    else:
+        window = parse_period(query)
+        if window is None:
+            d = parse_day(query)
+            if d:
+                window = (d, d)
+
+    # Period words are window, not needle -- "visionOS last week" must search
+    # for "visionOS" inside the window, not for the words "last week".
+    needle_text = query.lower()
+    for ph in _PERIOD_PHRASES:
+        needle_text = needle_text.replace(ph, " ")
+    needle_text = " ".join(needle_text.split())
+    if window and len(needle_text) < 2:
+        try:
+            return _recall_period(*window)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("period journal failed (%s)", exc)
+    if len(needle_text) < 2:
         return ToolResult.error("search_journal needs at least two characters.")
+    query = needle_text
 
     try:
         from ...memory.journal_sync import engram_root
@@ -489,6 +738,8 @@ def search_journal(args: dict) -> ToolResult:
     for d in days:
         if len(hits) >= max(1, min(limit, 20)):
             break
+        if window and not (window[0] <= d.name[:10] <= window[1]):
+            continue
         for name in ("claude.md", "chatlog.md"):
             f = d / name
             if not f.is_file():
@@ -506,15 +757,33 @@ def search_journal(args: dict) -> ToolResult:
             break
 
     if not hits:
+        scope_note = f" between {window[0]} and {window[1]}" if window else ""
         return ToolResult(
             content=(
-                f"No past conversation mentions {query!r}. Say so plainly; do not "
-                "reconstruct one from memory."
+                f"No past conversation{scope_note} mentions {query!r}. Say so "
+                "plainly; do not reconstruct one from memory."
             ),
             data={"query": query, "hits": []},
         )
     lines = [f"Journal matches for {query!r}: {len(hits)}"]
+    blocks: list[tuple[str, str]] = []
     for h in hits:
-        lines.append(f"- {h['slug']}: {h['snippet'][:180]}")
+        age = _age_label(h["slug"][:10])
+        stamp = f" ({age})" if age else ""
+        lines.append(f"- {h['slug']}{stamp}: {h['snippet'][:180]}")
+        # "2026-08-19-visionos-client-and-..." -> "Visionos client and ..."
+        pretty = h["slug"][11:].replace("-", " ").strip().capitalize() or h["slug"][:10]
+        heading = " · ".join(p for p in (pretty, h["slug"][:10], age) if p)
+        # The card body drops the chatlog's own markdown scaffolding
+        # ("# Chat Log:", "### User ()", "---"); the heading already names it.
+        snip = " ".join(re.sub(r"#+|---", " ", h["snippet"][:220]).split())
+        blocks.append((heading, snip))
     logger.info("search_journal %r -> %d", query, len(hits))
-    return ToolResult(content="\n".join(lines), data={"query": query, "hits": hits})
+    return ToolResult(
+        content="\n".join(lines),
+        data={
+            "query": query,
+            "hits": hits,
+            "ui_component": _journal_card("From the journal", blocks),
+        },
+    )
