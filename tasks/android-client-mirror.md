@@ -53,6 +53,17 @@ Valinor proactive-tools roadmap and needs its own mapping-out alongside
 this one; the phone is a diminished product without it, but phase 1 (pull:
 cards, clock, voice) does not block on it.
 
+## Mapped out 2026-08-19
+
+The rebuild plan exists: `wiki/raw/android-client-plan.md`, written from a
+full survey of the iOS client (Core ~9,360 lines, app ~5,248). Two thirds
+of Core is platform-agnostic logic that ports to Kotlin nearly 1:1,
+including the clock-injected FaceDirector and its tests. The plan carries
+the port map, the protocol notes, seven paid-for iOS behaviors to preserve
+verbatim, the Tailscale connection posture, the two-step cover-screen
+route, and six verification-gated phases. The items below remain open
+inside that plan.
+
 ## Mapping out still owed
 
 - Repo and app skeleton (new `android-client/`? Kotlin + Compose like the
