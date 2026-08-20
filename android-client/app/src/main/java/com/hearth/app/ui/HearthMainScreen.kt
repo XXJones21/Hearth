@@ -252,6 +252,10 @@ private fun PersonaStage(
                     PersonaFlame(
                         state = state,
                         pulse = ttsAmplitude,
+                        faceGeometry = faceGeometry,
+                        palette = palette,
+                        faceCue = faceCue,
+                        composerUp = composerUp,
                         modifier = Modifier.size(side),
                     )
                 } else if (faceGeometry != null) {

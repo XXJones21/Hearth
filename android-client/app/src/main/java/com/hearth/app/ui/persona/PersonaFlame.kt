@@ -1,6 +1,9 @@
 package com.hearth.app.ui.persona
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -8,6 +11,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -21,6 +25,8 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import com.hearth.core.models.HearthState
 import com.hearth.core.persona.FlameProfile
+import com.hearth.core.persona.PersonaPalette
+import com.hearth.core.persona.face.FaceGeometry
 
 /**
  * Sulivan's fire, drawn with vector primitives -- no shader, no 3D. Ported
@@ -46,6 +52,14 @@ fun PersonaFlame(
     state: HearthState,
     /** TTS amplitude 0..1 while speaking, mic level while listening. */
     pulse: Float = 0f,
+    /**
+     * The persona's face, drawn ON the flame. Null draws a fire with no face,
+     * which is the honest state for a config that carried no geometry.
+     */
+    faceGeometry: FaceGeometry? = null,
+    palette: PersonaPalette = PersonaPalette.fallback,
+    faceCue: Pair<String, Long>? = null,
+    composerUp: Boolean = false,
     reduceMotion: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -88,12 +102,67 @@ fun PersonaFlame(
     inputs.pulse = pulse.toDouble()
     inputs.reduceMotion = reduceMotion
 
-    Canvas(modifier = modifier) {
-        @Suppress("UNUSED_EXPRESSION")
-        frameTick
-        drawFlame(clock.phase, inputs)
+    BoxWithConstraints(modifier = modifier, contentAlignment = Alignment.Center) {
+        val field = minOf(maxWidth, maxHeight)
+
+        Canvas(modifier = Modifier.matchParentSize()) {
+            @Suppress("UNUSED_EXPRESSION")
+            frameTick
+            drawFlame(clock.phase, inputs)
+        }
+
+        // THE FACE, COMPOSITED ON TOP, and this is the whole 2D shortcut.
+        //
+        // The headset needs a card curved to the flame's own radius, tracking
+        // the surface as turbulence swings it in and out, in a stated sort
+        // group -- because the viewer can walk around it and because a flat
+        // card in front of a round body either hovers or sinks. A screen has
+        // ONE viewpoint and no depth to fight over, so the same face is simply
+        // drawn over the fire. No curvature, no surface tracking, no sorting.
+        //
+        // It is the SAME composable the shipped persona uses, driven by the
+        // same director -- so the eyes blink and the mouth follows the voice
+        // here exactly as they do everywhere else.
+        if (faceGeometry != null) {
+            PersonaFace(
+                geometry = faceGeometry,
+                state = state,
+                palette = palette,
+                speechLevel = pulse,
+                cue = faceCue,
+                composerUp = composerUp,
+                reduceMotion = reduceMotion,
+                // Features only. With the head on this drew a solid cream
+                // squircle in front of the fire.
+                drawsHead = false,
+                // FRAMED RATHER THAN SCALED. A scale shrinks the stroke widths
+                // with the drawing; a size lets the face lay itself out at the
+                // size it is actually being shown, which is what its own
+                // geometry numbers are relative to.
+                modifier = Modifier
+                    .size(field * FACE_SPAN)
+                    .offset(y = field * FACE_DROP),
+            )
+        }
     }
 }
+
+/**
+ * How much of the view the face's own square occupies.
+ *
+ * The face places its eyes at a fraction of its half-extents, so this is
+ * really a statement about how far apart the eyes sit: big enough that they
+ * span the flame's body, small enough that they stay inside its silhouette at
+ * the height they sit at.
+ */
+private const val FACE_SPAN = 0.44f
+
+/**
+ * How far below the view's centre the eyes sit. The flame's base sits low in
+ * the frame and the eyes ride just above its origin -- DOWN in the body where
+ * the fire is widest, not up in the taper.
+ */
+private const val FACE_DROP = 0.02f
 
 /** The frame clock's own state, mutated outside recomposition. */
 private class FlameClock {

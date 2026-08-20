@@ -63,6 +63,21 @@ fun PersonaFace(
     cue: Pair<String, Long>? = null,
     composerUp: Boolean = false,
     reduceMotion: Boolean = false,
+    /**
+     * Whether to paint the head under the features. True is the persona as
+     * this has always drawn it: a filled squircle with eyes on it.
+     *
+     * FALSE IS FOR A FACE WORN BY SOMETHING ELSE. The headset draws Sulivan as
+     * a flame and puts his eyes on it, and what makes that work is that its
+     * face texture is mostly TRANSPARENT, with ink only where the features
+     * are. This is not: composited over a fire with the head on, it drew a
+     * solid cream squircle in front of the flame -- a persona standing in
+     * front of a fire rather than a fire with a face.
+     *
+     * The features are unchanged either way, so a persona wearing a body
+     * blinks exactly as it does wearing a head.
+     */
+    drawsHead: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     // Rebuilt only when the geometry changes: the director is a live thing
@@ -112,7 +127,7 @@ fun PersonaFace(
         // itself is mutable and Compose cannot see into it.
         @Suppress("UNUSED_EXPRESSION")
         frameTick
-        drawFace(pose, palette, state, size)
+        drawFace(pose, palette, state, size, drawsHead)
     }
 }
 
@@ -165,9 +180,18 @@ private fun DrawScope.drawFace(
     palette: PersonaPalette,
     state: HearthState,
     size: Size,
+    drawsHead: Boolean,
 ) {
     val glow = palette.glow(state)
-    val ink = glow.mix(Scene.roast, 0.62f).toColor()
+    // FLAT BLACK WHEN THERE IS NO HEAD, and it is a contrast decision rather
+    // than a stylistic one. On a cream head the warm brown belongs to the same
+    // palette family as everything around it, which is what makes the face
+    // read as drawn rather than stuck on. On a FLAME the background is bright
+    // saturated gold, and a brown that was two steps from cream is barely one
+    // step from fire -- the eyes wash out exactly where the body is brightest,
+    // which is where they sit. The headset's face kernel draws flat black on
+    // the flame for the same reason.
+    val ink = if (drawsHead) glow.mix(Scene.roast, 0.62f).toColor() else Color.Black
     val rim = glow.mix(Scene.roast, 0.38f).toColor()
     val headFill = glow.mix(Scene.cream, 0.84f).toColor()
     val glint = Scene.honey.mix(Scene.fluff, 0.75f).toColor()
@@ -183,9 +207,11 @@ private fun DrawScope.drawFace(
     translate(top = (pose.headBob * hh).toFloat()) {
         rotateRad(pose.headTilt.toFloat(), pivot = Offset(cx, cy)) {
 
-            val head = squircle(cx, cy, hw, hh, pose.headRoundness.toFloat())
-            drawPath(head, headFill)
-            drawPath(head, rim, style = Stroke(width = max(1f, side * 0.015f)))
+            if (drawsHead) {
+                val head = squircle(cx, cy, hw, hh, pose.headRoundness.toFloat())
+                drawPath(head, headFill)
+                drawPath(head, rim, style = Stroke(width = max(1f, side * 0.015f)))
+            }
 
             // Eyes: vertical capsules, each with its own lid, size, lean and
             // lift -- matched eyes read as a machine, mismatched as a creature.
