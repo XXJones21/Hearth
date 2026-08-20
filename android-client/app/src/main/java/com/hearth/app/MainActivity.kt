@@ -84,6 +84,9 @@ class MainActivity : ComponentActivity() {
                         val caption by viewModel.caption.collectAsState()
                         val level by viewModel.audioLevel.collectAsState()
                         val partial by viewModel.partialTranscript.collectAsState()
+                        val palette by viewModel.palette.collectAsState()
+                        val faceGeometry by viewModel.faceGeometry.collectAsState()
+                        val faceCue by viewModel.faceCue.collectAsState()
 
                         HearthMainScreen(
                             state = state,
@@ -91,6 +94,9 @@ class MainActivity : ComponentActivity() {
                             personaName = persona,
                             thinkingStage = stage,
                             messages = messages,
+                            palette = palette,
+                            faceGeometry = faceGeometry,
+                            faceCue = faceCue,
                             caption = caption,
                             audioLevel = level,
                             partialTranscript = partial,

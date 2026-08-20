@@ -6,6 +6,8 @@ import com.hearth.core.audio.TtsStreamPlayer
 import com.hearth.core.config.ServerConfig
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
+import com.hearth.core.persona.PersonaPalette
+import com.hearth.core.persona.face.FaceGeometry
 import com.hearth.core.transport.HearthEvent
 import com.hearth.core.transport.HearthWebSocketClient
 import kotlinx.coroutines.CoroutineScope
@@ -82,6 +84,14 @@ class ChatViewModel(
     /** What the mic has heard so far, for the composer. */
     private val _partialTranscript = MutableStateFlow<String?>(null)
     val partialTranscript: StateFlow<String?> = _partialTranscript.asStateFlow()
+
+    /** The persona's colours per state; the face and the orb share them. */
+    private val _palette = MutableStateFlow(PersonaPalette.fallback)
+    val palette: StateFlow<PersonaPalette> = _palette.asStateFlow()
+
+    /** Non-null only for a procedural_face persona that sent its numbers. */
+    private val _faceGeometry = MutableStateFlow<FaceGeometry?>(null)
+    val faceGeometry: StateFlow<FaceGeometry?> = _faceGeometry.asStateFlow()
 
     /**
      * Captions and face cues parked by segment index, released when that
@@ -324,6 +334,21 @@ class ChatViewModel(
             is HearthEvent.PersonaSwitched -> {
                 _personaName.value = event.name
                 socket.getPersonaConfig(event.name)
+            }
+
+            is HearthEvent.PersonaConfig -> {
+                val visualization = event.config.optJSONObject("visualization")
+                _palette.value = PersonaPalette.from(visualization)
+                // A face config that arrived without its geometry falls back
+                // to the orb, the same contract iOS uses: the two halves of "a
+                // face" travel together or the stage draws what it knows.
+                val type = visualization?.optString("type")
+                _faceGeometry.value =
+                    if (type == "procedural_face" && visualization.has("geometry")) {
+                        FaceGeometry.from(visualization.optJSONObject("geometry"))
+                    } else {
+                        null
+                    }
             }
 
             is HearthEvent.SessionEnded -> {

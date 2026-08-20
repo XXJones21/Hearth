@@ -35,8 +35,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.hearth.app.ui.persona.PersonaFace
 import com.hearth.core.models.ChatMessage
 import com.hearth.core.models.HearthState
+import com.hearth.core.persona.PersonaPalette
+import com.hearth.core.persona.face.FaceGeometry
 
 /**
  * The stage, shaped like the iOS `HearthMainView`: the persona occupies the
@@ -53,6 +56,9 @@ fun HearthMainScreen(
     personaName: String,
     thinkingStage: String?,
     messages: List<ChatMessage>,
+    palette: PersonaPalette,
+    faceGeometry: FaceGeometry?,
+    faceCue: Pair<String, Long>?,
     caption: String?,
     audioLevel: Float,
     partialTranscript: String?,
@@ -78,18 +84,28 @@ fun HearthMainScreen(
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Placeholder for the persona face (phase 3). The size rides
-                // the audio level so speech and listening are visible before
-                // the real face exists.
-                Box(
-                    modifier = Modifier
-                        .size((140 + (audioLevel * 30f)).dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (connected) MaterialTheme.colorScheme.primaryContainer
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        )
-                )
+                // A procedural_face persona draws its face; anything else
+                // keeps the orb, the same fallback contract iOS uses.
+                if (faceGeometry != null) {
+                    PersonaFace(
+                        geometry = faceGeometry,
+                        state = state,
+                        palette = palette,
+                        speechLevel = audioLevel,
+                        cue = faceCue,
+                        modifier = Modifier.size(180.dp),
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size((140 + (audioLevel * 30f)).dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (connected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                    )
+                }
                 Text(
                     personaName,
                     style = MaterialTheme.typography.titleMedium,

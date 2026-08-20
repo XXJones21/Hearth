@@ -128,11 +128,14 @@ class HearthWebSocketClient(
 
     fun listPersonas() = send(JSONObject().put("action", "list_personas"))
 
+    // The house reads `persona_name` on both of these. It also accepts a
+    // bare `name` on switch, but there is no reason to send the spelling the
+    // setup flow used when the canonical one works for both.
     fun switchPersona(name: String) =
-        send(JSONObject().put("action", "switch_persona").put("persona", name))
+        send(JSONObject().put("action", "switch_persona").put("persona_name", name))
 
     fun getPersonaConfig(name: String) =
-        send(JSONObject().put("action", "get_persona_config").put("persona", name))
+        send(JSONObject().put("action", "get_persona_config").put("persona_name", name))
 
     fun newSession() = send(JSONObject().put("action", "new_session"))
 
@@ -203,7 +206,7 @@ class HearthWebSocketClient(
 
             "ai_response" -> HearthEvent.AiResponse(
                 json.optString("text"),
-                json.optString("persona"),
+                personaField(json),
             )
 
             "error" -> HearthEvent.ErrorMessage(json.optString("message", json.optString("error")))
@@ -233,13 +236,14 @@ class HearthWebSocketClient(
 
             "personas_list" -> HearthEvent.PersonasList(
                 names = personaNames(json.opt("personas")),
-                current = json.optString("current"),
+                current = json.optString("current_persona")
+                    .ifEmpty { json.optString("current") },
             )
 
-            "persona_switched" -> HearthEvent.PersonaSwitched(json.optString("persona"))
+            "persona_switched" -> HearthEvent.PersonaSwitched(personaField(json))
 
             "persona_config" -> HearthEvent.PersonaConfig(
-                name = json.optString("persona"),
+                name = personaField(json),
                 config = json.optJSONObject("config") ?: JSONObject(),
             )
 
@@ -284,6 +288,14 @@ class HearthWebSocketClient(
             }
         }
     }
+
+    /**
+     * The house names a persona `persona_name`; some payloads and older
+     * houses say `persona`. Both spellings arrive in the wild, so read both
+     * rather than silently rendering a default persona's face.
+     */
+    private fun personaField(json: JSONObject): String =
+        json.optString("persona_name").ifEmpty { json.optString("persona") }
 
     /** `personas_list` carries either [String] or [{name}], as on iOS. */
     private fun personaNames(raw: Any?): List<String> {
