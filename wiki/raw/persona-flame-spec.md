@@ -508,6 +508,94 @@ It is also simply what fire does.
 
 ---
 
+## What a flat client can drop -- and what it cannot
+
+Most of the machinery above exists to survive conditions a screen does not have.
+Worth separating carefully, because the saving is real and it is smaller than it
+first looks.
+
+### First, ask whether the client is flat at all
+
+**The desktop client is not.** It renders the persona through
+`@react-three/fiber` in a `<Canvas>` with a perspective camera and
+**`OrbitControls`** -- zoom disabled, polar angle clamped, but free in yaw. The
+viewer can walk around the persona. That is a 3D scene in a window, not a
+composited picture, and it keeps almost everything a headset needs.
+
+**Android is undecided**, and this is the decision to make deliberately rather
+than by default, because it changes what gets ported:
+
+- A **3D scene in a view** costs what desktop costs and gains a persona you can
+  turn.
+- A **flat composite** is much cheaper and gives up rotation permanently.
+
+### Drops on every non-headset client
+
+These need passthrough or a room, and neither exists in a window:
+
+- **`SurroundingsLight`.** No physical surfaces to reach.
+- **The proximity spotlight** -- surface detection, the cone that widens with
+  distance, the wall/floor/ceiling cookies, the corner blending. All of it.
+- **Occlusion and collision against a scene mesh.**
+- **The point light itself**, very nearly. The flame is unlit, so the light
+  never touched it -- its only job was the room. Keep it only if a lit model
+  persona might stand near the fire.
+- **`AdaptiveResolutionComponent`.** A window knows its own pixel size exactly,
+  which is simpler than the headset's answer rather than a substitute for it.
+- **The gestures** -- move, scale, rotate, the spine handles, the anchors that
+  remember where things were left.
+
+`EffectBudget.flat` already encodes most of this: `lightScale` 0, no
+surroundings, no proximity spot.
+
+### Drops ONLY on a truly flat client
+
+These survive anywhere the viewer can change angle, which includes desktop
+today:
+
+- **The billboard on the face pivot.** One fixed viewpoint means the card never
+  needs to turn. An orbiting camera means it does.
+- **The card's curvature.** It exists so the face is correct from every angle.
+  One angle needs no curve.
+- **Tracking the flame's moving surface in depth.** A flat composite draws the
+  face over the fire and the problem does not exist.
+- **`opacityThreshold` and the sort group.** Both are fixes for transparency
+  sorting between two objects. Compositing in a fixed order has no sort to lose.
+
+### The bigger saving, if the client really is flat
+
+**The mesh becomes optional.** It exists for one reason: a texture carves
+inward, so it could never put a tongue of flame outside the sphere it was worn
+by. That is a constraint of texturing 3D geometry, and a flat client is not
+texturing geometry -- it is drawing pixels.
+
+So on a flat client, `profile`, `rise`, `lean` and the wobble stop describing a
+ring of vertices and start describing an **outline in screen space**: a mask, or
+an SDF, evaluated in the same fragment shader that already computes the fire.
+One pass, no vertex buffer, no per-frame mesh upload -- **and the silhouette is
+identical, because the arithmetic is the same.**
+
+The cost is that it stops being an object. There is no path from there to
+rotating it later without redoing the shape, which is precisely why this is a
+decision to take on purpose.
+
+### The one thing that is a LOSS, not a saving
+
+The flicker on the walls. *"A fire's signature from across a room is not its
+shape -- it is that the light on the walls is never still."* A window has no
+walls, so the fire loses its most legible cue and gets nothing back.
+
+The compensation is the thing the headset deliberately gave up: **a painted
+glow.** The bead wears one, and the flame switches it off, because a real light
+in a real room does that job better. In a window nothing does that job, so the
+2D clients should keep the halo the headset dropped -- driven by the same
+`flicker()` value, which is CPU-side arithmetic on the shared clock and free on
+any platform.
+
+That inversion is the general rule for this port: **the headset spent effort on
+the room and none on the composite; a screen has to spend it the other way
+round.**
+
 ## Porting notes
 
 **What is RealityKit-specific and needs a local answer:**
