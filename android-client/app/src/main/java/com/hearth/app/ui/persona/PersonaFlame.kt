@@ -10,10 +10,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import com.hearth.core.models.HearthState
 import com.hearth.core.persona.FlameProfile
 
@@ -174,21 +179,92 @@ private fun DrawScope.drawFlame(phase: Double, inputs: FlameInputs) {
         center = haloCenter,
     )
 
-    // THE BODY. One closed path from the same arithmetic the mesh uses, walked
-    // up the right meridian and back down the left. Angle 0 and angle pi are
-    // where a surface of revolution's outline lives, so these two edges are the
-    // headset's silhouette EXACTLY -- and they wobble independently, because
-    // the noise is per-meridian. A body that is round from every angle reads as
-    // a vase, not a fire.
     val body = outline(flame, phase, cx, baseY)
-    drawPath(
-        path = body,
-        brush = Brush.linearGradient(
-            colorStops = RAMP,
-            start = Offset(cx.toFloat(), baseY.toFloat()),
-            end = Offset(cx.toFloat(), (baseY - flame.height).toFloat()),
-        ),
-    )
+    val sink = flame.radius * FlameProfile.DOME_DEPTH
+    fun heightOf(v: Double) = (baseY - (flame.rise(v) + sink)).toFloat()
+
+    // THE BODY, THE LICKS AND THE FEATHER GO IN ONE LAYER, because the feather
+    // ERASES and an erase has to be bounded. Drawn straight onto the canvas it
+    // would take the halo with it and leave a hole in the glow where the tip
+    // should be.
+    drawIntoCanvas { canvas ->
+        canvas.saveLayer(Rect(Offset.Zero, size), Paint())
+
+        // THE BODY. One closed path from the same arithmetic the mesh uses,
+        // walked up the right meridian and back down the left. Angle 0 and
+        // angle pi are where a surface of revolution's outline lives, so these
+        // two edges are the headset's silhouette EXACTLY -- and they wobble
+        // independently, because the noise is per-meridian. A body that is
+        // round from every angle reads as a vase, not a fire.
+        drawPath(
+            path = body,
+            brush = Brush.linearGradient(
+                colorStops = RAMP,
+                start = Offset(cx.toFloat(), baseY.toFloat()),
+                end = Offset(cx.toFloat(), (baseY - flame.height).toFloat()),
+            ),
+        )
+
+        // THE LICKS. What the shader gets from a five-octave domain-warped fbm
+        // evaluated per pixel, a handful of narrower flames give in outline:
+        // each is the same profile at a fraction of the width, shifted along
+        // its own meridian so it leans differently, drawn lighter.
+        //
+        // THREE, and the number is the finding. Three reads as structure; more
+        // turns the body back into a wash.
+        clipPath(body) {
+            for (i in 0 until 3) {
+                val seed = i * 2.4 + 1.1
+                val inner = flame.copy(
+                    radius = flame.radius * (0.30 + 0.12 * i),
+                    height = flame.height * (0.72 + 0.08 * i),
+                )
+                val offset =
+                    FlameProfile.noise(seed, 0.7, phase * 0.6) * flame.radius * 0.42
+                drawPath(
+                    path = outline(inner, phase + seed, cx + offset, baseY),
+                    brush = Brush.linearGradient(
+                        colorStops = arrayOf(
+                            0.00f to FlameStraw.copy(alpha = 0.55f),
+                            0.55f to FlameGold.copy(alpha = 0.16f),
+                            1.00f to FlameGold.copy(alpha = 0f),
+                        ),
+                        start = Offset(cx.toFloat(), baseY.toFloat()),
+                        end = Offset(cx.toFloat(), (baseY - inner.height).toFloat()),
+                    ),
+                )
+            }
+        }
+
+        // THE TIP FEATHER, and it is not decoration. The profile puts ALL its
+        // narrowing in the last five per cent of the height -- still 59% wide
+        // at v=0.88 -- so the raw geometry is an egg with a spike on it, which
+        // is exactly how it read on the headset before this. A point is the one
+        // shape a flame never has.
+        //
+        // The same window the kernel uses, 0.88 to 0.99. Three per cent of the
+        // height is a cut rather than a feather.
+        //
+        // DstOut subtracts alpha, which is the clean version of what iOS has to
+        // fake -- a SwiftUI Canvas cannot take alpha back out of a fill it has
+        // already made, so it washes the tip toward ash instead. Here the tip
+        // genuinely goes to nothing and the halo shows through it.
+        val fadeTop = heightOf(FlameProfile.FADE_END)
+        val fadeBottom = heightOf(FlameProfile.FADE_START)
+        val overshoot = (flame.height * 0.1).toFloat()
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(Color.Black, Color.Transparent),
+                start = Offset(cx.toFloat(), fadeTop - overshoot),
+                end = Offset(cx.toFloat(), fadeBottom),
+            ),
+            topLeft = Offset(0f, 0f),
+            size = androidx.compose.ui.geometry.Size(size.width, fadeBottom),
+            blendMode = BlendMode.DstOut,
+        )
+
+        canvas.restore()
+    }
 }
 
 /** One closed path: up the right meridian, back down the left. */
