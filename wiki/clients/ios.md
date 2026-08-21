@@ -4,6 +4,7 @@ status: draft
 last_reviewed: 2026-08-08
 related:
   - ../first-run.md
+  - android.md
   - windows.md
   - macos.md
   - visionos.md
