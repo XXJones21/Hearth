@@ -107,7 +107,7 @@ fun HearthMainScreen(
 ) {
     var composerUp by remember { mutableStateOf(false) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -131,7 +131,24 @@ fun HearthMainScreen(
                     )
             ) {
                 val stageHeightPx = constraints.maxHeight.toFloat()
-                PersonaStage(
+                // THE COVER SCREEN IS THE SAME CLIENT, RE-LAID-OUT. It is a
+                // real second display -- the socket, the director and the
+                // flame are already live -- so it takes a layout rather than
+                // a widget, and closing the phone continues the session it was
+                // already having.
+                if (isCoverSized(maxHeight)) {
+                    CoverStage(
+                        state = state,
+                        palette = palette,
+                        faceGeometry = faceGeometry,
+                        personaForm = personaForm,
+                        faceCue = faceCue,
+                        caption = caption,
+                        card = cards.lastOrNull(),
+                        ttsAmplitude = ttsAmplitude,
+                        onChoice = onChoice,
+                    )
+                } else PersonaStage(
                     stageHeightPx = stageHeightPx,
                     // Collapsed, the stage is the ONLY surface, so the newest
                     // card stays put after the turn ends. Expanded, the feed
@@ -161,10 +178,16 @@ fun HearthMainScreen(
                 )
             }
 
+            // The cover's bottom chrome is the same chrome, tightened. Read
+            // from the WHOLE window rather than the stage, because the stage
+            // has already given its height away to whatever is showing.
+            val compact = isCoverSized(this@BoxWithConstraints.maxHeight)
+
             HouseStatusBar(
                 state = state,
                 personaName = personaName,
                 activeTools = activeTools,
+                compact = compact,
             )
 
             BottomInputBar(
@@ -175,6 +198,7 @@ fun HearthMainScreen(
                 onTalk = onTalk,
                 onSend = onSend,
                 onTypingChanged = { composerUp = it },
+                compact = compact,
             )
         }
 

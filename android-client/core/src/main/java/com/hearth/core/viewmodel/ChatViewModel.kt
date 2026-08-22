@@ -430,6 +430,18 @@ class ChatViewModel(
         connect()
     }
 
+    /**
+     * A fresh token is in hand. Drop the refusal and dial.
+     *
+     * Clearing the flag here rather than waiting for the handshake to clear it
+     * is what stops the pairing screen reappearing over a connection that is
+     * on its way up.
+     */
+    fun pairedAgain() {
+        _needsPairing.value = false
+        reconnectNow()
+    }
+
     /** Session verbs need a live socket and no turn in flight. */
     fun canAct(): Boolean =
         _connected.value && _state.value != HearthState.THINKING
@@ -565,7 +577,10 @@ class ChatViewModel(
             is HearthEvent.Failure -> {
                 _connected.value = false
                 stopKeepalive()
-                scheduleReconnect()
+                // Same fork as Closed, and the common case in practice: this
+                // gate refuses at the upgrade, so a refused device fails
+                // rather than closing.
+                if (event.authRejected) _needsPairing.value = true else scheduleReconnect()
             }
 
             is HearthEvent.Unknown -> Log.i(TAG, "unhandled action '${event.action}'")

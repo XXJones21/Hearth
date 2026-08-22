@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.hearth.app.ui.theme.HearthColors
 import com.hearth.core.models.HearthState
@@ -59,6 +60,13 @@ fun BottomInputBar(
     onTalk: () -> Unit,
     onSend: (String) -> Unit,
     onTypingChanged: (Boolean) -> Unit,
+    /**
+     * The cover screen, where the whole app gets a strip about a third the
+     * height of the inner display's. Everything here is sized for a phone
+     * held open; unchanged on the cover it stacks four bands and squeezes the
+     * persona to a thumbnail.
+     */
+    compact: Boolean = false,
 ) {
     var typing by remember { mutableStateOf(false) }
 
@@ -66,10 +74,13 @@ fun BottomInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 18.dp)
-            .padding(top = 14.dp, bottom = 16.dp),
+            .padding(horizontal = if (compact) 10.dp else 18.dp)
+            .padding(
+                top = if (compact) 6.dp else 14.dp,
+                bottom = if (compact) 8.dp else 16.dp,
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 12.dp),
     ) {
         // What the mic has heard so far, in its own bubble above the button
         // that will send it, with the rule written underneath: people do not
@@ -81,22 +92,32 @@ fun BottomInputBar(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(
+                        horizontal = if (compact) 10.dp else 16.dp,
+                        vertical = if (compact) 6.dp else 12.dp,
+                    ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
                         it,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = if (compact) MaterialTheme.typography.bodyMedium
+                        else MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
+                        maxLines = if (compact) 2 else Int.MAX_VALUE,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        "sends when you pause, or tap the button",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 2.dp),
-                    )
+                    // The rule is taught once and then it is noise. On a strip
+                    // this size it costs a line the persona needs.
+                    if (!compact) {
+                        Text(
+                            "sends when you pause, or tap the button",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
             }
         }

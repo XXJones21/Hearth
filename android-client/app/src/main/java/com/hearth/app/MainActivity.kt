@@ -29,6 +29,7 @@ import com.hearth.app.ui.FirstRunScreen
 import com.hearth.app.ui.HearthMainScreen
 import com.hearth.app.ui.HouseDestination
 import com.hearth.app.ui.HouseShelf
+import com.hearth.app.ui.PairingReason
 import com.hearth.app.ui.surfaces.AppsScreen
 import com.hearth.app.ui.surfaces.JournalScreen
 import com.hearth.app.ui.surfaces.PersonaScreen
@@ -88,11 +89,26 @@ class MainActivity : ComponentActivity() {
                         if (ready == true) viewModel.connect()
                     }
 
+                    // THE HOUSE REFUSED THIS DEVICE. `ready` is computed once
+                    // at startup, from a token that may since have been
+                    // revoked or pointed at a different house -- so without
+                    // this the stage sits reading "not connected" with no
+                    // explanation and no route back, which is exactly what a
+                    // paired-then-unpaired phone did.
+                    val needsPairing by viewModel.needsPairing.collectAsState()
+                    LaunchedEffect(needsPairing) {
+                        if (needsPairing && ready == true) ready = false
+                    }
+
                     if (ready == null) {
                         Splash()
                     } else if (ready == false) {
                         FirstRunScreen(
                             config = config,
+                            // Re-pairing rather than a first run: the house is
+                            // known and it turned this device away.
+                            reason = if (needsPairing) PairingReason.REFUSED
+                            else PairingReason.FIRST_RUN,
                             onDone = {
                                 ready = true
                                 // Pairing just landed, so onStart has already
@@ -100,7 +116,7 @@ class MainActivity : ComponentActivity() {
                                 // Without this the stage opens reading "Not
                                 // connected" and waits for a foreground that
                                 // never comes.
-                                viewModel.connect()
+                                viewModel.pairedAgain()
                             },
                         )
                     } else {
@@ -194,7 +210,16 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onApply = {
                                     destination = null
-                                    viewModel.reconnectNow()
+                                    // Committing a NEW HOST surrenders the old
+                                    // house's key, so there is nothing to dial
+                                    // with. Going to pairing beats redialling
+                                    // into a refusal and waiting to be told.
+                                    if (config.isPaired) viewModel.reconnectNow()
+                                    else ready = false
+                                },
+                                onPair = {
+                                    destination = null
+                                    ready = false
                                 },
                                 onForget = {
                                     Pairing.forget(config)

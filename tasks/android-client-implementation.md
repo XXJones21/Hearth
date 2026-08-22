@@ -264,18 +264,59 @@ cards appear on the stage and in the timeline.
 **Gate:** every surface does what its iOS counterpart does, judged screen by
 screen.
 
-### Section 6: the cover screen
+### Section 6: the cover screen -- DONE 2026-08-20
 
-Only after the client is right on the inner display.
+**The plan for this section was wrong, and the device said so.** It called for
+a snapshot publisher and a Glance widget, on the assumption that the cover was
+a widget surface. It is not. The Razr's outer screen is a REAL second display:
 
-1. The snapshot publisher: port `HearthSnapshot` and write it to shared
-   storage on every state change.
-2. A Glance widget rendering persona, state, and card summaries, with the
-   quick-talk deep link.
-3. Then the owned surface: accessibility service plus overlay, per the
-   appliance plan.
+| | Inner (id 0) | Cover (id 1) |
+| --- | --- | --- |
+| Size | 1080x2640 @ 420dpi | 1056x1066 @ 360dpi |
+| App area | full | 1056x917 (Motorola keeps the rest) |
+| Flags | INTERNAL | `FLAG_PRESENTATION`, `FLAG_ROUND`, `FLAG_ALLOWED_TO_BE_DEFAULT_DISPLAY` |
+| Display group | 0 | 1 |
 
-**Gate:** a voice turn started and heard with the phone closed.
+So the client already ran there unmodified, flame and all, once Motorola's
+per-app opt-in (`com.motorola.cli.settings/.CliSettingsOptInActivity`) let it
+through. It never needed a snapshot OF the session. It needed a layout FOR the
+session it was already having.
+
+What was built instead:
+
+1. **`CoverStage`**, chosen by measured height rather than by display id, so
+   the same activity re-lays-out and closing the phone continues the
+   conversation. One socket, one director, one flame.
+2. **The persona moves rather than shares.** A square strip has no
+   all-at-once: the first capture had the clock sitting on the flame's face.
+   It rides between the middle of an empty stage and the top of a busy one,
+   animated, with a floor on its share -- busy here can mean caption AND card
+   AND a live partial, and without a floor the fire became a thumbnail.
+3. **The leftovers expire in order.** Caption at 30s after the house stops
+   talking, card 30s after that, then the stage is at rest. A timer still
+   counting is exempt: that is the whole reason a card belongs on a closed
+   phone.
+4. **No clock of ours.** Motorola draws one in the pill directly below the
+   window.
+5. **`SECONDARY_HOME`.** The cover's home seat is a real platform role, held
+   by `com.motorola.launcher.secondarydisplay`, which declares
+   MAIN + SECONDARY_HOME + DEFAULT and nothing else. Hearth declares the same
+   and was chosen through the platform resolver; the preference persists in
+   `preferred-xml`. There is deliberately no CATEGORY_HOME on that filter, so
+   claiming the cover cannot disturb the inner display's launcher.
+
+**Gate: MET.** A voice turn started and heard with the phone closed, plus a
+full text turn end to end, plus pairing over the tailnet from the cover.
+
+Still to do here, and it belongs with the appliance rather than the client:
+
+- The owned surface (accessibility service plus overlay) per the appliance
+  plan, for the parts of the cover Motorola still owns.
+- The DPC setting SECONDARY_HOME persistently via
+  `addPersistentPreferredActivity`, so a provisioned device needs no tap and
+  the choice survives a wipe.
+- Whether the Motorola per-app cover opt-in can be pre-granted by a Device
+  Owner. It was accepted by hand here and its storage is not known.
 
 ## Working rules for this plan
 

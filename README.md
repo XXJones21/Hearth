@@ -15,7 +15,8 @@ desktop-client/     The app. Tauri v2, React, TypeScript. Supervises the backend
 backend/            The harness: gateway, personas, tools, memory, voice.
 crates/
   hearth-probe/     Looks at a machine and decides what Hearth it can run.
-apple-client/       The iOS app.
+apple-client/       The iOS and visionOS apps.
+android-client/     The Android app. Compose; a phone client and a cover-screen home.
 vendor/             Voice engine sources built during packaging.
 scripts/            Builds the backend tarball the installer bundles.
 wiki/               How it works, and why it is built this way.
@@ -25,7 +26,34 @@ The client bundles the backend and supervises it as a tree of native
 processes. No WSL, no container. An installed house runs a model server, a
 gateway, and a voice engine, all started and watched by the app.
 
-## Running the client
+## Alpha builds
+
+The first packaged alpha (0.1.0) covers three platforms. iOS and visionOS
+come later through TestFlight; they are built but need Apple's pipeline.
+
+**Windows.** An installer built with the ship loop:
+`desktop-client/src-tauri/target/release/bundle/nsis/` after
+`bash scripts/pack_backend.sh && npm run tauri build`. Run it, and first run
+scans the machine, plans a model tier, downloads what it needs, and boots
+the house. Everything after that is local.
+
+**macOS.** The same app, built on a Mac; the procedure is
+[`tasks/clients/macos-package-handoff.md`](tasks/clients/macos-package-handoff.md).
+The alpha dmg is unsigned: right-click, Open, once, and it opens normally
+after that.
+
+**Android.** A signed APK from
+`cd android-client && ./gradlew assembleRelease` (signing needs a
+`keystore.properties` beside the keystore; both stay out of the repository).
+Sideload it, then point it at a house: the phone client pairs with a running
+desktop install from Settings, and reaches it away from home over a tailnet
+if the house is on one.
+
+The Android and Apple clients are companions to a house, not houses: one
+desktop install carries the models and the memory, and the small screens
+connect to it.
+
+## Running the client from source
 
 ```
 cd desktop-client

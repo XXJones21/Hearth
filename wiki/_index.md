@@ -43,6 +43,7 @@ What Hearth is on each platform, written for someone meeting it cold.
 | Windows desktop | [`clients/windows.md`](clients/windows.md) |
 | macOS | [`clients/macos.md`](clients/macos.md) |
 | iOS | [`clients/ios.md`](clients/ios.md) |
+| Android | [`clients/android.md`](clients/android.md) |
 | Apple Vision Pro | [`clients/visionos.md`](clients/visionos.md) |
 
 ## The features
