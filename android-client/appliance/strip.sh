@@ -46,7 +46,10 @@ strip_one() {
         echo "absent   $pkg"
         return
     fi
-    if "${ADB[@]}" shell pm uninstall --user 0 "$pkg" >/dev/null 2>&1; then
+    # </dev/null: adb inside a while-read loop otherwise swallows the rest
+    # of the piped package list, which is how the first tier 2 run stripped
+    # exactly one wallpaper and declared victory.
+    if "${ADB[@]}" shell pm uninstall --user 0 "$pkg" </dev/null >/dev/null 2>&1; then
         echo "removed  $pkg  ($reason)"
         echo "$(date -Iseconds) TIER$TIER_NAME removed $pkg -- $reason" >> "$LOG"
     else

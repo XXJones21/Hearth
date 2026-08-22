@@ -68,6 +68,17 @@ object Appliance {
                 admin, home, ComponentName(activity, MainActivity::class.java)
             )
 
+            // The cover seat too. Motorola marks its cover launcher
+            // non-disable, so the strip cannot remove it; the persistent
+            // preference is what actually takes the seat from it.
+            val coverHome = IntentFilter(Intent.ACTION_MAIN).apply {
+                addCategory("android.intent.category.SECONDARY_HOME")
+                addCategory(Intent.CATEGORY_DEFAULT)
+            }
+            dpm.addPersistentPreferredActivity(
+                admin, coverHome, ComponentName(activity, MainActivity::class.java)
+            )
+
             dpm.setLockTaskPackages(admin, LOCK_TASK_PACKAGES)
             // The power menu stays (a held device must be able to shut
             // down); the shade and system info flags stay OFF, so stock
@@ -95,6 +106,18 @@ object Appliance {
             dpm.setSystemSetting(
                 admin, Settings.System.SCREEN_OFF_TIMEOUT, SCREEN_TIMEOUT_MS
             )
+
+            // The VPN must come up on boot without a person: the first tier 1
+            // reboot proved it, landing in a persona that could not reach the
+            // house because Tailscale sat waiting to be opened. Lockdown stays
+            // false so a broken VPN degrades to LAN rather than to nothing.
+            try {
+                dpm.setAlwaysOnVpnPackage(admin, "com.tailscale.ipn", false)
+            } catch (e: Exception) {
+                // Tailscale not installed yet; the runbook installs it and the
+                // next resume picks it up.
+                Log.w(TAG, "always-on VPN not set", e)
+            }
         } catch (e: SecurityException) {
             // A policy refused mid-flight (an OEM quirk, a stale admin) must
             // not take the client down with it; the persona still renders.

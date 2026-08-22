@@ -18,18 +18,29 @@ adb shell pm list users                              # only user 0
 adb shell settings get global device_provisioned
 ```
 
-Back up what must survive. A factory reset wipes the Download folder and
-every sideloaded app, so both come off the device first:
+Back up what must survive. A factory reset wipes the Download folder,
+every sideloaded app, and app data, so all of it comes off first:
 
 ```
-mkdir -p backup
+mkdir -p backup/pokemonred
 adb pull /sdcard/Download backup/Download
 adb shell pm path com.theboisclub.pokemonred        # note every apk= line
 adb pull <each-path> backup/pokemonred/
+adb shell bmgr enable true                          # off on a no-account device
+adb backup -f backup/pokemonred/pokemonred.ab -apk com.theboisclub.pokemonred
 ```
 
-A split APK lists several paths; pull all of them. Keep `backup/` out of
-the repository.
+`adb backup` is the only route to the save data: the game keeps its saves
+in its scoped external dir (`Android/data/.../files/save/`), which neither
+shell nor run-as can read on Android 13, and a plain `adb pull` writes
+TRUNCATED files there without saying so. The backup works because the APK
+is debuggable. It needs the lid OPEN, the phone unlocked, and a tap on
+"Back up my data" (blank password); the confirmation dialog renders on the
+inner display only. Verify before resetting: strip the 24-byte header,
+zlib-inflate, and confirm `saves/` files are present at full size (done
+2026-08-22; `saves/gold/slot1.lua` came through intact).
+
+Keep `backup/` out of the repository (gitignored).
 
 ## 1. Reset and provision
 
@@ -56,8 +67,13 @@ the repository.
 
    ```
    adb push backup/Download /sdcard/Download
-   adb install -r backup/pokemonred/*.apk    # install-multiple if split
+   adb install -r -t backup/pokemonred/base.apk
+   adb shell bmgr enable true
+   adb restore backup/pokemonred/pokemonred.ab   # lid open, tap Restore
    ```
+
+   The restore puts the save data back into the game's scoped dir. Launch
+   the game once and confirm the save loads before moving on.
 
 7. Open Hearth once. On resume it applies the kiosk policy, takes HOME,
    and pins. Pair it with the house before stripping anything, so every
@@ -72,7 +88,17 @@ it now, from Play before Tier late strips it, or by sideloading its APK.
    tailnet.
 2. Verify the house resolves by its FULL tailnet name
    (`vytal.tail22b3ca.ts.net`); short names fail, which iOS proved.
-3. Set Tailscale to start on boot.
+3. Boot survival is enforced twice, because the first tier 1 reboot
+   landed in a persona that could not reach the house: the DPC sets
+   Tailscale as always-on VPN on every resume (Appliance.enterKiosk),
+   and the secure setting backs it up:
+
+   ```
+   adb shell settings put secure always_on_vpn_app com.tailscale.ipn
+   ```
+
+   Verify after the next reboot: the tailnet ping must succeed with
+   nobody opening the Tailscale app.
 
 ## 2. The strip, tier by tier
 
