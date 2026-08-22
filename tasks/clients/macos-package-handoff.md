@@ -7,8 +7,14 @@ Mac-specific parts made explicit.
 
 ## What comes out
 
-`desktop-client/src-tauri/target/release/bundle/dmg/Hearth_0.1.0_aarch64.dmg`
-(and the `.app` beside it under `macos/`). That dmg is the alpha artifact.
+`target/release/bundle/dmg/Hearth_0.1.0_aarch64.dmg`, at the REPOSITORY
+ROOT (and the `.app` beside it under `macos/`). That dmg is the alpha
+artifact.
+
+Not `desktop-client/src-tauri/target/`, which is where a standalone crate
+would put it. The tauri crate is a member of the root workspace, so cargo
+resolves one shared target directory at the workspace root and bundles there.
+The build's own closing lines print the two real paths; trust those.
 
 ## Prerequisites on the Mac
 
@@ -49,6 +55,14 @@ Every step runs from the repository root unless said otherwise.
 
    ```
    ENGRAM_MCP_SRC=../engram-mcp bash scripts/pack_backend.sh
+   ```
+
+   If there is no checkout on this machine yet, make one first; the pack
+   script hard errors without it, deliberately, because a bundle missing the
+   memory client is a silent memory regression:
+
+   ```
+   git clone https://github.com/XXJones21/engram-mcp.git ../engram-mcp
    ```
 
 5. **Build the client:**
