@@ -9,3 +9,5 @@ local.properties
 captures/
 .kotlin/
 keystore.properties
+appliance/backup/
+appliance/strip-log.txt

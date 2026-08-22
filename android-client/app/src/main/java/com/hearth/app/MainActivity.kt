@@ -355,6 +355,14 @@ class MainActivity : ComponentActivity() {
         this, Manifest.permission.RECORD_AUDIO
     ) == PackageManager.PERMISSION_GRANTED
 
+    override fun onResume() {
+        super.onResume()
+        // On the appliance this applies the kiosk policy and pins; on every
+        // other device it returns on its first line. Resume rather than
+        // create, because startLockTask wants a foreground activity.
+        com.hearth.Appliance.enterKiosk(this)
+    }
+
     override fun onStart() {
         super.onStart()
         // isPaired can touch the Keystore, so the check happens off the main

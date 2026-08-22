@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The DPC's declared policies. Device owner gets most of its power from
+     ownership itself, not from this list; force-lock and disable-keyguard
+     are the two the platform still wants declared. -->
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-policies>
+        <force-lock />
+        <disable-keyguard />
+    </uses-policies>
+</device-admin>
