@@ -1,5 +1,12 @@
 # Hearth Android Appliance, the overhaul plan
 
+**Executed 2026-08-22.** The Razr is the appliance: device owner set, all
+strip tiers run and verified, closed-lid power cycle lands in the pinned
+persona with the tailnet up unattended, full voice turn confirmed after
+the final strip. The as-built record is the addendum at the bottom; the
+canonical article is `wiki/clients/android.md`; the working material is
+`android-client/appliance/`.
+
 Written 2026-08-20 from the approved brainstorm. Companion to
 `wiki/raw/android-client-plan.md` (the client rebuild, which comes first),
 `tasks/android-client-mirror.md` (the task), and
@@ -181,3 +188,38 @@ adds no UI of its own.
 Each step verified on the device before the next; the appliance is done
 when a power cycle lands in the persona on the closed lid with nothing
 else reachable.
+
+## As built, 2026-08-22
+
+The plan held. Where the device disagreed with it:
+
+- **No factory reset.** The phone had never been signed into Google since
+  its last reset; the only accounts were stubs owned by NewsBreak and the
+  AT&T contacts preload. Uninstalling the owners took accounts to zero and
+  `dpm set-device-owner` succeeded on the live device. The operator's
+  Download folder, the Gen 1 recomp and its save data never moved; the
+  backup taken first (Section 1 order preserved) became insurance.
+- **The save-data backup needed `adb backup`.** The game keeps its saves
+  in its scoped external dir, which neither shell nor run-as can read on
+  Android 13, and a plain pull writes truncated files without saying so.
+  `adb backup` worked because the APK is debuggable, after `bmgr enable
+  true` (off on a no-account device) and with the lid open, because the
+  confirmation dialog renders on the inner display only.
+- **The speech component is `com.google.android.tts`**, not the Search
+  app: `settings get secure voice_recognition_service` named it. So the
+  Search app stripped cleanly in the late group and STT survived,
+  voice-turn verified.
+- **Tailscale must be always-on by policy.** The first post-strip reboot
+  stranded the persona from the house. The DPC now sets
+  `setAlwaysOnVpnPackage`, lockdown off.
+- **Motorola's cover launcher is non-disable.** Tier 3 cannot remove it;
+  a persistent preferred activity for `SECONDARY_HOME` takes the seat
+  instead, and with the other launchers gone Hearth is the only candidate
+  anyway.
+- **Roughly 120 packages removed** across tiers 0 to 3 plus the late
+  group, each logged with a reason in `appliance/strip-log.txt`, each
+  reversible by `restore.sh` without a reset.
+
+Still owed, unchanged from Owed design work: the cover-screen design
+pass, and degraded operation during the boot window before the tailnet
+is up, which the first reboot made concrete.
