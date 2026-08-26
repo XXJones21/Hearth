@@ -5,8 +5,20 @@ review is the librarian that reads it. Voice sessions file themselves; dev
 work never did, so a day spent on a feature branch was invisible to "what
 did we do yesterday". This module files it: for each configured repo, one
 diary per day at ``Thoughts/<day>-dev-<slug>/claude.md`` listing that day's
-commits, written raw and deterministic so the review summarizes it exactly
-the way it summarizes any other diary.
+commits.
+
+The file is written in the SAME diary format ``session_persist`` uses: a
+``- **Key:** value`` metadata block, then ``## Summary`` / ``## Key
+Decisions`` / ``## Open Questions`` / ``## Action Items``. That is not a
+stylistic choice. The Journal surface parses that format and only that
+format (``gateway/journal.py:_parse_diary``), so a diary written in any
+other shape renders as a blank card: metadata lines that are not
+``- **Key:**`` bullets do not match, and bullets sitting under no ``##``
+heading are dropped. This module once wrote a simpler shape of its own, and
+the result was that every dev diary in the app showed an empty entry while
+the commits sat on disk one directory away. A second format is not a second
+dialect, it is an invisible entry. Commits go under Key Decisions, where a
+reader can see them; the totals line is the Summary.
 
 The configuration is the plain-text record (``Areas/routines.md``): lines of
 the form ``- <repo-path> -> <project-slug>`` under a **Dev sources** entry.
@@ -111,30 +123,51 @@ def _day_commits(repo: Path, day: str) -> tuple[list[str], set[str], str]:
     return commits, branches, totals
 
 
-def harvest_day(root: Path, day: str, sources: list[tuple[Path, str]] | None = None) -> int:
+def harvest_day(
+    root: Path,
+    day: str,
+    sources: list[tuple[Path, str]] | None = None,
+    rewrite: bool = False,
+) -> int:
     """File one dev diary per source repo with commits on ``day``. Returns
     the number of diaries written. Idempotent: an existing folder for a repo
-    and day is never rewritten. Never raises."""
+    and day is never rewritten, unless ``rewrite`` is set -- which exists so
+    a change to the diary format can be applied to the days already filed,
+    rather than leaving them unreadable forever. Never raises."""
     try:
         srcs = dev_sources(root) if sources is None else sources
         written = 0
         for repo, slug in srcs:
             folder = Path(root) / "Thoughts" / f"{day}-dev-{slug}"
-            if folder.exists():
+            if folder.exists() and not rewrite:
                 continue
             commits, branches, totals = _day_commits(repo, day)
             if not commits:
                 continue
+            branch_label = ", ".join(sorted(branches)) or "unknown"
             body = "\n".join(
                 [
                     f"# Dev work: {slug} ({day})",
                     "",
-                    f"project: {slug}",
-                    f"branches: {', '.join(sorted(branches)) or 'unknown'}",
+                    f"- **Date:** {day}",
+                    f"- **Related Project:** {slug}",
+                    "- **Tags:** dev-work",
+                    "",
+                    "## Summary",
+                    "",
+                    f"{totals} on {branch_label}.",
+                    "",
+                    "## Key Decisions",
                     "",
                     *commits,
                     "",
-                    totals,
+                    "## Open Questions",
+                    "",
+                    "- None recorded",
+                    "",
+                    "## Action Items",
+                    "",
+                    "- None recorded",
                     "",
                 ]
             )
@@ -170,6 +203,11 @@ def main() -> None:
     p.add_argument("--day", help="one day, YYYY-MM-DD")
     p.add_argument("--since", help="range start, YYYY-MM-DD")
     p.add_argument("--until", help="range end inclusive, YYYY-MM-DD")
+    p.add_argument(
+        "--rewrite",
+        action="store_true",
+        help="re-file days that already have a diary (diary-format migrations)",
+    )
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -190,7 +228,7 @@ def main() -> None:
         days = [(date.today() - timedelta(days=1)).isoformat()]
     total = 0
     for day in days:
-        total += harvest_day(root, day, srcs)
+        total += harvest_day(root, day, srcs, rewrite=args.rewrite)
     print(f"{total} dev diary(ies) written under {root}/Thoughts")
 
 
