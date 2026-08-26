@@ -1,3 +1,11 @@
+---
+area: clients/visionOS
+status: closed
+depends_on: []
+blocks: []
+updated: 2026-08-18
+---
+
 # Phase 4 -- the immersive house
 
 **CLOSED 2026-08-18. Gate 4 passed on device, with both persona kinds.**

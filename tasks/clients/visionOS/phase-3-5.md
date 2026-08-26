@@ -1,3 +1,11 @@
+---
+area: clients/visionOS
+status: closed
+depends_on: []
+blocks: []
+updated: 2026-08-18
+---
+
 # Phase 3.5 -- finishing the volumetric window
 
 **CLOSED 2026-08-18.** All four items landed, plus three corrections the device

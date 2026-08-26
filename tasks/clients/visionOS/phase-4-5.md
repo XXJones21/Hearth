@@ -1,3 +1,11 @@
+---
+area: clients/visionOS
+status: closed
+depends_on: []
+blocks: []
+updated: 2026-08-20
+---
+
 # Phase 4.5 -- the room's light
 
 An immersive quality-of-life pass, scoped 2026-08-18, to run after phase 4's
