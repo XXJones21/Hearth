@@ -37,8 +37,8 @@ come later through TestFlight; they are built but need Apple's pipeline.
 scans the machine, plans a model tier, downloads what it needs, and boots
 the house. Everything after that is local.
 
-**macOS.** The same app, built on a Mac; the procedure is
-[`tasks/clients/macos-package-handoff.md`](tasks/clients/macos-package-handoff.md).
+**macOS.** The same app, built on a Mac; the procedure for every platform
+is [`wiki/releasing.md`](wiki/releasing.md).
 The alpha dmg is unsigned: right-click, Open, once, and it opens normally
 after that.
 
