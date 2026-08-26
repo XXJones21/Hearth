@@ -27,6 +27,28 @@ const EYE_V = 0.45;
 const EMBER_COUNT = 46;
 const EDGE_STEPS = 40;
 
+/**
+ * The fire, in CSS pixels, and FIXED.
+ *
+ * It used to be sized off the canvas box, which meant a wider window drew a
+ * bigger Sulivan. That is right for the headset, where he stands in a room at
+ * his own scale, and wrong here: on a desktop he is a character on a shelf, so
+ * a wider window should give him more room around him, not more of him.
+ *
+ * Three numbers, each judged on a screen rather than derived. HEIGHT is the
+ * drawn height of the body; RADIUS is the base radius everything else keys off
+ * (the licks, the ember spread, and the face at R * 2.5); HALO_RADIUS is the
+ * glow, deliberately kept at the footprint the fire had before it was cut down,
+ * because the light was already the right size and only the thing casting it
+ * was wrong.
+ */
+// Proportion measured off the iOS client, which is the look to match: the
+// body there is ~1.55 tall for every 1 wide, a squat egg rather than a taper.
+// H / R therefore wants to sit near 3.1; at 3.7 it reads as a candle flame.
+const FIRE_HEIGHT_CSS = 130;
+const FIRE_RADIUS_CSS = 42;
+const HALO_RADIUS_CSS = 68;
+
 const smoothstep = (a: number, b: number, x: number): number => {
   const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -197,8 +219,12 @@ export function PersonaFlame({ geometry, visualState }: Props) {
       // with the dome's bottom 0.95R BELOW the base line. Sized like the
       // phones: the fire holds the middle of the box with air around it for
       // the halo and the ember plume, not a fill.
-      const H = Math.min(Hpx * 0.52, W * 1.1);
-      const R = Math.min(W * 0.24, H * 0.28);
+      //
+      // Fixed size in CSS px, lifted to device px. The box still decides WHERE
+      // the fire sits (cx, yBase below), never how big it is.
+      const H = FIRE_HEIGHT_CSS * dpr;
+      const R = FIRE_RADIUS_CSS * dpr;
+      const R0 = HALO_RADIUS_CSS * dpr;
       const cx = W / 2;
       const yBase = Hpx * 0.72 - R * 0.95;
       const yAt = (v: number) => yBase - profileRise(v, R, H);
@@ -209,7 +235,7 @@ export function PersonaFlame({ geometry, visualState }: Props) {
       // 8. The halo, behind everything. A screen has no walls, so the glow
       // is where the fire's never-still light lives.
       const glowA = 0.28 + 0.3 * flicker(phase);
-      const halo = ctx.createRadialGradient(cx, yAt(0.35), R * 0.2, cx, yAt(0.35), R * 2.6);
+      const halo = ctx.createRadialGradient(cx, yAt(0.35), R0 * 0.2, cx, yAt(0.35), R0 * 2.6);
       halo.addColorStop(0, `rgba(255, 180, 80, ${glowA})`);
       halo.addColorStop(1, 'rgba(255, 140, 40, 0)');
       ctx.fillStyle = halo;
