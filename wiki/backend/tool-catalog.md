@@ -51,8 +51,8 @@ tools work during setup and are unreachable an hour later.
 
 | Tool | Domain | Risk | On | Feeds card |
 | --- | --- | --- | --- | --- |
-| `calendar_next` | calendar | read | no | |
-| `calendar_today` | calendar | read | no | |
+| `calendar_read` | calendar | read | yes | |
+| `calendar_write` | calendar | write | yes | |
 | `claude_status` | dev | read | yes | |
 | `consult_claude` | dev | write | yes | `terminal_card` |
 | `append_file` | files | write | yes | |
@@ -105,11 +105,17 @@ be split (`workshop` for the card tools, `brain` for the second-brain tools).
 the registry logs `unknown domain(s) ignored: ['briefs']` on every persona load.
 Harmless, and a sign that grants are not validated against the registry.
 
-**Four tools are switched off.** `calendar_today` and `calendar_next` have no
-calendar backend, `hass_call` has no configured Home Assistant, and
-`current_time` was deliberately retired when the time became ambient context in
-every prompt. The first three are gaps with a placeholder; the fourth is a
+**Two tools are switched off.** `hass_call` has no configured Home Assistant,
+and `current_time` was deliberately retired when the time became ambient
+context in every prompt. The first is a gap with a placeholder; the second is a
 tool correctly deleted, and the difference matters when reading the file.
+
+The calendar used to be a third case and is now neither. `calendar_today` and
+`calendar_next` were disabled entries pointing at a handler module that never
+existed, and they assumed a Google-backed calendar. They are replaced by
+`calendar_read` and `calendar_write` over the house's own store at
+`$ENGRAM/Areas/Calendar/YYYY-MM.md`, ported from Valinor 2026-08-26. Nothing to
+sign in to.
 
 **`requires_capability` is set on nothing.** The fourth gate is built and
 unused. Tools that only make sense with a screen (`compose_view`, `forge_card`,

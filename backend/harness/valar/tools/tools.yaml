@@ -841,28 +841,67 @@ tools:
           description: What to do, e.g. "turn_on", "turn_off", "status".
       required: [entity, action]
 
-  # Prerequisite: Google OAuth refresh token (HEARTH_GOOGLE_CLIENT_SECRET/TOKEN).
-  - name: calendar_today
-    description: List today's calendar events with their times.
-    handler: valar.tools.handlers.calendar:calendar_today
+  # The house's OWN calendar, not a view onto someone else's. The store is
+  # $ENGRAM/Areas/Calendar/YYYY-MM.md, one file per month, one line per event,
+  # hand-editable, with every field mapping onto an ICS property so an export
+  # and a CalDAV sync are additions rather than rewrites. There is deliberately
+  # no OAuth prerequisite: the previous entries here assumed a Google-backed
+  # calendar and pointed at a handler module that never existed.
+  - name: calendar_read
+    description: >-
+      What is on the calendar: today by default, or tomorrow, the week, the
+      month, or a named day. Use for "what's on", "am I free", "what does
+      Thursday look like". Today's events are already in your context, so use
+      this for any other day or span.
+    handler: valar.tools.handlers.calendar:calendar_read
     domain: calendar
     risk: read
-    enabled: false
     parameters:
       type: object
-      properties: {}
+      properties:
+        range:
+          type: string
+          enum: [today, tomorrow, week, month]
+          description: Default today.
+        date:
+          type: string
+          description: >-
+            A specific day instead of a range: "2026-08-20", "Thursday",
+            "tomorrow". Do not guess a date they did not say.
       required: []
 
-  - name: calendar_next
-    description: Get the next upcoming calendar event.
-    handler: valar.tools.handlers.calendar:calendar_next
+  - name: calendar_write
+    description: >-
+      Put something on the calendar, move it, or cancel it. Use when they say
+      book, schedule, put in, move, or cancel. Always say the day and time back
+      to them afterwards. Never invent a date or time that was not said: ask.
+    handler: valar.tools.handlers.calendar:calendar_write
     domain: calendar
-    risk: read
-    enabled: false
+    risk: write
+    speak: Let me put that in.
     parameters:
       type: object
-      properties: {}
-      required: []
+      properties:
+        action:
+          type: string
+          enum: [add, move, cancel]
+          description: Default add.
+        title:
+          type: string
+          description: What the event is. For move and cancel, enough of it to match one event.
+        date:
+          type: string
+          description: The day, as they said it. Required for add.
+        time:
+          type: string
+          description: Start time, e.g. "14:30" or "2pm". Omit for an all-day event.
+        duration_minutes:
+          type: integer
+          description: How long. Default 60 for a timed event.
+        location:
+          type: string
+          description: Where, if they said.
+      required: [title]
 
   - name: list_cards
     description: >-

@@ -57,7 +57,7 @@
     "carry": true
   },
   "tool_grants": {
-    "_comment": "Catalog domains this persona is offered (wiki/architecture/harness/tool-catalog.md). Sulivan is the reactive daily driver: full daily set. 'dev' carries consult_claude, the delegation seam to the frontier agent. Add smarthome/media/calendar here when those tools go live.",
+    "_comment": "Catalog domains this persona is offered (wiki/architecture/harness/tool-catalog.md). Sulivan is the reactive daily driver: full daily set. 'dev' carries consult_claude, the delegation seam to the frontier agent. calendar went live 2026-08-26 (the house's own store, not Google). Add smarthome here when it does.",
     "domains": [
       "weather",
       "timers",
@@ -70,7 +70,8 @@
       "workshop",
       "brain",
       "personas",
-      "desktop"
+      "desktop",
+      "calendar"
     ],
     "allow": [],
     "deny": []

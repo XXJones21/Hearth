@@ -33,9 +33,9 @@ Eight are candidates:
 | `play_media` | Daily-driver behaviour. |
 | `list_models`, `switch_model` | Model choice may belong in Settings as UI rather than as a tool. Decide the surface before porting. |
 | `view_ledger` | Only if the ledger is a product concept rather than an internal one. |
-| `calendar_read`, `calendar_write` | **Not a port. See below.** |
+| `calendar_read`, `calendar_write` | **Done 2026-08-26.** See below. |
 
-## The calendar is a conflict, not a gap
+## The calendar, settled
 
 The two repos have **different calendar designs**, and neither is a subset of
 the other:
@@ -47,9 +47,11 @@ There is a third copy: the INSTALLED runtime at
 `D:/Hearth/runtime/backend/harness` carries `valar/memory/calendar.py` and
 `valar/tools/handlers/calendar.py` that exist in neither source repository.
 
-One feature, three versions, two repos and one install. Settle the design
-before porting anything, because a persona prompt written against one
-vocabulary does not work against the other.
+One feature, three versions, two repos and one install. **Resolved 2026-08-26 by looking rather than choosing.** There was no competing
+design: Hearth's two entries pointed at a handler module that had never existed
+and were disabled, which is why nothing broke and nothing worked. Valinor's
+implementation was written to replace exactly those. Ported, with the dead
+entries deleted rather than left pointing at nothing.
 
 ## The fixes made after 0.1.0 was cut
 

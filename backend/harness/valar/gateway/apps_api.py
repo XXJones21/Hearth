@@ -68,12 +68,14 @@ _APPS: list[dict] = [
     },
     {
         "key": "calendar",
-        "name": "Google Calendar",
+        "name": "Calendar",
         "kind": "local",
-        "tagline": "Schedule and reminders",
-        "transport": "Not signed in",
-        "claims": ["calendar_today", "calendar_next"],
-        "needs": ["HEARTH_GOOGLE_CLIENT_SECRET", "HEARTH_GOOGLE_TOKEN"],
+        "tagline": "The house's own schedule",
+        "transport": "Local files",
+        "claims": ["calendar_read", "calendar_write"],
+        # Nothing to sign in to. The store is the house's own
+        # ($ENGRAM/Areas/Calendar), not a view onto Google.
+        "needs": [],
     },
 ]
 

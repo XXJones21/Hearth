@@ -64,10 +64,10 @@ _CONNECTIONS: list[dict] = [
     },
     {
         "key": "calendar",
-        "name": "Google Calendar",
-        "role": "Schedule and reminders",
-        "tools": ["calendar_today", "calendar_next"],
-        "requires": ["HEARTH_GOOGLE_CLIENT_SECRET", "HEARTH_GOOGLE_TOKEN"],
+        "name": "Calendar",
+        "role": "The house's own schedule",
+        "tools": ["calendar_read", "calendar_write"],
+        "requires": [],
         "detail_env": None,
     },
 ]
