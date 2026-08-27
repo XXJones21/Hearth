@@ -47,22 +47,6 @@ _CONNECTIONS: list[dict] = [
         "detail_env": ("CHOAM_WALLET_URL", "http://127.0.0.1:8091/wallet/query"),
     },
     {
-        "key": "telegram",
-        "name": "Telegram",
-        "role": "Build notifications",
-        "tools": [],
-        "requires": ["HEARTH_NOTIFY_TG_TOKEN", "HEARTH_NOTIFY_TG_CHAT"],
-        "detail_env": None,
-    },
-    {
-        "key": "hass",
-        "name": "Home Assistant",
-        "role": "Lights, locks, climate",
-        "tools": ["hass_call"],
-        "requires": ["HEARTH_HASS_URL", "HEARTH_HASS_TOKEN"],
-        "detail_env": None,
-    },
-    {
         "key": "calendar",
         "name": "Calendar",
         "role": "The house's own schedule",

@@ -76,7 +76,6 @@ tools work during setup and are unreachable an hour later.
 | `import_brain` | projects | write | yes | |
 | `complete_brain_setup` | projects | write | yes | |
 | `web_search` | search | read | yes | |
-| `hass_call` | smarthome | control | no | |
 | `set_timer` | timers | write | yes | |
 | `list_timers` | timers | read | yes | `timer_card` |
 | `cancel_timer` | timers | write | yes | |
@@ -105,10 +104,17 @@ be split (`workshop` for the card tools, `brain` for the second-brain tools).
 the registry logs `unknown domain(s) ignored: ['briefs']` on every persona load.
 Harmless, and a sign that grants are not validated against the registry.
 
-**Two tools are switched off.** `hass_call` has no configured Home Assistant,
-and `current_time` was deliberately retired when the time became ambient
-context in every prompt. The first is a gap with a placeholder; the second is a
-tool correctly deleted, and the difference matters when reading the file.
+**One tool is switched off.** `current_time` was deliberately retired when the
+time became ambient context in every prompt. It is a tool correctly deleted
+rather than a gap with a placeholder, and the difference matters when reading
+the file.
+
+`hass_call` was the other, and it is now gone rather than disabled: it pointed
+at `valar.tools.handlers.smarthome`, a module that does not exist. Home
+Assistant, Telegram and Google Calendar all left the registry and the panels on
+2026-08-26. Hearth connects to nothing outside the machine, and integrations
+that do are a later release taken deliberately. See
+`tasks/third-party-integrations.md`.
 
 The calendar used to be a third case and is now neither. `calendar_today` and
 `calendar_next` were disabled entries pointing at a handler module that never

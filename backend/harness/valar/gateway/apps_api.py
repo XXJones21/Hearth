@@ -58,15 +58,6 @@ _APPS: list[dict] = [
         "claims": ["remember", "recall", "consult_memory"],
     },
     {
-        "key": "hass",
-        "name": "Home Assistant",
-        "kind": "local",
-        "tagline": "Lights, locks, climate",
-        "transport": "Not configured",
-        "claims": ["hass_call"],
-        "needs": ["HEARTH_HASS_URL", "HEARTH_HASS_TOKEN"],
-    },
-    {
         "key": "calendar",
         "name": "Calendar",
         "kind": "local",

@@ -820,33 +820,6 @@ tools:
   # of every registry). Designs: wiki/architecture/harness/tool-catalog.md and
   # proactive-tools-roadmap.md "Design-only handlers".
 
-  # Prerequisite: a running Home Assistant hub + HEARTH_HASS_URL / HEARTH_HASS_TOKEN.
-  - name: hass_call
-    description: >-
-      Control or check a smart-home device via Home Assistant -- "turn on the
-      living room lights", "is the heater on". Resolves friendly device names
-      to entity ids.
-    handler: valar.tools.handlers.smarthome:hass_call
-    domain: smarthome
-    risk: control
-    enabled: false
-    parameters:
-      type: object
-      properties:
-        entity:
-          type: string
-          description: The device as the user said it, e.g. "living room lamp".
-        action:
-          type: string
-          description: What to do, e.g. "turn_on", "turn_off", "status".
-      required: [entity, action]
-
-  # The house's OWN calendar, not a view onto someone else's. The store is
-  # $ENGRAM/Areas/Calendar/YYYY-MM.md, one file per month, one line per event,
-  # hand-editable, with every field mapping onto an ICS property so an export
-  # and a CalDAV sync are additions rather than rewrites. There is deliberately
-  # no OAuth prerequisite: the previous entries here assumed a Google-backed
-  # calendar and pointed at a handler module that never existed.
   - name: calendar_read
     description: >-
       What is on the calendar: today by default, or tomorrow, the week, the
