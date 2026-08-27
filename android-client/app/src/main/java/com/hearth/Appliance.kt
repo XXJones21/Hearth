@@ -2,6 +2,7 @@ package com.hearth
 
 import android.app.Activity
 import android.app.ActivityManager
+import android.app.ActivityOptions
 import android.app.admin.DevicePolicyManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
@@ -9,9 +10,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.display.DisplayManager
 import android.os.BatteryManager
 import android.os.UserManager
 import android.provider.Settings
+import android.view.Display
 import android.util.Log
 import com.hearth.app.MainActivity
 
@@ -251,6 +254,43 @@ object Appliance {
         exitKiosk(activity)
         Log.w(TAG, "kiosk handed back from the device, settings opened=$opened")
     }
+
+    /**
+     * Start the persona on whichever display is actually lit.
+     *
+     * The inner display wins when it is on, because an open phone should
+     * behave exactly as it always has. Otherwise the first awake display
+     * takes it, which on a closed Razr is the cover. If nothing reports
+     * itself awake -- and a display can still be warming up when
+     * BOOT_COMPLETED fires -- the launch goes out with no options at all
+     * and lands wherever the platform would have put it anyway, which is
+     * the behaviour this replaced.
+     */
+    fun launchOnWakingDisplay(context: Context) {
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        val displays = try {
+            context.getSystemService(DisplayManager::class.java)?.displays.orEmpty()
+        } catch (e: Exception) {
+            Log.w(TAG, "no display manager", e)
+            emptyArray()
+        }
+        val target = displays.firstOrNull {
+            it.displayId == Display.DEFAULT_DISPLAY && it.state == Display.STATE_ON
+        } ?: displays.firstOrNull { it.state == Display.STATE_ON }
+
+        val options = target?.let {
+            try {
+                ActivityOptions.makeBasic().setLaunchDisplayId(it.displayId).toBundle()
+            } catch (e: Exception) {
+                Log.w(TAG, "could not target display ${it.displayId}", e)
+                null
+            }
+        }
+        Log.w(TAG, "boot launch on display=${target?.displayId ?: "default"}")
+        context.startActivity(intent, options)
+    }
 }
 
 /**
@@ -259,15 +299,20 @@ object Appliance {
  * where the launcher intent is consumed elsewhere. Device owners are
  * exempt from background-activity-start restrictions, so the launch is
  * allowed here. Off the appliance the owner check makes this a no-op.
+ *
+ * IT LAUNCHES ONTO THE DISPLAY THAT IS AWAKE, and that is the whole point
+ * on a folding phone. A lid-closed power cycle used to land Hearth on the
+ * INNER display, which is off, so nothing was ever on the cover -- the
+ * appliance booted to a Motorola clock and stayed there until someone
+ * opened the phone. Motorola's app continuity carries a RUNNING app onto
+ * the cover when the lid shuts; it has nothing to carry if the boot put
+ * the app on a dark screen.
  */
 class ApplianceBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         if (!Appliance.isOwner(context)) return
-        context.startActivity(
-            Intent(context, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        )
+        Appliance.launchOnWakingDisplay(context)
     }
 }
 
