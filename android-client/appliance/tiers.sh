@@ -25,6 +25,20 @@ ALLOWLIST=(
     "com.google.android.as"                 # Android System Intelligence; backs speech and caption pieces
     "com.motorola.ccc.ota"                  # the OTA path stays
     "com.theboisclub.pokemonred"            # the operator's Gen 1 recomp, requested keeper
+    # THE COVER SCREEN'S TWO. Both were nearly lost to tier 3, whose entry
+    # for the launcher read "only after Hearth holds SECONDARY_HOME" -- a
+    # premise that is false. Hearth CANNOT hold that seat: the framework
+    # scopes the secondary-home intent to Moto's launcher before resolving
+    # it (config_useSystemProvidedLauncherForSecondary), so our persistent
+    # preferred activity is answered correctly and then ignored. Proven on
+    # device 2026-08-26.
+    #
+    # The cover works through Motorola's APP CONTINUITY list instead, which
+    # cli.settings is the only editor of, and which a factory reset empties.
+    # Strip either of these and the cover is gone with no way to get it back
+    # short of another reset.
+    "com.motorola.launcher.secondarydisplay" # the cover's home seat, unwinnable by us
+    "com.motorola.cli.settings"              # the ONLY editor of the app continuity list
 )
 
 # Tier 0: telephony and carrier. Zero risk on a wifi-only appliance with no
@@ -150,7 +164,6 @@ TIER2_PREFIXES=(
 # device with no launcher if stripped early.
 TIER3=(
     "com.motorola.launcher3|stock launcher; only after Hearth holds HOME"
-    "com.motorola.launcher.secondarydisplay|cover-screen home seat; only after Hearth holds SECONDARY_HOME"
     "com.motorola.leanbacklauncher|leanback launcher"
     "com.motorola.wallpaper.secondarydisplay|cover wallpaper"
     "com.motorola.motodisplay|peek display; the persona owns the resting screen"
