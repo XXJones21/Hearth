@@ -165,6 +165,27 @@ Lightest first:
    Google sign-in on the appliance after provisioning, ever; an account
    re-arms FRP.
 
+### What does NOT work, so nobody spends the hour again
+
+Tried on the stranded device 2026-08-26, all dead ends:
+
+- Moto's cover screen. Its launcher takes the cover seat back, but the
+  panels are wallpaper and weather only; the cover shade never opens,
+  because `setStatusBarDisabled` is ours and it kills quick settings on
+  BOTH displays.
+- Gboard's settings gear. It renders, and tapping it does nothing at all.
+  That is the proof that Lock Task here drops a non-allowlisted start
+  SILENTLY -- no toast, no dialog. Assume the same of anything else you
+  think of launching from inside the kiosk.
+- The post-boot keyguard. Android demands the credential once per boot
+  for FBE whatever the DPC says, and at that moment Hearth has not
+  resumed, so Lock Task is not yet running -- the one window where the
+  shade and its gear are reachable. It is still not a rung: unlocking
+  also releases Hearth as HOME, and Hearth wins the race every time,
+  kicking Settings before a person can tap through to Developer options.
+- `adb sideload` from recovery takes OEM-signed OTA packages only, and
+  fastboot needs an unlocked bootloader, which wipes the phone anyway.
+
 `Appliance.enterKiosk` also pins `adb_enabled` to 1 on every resume now,
 so a reboot cannot take the dev line again. `DEVELOPMENT_SETTINGS_ENABLED`
 is not on the device-owner allowlist, so if Developer options themselves
