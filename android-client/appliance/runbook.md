@@ -133,11 +133,26 @@ Every removal is logged with a reason in `strip-log.txt`.
   USB debugging lives. It is not sticky: Hearth pins itself again on its
   next resume, so flip the toggle before going back.
 
-- Unpin without dropping ownership:
+- Unpin without dropping ownership. The `-n` IS REQUIRED and this
+  runbook shipped without it: a manifest receiver does not get an
+  implicit broadcast on modern Android, so the bare form prints
+  "Broadcast completed: result=0", fires nothing, and leaves the kiosk
+  locked. Confirmed on device 2026-08-26 -- another silent failure of
+  the same family as the Lock Task drops.
 
   ```
-  adb shell am broadcast -a com.hearth.appliance.EXIT --es confirm hearth
+  adb shell am broadcast -a com.hearth.appliance.EXIT --es confirm hearth       -n com.hearth/.ApplianceExitReceiver
   ```
+
+  Verify it landed rather than trusting the exit code:
+
+  ```
+  adb logcat -d | grep HearthAppliance      # "kiosk exited by debug broadcast"
+  adb shell dumpsys activity activities | grep mLockTaskModeState   # NONE
+  ```
+
+  `am task lock stop` is not a substitute; it answers "Activity manager
+  is in lockTaskMode" and does nothing.
 
 - Drop ownership entirely (works because the manifest keeps `testOnly`):
 
@@ -185,6 +200,10 @@ Tried on the stranded device 2026-08-26, all dead ends:
   kicking Settings before a person can tap through to Developer options.
 - `adb sideload` from recovery takes OEM-signed OTA packages only, and
   fastboot needs an unlocked bootloader, which wipes the phone anyway.
+  OEM unlocking was enabled during the 2026-08-26 re-provision, so a
+  future lockout does at least have the fastboot rung available; it
+  still wipes, but it allows booting a patched image, which a locked
+  bootloader forbids outright.
 
 `Appliance.enterKiosk` also pins `adb_enabled` to 1 on every resume now,
 so a reboot cannot take the dev line again. `DEVELOPMENT_SETTINGS_ENABLED`
