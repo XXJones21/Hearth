@@ -190,16 +190,26 @@ object Appliance {
      */
     fun handBack(activity: Activity) {
         if (!isOwner(activity)) return
-        exitKiosk(activity)
-        // Clearing the allowlist unpins on the platform's next check;
-        // stopLockTask returns the nav bar NOW, which is what a person with
-        // the phone in their hand is waiting for.
+
+        // ORDER IS THE WHOLE TRICK HERE, and it is not the obvious one.
+        //
+        // Lock Task on this device is STRICT: 2026-08-26 confirmed it by
+        // hand, when Gboard's own settings gear did nothing at all from
+        // inside the pinned kiosk. A start that is not allowlisted is
+        // dropped silently -- no dialog, no toast, nothing to tell a person
+        // the phone even heard them.
+        //
+        // So the launch happens while the allowlist STILL NAMES SETTINGS.
+        // Calling exitKiosk first reads as the tidy order and is the wrong
+        // one: it empties the allowlist, and if stopLockTask has not landed
+        // yet the start we make one line later is the exact thing the
+        // platform just dropped on the floor. Stop the pin, go, then tear
+        // the policy down behind us.
         try {
             activity.stopLockTask()
         } catch (e: IllegalStateException) {
             // Not in Lock Task. Nothing to stop, and nothing to report.
         }
-        Log.w(TAG, "kiosk handed back from the device")
 
         // Straight to the toggle. Falling back to the Settings root rather
         // than to nothing: Developer options is hidden until the build number
@@ -208,16 +218,25 @@ object Appliance {
             Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS,
             Settings.ACTION_SETTINGS,
         )
+        var opened = false
         for (action in screens) {
             try {
                 activity.startActivity(
                     Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 )
-                return
+                opened = true
+                break
             } catch (e: ActivityNotFoundException) {
                 Log.w(TAG, "no activity for $action", e)
             }
         }
+
+        // Last, and unconditionally: the shade, the keyguard and the HOME
+        // preferences come back whether or not Settings opened. A hand-back
+        // that half-happened would leave a kiosk nobody can see the edges
+        // of, which is worse than either end state.
+        exitKiosk(activity)
+        Log.w(TAG, "kiosk handed back from the device, settings opened=$opened")
     }
 }
 
