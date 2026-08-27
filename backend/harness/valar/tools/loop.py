@@ -66,6 +66,29 @@ MAX_TOOL_ROUNDS = 2
 BATCH_READ_CHARS = 100_000
 _BULK_READ_TOOLS = frozenset({"read_file", "search_files", "fetch_url"})
 
+# The two halves of a failed tool result. The handler's message is the only
+# place a next tool may be named; this note is the harness speaking, and it
+# names NO tool on purpose.
+#
+# It used to end "If a path is missing, call mkdir or pick a file inside the
+# folder." voice_loop's recoverable-miss detector searches the tool message
+# for a named next tool, and it had no way to tell the handler's words from
+# these, so it matched "call mkdir" in the harness's OWN note on EVERY
+# failure. Live 2026-08-27 `07603a9d`: four web_search misses against
+# DuckDuckGo, which name no tool and cannot be recovered, were each
+# classified recoverable and bought a free extra brain call, and the model
+# was advised to consider creating a folder after a restaurant lookup came
+# back empty.
+#
+# Keep this note tool-agnostic. When a specific tool IS the right next step,
+# say so in the handler; files.py list_dir and read_file already do.
+TOOL_ERROR_PREFIX = "[tool error] "
+TOOL_ERROR_NOTE = (
+    "\n[This call did not succeed. Do not present the text above as if it "
+    "were the answer. If the message above names another tool to call, call "
+    "that tool now. Do not give up. Do not invent contents.]"
+)
+
 
 class ToolCallingLoop:
     """Runs the tool round-trip against a tool-aware brain call.
@@ -229,12 +252,9 @@ class ToolCallingLoop:
                     # the handler text; this wrapper must not override that
                     # with a stop.
                     content = (
-                        "[tool error] " + (content or "unknown error")
-                        + "\n[This call did not succeed. Do not present the "
-                        "text above as if it were file contents. If it names "
-                        "another tool, call that tool NOW. If a path is "
-                        "missing, call mkdir or pick a file inside the "
-                        "folder. Do not give up. Do not invent contents.]"
+                        TOOL_ERROR_PREFIX
+                        + (content or "unknown error")
+                        + TOOL_ERROR_NOTE
                     )
                 batch_chars += len(content or "")
                 messages.append(

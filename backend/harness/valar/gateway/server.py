@@ -55,7 +55,9 @@ PROFILE_TO_PERSONA: dict[str, str] = {
     "daily": "Sulivan",
     "sulivan": "Sulivan",
     "selene": "Selene",
-    "mentat": "Mentat",
+    # No "mentat": Mentat is a Valinor research tool and this tree ships
+    # only Selene, Sulivan and _visual. Mapping a profile onto a persona that
+    # does not exist here can only ever fail (2026-08-27).
     # Internal routing persona (gemma-4-E4B + JSON gate); not a conversational identity.
     "orchestrator": "valinor-orchestrate",
     # F1 (f1-principal / f1-vision) is deferred — it returns later as its own
@@ -68,7 +70,7 @@ def create_app(config: ValarConfig) -> FastAPI:
     app = FastAPI(title="Valar Gateway", version="1.0.0")
 
     # Browser clients (hearth-client dev on localhost:1420, packaged Tauri on
-    # tauri://localhost) read /health, /mentat/state, and persona assets
+    # tauri://localhost) read /health, /claude/state, and persona assets
     # cross-origin; without CORS headers those fetches fail silently in the
     # webview while curl/PowerShell succeed. WS is not CORS-gated.
     #
@@ -357,29 +359,23 @@ def create_app(config: ValarConfig) -> FastAPI:
             }
         )
 
-    # --- HTTP: Mentat run state (Phase 4 client panel) --------------------
-    # Read-only mirror of the conductor's run-state file so the desktop
-    # client's Mentat tab can poll it without a voice turn.
-    @app.get("/mentat/state")
-    async def mentat_state() -> JSONResponse:
-        from pathlib import Path as _Path
-
-        from ..tools.handlers.mentat import _resolve_last_run
-
-        resolved = _resolve_last_run()
-        if resolved is None:
-            return JSONResponse({"run": None, "status": "none"})
-        name, _cfg, state_path = resolved
-        try:
-            state = json.loads(_Path(state_path).read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001 - starting up or no state yet
-            state = {"run": name, "status": "unknown"}
-        return JSONResponse(state)
+    # --- HTTP: Mentat run state -------------------------------------------
+    # DELIBERATELY ABSENT (2026-08-27). Mentat is a Valinor research tool and
+    # does not ship in Hearth: there is no valar/tools/handlers/mentat.py in
+    # this tree, so the route this replaced imported a module that does not
+    # exist and answered 500 with a full uvicorn traceback on every poll. The
+    # Valinor desktop client polls /mentat/state every 5s, which put 4,775
+    # tracebacks and roughly a million lines into harness.log in one day.
+    #
+    # A 404 is the honest answer and the client already handles it: its
+    # fetchMentatState treats any non-ok response as {run: null,
+    # status: "none"}. Do not add the route back until Mentat is actually
+    # ready for Hearth, which waits on multi-modal LLM switching.
 
     # --- HTTP: delegated-agent run state ----------------------------------
     # The terminal card polls this while a run is in flight, so the card fills
     # in on its own instead of the operator having to ask "is it done yet".
-    # Same read-only shape as /mentat/state.
+    # Read-only, same shape the removed Mentat route used.
     @app.get("/claude/state")
     async def claude_state() -> JSONResponse:
         from ..tools.handlers.claude_code import latest_state
