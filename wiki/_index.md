@@ -5,6 +5,7 @@ last_reviewed: 2026-08-09
 related:
   - sitemap.md
   - developing.md
+  - releasing.md
 sources:
   - D:/Tools/Valinor/wiki/raw/backend-audit-2026-08-04/
 ---
@@ -33,6 +34,7 @@ the [site map](sitemap.md).
 | Find out what Hearth is and what you need | [`getting-started.md`](getting-started.md) |
 | Install it | [`installing.md`](installing.md) |
 | Change it | [`developing.md`](developing.md) |
+| Ship a release of it | [`releasing.md`](releasing.md) |
 
 ## The apps
 

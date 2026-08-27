@@ -24,7 +24,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-from ...config.settings import hearth_engram, hearth_home
+from ...config.settings import hearth_engram, hearth_home, hearth_root
 from ..spec import ToolResult
 
 logger = logging.getLogger("valar.tools.second_brain")
@@ -47,17 +47,83 @@ def _mark_complete(note: str) -> None:
         logger.warning("second brain: could not write the complete marker (%s)", exc)
 
 
+def _hearth_env_candidates() -> list[Path]:
+    """Every place this product's launchers look for hearth.env, best first.
+
+    There are two shipping layouts and they sit one directory apart, which is
+    the whole reason this needs saying out loud:
+
+    - An INSTALLED desktop house has an install root holding config/, home/,
+      models/ and runtime/ side by side. hearth_probe::defaults fixes that
+      shape (``REL_CONFIG = "config/hearth.env"``, ``REL_HOME = "home"``),
+      config_gen.rs renders HEARTH_HOME=<root>/home, and desktop-client
+      house.rs reads <root>/config/hearth.env. So the file is at
+      ``HEARTH_HOME/../config``.
+    - A SYSTEMD or WSL testbed house sets HEARTH_HOME=~/.hearth and keeps the
+      file INSIDE it, which is what all three units name outright as
+      ``EnvironmentFile=-%h/.hearth/config/hearth.env`` and what
+      render_config.py defaults to.
+
+    Picking either one alone strands the other: writing only to the installed
+    path leaves a testbed's edits unread, and writing only to the testbed path
+    leaves the shipping product's edits unread. Both are returned, and the
+    file that already exists decides, because that is the one this house was
+    actually launched from.
+    """
+    out: list[Path] = []
+    # HEARTH_BACKEND_DIR is the strongest signal there is: the installer always
+    # writes it, config_gen.rs renders it as <root>/runtime/backend, and the
+    # install root two levels up is where REL_CONFIG puts hearth.env. It is
+    # preferred over HEARTH_HOME because HEARTH_HOME can be pointed anywhere by
+    # a custom launch (one house had it on the source checkout), and when it is,
+    # deriving the config path from it lands the file somewhere nothing loads.
+    backend_dir = (os.environ.get("HEARTH_BACKEND_DIR") or "").strip()
+    if backend_dir:
+        out.append(Path(backend_dir).expanduser().parent.parent / "config" / "hearth.env")
+    try:
+        # HEARTH_ROOT, when exported, IS the install root.
+        out.append(hearth_root() / "config" / "hearth.env")
+    except Exception:  # noqa: BLE001 - no product marker on a bare dev run
+        pass
+    home = hearth_home()
+    for p in (home.parent / "config" / "hearth.env", home / "config" / "hearth.env"):
+        out.append(p)
+    seen: set[Path] = set()
+    return [p for p in out if not (p in seen or seen.add(p))]
+
+
+def _hearth_env_path() -> Path:
+    """Which hearth.env to write. An existing file always wins."""
+    candidates = _hearth_env_candidates()
+    for p in candidates:
+        if p.is_file():
+            return p
+    # Nothing on disk yet, so infer the layout. An explicitly set HEARTH_HOME
+    # came from an installer that put config/ beside home/; an unset one is
+    # the ~/.hearth default, where the units expect config/ inside it.
+    home = hearth_home()
+    if (os.environ.get("HEARTH_HOME") or "").strip():
+        return home.parent / "config" / "hearth.env"
+    return home / "config" / "hearth.env"
+
+
 def _rewrite_hearth_env(root: str) -> bool:
     """Point HEARTH_ENGRAM at `root` in hearth.env, so restarts keep the
-    bridge. The file lives beside home/: <install>/config/hearth.env."""
-    home = (os.environ.get("HEARTH_HOME") or "").strip()
-    if not home:
-        return False
-    env_path = Path(home).parent / "config" / "hearth.env"
+    bridge. Creates the file, and its directory, when they do not exist.
+
+    It used to read the file first and return False on any OSError, so a
+    house whose launcher had never written a hearth.env repointed its memory
+    for the running process only and forgot on the next start. The caller
+    still announced the bridge built. That is precisely the 2026-08-08
+    hallucination this module was written to end, moved one layer down out of
+    the persona and into the code -- which is why a missing file is now a
+    thing to create rather than a reason to stop.
+    """
+    env_path = _hearth_env_path()
     try:
         lines = env_path.read_text(encoding="utf-8").splitlines()
     except OSError:
-        return False
+        lines = []
     out, seen = [], False
     for ln in lines:
         if ln.startswith("HEARTH_ENGRAM="):
@@ -68,8 +134,10 @@ def _rewrite_hearth_env(root: str) -> bool:
     if not seen:
         out.append(f"HEARTH_ENGRAM={root}")
     try:
+        env_path.parent.mkdir(parents=True, exist_ok=True)
         env_path.write_text("\n".join(out) + "\n", encoding="utf-8")
-    except OSError:
+    except OSError as exc:
+        logger.warning("second brain: hearth.env not written at %s (%s)", env_path, exc)
         return False
     return True
 
@@ -130,6 +198,7 @@ def link_brain(path: str, *, allow_new: bool = False) -> dict:
 
     root = str(target).replace("\\", "/")
     os.environ["HEARTH_ENGRAM"] = root
+    env_path = _hearth_env_path()
     persisted = _rewrite_hearth_env(root)
     # The missing quarters, same as a fresh install provisions them.
     for name in _BRAIN_FOLDERS:
@@ -149,11 +218,12 @@ def link_brain(path: str, *, allow_new: bool = False) -> dict:
         1 for f in _BRAIN_FOLDERS if (target / f).is_dir() for _ in (target / f).iterdir()
     )
     logger.info(
-        "second brain: linked %s (%s, %d entries, env %s)",
+        "second brain: linked %s (%s, %d entries, env %s -> %s)",
         root,
         "new tree" if created else ", ".join(present),
         entries,
         "persisted" if persisted else "NOT persisted",
+        env_path,
     )
     return {
         "ok": True,
@@ -161,6 +231,9 @@ def link_brain(path: str, *, allow_new: bool = False) -> dict:
         "entries": entries,
         "created": created,
         "persisted": persisted,
+        # Named, not just flagged. "persisted: true" pointing at a file no
+        # launcher reads is indistinguishable from working, and was.
+        "env_path": str(env_path),
     }
 
 
@@ -211,6 +284,19 @@ def import_brain(path: str = "", **_: object) -> ToolResult:
 
     root = str(result["path"])
     entries = int(result.get("entries") or 0)
+    persisted = bool(result.get("persisted"))
+    # A bridge that does not survive a restart is a bridge worth mentioning.
+    # Reporting only the happy half is the hallucination this tool replaced.
+    caveat = (
+        ""
+        if persisted
+        else (
+            " Then tell them the one caveat, plainly and without alarm: the "
+            "house could not write its own settings file, so this connection "
+            "holds for now but a restart will forget it, and they should set "
+            "the path again under Settings."
+        )
+    )
     return ToolResult(
         ok=True,
         content=(
@@ -219,8 +305,9 @@ def import_brain(path: str = "", **_: object) -> ToolResult:
             + ("y" if entries == 1 else "ies")
             + ". Tell them plainly it is connected, and that everything the house "
             "learns lands there from now on."
+            + caveat
         ),
-        data={"brain_imported": root, "entries": entries},
+        data={"brain_imported": root, "entries": entries, "persisted": persisted},
     )
 
 

@@ -43,7 +43,7 @@ export function PersonaStage({ config, onSwitch }: Props) {
       </div>
 
       <div className="mt-4 min-h-0 w-full flex-[3]">
-        <OrbGlow>
+        <OrbGlow halo={config?.visualization?.type !== 'flame'}>
           <Suspense fallback={null}>
             <PersonaCanvas config={config} />
           </Suspense>

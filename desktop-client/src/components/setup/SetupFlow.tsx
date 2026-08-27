@@ -219,7 +219,7 @@ export function SetupFlow({ onExit }: { onExit: (installed: boolean) => void }) 
         }
       >
         <div className={conversational ? 'h-[180px] w-[180px]' : 'h-full w-[220px]'}>
-          <OrbGlow>
+          <OrbGlow halo={(livePersonaConfig ?? SULIVAN)?.visualization?.type !== 'flame'}>
             <Suspense fallback={null}>
               <PersonaCanvas config={livePersonaConfig ?? SULIVAN} />
             </Suspense>
