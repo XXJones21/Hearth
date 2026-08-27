@@ -173,7 +173,9 @@ concludes the download is broken.
 
 Proper Developer ID signing and notarization is a release task rather than an
 alpha one, and it belongs with the TestFlight work since both need the same
-Apple developer account.
+Apple developer account. That work is tracked in
+`tasks/release-signing.md`, including what each platform costs unsigned and
+why the Apple account should be bought once rather than twice.
 
 ## Verify before shipping
 
