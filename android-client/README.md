@@ -15,7 +15,10 @@ The iOS split, mirrored:
   Dependencies held to OkHttp and coroutines, matching Core's zero-dependency
   policy as far as Android allows.
 - `app/` -- the Compose surface plus the device-owner receivers the appliance
-  provisions.
+  provisions (`com.hearth.DeviceOwnerReceiver`, `Appliance.kt`; no-ops on any
+  device that is not provisioned as device owner).
+- `appliance/` -- the strip script, restore script, and runbook that turn the
+  Razr into the dedicated appliance. Nothing in it runs on a normal install.
 
 `applicationId` is `com.hearth`, fixed by the DPC component the appliance plan
 names (`com.hearth/.DeviceOwnerReceiver`). minSdk 33: the Razr 40 Ultra ships

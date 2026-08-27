@@ -2,7 +2,9 @@ package com.hearth.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +29,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -82,6 +83,7 @@ import java.util.Locale
  *   LISTENING  throw the partial away
  *   IDLE       start a turn
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HearthMainScreen(
     state: HearthState,
@@ -104,6 +106,7 @@ fun HearthMainScreen(
     onTalk: () -> Unit,
     onStageTap: () -> Unit,
     onShelf: () -> Unit,
+    onShelfHold: () -> Unit = {},
 ) {
     var composerUp by remember { mutableStateOf(false) }
 
@@ -204,12 +207,19 @@ fun HearthMainScreen(
 
         // The house lives behind one affordance in the top corner, as on iOS:
         // a hamburger, not a word.
-        IconButton(
-            onClick = onShelf,
+        //
+        // HOLDING IT IS THE APPLIANCE'S WAY OUT, and it is a hold rather than
+        // a tap target of its own because the stage is touched constantly and
+        // an escape that can fire by accident is worse than none. A Box
+        // rather than an IconButton: IconButton takes no long click.
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(4.dp),
+                .padding(4.dp)
+                .clip(CircleShape)
+                .combinedClickable(onClick = onShelf, onLongClick = onShelfHold)
+                .padding(12.dp),
         ) {
             Icon(
                 Icons.Outlined.Menu,

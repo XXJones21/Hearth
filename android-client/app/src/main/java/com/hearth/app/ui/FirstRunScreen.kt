@@ -19,6 +19,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -34,11 +37,13 @@ import kotlinx.coroutines.launch
  * allowed through its door are different states, and a screen that conflates
  * them says "connecting" forever when the real answer is "you need to pair".
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FirstRunScreen(
     config: ServerConfig,
     reason: PairingReason = PairingReason.FIRST_RUN,
     onDone: () -> Unit,
+    onTitleHold: () -> Unit = {},
 ) {
     var address by remember { mutableStateOf(config.address) }
     var code by remember { mutableStateOf("") }
@@ -54,7 +59,19 @@ fun FirstRunScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Hearth", style = MaterialTheme.typography.headlineLarge)
+        // Holding the title is the appliance's way out from an UNPAIRED
+        // client, which pins itself like any other and has no house button
+        // to hold. Inert off the appliance, where the caller passes nothing.
+        Text(
+            "Hearth",
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { },
+                onLongClick = onTitleHold,
+            ),
+        )
         Text(
             when {
                 step == Step.ADDRESS -> "Where is your house?"

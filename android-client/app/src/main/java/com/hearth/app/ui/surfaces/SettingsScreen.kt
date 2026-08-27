@@ -53,6 +53,7 @@ fun SettingsScreen(
     onPair: () -> Unit,
     onForget: () -> Unit,
     onBack: () -> Unit,
+    onHandBack: (() -> Unit)? = null,
 ) {
     var surface by remember { mutableStateOf<SettingsSurface?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -195,6 +196,25 @@ fun SettingsScreen(
                             trailing = connection.state,
                         )
                     }
+                }
+            }
+
+            // APPLIANCE ONLY, and last on purpose: it is the row you go
+            // looking for, not one you meet on the way to something else.
+            // Non-null only when Hearth is device owner.
+            onHandBack?.let { handBack ->
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp)) }
+                item { SurfaceSectionLabel("This phone") }
+                item {
+                    SurfaceRowItem(
+                        title = "Hand the phone back",
+                        detail = "Unpins the kiosk and opens Developer " +
+                            "options, so USB debugging can be turned on " +
+                            "from here when adb is gone. Hearth pins itself " +
+                            "again the next time it comes forward.",
+                        trailing = "Open",
+                        onClick = handBack,
+                    )
                 }
             }
         }

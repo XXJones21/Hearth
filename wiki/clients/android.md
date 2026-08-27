@@ -1,7 +1,7 @@
 ---
 title: Hearth on Android
 status: draft
-last_reviewed: 2026-08-20
+last_reviewed: 2026-08-22
 related:
   - ios.md
   - windows.md
@@ -13,6 +13,8 @@ sources:
   - wiki/raw/android-client-plan.md
   - wiki/raw/android-appliance-plan.md
   - wiki/raw/persona-flame-spec.md
+  - android-client/appliance/runbook.md
+  - android-client/app/src/main/java/com/hearth/Appliance.kt
   - backend/harness/valar/gateway/pairing.py
   - backend/harness/valar/gateway/auth.py
   - android-client/
@@ -247,14 +249,44 @@ paired.
   gap, tracked in `tasks/backend/timer-tool-fix.md`.
 - **One house at a time.** No directory of houses, no account.
 
-## This is the client, not the appliance
+## The appliance
 
-Everything above describes Hearth as an app on an otherwise ordinary phone.
-It asks the phone for a microphone and a network and nothing else, and it
-leaves the rest of the device alone.
+Everything above describes Hearth as an app on an ordinary phone, and on an
+ordinary phone that is all it is. The same APK also carries the appliance:
+provisioned as device owner, it takes the phone over completely. The Razr
+that proved the client is now that appliance, provisioned live on
+2026-08-22. A power cycle with the lid closed lands in the pinned persona
+on the cover, the tailnet comes up with nobody present, and a full voice
+turn round-trips on a device with about a hundred and twenty packages
+removed.
 
-The separate ambition, to strip the phone down and let Hearth own it as a
-dedicated appliance, is a different piece of work with different risks:
-device owner provisioning, lock task, and removing the parts of Android that
-a Hearth appliance has no use for. None of it is in this client, and it is
-deliberately not in this build. See `wiki/raw/android-appliance-plan.md`.
+The touchpoints live in the client and are no-ops everywhere else. A
+`DeviceAdminReceiver` in package `com.hearth`, so the provisioning one-shot
+reads `com.hearth/.DeviceOwnerReceiver`. A kiosk routine on every resume
+that, only when the app owns the device, takes both home seats, pins into
+lock task, disables the shade and the keyguard, and enforces Tailscale as
+always-on VPN. A boot receiver. A guarded broadcast that unpins for
+development. On a phone that was never provisioned, every one of these
+returns before doing anything.
+
+Three things the device taught, each now enforced or recorded:
+
+- **The VPN must be policy, not habit.** The first post-strip reboot landed
+  in a persona that could not reach the house, because Tailscale sat
+  waiting to be opened. The DPC now sets it always-on, lockdown off so a
+  broken tunnel degrades to LAN rather than to nothing.
+- **The cover seat is taken by preference, not by removal.** Motorola marks
+  its cover launcher non-disable, so the strip cannot remove it. A
+  persistent preferred activity for `SECONDARY_HOME` outvotes it instead;
+  it stays installed and never runs.
+- **No factory reset was needed.** `dpm set-device-owner` demands zero
+  accounts, and the two on the device were stubs owned by removable apps.
+  Uninstalling the owners cleared the gate, which means provisioning
+  preserved everything the operator asked to keep.
+
+The strip inventory, the restore path and the full provisioning order live
+in `android-client/appliance/`, curated from this device's real package
+list. The plan and its locked decisions are
+`wiki/raw/android-appliance-plan.md`. Still owed from that plan: the
+cover-screen design pass, and what the lid shows during the boot window
+when the house is not yet reachable.
