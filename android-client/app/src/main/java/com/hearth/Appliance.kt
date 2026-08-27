@@ -43,6 +43,19 @@ object Appliance {
         // if the unpin has not taken effect yet. It is not reachable from a
         // running kiosk on its own: nothing launches it but the hand-back.
         "com.android.settings",
+        // PROVISIONING, not daily use. Tailscale's sign-in leaves the app
+        // for a browser, and on 2026-08-26 that tap did nothing at all --
+        // Chrome is not on this list, and a blocked start here is silent.
+        // Tier 1 strips Chrome, so on a provisioned appliance this entry
+        // names a package that no longer exists and costs nothing.
+        "com.android.chrome",
+        // Motorola's cover-screen app manager. The cover seat cannot be won
+        // with a persistent preferred activity -- the framework scopes the
+        // SECONDARY_HOME intent to Moto's own launcher before it resolves --
+        // so Hearth reaches the cover through Moto's "app continuity" list
+        // instead, and this is the only screen that edits it. A factory
+        // reset empties that list, which is what cost us the cover.
+        "com.motorola.cli.settings",
     )
 
     /** Ten minutes; the DPC pins the timeout so a settings strip can't shorten it. */

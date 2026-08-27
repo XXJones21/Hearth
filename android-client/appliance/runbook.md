@@ -160,6 +160,64 @@ Every removal is logged with a reason in `strip-log.txt`.
   adb shell dpm remove-active-admin com.hearth/.DeviceOwnerReceiver
   ```
 
+## 3a. Provisioning mode
+
+YOU CANNOT DO SETUP WORK INSIDE THE KIOSK, and unpinning alone is not
+enough. Hearth holds HOME, so a `force-stop` just makes the system
+relaunch it, `onResume` runs `enterKiosk`, and the allowlist and the pin
+are back within a second. Every unpin looks like it worked and is undone
+before a person can tap anything. HOME has to move too.
+
+This is what 2026-08-26 needed to sign into Tailscale, and what any
+future task needing a browser handoff will need again.
+
+```
+S=ZY22HCL8N3   # adb -s "$S" throughout if the Echo Show is also attached
+
+# OUT
+adb -s $S shell cmd package set-home-activity     com.motorola.launcher3/com.android.launcher3.CustomizationPanelLauncher
+adb -s $S shell am broadcast -a com.hearth.appliance.EXIT --es confirm hearth     -n com.hearth/.ApplianceExitReceiver
+adb -s $S shell am force-stop com.hearth
+adb -s $S shell dumpsys activity activities | grep mLockTaskModeState   # NONE
+
+# ... do the work ...
+
+# BACK
+adb -s $S shell cmd package set-home-activity com.hearth/com.hearth.app.MainActivity
+adb -s $S shell monkey -p com.hearth -c android.intent.category.LAUNCHER 1
+adb -s $S shell dumpsys activity activities | grep mLockTaskModeState   # LOCKED
+```
+
+Verify the state, never the exit code. Every failure on this device is
+silent: the blocked start, the broadcast that reports success, the unpin
+that is reversed a second later.
+
+## 3b. The cover screen
+
+Hearth CANNOT win the cover as a home activity. The framework builds the
+secondary-home intent with an explicit `pkg=` before it resolves --
+Motorola sets `config_useSystemProvidedLauncherForSecondary` -- so
+`com.motorola.launcher.secondarydisplay` takes that seat no matter what
+`addPersistentPreferredActivity` says. Confirmed 2026-08-26:
+`cmd package resolve-activity -c SECONDARY_HOME` returns Hearth, and the
+cover still runs Moto's launcher.
+
+The cover works through Motorola's APP CONTINUITY list instead: a running
+app follows you onto the cover only if it is enabled in
+
+```
+adb shell am start -n 'com.motorola.cli.settings/.CliSettings$CliManageAppsActivity'
+```
+
+A FACTORY RESET EMPTIES THAT LIST. It is not a client setting, nothing in
+the repository restores it, and no tier verify checks it -- which is how
+a reprovisioned appliance boots to a Motorola clock on the cover with
+every Hearth-side check passing. Enable Hearth there during provisioning,
+before Tier 3, and re-verify with a lid-closed power cycle.
+
+`com.motorola.cli.settings` is on the lock task allowlist so this screen
+can be reached from a pinned device. Do not strip it.
+
 ## 4. Recovery ladder
 
 Lightest first:
