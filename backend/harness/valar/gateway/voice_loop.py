@@ -214,20 +214,33 @@ def _fold_prompt(goal: str, bodies: list[str]) -> str:
 
 
 def _any_tool_success(messages: list) -> bool:
+    from ..tools.loop import TOOL_ERROR_PREFIX
+
     return any(
         getattr(m, "role", None) == "tool"
-        and not str(getattr(m, "content", None) or "").startswith("[tool error]")
+        and not str(getattr(m, "content", None) or "").startswith(TOOL_ERROR_PREFIX)
         for m in messages
     )
 
 
 def _last_tool_recoverable(messages: list) -> bool:
+    """Did the last tool error name another tool to call?
+
+    Only the HANDLER's half of the message may answer that, so the harness
+    note is stripped before matching. While that note read "call mkdir", it
+    matched the harness's own words on every failure and a dead end was
+    indistinguishable from a recoverable miss: live 2026-08-27 `07603a9d`,
+    four DuckDuckGo lookups that name no tool at all each bought a retry.
+    """
+    from ..tools.loop import TOOL_ERROR_NOTE, TOOL_ERROR_PREFIX
+
     for m in reversed(messages):
         if getattr(m, "role", None) == "tool":
             content = str(getattr(m, "content", None) or "")
-            if not content.startswith("[tool error]"):
+            if not content.startswith(TOOL_ERROR_PREFIX):
                 return False
-            return bool(_RECOVERABLE_RE.search(content))
+            handler_text = content.replace(TOOL_ERROR_NOTE, "")
+            return bool(_RECOVERABLE_RE.search(handler_text))
     return False
 
 
