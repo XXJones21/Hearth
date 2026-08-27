@@ -127,6 +127,12 @@ Every removal is logged with a reason in `strip-log.txt`.
 
 ## 3. Kiosk escapes (development)
 
+- FROM THE DEVICE, no adb: hold the house button in the top corner, or
+  open the shelf and take Settings > This phone > Hand the phone back.
+  Either one unpins Hearth and opens Developer options, which is where
+  USB debugging lives. It is not sticky: Hearth pins itself again on its
+  next resume, so flip the toggle before going back.
+
 - Unpin without dropping ownership:
 
   ```
@@ -143,10 +149,45 @@ Every removal is logged with a reason in `strip-log.txt`.
 
 Lightest first:
 
+0. The device's own hand-back, above. Rungs 1 to 3 all need adb, and
+   2026-08-26 proved adb is not guaranteed: the appliance came up from a
+   reboot with `adb_enabled` at 0, USB enumerating MTP only, no ADB
+   interface, and nothing on the device able to reach Settings. The
+   client launches nothing but itself, the shade and keyguard are off,
+   safe boot is disallowed, and the dialer and browser were stripped in
+   tiers 0 and 1. The ladder had no rung between "adb" and "factory
+   reset". This is that rung.
 1. A stripped package: `./restore.sh <package>` or `./restore.sh <tier>`.
-2. Kiosk stuck: adb stays alive; the EXIT broadcast above, or set any
-   restriction back over adb.
+2. Kiosk stuck: the EXIT broadcast above, or set any restriction back
+   over adb.
 3. Ownership itself: `dpm remove-active-admin`, no reset needed.
 4. Nuclear: factory reset restores stock completely. Standing rule: no
    Google sign-in on the appliance after provisioning, ever; an account
    re-arms FRP.
+
+`Appliance.enterKiosk` also pins `adb_enabled` to 1 on every resume now,
+so a reboot cannot take the dev line again. `DEVELOPMENT_SETTINGS_ENABLED`
+is not on the device-owner allowlist, so if Developer options themselves
+have been hidden the hand-back drops to the Settings root and the build
+number ceremony is still yours to do.
+
+## 5. Verify after every reboot
+
+The tier verifies checked the tailnet and a voice turn but never checked
+that the way out was still open, which is how the appliance got stranded.
+Run this FIRST after any reboot, before anything else:
+
+```
+adb devices          # must list the serial, not nothing
+```
+
+If it lists nothing, check whether the ADB interface is even enumerating
+before blaming a cable:
+
+```
+powershell "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_22B8' }"
+```
+
+WPD alone means `adb_enabled` is 0 at the device. A composite with an
+"ADB Interface" child means the phone is offering adb and the problem is
+this end.

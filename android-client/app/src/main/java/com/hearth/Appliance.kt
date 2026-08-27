@@ -3,6 +3,7 @@ package com.hearth
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
+import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -38,6 +39,10 @@ object Appliance {
         "com.google.android.gms",
         "com.google.android.tts",
         "com.tailscale.ipn",
+        // Settings is on the list so [handBack] has somewhere to land even
+        // if the unpin has not taken effect yet. It is not reachable from a
+        // running kiosk on its own: nothing launches it but the hand-back.
+        "com.android.settings",
     )
 
     /** Ten minutes; the DPC pins the timeout so a settings strip can't shorten it. */
@@ -124,6 +129,24 @@ object Appliance {
             Log.w(TAG, "kiosk policy refused", e)
         }
 
+        // THE DEV LINE STAYS OPEN ACROSS REBOOTS. On 2026-08-26 the appliance
+        // came up from a power cycle with adb_enabled back at 0, and every
+        // rung of the runbook's recovery ladder below the factory reset needs
+        // adb, so the phone was unreachable. ADB_ENABLED is one of the few
+        // globals a device owner may write; DEVELOPMENT_SETTINGS_ENABLED is
+        // NOT on that allowlist, which is why the hand-back below exists to
+        // open the Developer options screen by intent instead.
+        //
+        // Its own try: this throws on a build that narrows the allowlist, and
+        // inside the block above that would have skipped every policy after
+        // it. Appliance-only either way, since the whole function returns
+        // early when Hearth is not device owner.
+        try {
+            dpm.setGlobalSetting(admin, Settings.Global.ADB_ENABLED, "1")
+        } catch (e: Exception) {
+            Log.w(TAG, "could not pin adb_enabled", e)
+        }
+
         val am = activity.getSystemService(ActivityManager::class.java)
         if (am?.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) {
             activity.startLockTask()
@@ -146,6 +169,55 @@ object Appliance {
         dpm.clearUserRestriction(admin, UserManager.DISALLOW_SAFE_BOOT)
         dpm.clearPackagePersistentPreferredActivities(admin, context.packageName)
         Log.w(TAG, "kiosk exited by debug broadcast")
+    }
+
+    /**
+     * THE RUNG THAT NEEDS NO ADB. Hand the phone to the person holding it:
+     * unpin, give the shade and the keyguard back, and open Developer
+     * options so USB debugging can be turned on FROM the device.
+     *
+     * This exists because the runbook's recovery ladder opened rung 2 with
+     * "adb stays alive" and on 2026-08-26 that was false: a reboot left the
+     * appliance with adb off, the client launches nothing but itself, and
+     * every other way out had been stripped or disabled. The only remaining
+     * option was a factory reset.
+     *
+     * Deliberately NOT sticky. The next [enterKiosk] -- Hearth's own onResume
+     * -- pins the appliance again, so backing out of Settings returns the
+     * house to itself rather than leaving a kiosk that quietly stopped being
+     * one. The window is long enough to flip a toggle, which is the whole
+     * job.
+     */
+    fun handBack(activity: Activity) {
+        if (!isOwner(activity)) return
+        exitKiosk(activity)
+        // Clearing the allowlist unpins on the platform's next check;
+        // stopLockTask returns the nav bar NOW, which is what a person with
+        // the phone in their hand is waiting for.
+        try {
+            activity.stopLockTask()
+        } catch (e: IllegalStateException) {
+            // Not in Lock Task. Nothing to stop, and nothing to report.
+        }
+        Log.w(TAG, "kiosk handed back from the device")
+
+        // Straight to the toggle. Falling back to the Settings root rather
+        // than to nothing: Developer options is hidden until the build number
+        // ceremony, and this activity does not exist until then.
+        val screens = listOf(
+            Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS,
+            Settings.ACTION_SETTINGS,
+        )
+        for (action in screens) {
+            try {
+                activity.startActivity(
+                    Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                return
+            } catch (e: ActivityNotFoundException) {
+                Log.w(TAG, "no activity for $action", e)
+            }
+        }
     }
 }
 

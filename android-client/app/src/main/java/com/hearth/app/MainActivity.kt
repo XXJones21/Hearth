@@ -8,7 +8,10 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import com.hearth.app.ui.theme.HearthTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -25,6 +28,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
+import com.hearth.Appliance
 import com.hearth.app.ui.FirstRunScreen
 import com.hearth.app.ui.HearthMainScreen
 import com.hearth.app.ui.HouseDestination
@@ -158,6 +162,40 @@ class MainActivity : ComponentActivity() {
                             state != HearthState.IDLE && state != HearthState.LOADING
                         )
 
+                        // THE WAY BACK IN, held behind the house button. Off
+                        // the appliance the hold does nothing, because there
+                        // is no kiosk to leave and Settings is one swipe away
+                        // anyway. On the appliance it is the only rung of the
+                        // recovery ladder that does not need adb.
+                        var handBack by remember { mutableStateOf(false) }
+                        if (handBack) {
+                            AlertDialog(
+                                onDismissRequest = { handBack = false },
+                                title = { Text("Hand the phone back?") },
+                                text = {
+                                    Text(
+                                        "Unpins Hearth and opens Developer " +
+                                            "options, so USB debugging can be " +
+                                            "turned on without adb. The house " +
+                                            "keeps running, and the kiosk " +
+                                            "closes again the next time Hearth " +
+                                            "comes forward."
+                                    )
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        handBack = false
+                                        Appliance.handBack(this@MainActivity)
+                                    }) { Text("Hand it back") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { handBack = false }) {
+                                        Text("Cancel")
+                                    }
+                                },
+                            )
+                        }
+
                         // A surface is a full-screen visit, as on iOS: the
                         // stage stays underneath and Back returns to it.
                         when (destination) {
@@ -203,6 +241,13 @@ class MainActivity : ComponentActivity() {
 
                             HouseDestination.SETTINGS -> SettingsScreen(
                                 config = config,
+                                // The hold on the house button is the backup;
+                                // this row is the route a person can FIND.
+                                // Null off the appliance, where the row would
+                                // be an unpin with no kiosk behind it.
+                                onHandBack = if (Appliance.isOwner(this@MainActivity)) {
+                                    { handBack = true }
+                                } else null,
                                 autoReconnect = autoReconnect,
                                 onAutoReconnect = {
                                     autoReconnect = it
@@ -308,6 +353,11 @@ class MainActivity : ComponentActivity() {
                                         }
                                     },
                                     onShelf = { scope.launch { drawerState.open() } },
+                                    onShelfHold = {
+                                        if (Appliance.isOwner(this@MainActivity)) {
+                                            handBack = true
+                                        }
+                                    },
                                 )
                                 }
                             }
