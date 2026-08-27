@@ -104,6 +104,42 @@ class MainActivity : ComponentActivity() {
                         if (needsPairing && ready == true) ready = false
                     }
 
+                    // THE WAY BACK IN, and it lives OUT HERE rather than
+                    // beside the stage on purpose. An appliance that boots
+                    // unpaired -- house down, token revoked -- still pins
+                    // itself on resume, and the first version of this put the
+                    // only escape on the paired stage, where a first-run
+                    // client never reaches it. That is the exact shape of the
+                    // failure this whole hatch exists for.
+                    var handBack by remember { mutableStateOf(false) }
+                    if (handBack) {
+                        AlertDialog(
+                            onDismissRequest = { handBack = false },
+                            title = { Text("Hand the phone back?") },
+                            text = {
+                                Text(
+                                    "Unpins Hearth and opens Developer " +
+                                        "options, so USB debugging can be " +
+                                        "turned on without adb. The house " +
+                                        "keeps running, and the kiosk closes " +
+                                        "again the next time Hearth comes " +
+                                        "forward."
+                                )
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    handBack = false
+                                    Appliance.handBack(this@MainActivity)
+                                }) { Text("Hand it back") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { handBack = false }) {
+                                    Text("Cancel")
+                                }
+                            },
+                        )
+                    }
+
                     if (ready == null) {
                         Splash()
                     } else if (ready == false) {
@@ -113,6 +149,13 @@ class MainActivity : ComponentActivity() {
                             // known and it turned this device away.
                             reason = if (needsPairing) PairingReason.REFUSED
                             else PairingReason.FIRST_RUN,
+                            // The unpaired client's only way out: hold the
+                            // title. There is no house button on this screen.
+                            onTitleHold = {
+                                if (Appliance.isOwner(this@MainActivity)) {
+                                    handBack = true
+                                }
+                            },
                             onDone = {
                                 ready = true
                                 // Pairing just landed, so onStart has already
@@ -162,39 +205,6 @@ class MainActivity : ComponentActivity() {
                             state != HearthState.IDLE && state != HearthState.LOADING
                         )
 
-                        // THE WAY BACK IN, held behind the house button. Off
-                        // the appliance the hold does nothing, because there
-                        // is no kiosk to leave and Settings is one swipe away
-                        // anyway. On the appliance it is the only rung of the
-                        // recovery ladder that does not need adb.
-                        var handBack by remember { mutableStateOf(false) }
-                        if (handBack) {
-                            AlertDialog(
-                                onDismissRequest = { handBack = false },
-                                title = { Text("Hand the phone back?") },
-                                text = {
-                                    Text(
-                                        "Unpins Hearth and opens Developer " +
-                                            "options, so USB debugging can be " +
-                                            "turned on without adb. The house " +
-                                            "keeps running, and the kiosk " +
-                                            "closes again the next time Hearth " +
-                                            "comes forward."
-                                    )
-                                },
-                                confirmButton = {
-                                    TextButton(onClick = {
-                                        handBack = false
-                                        Appliance.handBack(this@MainActivity)
-                                    }) { Text("Hand it back") }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { handBack = false }) {
-                                        Text("Cancel")
-                                    }
-                                },
-                            )
-                        }
 
                         // A surface is a full-screen visit, as on iOS: the
                         // stage stays underneath and Back returns to it.
