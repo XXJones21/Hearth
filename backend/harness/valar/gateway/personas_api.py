@@ -10,12 +10,18 @@ Two translations are worth knowing about.
 **Colours** are stored as float rgb 0..1 and shown as hex, because nobody
 picks a colour in floats.
 
-**Models are named, never pathed**, in the file as well as on the page.
-A manifest carries a model id the dictionary describes, and the resolver joins
-it to HEARTH_MODELS. This module used to do that translation alone, at the edit
-boundary, over files that stored absolute paths under one Linux user's home;
-now it reads and writes the id and the picker offers what the dictionary
-knows.
+**Models are named where a name exists.** A manifest carries a model id the
+dictionary describes and the resolver joins it to HEARTH_MODELS, which keeps the
+persona portable: the id resolves to whatever filename that tier carries on this
+machine. This module used to do that translation alone, at the edit boundary,
+over files that stored absolute paths under one Linux user's home.
+
+The dictionary knows four tiers, and a models folder can hold anything someone
+downloaded to try, so the picker offers both (2026-08-27). A file with no
+dictionary entry has no id and is written as an absolute path, which
+``models.resolve`` already honours ahead of the id lookup. Naming a downloaded
+model is the point: bringing your own weights is a 0.2.0 capability, and a
+picker that only lists four planned tiers cannot express it.
 
 There is also one thing here that is neither a read nor a write. **Hear it**
 (`POST /personas/speak`) sends a line through the same persistent TTS service
@@ -46,6 +52,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 
 from ..config.settings import ValarConfig
+from ..config.settings import hearth_models
 from ..models import dictionary, filename_for
 
 logger = logging.getLogger("valar.gateway.personas")
@@ -101,11 +108,37 @@ def _deep_file(deep: dict) -> str:
 
 
 def _model_registry(config: ValarConfig) -> dict[str, str]:
-    """name -> model id. The dictionary is the registry: it is what the probe
-    plans against and what a persona is allowed to name. Anything already
-    downloaded is in it, and anything that is not cannot be planned for."""
-    return {_model_name(entry["file"]): model_id
-            for model_id, entry in dictionary().items()}
+    """name -> model id, or name -> "" for a file the dictionary does not know.
+
+    Two sources, and both are needed.
+
+    The DICTIONARY is what the probe can plan for, and a persona naming one of
+    those ids stays portable: the id resolves to whatever filename that tier
+    carries on this machine.
+
+    The MODELS FOLDER is what the person actually has. The dictionary knows
+    four tiers; a folder can hold anything someone downloaded to try. Listing
+    only the dictionary made this picker claim, in its own UI hint, to show
+    "what is in your models folder" while doing the opposite: on 2026-08-27 it
+    offered three tiers that were not downloaded and hid two files that were.
+
+    A folder-only entry maps to "" because it has no id. The save path writes
+    it as an absolute ``path`` instead, which ``models.resolve`` already
+    honours ahead of the dictionary lookup.
+    """
+    out: dict[str, str] = {
+        _model_name(entry["file"]): model_id
+        for model_id, entry in dictionary().items()
+    }
+    try:
+        folder = hearth_models()
+        for f in sorted(folder.glob("*.gguf")) + sorted(folder.glob("*.GGUF")):
+            # A dictionary id outranks a bare filename for the same model, so
+            # the portable form wins when both describe the same weights.
+            out.setdefault(_model_name(f.name), "")
+    except Exception as exc:  # noqa: BLE001 - a missing folder is not fatal
+        logger.warning("could not list model files: %s", exc)
+    return out
 
 
 def _persona_files(config: ValarConfig) -> list[Path]:
@@ -316,12 +349,28 @@ def _apply_one(config: ValarConfig, key: str, edit: dict, registry: dict[str, st
 
     deep = doc.setdefault("deep_model", {})
     if edit.get("model"):
-        model_id = registry.get(edit["model"])
-        if model_id and model_id != deep.get("id"):
-            deep["id"] = model_id
-            deep.pop("path", None)
-            deep.pop("fallback_path", None)
-            touched.append("model")
+        chosen = edit["model"]
+        if chosen in registry:
+            model_id = registry[chosen]
+            if model_id:
+                # A dictionary tier. The id is the portable form: it resolves
+                # to whatever filename this machine carries for that tier.
+                if model_id != deep.get("id"):
+                    deep["id"] = model_id
+                    deep.pop("path", None)
+                    deep.pop("fallback_path", None)
+                    touched.append("model")
+            else:
+                # A file in the models folder with no dictionary entry. It can
+                # only be named by path, which models.resolve honours ahead of
+                # the id lookup. Absolute, because the manifest may be read
+                # from a working directory that is not the models folder.
+                path = str(hearth_models() / f"{chosen}.gguf").replace("\\", "/")
+                if path != deep.get("path"):
+                    deep["path"] = path
+                    deep.pop("id", None)
+                    deep.pop("fallback_path", None)
+                    touched.append("model")
     if "temperature" in edit:
         temp = round(float(edit["temperature"]), 2)
         if temp != deep.get("temperature"):
