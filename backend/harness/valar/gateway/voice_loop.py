@@ -349,6 +349,46 @@ def sanitize_display_text(text: str) -> str:
     return out.strip()
 
 
+# --- the mouth's parser -----------------------------------------------------
+# The model writes markdown for the eyes and the engine reads it aloud
+# ("asterisk asterisk one"). The raw reply stays the source of truth: the
+# client renders the markdown, and THIS strips the marks off the words on the
+# way to TTS. Everything the engine performs passes through whole: the
+# non-verbal tags ([laughter], [sigh], the question/surprise families,
+# [confirmation-en], [dissatisfaction-hnn]) and arpabet brackets, because the
+# link regex only fires on [text](url) and the mark strip never touches
+# bracket contents.
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+_MD_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+", re.M)
+_MD_BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.M)
+_MD_QUOTE_RE = re.compile(r"^\s*>\s?", re.M)
+_MD_HR_RE = re.compile(r"^\s*([-*_]\s*){3,}$", re.M)
+_MD_MARKS_RE = re.compile(r"(\*{1,3}|_{2,3}|~~|`+)")
+_MD_TABLE_SEP_RE = re.compile(r"^\s*\|?[\s:|-]+\|?\s*$")
+
+
+def strip_markdown_for_tts(text: str) -> str:
+    """Markdown marks removed, words kept, performance brackets untouched."""
+    out = _MD_LINK_RE.sub(r"\1", text)
+    out = _MD_HEADING_RE.sub("", out)
+    out = _MD_BULLET_RE.sub("", out)
+    out = _MD_QUOTE_RE.sub("", out)
+    out = _MD_HR_RE.sub("", out)
+    if "|" in out:
+        lines = []
+        for ln in out.splitlines():
+            if _MD_TABLE_SEP_RE.match(ln) and "-" in ln:
+                continue
+            if ln.lstrip().startswith("|"):
+                cells = [c.strip() for c in ln.strip().strip("|").split("|") if c.strip()]
+                ln = ", ".join(cells) + "." if cells else ""
+            lines.append(ln)
+        out = "\n".join(lines)
+    out = _MD_MARKS_RE.sub("", out)
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    return out.strip()
+
+
 def _balanced_json(text: str, start: int) -> str | None:
     """The {...} object starting at `start`, honoring strings and escapes;
     None when the braces never close (a truncated stream)."""
@@ -2045,7 +2085,7 @@ class VoiceLoop:
             say_start["expression"] = say_expression
         await emit("tts_chunk_start", say_start)
         try:
-            async for pcm in self.tts.stream_sentence(text):
+            async for pcm in self.tts.stream_sentence(strip_markdown_for_tts(text)):
                 await emit("audio", pcm)
         except Exception as exc:  # noqa: BLE001 - surface but don't wedge the session
             logger.error("say() TTS failed: %s", exc)
@@ -2090,7 +2130,10 @@ class VoiceLoop:
         await emit("tts_chunk_start", chunk_start)
         with Timer(telemetry, "tts_total_ms", accumulate=True):  # summed across sentences
             try:
-                async for pcm in self.tts.stream_sentence(sentence):
+                # The mouth's parser: marks off, words and performance
+                # brackets through. The display channel above got the raw
+                # sentence (minus tags); the client renders its markdown.
+                async for pcm in self.tts.stream_sentence(strip_markdown_for_tts(sentence)):
                     # Once a frame is out it is being heard, and this sentence
                     # can no longer be cancelled without cutting a word in
                     # half. See the filler's cancellation in _maybe_run_tools.

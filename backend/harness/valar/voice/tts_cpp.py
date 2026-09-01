@@ -151,7 +151,6 @@ class OmniVoiceCppStreamer:
                 f"the voice engine has no voice named {name!r} (it offers {available or 'none'}). "
                 "tts-server is started with --voice <name>:<clip.wav>:<transcript.txt> per persona."
             )
-        self._voice = name
         cycle: list[str] = []
         for stem in self._oscillate_stems(ref_audio):
             candidate = f"{name}-{stem}"
@@ -163,13 +162,22 @@ class OmniVoiceCppStreamer:
                     "missing at engine start?); dropping it from the cycle",
                     stem, candidate,
                 )
-        self._cycle = cycle if len(cycle) >= 2 else []
-        self._cycle_i = 0
-        logger.info(
-            "voice '%s' resolved on the engine%s",
-            name,
-            f", oscillating {self._cycle}" if self._cycle else "",
-        )
+        new_cycle = cycle if len(cycle) >= 2 else []
+        # The TTS service syncs PER REQUEST, one request per sentence, so
+        # resetting the cycle position here plays cycle[0] forever (found on
+        # the first live oscillation test, 2026-09-01: twelve syncs in one
+        # turn, every sentence in voice A). Position resets only when the
+        # persona or its cycle actually changes; a same-voice re-sync keeps
+        # the oscillation walking.
+        if name != self._voice or new_cycle != self._cycle:
+            self._voice = name
+            self._cycle = new_cycle
+            self._cycle_i = 0
+            logger.info(
+                "voice '%s' resolved on the engine%s",
+                name,
+                f", oscillating {self._cycle}" if self._cycle else "",
+            )
 
     # --- synthesis ----------------------------------------------------------
 
