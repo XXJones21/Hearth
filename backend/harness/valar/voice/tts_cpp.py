@@ -59,6 +59,12 @@ class OmniVoiceCppStreamer:
         self.base_url = (os.environ.get("HEARTH_TTS_ENGINE_URL") or "http://127.0.0.1:18703").rstrip("/")
         self._voice: Optional[str] = None
         self._seen_healthy = False
+        # Per-sentence voice oscillation (the persona manifest's
+        # voice.oscillate list): the cycle of engine voice names to alternate
+        # through, and where in it the current turn is. Empty = no
+        # oscillation, the persona speaks in its primary voice.
+        self._cycle: list[str] = []
+        self._cycle_i = 0
         if sample_rate != NATIVE_SAMPLE_RATE:
             # Not fatal: the audio is still correct, it is only labelled with a
             # rate the engine does not produce, which plays back at the wrong
@@ -103,24 +109,66 @@ class OmniVoiceCppStreamer:
         with urllib.request.urlopen(f"{self.base_url}{path}", timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8"))
 
+    @staticmethod
+    def _oscillate_stems(ref_audio: Optional[Path]) -> list[str]:
+        """The persona manifest's voice.oscillate list, read beside the clip.
+
+        The streamer seam only carries the reference path, so the manifest is
+        found from it: personas/<Name>/voice/clip.wav -> <Name>/<name>.json.
+        Missing manifest or field means no oscillation, silently: this is a
+        persona styling knob, not a health condition."""
+        if not ref_audio:
+            return []
+        try:
+            persona_dir = Path(ref_audio).parent.parent
+            manifest = persona_dir / f"{persona_dir.name.lower()}.json"
+            doc = json.loads(manifest.read_text(encoding="utf-8"))
+            stems = (doc.get("voice") or {}).get("oscillate") or []
+            return [str(s).strip().lower() for s in stems if str(s).strip()]
+        except (OSError, ValueError):
+            return []
+
     def sync_persona_voice(self, ref_audio: Optional[Path], ref_text: Optional[str]) -> None:
         """Resolve the persona to a voice the engine already holds.
 
         ref_text is unused: the engine was given the transcript alongside the
         clip at startup. It stays in the signature because the seam above is
         shared with the torch engine, which does need it.
-        """
+
+        Oscillation: when the manifest lists voice.oscillate stems, each maps
+        to the engine name "<persona>-<stem>" (house.rs registers every
+        wav+txt pair in the voice folder under that name). Sentences then
+        alternate through the cycle, restarting at the top of every turn so
+        a reply always opens in the first voice. Stems the engine does not
+        hold are dropped LOUDLY but do not fail the turn: the primary voice
+        is the floor."""
         name = self.voice_name_for(ref_audio)
         body = self._get_json("/v1/voices")
         self._seen_healthy = True
         available = [v.get("name") for v in (body.get("voices") or []) if isinstance(v, dict)]
-        if name and name in available:
-            self._voice = name
-            logger.info("voice '%s' resolved on the engine", name)
-            return
-        raise RuntimeError(
-            f"the voice engine has no voice named {name!r} (it offers {available or 'none'}). "
-            "tts-server is started with --voice <name>:<clip.wav>:<transcript.txt> per persona."
+        if not name or name not in available:
+            raise RuntimeError(
+                f"the voice engine has no voice named {name!r} (it offers {available or 'none'}). "
+                "tts-server is started with --voice <name>:<clip.wav>:<transcript.txt> per persona."
+            )
+        self._voice = name
+        cycle: list[str] = []
+        for stem in self._oscillate_stems(ref_audio):
+            candidate = f"{name}-{stem}"
+            if candidate in available:
+                cycle.append(candidate)
+            else:
+                logger.warning(
+                    "oscillate stem '%s' has no engine voice '%s' (clip or transcript "
+                    "missing at engine start?); dropping it from the cycle",
+                    stem, candidate,
+                )
+        self._cycle = cycle if len(cycle) >= 2 else []
+        self._cycle_i = 0
+        logger.info(
+            "voice '%s' resolved on the engine%s",
+            name,
+            f", oscillating {self._cycle}" if self._cycle else "",
         )
 
     # --- synthesis ----------------------------------------------------------
@@ -153,8 +201,12 @@ class OmniVoiceCppStreamer:
         spoken = text.strip()
         if not spoken:
             return
+        voice = self._voice or ""
+        if self._cycle:
+            voice = self._cycle[self._cycle_i % len(self._cycle)]
+            self._cycle_i += 1
         payload = json.dumps(
-            {"model": "omnivoice", "input": spoken, "voice": self._voice or "", "response_format": "pcm"}
+            {"model": "omnivoice", "input": spoken, "voice": voice, "response_format": "pcm"}
         ).encode("utf-8")
         req = urllib.request.Request(
             f"{self.base_url}/v1/audio/speech",
