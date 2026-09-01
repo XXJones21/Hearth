@@ -124,9 +124,10 @@ def create_app(config: ValarConfig) -> FastAPI:
     apps_api.register(app, config)
 
     # --- the household: read and write persona.json -----------------------
-    from valar.gateway import personas_api
+    from valar.gateway import personas_api, routines_api
 
     personas_api.register(app, config)
+    routines_api.register(app, config)
 
     # --- subsystems (built once, shared) ---------------------------------
     personas = PersonaEngine(config.persona_dir, config.default_persona)
@@ -605,6 +606,15 @@ def create_app(config: ValarConfig) -> FastAPI:
         from ..memory.journal_sync import journal_sync_loop
 
         asyncio.create_task(journal_sync_loop(personas, brain, config))
+
+    @app.on_event("startup")
+    async def _start_soth_routine() -> None:
+        """The clock behind Soth's daily push routine: a deterministic change
+        sweep gates the model work, so an unchanged day costs no inference.
+        Defined in Persona/*/routines.yaml; switch in Engram/Areas/routines.md."""
+        from ..agents.soth_routine import soth_routine_loop
+
+        asyncio.create_task(soth_routine_loop(personas, brain, config))
 
     @app.on_event("startup")
     async def _warm_models() -> None:
