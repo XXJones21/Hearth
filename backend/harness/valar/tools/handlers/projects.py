@@ -101,6 +101,63 @@ def list_projects(args: dict) -> ToolResult:
     )
 
 
+_STATUS_MAX_CHARS = 4_000
+
+
+def project_status(args: dict) -> ToolResult:
+    """The operator's notes on one project, read back.
+
+    tools.yaml has declared this handler since the projects domain landed and
+    no tree ever defined it, so every call failed at resolve time (found live
+    2026-09-01, Soth's first repo review). It is recall's blind spot made
+    readable: the per-project claude.md, whole, capped."""
+    name = str((args or {}).get("project") or "").strip()
+    projects = _projects_dir()
+    if projects is None:
+        return ToolResult.error("There is no second brain connected.", reason="unsupported")
+    if not name:
+        return list_projects(args)
+
+    entries = [
+        (d.name, _title_of(d / "claude.md"))
+        for d in projects.iterdir()
+        if d.is_dir()
+    ]
+    found = _match(name, entries)
+    if not found:
+        known = ", ".join(t or s for s, t in entries[:12]) or "none yet"
+        return ToolResult.error(
+            f"No project called {name!r}. The brain holds: {known}.",
+            reason="not_found",
+        )
+    if len(found) > 1:
+        names = ", ".join(t or s for s, t in found)
+        return ToolResult.error(
+            f"{name!r} matches several projects: {names}. Ask which one.",
+            reason="bad_input",
+        )
+
+    slug, title = found[0]
+    claude = projects / slug / "claude.md"
+    try:
+        text = claude.read_text(encoding="utf-8", errors="replace") if claude.is_file() else ""
+    except OSError as exc:
+        return ToolResult.error(f"Could not read that project: {exc}", reason="internal")
+    if not text.strip():
+        return ToolResult(
+            content=f"{title or slug} exists but its notes are empty.",
+            data={"project": slug, "title": title, "notes": ""},
+        )
+    clipped = text[:_STATUS_MAX_CHARS]
+    if len(text) > _STATUS_MAX_CHARS:
+        clipped += "\n\n[notes truncated; the file continues]"
+    logger.info("project_status %s (%d chars)", slug, len(text))
+    return ToolResult(
+        content=f"Notes for {title or slug}:\n\n{clipped}",
+        data={"project": slug, "title": title, "chars": len(text)},
+    )
+
+
 def update_project(args: dict) -> ToolResult:
     """Append a decision or a note to a project the operator named."""
     name = str((args or {}).get("project") or "").strip()
