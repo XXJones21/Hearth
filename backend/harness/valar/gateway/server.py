@@ -991,6 +991,67 @@ async def _handle_command(raw: str, session, personas, voice_loop, emit) -> None
             name,
         )
 
+    elif action == "open_channel":
+        # The per-persona durable channel (Soth Phase 3, but persona-generic):
+        # one server action does the whole swap so the client cannot race the
+        # persona switch against the history seed. History comes from the
+        # channel naming convention over session records (memory/channel.py);
+        # topic_hint stamps every later turn as channel history. An empty
+        # channel opens empty; that is not an error, it is day one.
+        from ..memory.channel import channel_topic, load_channel_turns
+
+        name = (cmd.get("persona") or "").strip()
+        try:
+            target = personas.load(name)
+        except PersonaNotFound as exc:
+            await emit("error", {"action": "error", "message": str(exc)})
+            return
+        turns = load_channel_turns(target.name)
+
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("open_channel: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+        personas.switch(target.name)
+        await emit(
+            "persona_switched",
+            {
+                "action": "persona_switched",
+                "persona_name": target.name,
+                "status": "success",
+            },
+        )
+        session.history = list(turns)
+        session.topic_hint = channel_topic(target.name)
+        session.touch()
+        await emit(
+            "channel_opened",
+            {
+                "action": "channel_opened",
+                "persona": target.name,
+                "session_id": session.session_id,
+                "turns": [
+                    {"user": t.user, "assistant": t.assistant} for t in turns
+                ],
+            },
+        )
+        logger.info(
+            "open_channel: %s persona=%s seeded %d turns",
+            session.session_id,
+            target.name,
+            len(turns),
+        )
+
     elif action == "say":
         # Speak a short cue verbatim in the persona voice, no LLM turn (e.g. the
         # visionOS immersive-mode switch). Skipped if a turn is already in flight.

@@ -538,9 +538,14 @@ class VoiceLoop:
         ctx["stage"] = "memory"
         memory_block = ""
         try:
-            memory_block = self.memory.recall(
-                user_text, project_hint=getattr(session, "topic_hint", None)
-            )
+            # A channel's topic marker doubles as its project hint: the
+            # channel:<name> prefix strips to the persona's own Engram
+            # project (channel:soth -> Projects/soth), and a persona without
+            # one degrades exactly as an unknown hint always has.
+            hint = getattr(session, "topic_hint", None)
+            if isinstance(hint, str) and hint.startswith("channel:"):
+                hint = hint[len("channel:"):]
+            memory_block = self.memory.recall(user_text, project_hint=hint)
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
 
