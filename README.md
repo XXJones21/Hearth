@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="design/readme/hearth-header.jpg" alt="A warm room at sunset: a fire in the hearth, a chair, shelves of books, a small glowing lamp on the floor." width="100%">
+</p>
+
 # Hearth
 
 A companion that lives on your own machine.
@@ -7,6 +11,63 @@ hardware. Nothing is sent anywhere, because there is nowhere for it to go.
 
 Hearth is pre-alpha. It is not ready for people who are not already expecting
 it to be rough.
+
+## What it does
+
+- **You make someone.** Hearth does not ship a chatbot to configure. You meet
+  Sulivan, the one resident, and then you design a persona of your own: a
+  name, a temperament, a voice, a colour. That someone greets you from then
+  on. See [personas](wiki/features/personas.md).
+- **They speak, and they look back.** Every persona has a voice designed from
+  plain attributes (age, pitch, accent) and cloned locally on every turn,
+  with a small vocabulary of non-verbal tags the engine performs rather than
+  reads. Each has a procedural face, two capsule eyes that blink, glance and
+  react, drawn from the same motion design on every screen. See
+  [voice](wiki/features/voice.md) and
+  [the persona face](wiki/features/persona-face.md).
+- **They remember, in files you own.** A persona's memory is four folders of
+  plain markdown on your disk: projects, areas, thoughts, resources. Open
+  them in any editor. Delete what you like. See
+  [the second brain](wiki/features/second-brain.md).
+- **They draw and they act.** A persona can put a card on your screen from a
+  small closed layout vocabulary, and reach into the world through tools.
+  See [apps and extensions](wiki/features/apps-and-extensions.md).
+- **One house, many windows.** The desktop machine is the house: it runs the
+  model, the persona and the memory. The phone, the tablet and the headset
+  are windows onto it, at home or over a tailnet.
+
+## See it
+
+<!--
+  GitHub inlines a video only when the file is uploaded through the web
+  editor (drag it into this README while editing on github.com, or into an
+  issue), which produces a github.com/user-attachments URL. A video committed
+  to the repository renders as a link, not a player. Replace each line below
+  with the uploaded URL on its own line.
+-->
+
+A first conversation with Sulivan, voice and face together:
+
+_video to come_
+
+Designing a persona of your own, from the creation interview to the first
+words in the new voice:
+
+_video to come_
+
+The same persona on the desk, on a phone, and in the room on Apple Vision Pro:
+
+_video to come_
+
+## What you need
+
+A Windows machine with a capable GPU, or an Apple Silicon Mac (M1 or later)
+with 8 GB of memory or more. On Windows the smallest supported tier is a GPU
+with around 8 GB of video memory; larger GPUs run larger models with more
+headroom. On a Mac, 8 GB is the floor and it is fully supported: an 8 GB M2
+MacBook Air runs a persona and its voice at the same time. The full picture,
+including what first run does with what it finds, is in
+[getting started](wiki/getting-started.md).
 
 ## What is here
 
@@ -19,6 +80,7 @@ apple-client/       The iOS and visionOS apps.
 android-client/     The Android app. Compose; a phone client and a cover-screen home.
 vendor/             Voice engine sources built during packaging.
 scripts/            Builds the backend tarball the installer bundles.
+design/             Icons and the images this page uses.
 wiki/               How it works, and why it is built this way.
 ```
 
