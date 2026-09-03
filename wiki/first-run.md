@@ -1,7 +1,7 @@
 ---
-title: First Run
+title: First run
 status: draft
-last_reviewed: 2026-08-06
+last_reviewed: 2026-09-03
 related:
   - backend/build-pipeline.md
   - backend/portability-ledger.md
@@ -11,8 +11,7 @@ sources:
   - D:/Tools/Valinor/hearth-pitch/mockups/hearth-setup-flow.html
 ---
 
-# First Run
-
+# First run
 What happens between someone downloading Hearth and having a companion that
 knows something about them. The visual reference is
 `hearth-pitch/mockups/hearth-setup-flow.html` in the Valinor repository,
@@ -235,7 +234,7 @@ Loaded when a machine has exactly one persona and no history. It states what has
 to be true at the end and leaves the route open.
 
 **Come away with:** a name, a sense of what they are for, a temperament, a
-voice, a colour, and enough of a picture to write a system prompt in their voice
+voice, a color, and enough of a picture to write a system prompt in their voice
 rather than Sulivan's.
 
 **Getting there:** one thing at a time. Acknowledge what was just learned before
@@ -283,9 +282,9 @@ parameters:
   colour:        string   # hex; drives the entire visualization block
 ```
 
-Everything else is expanded by the handler: the visualization block is a colour
+Everything else is expanded by the handler: the visualization block is a color
 ramp from one hue producing the sphere, the particles, and all four state
-colours; the model paths come from the install scan rather than literals; chat
+colors; the model paths come from the install scan rather than literals; chat
 templates and stop tokens are boilerplate for the model family; tool grants are
 defaults for a resident persona.
 
@@ -329,7 +328,7 @@ the portability ledger, section 8.
 1. **How many beats in the persona conversation?** The mockup shows five. Four
    is probably right and the direction should express it as a budget rather than
    a script.
-2. **Which voices ship, and under what licence?** The mockup names four
+2. **Which voices ship, and under what license?** The mockup names four
    placeholders. The real list is whatever ships with the voice engine, and the
    licensing has not been answered.
 3. **Where does the second brain live by default?** The mockup shows a documents

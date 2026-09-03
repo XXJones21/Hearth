@@ -226,3 +226,14 @@ your second brain is a local filesystem client with no required network
 step: if it cannot find its own package, it degrades to returning nothing
 rather than failing a conversation, and no read or write here reaches
 outside the folder `HEARTH_ENGRAM` points at.
+
+## A persona's own memory is not the second brain
+
+Since 2026-09-02 each resident persona also keeps a memory of its own beside
+its manifest: its notes, its read on you, its activity log and session index,
+and an archive. That layer is the persona's, private by rule (another persona
+may ask it, never read its files), and it reaches the second brain only through
+the day report each persona files and the reviews Selene writes from those
+reports. The second brain stays yours; the persona's memory stays the
+persona's. The design lives in the Valinor repository as
+`docs/superpowers/specs/2026-09-02-persona-private-memory-design.md`.

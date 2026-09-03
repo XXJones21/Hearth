@@ -405,6 +405,30 @@ def create_persona(
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
+    # A persona is born with a memory, not one it grows into later (spec
+    # section 3, lifecycle). PersonaEngine.load would scaffold an empty tree
+    # on first speech anyway; this is about the seeds, so its first block
+    # says something rather than "(nothing yet)". The operator facts this
+    # interview surfaced are not in scope here; the review fork picks them
+    # up within ten turns, the same path every other persona uses.
+    try:
+        from ...memory import persona_memory as pm
+
+        root = pm.scaffold(target / "memory")
+        if description:
+            pm.append_entry(
+                root / pm.NOTES_FILE,
+                f"Made today with the operator. What I am for: {description}"[:400],
+                pm.NOTES_CAP,
+            )
+        if temperament:
+            pm.append_entry(
+                root / pm.NOTES_FILE,
+                f"How I was asked to be: {temperament}"[:400],
+                pm.NOTES_CAP,
+            )
+    except Exception as exc:  # noqa: BLE001 - a persona without seeds still works
+        logger.warning("create_persona: memory not seeded for %s: %s", name, exc)
     logger.info(
         "create_persona: %s (%d attrs%s, colour %s)",
         name,

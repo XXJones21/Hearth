@@ -1,7 +1,7 @@
 ---
 title: Hearth on Android
 status: draft
-last_reviewed: 2026-08-22
+last_reviewed: 2026-09-03
 related:
   - ios.md
   - windows.md
@@ -85,8 +85,8 @@ flame is a surface of revolution, so its outline is the profile evaluated at
 the two meridians where the horizontal coordinate is extremal. The phone
 evaluates exactly what the headset evaluates, at two angles instead of
 forty-four. The silhouette is not an approximation of the headset's; it is
-the same curve. The full build order is in
-`wiki/raw/persona-flame-spec.md`.
+the same curve. The full build order is in the persona flame spec this page was compiled
+from.
 
 The face on the fire is features only, in flat black. With a head drawn under
 it, the result is a persona standing in front of a flame rather than a flame
@@ -192,7 +192,7 @@ Two Gradle modules, mirroring the split the iOS client uses between its core
 package and its app target:
 
 - **`core/`** is everything with no screen in it: the transport, the audio,
-  the speech recogniser, the persona arithmetic and its director, the card
+  the speech recognizer, the persona arithmetic and its director, the card
   store, the surface loaders, the config. It is where the tests are.
 - **`app/`** is Compose: the stage, the five surfaces, the shared surface
   vocabulary they are all built from.
@@ -240,9 +240,9 @@ paired.
   thinking currently reads like idle. It is a shared gap rather than an
   Android one: adding it here alone would make the two flames different
   characters.
-- **Colour bands do not wander.** The headset perturbs the fire's colour ramp
+- **Color bands do not wander.** The headset perturbs the fire's color ramp
   with the same noise field that shapes it. A gradient cannot, so the drawn
-  flame's colour boundaries are level where a computed one's wander. This is
+  flame's color boundaries are level where a computed one's wander. This is
   the largest visual difference between the two and it is accepted.
 - **No proactive push.** The house cannot start a turn. A timer that fires
   draws its card and counts to zero, and nothing speaks. That is a house-side
@@ -286,7 +286,7 @@ Three things the device taught, each now enforced or recorded:
 
 The strip inventory, the restore path and the full provisioning order live
 in `android-client/appliance/`, curated from this device's real package
-list. The plan and its locked decisions are
-`wiki/raw/android-appliance-plan.md`. Still owed from that plan: the
+list. The plan and its locked decisions are staged with this page's sources.
+Still owed from that plan: the
 cover-screen design pass, and what the lid shows during the boot window
 when the house is not yet reachable.

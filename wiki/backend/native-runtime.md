@@ -1,7 +1,7 @@
 ---
-title: Native Runtime
+title: Native runtime
 status: draft
-last_reviewed: 2026-08-06
+last_reviewed: 2026-09-03
 related:
   - packaging-options.md
   - component-catalog.md
@@ -15,8 +15,7 @@ sources:
   - D:/Tools/Valinor/tasks/research-wsl-steelman.md
 ---
 
-# Native Runtime
-
+# Native runtime
 Hearth's backend runs as native processes on both platforms. No WSL, no
 container, no Linux layer of any kind on the user's machine. Decided
 2026-08-06 after four parallel investigations; the decision memo and the three
@@ -91,9 +90,7 @@ Windows: <root> = D:\Hearth (chosen at setup)     macOS: <root> = ~/Hearth
 Uninstall is deleting the folder. No distro to unregister, no vhdx, no
 registry surface beyond the client's own installer entry.
 
-An entire class of host plumbing from
-[`component-catalog.md`](component-catalog.md) is deleted rather than
-ported: the portproxy and its logon task, the Hyper-V firewall policy, the
+An entire class of host plumbing is deleted rather than ported: the portproxy and its logon task, the Hyper-V firewall policy, the
 `.wslconfig` idle timeout, the WSLDistroKeeper task, and linger. Native
 processes on localhost need none of it. What remains host-side is one
 Windows Firewall rule if other devices should reach 18700, and it stays
@@ -121,7 +118,7 @@ The mockup's installing screen maps cleaner natively than it ever did to WSL:
 | Mockup row | Native meaning |
 | --- | --- |
 | Prepared the environment | unpack the vendored Python tree and the backend into `runtime\` |
-| Installed the runtime | place llama-server and hearth-supervisor, both sha256-verified downloads like the models |
+| Installed the runtime | fetch llama-server, sha256-verified like the models, and place hearth-supervisor, which is built from this repository and ships inside the app |
 | Installed the voice engine | create `envs\voice`, pip install the pinned set, fetch the OmniVoice weights |
 | Downloading the model | unchanged, already built and verified |
 | Writing your configuration | `render_config.py` from the record, native paths, ports 18700/18080/18702/18765/18766 |
@@ -137,7 +134,7 @@ first run behind the progress bar, the ComfyUI pattern, and the app starts
 without it (text works, voice arrives when the row finishes). This is the
 one place the payload is measured in gigabytes and the one place a wheel
 matrix is owned. The standing simplification routes, `sherpa-onnx` (same
-organisation as OmniVoice) and `neutts-rs` with pre-encoded voices, would
+organization as OmniVoice) and `neutts-rs` with pre-encoded voices, would
 each delete this section, and Whisper moving to `whisper-rs` inside the
 supervisor deletes the speech half of Python. None of them block shipping.
 

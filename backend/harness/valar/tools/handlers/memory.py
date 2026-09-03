@@ -453,7 +453,7 @@ async def remember(args: dict) -> ToolResult:
     return ToolResult(content=f"Got it -- I'll remember that {short}", data={"stored": fact})
 
 
-def recall(args: dict) -> ToolResult:
+def _recall_house(args: dict) -> ToolResult:
     """args: {query: str}. Search the operator's FULL long-term memory.
 
     Primary path (2026-06-06): the engram-mcp seam's four-scope search --
@@ -787,3 +787,143 @@ def search_journal(args: dict) -> ToolResult:
             "ui_component": _journal_card("From the journal", blocks),
         },
     )
+
+# --------------------------------------------------------------- self scope
+# Spec section 4 of
+# docs/superpowers/specs/2026-09-02-persona-private-memory-design.md: a
+# persona's own record answers first, deterministically and cheaply, and
+# only an explicit scope reaches the house's shared shelf. There is no
+# argument that reaches ANOTHER persona's record; the root comes from the
+# acting contextvar, never from a name.
+
+
+def _reconstruct(root: Path, label: str, rows: list[dict]) -> Path:
+    """The paper trail: a day or a session written out as a file to point at."""
+    from ...memory import persona_memory as pm
+
+    out = Path(root) / pm.RECON_DIRNAME / f"{label}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    lines = [f"# {label}", ""]
+    for r in rows:
+        when = str(r.get("ts") or "")[11:16]
+        origin = str(r.get("origin") or "")
+        client = str(r.get("client") or "")
+        lines.append(f"## {when} {origin or client}".rstrip())
+        if r.get("question"):
+            lines.append(f"Asked: {r['question']}")
+        touched = r.get("touched") or []
+        if touched:
+            lines.append("Touched: " + "; ".join(str(t) for t in touched))
+        if r.get("dispatches"):
+            lines.append("Asked of others: " + ", ".join(r["dispatches"]))
+        if r.get("answer"):
+            lines.append(f"Answered: {r['answer']}")
+        lines.append("")
+    out.write_text("\n".join(lines), encoding="utf-8")
+    return out
+
+
+def _rows_line(r: dict) -> str:
+    when = str(r.get("ts") or r.get("as_of") or "")
+    touched = ", ".join(str(t) for t in (r.get("touched") or []))
+    question = r.get("question") or r.get("text") or ""
+    answer = r.get("answer") or ""
+    bits = [when[11:16] or when[:10], question]
+    if touched:
+        bits.append(f"[{touched}]")
+    if answer:
+        bits.append(f"-> {answer}")
+    return " ".join(b for b in bits if b)
+
+
+def _recall_self(act, day: str, session: str, query: str, reconstruct: bool, limit: int) -> ToolResult:
+    from ...memory import persona_archive as pa
+
+    root = Path(act.memory_dir)
+    if session:
+        rows = pa.query_session(root, session)
+        label = session
+    elif day:
+        rows = pa.query_day(root, day)
+        label = day
+    else:
+        rows = pa.search(root, query, limit=limit)
+        label = query.replace(" ", "-")[:40] or "search"
+
+    if not rows:
+        what = session or day or f"'{query}'"
+        return ToolResult(
+            content=f"I have no record of {what} in my own memory.",
+            data={"rows": [], "scope": "self"},
+        )
+
+    head_rows = rows[:limit]
+    body = "\n".join(f"- {_rows_line(r)}" for r in head_rows)
+    more = f"\n({len(rows) - len(head_rows)} more.)" if len(rows) > len(head_rows) else ""
+    as_of = str(rows[0].get("day") or rows[0].get("ts") or "")[:10]
+    age = _age_label(as_of) if as_of else ""
+    header = f"My own record of {label}" + (f", {age}" if age else "") + ":"
+
+    data: dict = {"rows": head_rows, "scope": "self", "as_of": as_of}
+    if reconstruct:
+        try:
+            path = _reconstruct(root, label, rows)
+            data["path"] = str(path)
+            more += f"\nWritten out in full at {path}."
+        except Exception as exc:  # noqa: BLE001 - the answer stands without the file
+            logger.warning("reconstruct failed: %s", exc)
+    return ToolResult(content=f"{header}\n{body}{more}", data=data)
+
+
+def recall(args: dict) -> ToolResult:
+    """Your own record first; the house's shared record only when asked for.
+
+    scope self (the default) reads the persona's own log, index and archive
+    deterministically: a day, a session id, or an FTS query over its own
+    turns and notes. scope house is the Engram search every client already
+    had, labelled as the house's record rather than the persona's memory.
+    Outside a turn there is no acting persona, so the house scope is all
+    there is to answer with.
+    """
+    from ...memory.acting import current_acting
+
+    scope = str(args.get("scope") or "self").strip().lower()
+    query = str(args.get("query") or args.get("text") or "").strip()
+    # Anything but "self" is the house. The intent values the shared search
+    # has always taken (background, personal_projects, sessions, all) are
+    # house scopes too, and _recall_house reads them from args unchanged, so
+    # a model that learned the old vocabulary still lands where it meant to.
+    if scope != "self":
+        return _recall_house(args)
+
+    act = current_acting()
+    if act is None:
+        return _recall_house(args)
+
+    day = str(args.get("day") or "").strip()
+    session = str(args.get("session") or "").strip()
+    if not day and not session and query:
+        day = parse_day(query) or ""
+    if not day and not session and not query:
+        try:
+            return ToolResult.error(
+                "Tell me a day, a session, or something to search my memory for.",
+                reason="bad_input",
+            )
+        except TypeError:  # Hearth's ToolResult has no reason field yet
+            return ToolResult.error(
+                "Tell me a day, a session, or something to search my memory for."
+            )
+    try:
+        limit = max(1, min(int(args.get("max_results") or 8), 20))
+    except (TypeError, ValueError):
+        limit = 8
+    try:
+        result = _recall_self(act, day, session, query, bool(args.get("reconstruct")), limit)
+    except Exception as exc:  # noqa: BLE001 - the house scope is the fallback
+        logger.warning("self recall failed (%s); falling back to the house", exc)
+        return _recall_house(args)
+    # A period question ("last week") is the house's shelf, not one log file.
+    if not result.data.get("rows") and query and parse_period(query):
+        return _recall_house(args)
+    return result

@@ -26,6 +26,10 @@ class Session:
     session_id: str
     platform: str = "unknown"
     stt_mode: str = "server"  # "server" | "local"
+    # How the current turn arrived: "voice" (an utterance) or "text" (a typed
+    # query or client transcription). Read by the persona-memory log so a
+    # turn's origin is recorded, never inferred.
+    last_input: str = "voice"
     audio_format: dict = field(default_factory=dict)
     state: State = State.IDLE
     history: list[Turn] = field(default_factory=list)
@@ -59,6 +63,11 @@ class Session:
     # Engram topic for this chat (project or life-root name). Passed into
     # memory.recall so every turn loads that claude.md. Cleared on session end.
     topic_hint: str | None = None
+    # The persona's private block, built once per session per persona and
+    # reused (snapshot, never volatile). Cleared when the session ends;
+    # rebuilt when the speaking persona changes.
+    memory_block: str = ""
+    memory_block_persona: str = ""
     # Leftover file work from tool_loop.carry (list_dir files not yet read).
     # Mechanical, not spoken history. Survives session end; retired on TTL.
     open_task: dict | None = None

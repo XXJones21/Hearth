@@ -1,7 +1,7 @@
 ---
 title: Getting started
 status: draft
-last_reviewed: 2026-08-09
+last_reviewed: 2026-09-03
 related:
   - installing.md
   - first-run.md
@@ -26,7 +26,7 @@ sources:
 
 Hearth is a companion of your own design, and it lives on your machine. You
 meet Sulivan first, and from there you build a persona of your own: a name,
-a temperament, a voice, a colour. Your conversations, your memory, and your
+a temperament, a voice, a color. Your conversations, your memory, and your
 persona's voice never leave the computer they run on, because there is
 nowhere for them to go.
 

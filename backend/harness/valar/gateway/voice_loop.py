@@ -59,6 +59,58 @@ from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.voice_loop")
 
+
+def _record_persona_turn(
+    persona,
+    session,
+    user_text: str,
+    reply_text: str,
+    tool_trace: list[dict] | None,
+    tools_invoked: list[str],
+    origin: str,
+) -> None:
+    """The persona's own paper trail for a foreground turn (spec section 3 of
+    docs/superpowers/specs/2026-09-02-persona-private-memory-design.md).
+
+    Sits beside the ledger's turn.decision because that is the one place the
+    trace, the telemetry and the answer are all in scope. Never breaks a
+    turn: the log is evidence, not a dependency.
+    """
+    try:
+        from ..memory import persona_memory as pm
+
+        root = getattr(persona, "memory_dir", None)
+        if not root:
+            return
+        dispatches = [
+            str((t.get("data") or {}).get("agent") or (t.get("data") or {}).get("persona") or "")
+            for t in (tool_trace or [])
+            if t.get("name") == "dispatch_subagent"
+        ]
+        pm.append_log(root, {
+            "session": session.session_id,
+            "origin": origin,
+            "client": str(getattr(session, "platform", "") or ""),
+            "question": pm.head(user_text),
+            "tools": list(tools_invoked),
+            "touched": pm.touched_from_trace(tool_trace),
+            "answer": pm.head(reply_text),
+            "dispatches": [d for d in dispatches if d],
+        })
+        first = session.history[0].user if session.history else user_text
+        pm.upsert_session(root, {
+            "id": session.session_id,
+            "client": str(getattr(session, "platform", "") or ""),
+            "origin": origin,
+            "title": pm.head(first, 80),
+            # record_turn appends to history after this site, so the turn
+            # being recorded is not in it yet.
+            "turns": len(session.history) + 1,
+            "topic": str(getattr(session, "topic_hint", "") or ""),
+        })
+    except Exception as exc:  # noqa: BLE001 - recording never breaks a turn
+        logger.warning("persona memory: turn not recorded (%s)", exc)
+
 # emit(kind, payload) — kind is a protocol action name; payload is dict OR bytes.
 Emit = Callable[[str, object], Awaitable[None]]
 
@@ -349,6 +401,46 @@ def sanitize_display_text(text: str) -> str:
     return out.strip()
 
 
+# --- the mouth's parser -----------------------------------------------------
+# The model writes markdown for the eyes and the engine reads it aloud
+# ("asterisk asterisk one"). The raw reply stays the source of truth: the
+# client renders the markdown, and THIS strips the marks off the words on the
+# way to TTS. Everything the engine performs passes through whole: the
+# non-verbal tags ([laughter], [sigh], the question/surprise families,
+# [confirmation-en], [dissatisfaction-hnn]) and arpabet brackets, because the
+# link regex only fires on [text](url) and the mark strip never touches
+# bracket contents.
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+_MD_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+", re.M)
+_MD_BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.M)
+_MD_QUOTE_RE = re.compile(r"^\s*>\s?", re.M)
+_MD_HR_RE = re.compile(r"^\s*([-*_]\s*){3,}$", re.M)
+_MD_MARKS_RE = re.compile(r"(\*{1,3}|_{2,3}|~~|`+)")
+_MD_TABLE_SEP_RE = re.compile(r"^\s*\|?[\s:|-]+\|?\s*$")
+
+
+def strip_markdown_for_tts(text: str) -> str:
+    """Markdown marks removed, words kept, performance brackets untouched."""
+    out = _MD_LINK_RE.sub(r"\1", text)
+    out = _MD_HEADING_RE.sub("", out)
+    out = _MD_BULLET_RE.sub("", out)
+    out = _MD_QUOTE_RE.sub("", out)
+    out = _MD_HR_RE.sub("", out)
+    if "|" in out:
+        lines = []
+        for ln in out.splitlines():
+            if _MD_TABLE_SEP_RE.match(ln) and "-" in ln:
+                continue
+            if ln.lstrip().startswith("|"):
+                cells = [c.strip() for c in ln.strip().strip("|").split("|") if c.strip()]
+                ln = ", ".join(cells) + "." if cells else ""
+            lines.append(ln)
+        out = "\n".join(lines)
+    out = _MD_MARKS_RE.sub("", out)
+    out = re.sub(r"[ \t]{2,}", " ", out)
+    return out.strip()
+
+
 def _balanced_json(text: str, start: int) -> str | None:
     """The {...} object starting at `start`, honoring strings and escapes;
     None when the braces never close (a truncated stream)."""
@@ -477,8 +569,19 @@ class VoiceLoop:
         # where the turn is (for the typed error), `partial*` capture a stream
         # that died after first token.
         ctx: dict = {"stage": "start", "partial": False, "partial_text": ""}
+        # Whose turn this is, for the whole turn including its tool loop. A
+        # memory handler resolves its files from here and never from an
+        # argument (spec sections 3 and 4).
+        from ..memory.acting import acting
+
         try:
-            await impl(session, persona, user_text, emit, telemetry, ctx)
+            with acting(
+                persona.name,
+                persona.memory_dir,
+                session=session.session_id,
+                origin=getattr(session, "last_input", "voice"),
+            ):
+                await impl(session, persona, user_text, emit, telemetry, ctx)
         except Exception as exc:  # noqa: BLE001 - typed emit, then re-raise
             telemetry.error_stage = str(ctx["stage"])
             telemetry.error_kind = self._classify_error(exc)
@@ -536,13 +639,48 @@ class VoiceLoop:
         )
 
         ctx["stage"] = "memory"
+        from ..memory import persona_block as pb
+
+        # The persona's own block: snapshot once per session per persona,
+        # reused until the session ends or the persona changes.
+        private_block = ""
+        try:
+            if session.memory_block and session.memory_block_persona == persona.name:
+                private_block = session.memory_block
+            else:
+                caps = pb.caps_for(pb.slot_context())
+                operator = getattr(self.config, "operator_name", "") or "the operator"
+                private_block = pb.render_block(persona.memory_dir, caps, operator)
+                session.memory_block = private_block
+                session.memory_block_persona = persona.name
+        except Exception as exc:  # noqa: BLE001 - the block is additive
+            logger.warning("private block failed (continuing without): %s", exc)
+
         memory_block = ""
         try:
-            memory_block = self.memory.recall(
-                user_text, project_hint=getattr(session, "topic_hint", None)
-            )
+            # A channel's topic marker doubles as its project hint: the
+            # channel:<name> prefix strips to the persona's own Engram
+            # project (channel:soth -> Projects/soth). The shared facts block
+            # is off by default now that the persona carries its own notes;
+            # a channel note still rides in.
+            hint = getattr(session, "topic_hint", None)
+            if isinstance(hint, str) and hint.startswith("channel:"):
+                hint = hint[len("channel:"):]
+            shared = bool(getattr(self.assembler.budget, "shared_memory_block", False))
+            if shared:
+                memory_block = self.memory.recall(user_text, project_hint=hint)
+            elif hint:
+                memory_block = self.memory.recall(user_text, project_hint=hint, include_facts=False)
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
+
+        envelope_parts = [pb.clock_line(session.device_context)]
+        try:
+            hint_line = pb.day_hint(persona.memory_dir, user_text)
+            if hint_line:
+                envelope_parts.append(hint_line)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("day hint skipped: %s", exc)
 
         # First run on the normal path is the voice-check greeting; it gets
         # the minimal direction. The full interview direction (which describes
@@ -561,6 +699,8 @@ class VoiceLoop:
             telemetry=telemetry,
             device_context=session.device_context,
             tool_specs=self._tool_priming_specs(persona, session),
+            private_block=private_block,
+            turn_prefix=" ".join(envelope_parts),
         )
         tl = persona.config.get("tool_loop") if isinstance(persona.config, dict) else None
         tl = tl if isinstance(tl, dict) else {}
@@ -1315,6 +1455,28 @@ class VoiceLoop:
             answer_head=reply_text,
             open_task=open_task_ledger_head(session.open_task) if carry else None,
         )
+        _record_persona_turn(
+            persona, session, user_text, reply_text, tool_trace,
+            list(telemetry.tools_invoked),
+            origin=str(getattr(session, "last_input", "") or "voice"),
+        )
+        # Every tenth recorded turn, one short tool-free call asks what of
+        # this conversation is worth keeping (spec section 3). It runs as a
+        # background task on the same options, so it lands on the resident
+        # model without a swap and never delays the reply. record_turn has
+        # not appended this exchange yet, so it is added to the snapshot.
+        try:
+            from ..memory import review_fork
+
+            review_fork.schedule(
+                self.brain,
+                opts,
+                persona.memory_dir,
+                persona.name,
+                list(session.history) + [{"user": user_text, "assistant": reply_text}],
+            )
+        except Exception as exc:  # noqa: BLE001 - a review must never break a turn
+            logger.warning("review fork not scheduled: %s", exc)
 
         # Send the full text response (ai_response) for clients that display text.
         await emit(
@@ -1924,6 +2086,11 @@ class VoiceLoop:
             tools_invoked=list(telemetry.tools_invoked),
             answer_head=speech,
         )
+        _record_persona_turn(
+            persona, session, user_text, speech, None,
+            list(telemetry.tools_invoked),
+            origin=str(getattr(session, "last_input", "") or "voice"),
+        )
         logger.info(
             "structured interview turn (tools=%s): %r",
             telemetry.tools_invoked,
@@ -2040,7 +2207,7 @@ class VoiceLoop:
             say_start["expression"] = say_expression
         await emit("tts_chunk_start", say_start)
         try:
-            async for pcm in self.tts.stream_sentence(text):
+            async for pcm in self.tts.stream_sentence(strip_markdown_for_tts(text)):
                 await emit("audio", pcm)
         except Exception as exc:  # noqa: BLE001 - surface but don't wedge the session
             logger.error("say() TTS failed: %s", exc)
@@ -2085,7 +2252,10 @@ class VoiceLoop:
         await emit("tts_chunk_start", chunk_start)
         with Timer(telemetry, "tts_total_ms", accumulate=True):  # summed across sentences
             try:
-                async for pcm in self.tts.stream_sentence(sentence):
+                # The mouth's parser: marks off, words and performance
+                # brackets through. The display channel above got the raw
+                # sentence (minus tags); the client renders its markdown.
+                async for pcm in self.tts.stream_sentence(strip_markdown_for_tts(sentence)):
                     # Once a frame is out it is being heard, and this sentence
                     # can no longer be cancelled without cutting a word in
                     # half. See the filler's cancellation in _maybe_run_tools.

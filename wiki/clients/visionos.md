@@ -1,7 +1,7 @@
 ---
 title: Hearth on Apple Vision Pro
 status: draft
-last_reviewed: 2026-08-20
+last_reviewed: 2026-09-03
 related:
   - ios.md
   - macos.md
@@ -46,7 +46,7 @@ your furniture.
 
 To cross, pinch the persona and hold for two seconds. The same pinch-and-
 hold brings you back. It works in both directions because it is one gesture
-with one meaning -- change of place -- rather than an enter button and an
+with one meaning (change of place) rather than an enter button and an
 exit button.
 
 A plain pinch, without the hold, starts a voice turn instead. Both live on
@@ -66,7 +66,7 @@ ways, because they are different kinds of thing.
 
 **Sulivan is a fire.** Not a picture of one: a real piece of geometry
 shaped like a flame, wearing a texture that is computed every frame, with a
-light at its centre that spills onto your actual walls. A face sits on the
+light at its center that spills onto your actual walls. A face sits on the
 front of it. Embers rise off it, and what they do tells you where the
 conversation is:
 
@@ -74,11 +74,11 @@ conversation is:
 | --- | --- |
 | Waiting | A slow, wide drift upward. The fire is burning and nobody is talking to it. |
 | Listening | They draw into a narrow rising spiral, and the column swells with your voice. |
-| Thinking | They turn -- a slow fire whirl around him, drawn as streaks rather than dots. |
+| Thinking | They turn: a slow fire whirl around him, drawn as streaks rather than dots. |
 | Speaking | They gather into a shell around him that pulses with the sound of his voice, like a level meter you can walk around. |
 
 **Selene is a figure**, a humanoid model rather than a light. She gets none
-of the fire's furniture -- no flame, no ember field, no glow -- because a
+of the fire's furniture (no flame, no ember field, no glow) because a
 person wearing a fire's halo is two personas standing in one place. Which
 effects a persona gets is decided by what kind of thing it is, never by its
 name, so a new persona of either kind arrives already dressed correctly.
@@ -93,14 +93,14 @@ standing beside you. Selene goes from a little over a foot to life size.
 When the persona is in your space rather than in a box, it lights your
 space.
 
-The fire carries a point light at its exact centre, so the warmth falls off
+The fire carries a point light at its exact center, so the warmth falls off
 around it the way a real flame's would, and it reaches physical surfaces
 rather than only virtual ones. Set Sulivan on the floor at night and there
 is a pool of firelight on the floorboards.
 
 There is a second light that only wakes near a surface. Bring the persona
 close to a wall, a floor or a ceiling and a soft cone finds it, aims itself
-along that surface's own angle, and widens as you get closer -- the way
+along that surface's own angle, and widens as you get closer, the way
 something soft spreads when you press it against something flat. It also
 changes what it throws depending on what it found: flames climbing a wall,
 drifting smoke on a ceiling, a slow swirl on a floor. Near a corner it
@@ -145,8 +145,9 @@ angles you are likely to look from. If the headset cannot start the
 drawing pipeline the app falls back to the flat face the phone uses, still
 driven by the same director, so a persona is degraded but never faceless.
 
-Full detail on how the face works lives in
-`wiki/raw/persona-face-spec.md`, which every client implements from.
+Full detail on how the face works is in
+[The persona face](../features/persona-face.md). Every client implements
+from the same spec.
 
 ## The rest of the house
 
@@ -174,7 +175,7 @@ a house in a room is that it is somewhere rather than everywhere.
   that do not exist before it.
 - **The house's address and a pairing code**, entered once in a small
   window the app opens on first run. Pairing works the way it does on the
-  phone -- a six-digit code shown on the house, exchanged once for a token
+  phone: a six-digit code shown on the house, exchanged once for a token
   the headset keeps. See [Hearth on iOS](ios.md#how-pairing-works).
 - **The house reachable across the network**, which by default it is not.
   A house listens only on its own machine until you open its bind.

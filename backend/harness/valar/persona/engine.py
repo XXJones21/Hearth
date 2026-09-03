@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
+
+from ..memory import persona_memory
 
 logger = logging.getLogger("valar.persona")
 
@@ -27,6 +29,11 @@ class Persona:
     voice_reference_audio: Optional[Path]
     voice_reference_text: Optional[str]
     config: dict[str, Any]  # full persona.json (visualization, voice desc, etc.)
+    # The persona's own memory tree beside its manifest (spec section 1 of
+    # docs/superpowers/specs/2026-09-02-persona-private-memory-design.md in
+    # Valinor). Scaffolded on load so a hand-copied or pre-design persona has
+    # a working tree the first time it speaks. Never read for another persona.
+    memory_dir: Path = field(default_factory=lambda: Path("."))
 
     def public_config(self) -> dict[str, Any]:
         """Persona config safe to send to clients (for persona_config / rendering)."""
@@ -96,12 +103,22 @@ class PersonaEngine:
             logger.warning("persona %s has empty system_prompt", name)
 
         ref_audio, ref_text = self._resolve_voice(name, data)
+        # Keyed by the folder name, not the display name: a rename of what the
+        # persona calls itself keeps its memory (spec, lifecycle).
+        try:
+            memory_dir = persona_memory.scaffold(
+                persona_memory.memory_root(self.persona_dir, name)
+            )
+        except OSError as exc:
+            logger.warning("persona %s: memory tree not writable (%s)", name, exc)
+            memory_dir = persona_memory.memory_root(self.persona_dir, name)
         persona = Persona(
             name=data.get("name", name),
             system_prompt=system_prompt,
             voice_reference_audio=ref_audio,
             voice_reference_text=ref_text,
             config=data,
+            memory_dir=memory_dir,
         )
         self._cache[name] = persona
         logger.info(

@@ -307,15 +307,11 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
             args.push("--steps".into());
             args.push(steps.clone());
         }
-        for (name, clip, text) in persona_voices(&backend) {
-            let _ = (clip, text);
-            // Relative to cwd=backend so a junction target that canonicalizes
-            // onto D:\Tools\... does not put a drive-letter colon in --voice.
-            let lower = name.to_lowercase();
+        // Relative to cwd=backend so a junction target that canonicalizes
+        // onto D:\Tools\... does not put a drive-letter colon in --voice.
+        for v in persona_voice_args(&backend) {
             args.push("--voice".into());
-            args.push(format!(
-                "{lower}:personas/{name}/voice/{lower}_voice_reference.wav:personas/{name}/voice/{lower}_voice_reference.txt"
-            ));
+            args.push(v);
         }
         specs.push(Spec {
             name: "voice-engine",
@@ -355,16 +351,22 @@ fn build_specs(root: &Path) -> Result<(Vec<Spec>, PathBuf), String> {
     Ok((specs, logs_dir))
 }
 
-/// Every persona that ships a reference clip and its transcript, as
-/// (name, clip, transcript). The persona's DIRECTORY names the voice, lower
-/// cased, which is the same rule valar/voice/tts_cpp.py applies when it turns
-/// a persona into a voice name -- so the two agree without a table between
-/// them that could fall out of step.
+/// Every persona voice, as ready --voice values (name:clip:transcript,
+/// cwd-relative and drive-letter-free). The persona's DIRECTORY names the
+/// primary voice, lowercased, which is the same rule valar/voice/tts_cpp.py
+/// applies when it turns a persona into a voice name -- so the two agree
+/// without a table between them that could fall out of step.
+///
+/// Any FURTHER wav+txt pair sitting directly in the voice folder registers
+/// as "<persona>-<stem>", lowercased. That is what per-sentence voice
+/// oscillation (the manifest's voice.oscillate list, read by tts_cpp)
+/// selects between; a clip without its transcript sidecar is skipped, same
+/// rule as the primary.
 ///
 /// A persona with no clip is simply absent: the engine refuses a voice it was
 /// never given, which is what makes a missing reference a loud failure at the
 /// first request rather than a persona quietly speaking in a stranger's voice.
-fn persona_voices(backend: &Path) -> Vec<(String, PathBuf, PathBuf)> {
+fn persona_voice_args(backend: &Path) -> Vec<String> {
     let mut out = Vec::new();
     let dir = backend.join("personas");
     let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -381,11 +383,38 @@ fn persona_voices(backend: &Path) -> Vec<(String, PathBuf, PathBuf)> {
         let Some(persona) = p.file_name().and_then(|n| n.to_str()) else {
             continue;
         };
+        let lower = persona.to_lowercase();
         let voice_dir = p.join("voice");
-        let clip = voice_dir.join(format!("{}_voice_reference.wav", persona.to_lowercase()));
-        let text = voice_dir.join(format!("{}_voice_reference.txt", persona.to_lowercase()));
-        if clip.is_file() && text.is_file() {
-            out.push((persona.to_lowercase(), clip, text));
+        let primary = format!("{lower}_voice_reference");
+        if voice_dir.join(format!("{primary}.wav")).is_file()
+            && voice_dir.join(format!("{primary}.txt")).is_file()
+        {
+            out.push(format!(
+                "{lower}:personas/{persona}/voice/{primary}.wav:personas/{persona}/voice/{primary}.txt"
+            ));
+        }
+        let Ok(clips) = std::fs::read_dir(&voice_dir) else {
+            continue;
+        };
+        let mut extra: Vec<_> = clips.flatten().map(|e| e.path()).collect();
+        extra.sort();
+        for clip in extra {
+            if clip.extension().and_then(|e| e.to_str()) != Some("wav") {
+                continue;
+            }
+            let Some(stem) = clip.file_stem().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            let stem_lower = stem.to_lowercase();
+            if stem_lower == primary {
+                continue;
+            }
+            if !clip.with_extension("txt").is_file() {
+                continue;
+            }
+            out.push(format!(
+                "{lower}-{stem_lower}:personas/{persona}/voice/{stem}.wav:personas/{persona}/voice/{stem}.txt"
+            ));
         }
     }
     out
@@ -405,13 +434,9 @@ fn refresh_voice_args(spec: &Spec) -> Vec<String> {
             kept.push(a.clone());
         }
     }
-    for (name, clip, text) in persona_voices(&spec.cwd) {
-        let _ = (clip, text);
-        let lower = name.to_lowercase();
+    for v in persona_voice_args(&spec.cwd) {
         kept.push("--voice".into());
-        kept.push(format!(
-            "{lower}:personas/{name}/voice/{lower}_voice_reference.wav:personas/{name}/voice/{lower}_voice_reference.txt"
-        ));
+        kept.push(v);
     }
     kept
 }

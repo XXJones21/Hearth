@@ -17,8 +17,8 @@ What the GitHub wiki cannot take as-is, and what this does about it:
 - Links are relative paths with .md. They are rewritten to bare page names,
   anchors kept. A link to a file that is not published (wiki/raw/, tasks/,
   anything outside the published set) becomes a link to that file on main.
-- `_index.md` is the landing page, so it becomes Home. `_Sidebar.md` is
-  generated from sitemap.md, the reading order written for exactly this.
+- `_index.md` is the landing page, so it becomes Home, and `_Sidebar.md` is
+  generated from its section headings and links, which are the reading order.
 
 wiki/raw/ is excluded on purpose: those are working notes and unprocessed
 sources, not articles, and the authoring rule already says canonical pages
@@ -104,8 +104,13 @@ def render(src: Path, pages: dict[Path, str]) -> str:
 
 
 def sidebar(pages: dict[Path, str]) -> str:
-    """The sitemap's headings and links, as the wiki's left rail."""
-    src = WIKI / "sitemap.md"
+    """The landing page's headings and links, as the wiki's left rail.
+
+    Built from _index.md, which is the reading order. It used to be built from
+    sitemap.md, a second index that drifted three pages out of date before it
+    was retired; one source cannot disagree with itself.
+    """
+    src = WIKI / "_index.md"
     text = FRONTMATTER.sub("", src.read_text(encoding="utf-8"), count=1)
     sections: list[tuple[str, list[str]]] = []
     for line in text.splitlines():
@@ -120,7 +125,7 @@ def sidebar(pages: dict[Path, str]) -> str:
         if not links:
             continue  # prose-only sections of the sitemap have no rail entry
         out += ["", f"**{title}**", ""] + links
-    out += ["", "[Site map](sitemap)"]
+    out += ["", "[What is not here](whats-not-here)"]
     return "\n".join(out) + "\n"
 
 

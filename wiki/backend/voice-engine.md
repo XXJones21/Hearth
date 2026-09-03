@@ -1,7 +1,7 @@
 ---
-title: The Voice Engine
+title: The voice engine
 status: draft
-last_reviewed: 2026-08-08
+last_reviewed: 2026-09-03
 related:
   - build-pipeline.md
   - native-runtime.md
@@ -17,8 +17,7 @@ sources:
   - a live first run on macOS, 2026-08-08
 ---
 
-# The Voice Engine
-
+# The voice engine
 How a persona gets a voice, and what the two engines underneath can and cannot
 do. Written after a made persona spoke in someone else's voice on its first
 sentence, which turned out to be three defects stacked on a capability everyone
@@ -33,7 +32,7 @@ speak afterwards is ordinary **cloning** from that clip.
 
 This is why the runtime never depends on design support, why design can afford
 to be slow, and why a persona whose design failed is not a persona with a
-degraded voice — it is a persona with no voice at all, falling back to whatever
+degraded voice. It is a persona with no voice at all, falling back to whatever
 the engine was last told to use.
 
 ## Two engines behind one seam
@@ -51,7 +50,7 @@ underneath.
 | Voice design | `design_sample()`, in-process | a second binary, below |
 
 The split is not a preference. Torch selects `cuda:0 if available else cpu`,
-which on Apple Silicon means the CPU and about 7.6x realtime — unusable, and
+which on Apple Silicon means the CPU and about 7.6x realtime: unusable, and
 unusable on every Mac rather than only the small ones. `omnivoice.cpp` clears
 realtime on an 8 GB Air, so macOS runs it. The same engine covers CUDA and
 Vulkan, so this is not a Mac-only detour.
@@ -88,7 +87,7 @@ Voices are loaded **at the engine's startup**, one `--voice name:clip.wav:transc
 per persona, because encoding a reference is the expensive half of cloning and
 doing it once is the whole reason the server exists. `house.rs`'s
 `persona_voices()` builds that list by scanning the personas directory at
-launch, and the persona's DIRECTORY names the voice, lowercased — so the
+launch, and the persona's DIRECTORY names the voice, lowercased, so the
 supervisor and `tts_cpp.voice_name_for()` agree without a table between them.
 
 Two consequences:
@@ -100,7 +99,7 @@ Two consequences:
 
 **There is no way to design a voice through this server.** `/v1/audio/speech`
 validates `voice` against the registered names before anything else, so
-instruct attributes cannot reach the engine — passing them as the voice field
+instruct attributes cannot reach the engine. Passing them as the voice field
 returns `unknown voice 'female, young adult, very high pitch, british accent'`.
 
 ### The capability was there the whole time
@@ -119,7 +118,7 @@ omnivoice.special.instruct_start / instruct_end
 The engine has voice design, with vocabulary validation and category-conflict
 checks matching [OmniVoice's own documentation](https://github.com/k2-fsa/OmniVoice/blob/master/docs/voice-design.md).
 The **server** simply never surfaces it. So "macOS cannot design voices" was
-wrong, and so was "this needs an upstream patch" — it needed a binary we were
+wrong, and so was "this needs an upstream patch": it needed a binary we were
 already building the source for and throwing away.
 
 `omnivoice-tts` reaches it:
@@ -139,13 +138,13 @@ process that returns a WAV has not necessarily honoured anything:
 | `male, elderly, very low pitch, russian accent` | 106, 88 Hz |
 
 A 2.3x separation with no overlap. Through the server, the same two instructs
-both landed at 99–152 Hz — the default voice with sampling noise, which is what
+both landed at 99–152 Hz, the default voice with sampling noise, which is what
 "the attribute never arrived" looks like when you only listen once.
 
 ## What the cpp engine does NOT do
 
 **Performance tags.** Every made persona's system prompt offers thirteen
-non-verbal tags — `[laughter]`, `[sigh]`, `[confirmation-en]` and the rest —
+non-verbal tags (`[laughter]`, `[sigh]`, `[confirmation-en]` and the rest)
 promising they "will be sounded rather than read". The torch engine sounds
 them. This one does not, and its own log says why:
 
@@ -171,7 +170,7 @@ lives.
    against the vocabulary OmniVoice accepts and drops unknown ones, so a
    creative interviewer cannot crash the commit.
 2. `_design_voice` runs `omnivoice-tts --instruct` as a subprocess, up to a
-   300s timeout — a cold model load plus a full synthesis pass.
+   300s timeout: a cold model load plus a full synthesis pass.
 3. The WAV lands at `personas/<Name>/voice/<name>_voice_reference.wav` with its
    transcript beside it. That pair is what `--voice` will point at.
 4. Every later sentence clones from it through `tts-server`.
@@ -189,14 +188,14 @@ Worth keeping in full, because each layer hid the one below.
    which only the torch engine implements. On the cpp engine it raised
    `AttributeError: 'OmniVoiceCppStreamer' object has no attribute
    'design_sample'`. Logged as `voice design unavailable` and moved on.
-2. **The persona was created anyway**, with no reference clip —
+2. **The persona was created anyway**, with no reference clip:
    `loaded persona Silas (system_prompt=748 chars, voice_ref=none)`.
 3. **The streamer kept the last voice it had.** `tts_service` only called
    `sync_persona_voice` `if ref_audio:`, so with no clip it was never called,
    `self._voice` still held `sulivan`, and every sentence went out under that
-   name. `tts_cpp`'s docstring had already argued the exact point — *"a persona
+   name. `tts_cpp`'s docstring had already argued the exact point: *"a persona
    silently speaking in the default voice is worse than an error, nothing
-   downstream can tell it happened"* — and the guard that says so lives inside
+   downstream can tell it happened"*. The guard that says so lives inside
    the call being skipped.
 
 All three are fixed. The third is the one to remember: a guard is only a guard
@@ -211,7 +210,7 @@ if the path reaches it.
 - **Tauri's resource copy does not carry the execute bit.** `provision.rs` sets
   0755 after copying each engine binary.
 - **A designed WAV is not proof that instruct worked.** Measure the audio. The
-  engine is non-deterministic, so byte comparison proves nothing either — two
+  engine is non-deterministic, so byte comparison proves nothing either: two
   identical requests differ.
 
 ## Open questions
@@ -227,5 +226,5 @@ if the path reaches it.
 3. **Do the two engines keep two design paths?** The torch engine still has
    `design_sample` and the service's `/design` route. One of them is now dead
    weight on any install running the cpp engine.
-4. **Which voices ship, and under what licence?** Inherited from
+4. **Which voices ship, and under what license?** Inherited from
    [build-pipeline.md](build-pipeline.md) and still unanswered.

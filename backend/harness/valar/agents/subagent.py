@@ -30,7 +30,10 @@ idiom as ``EngramService``.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import logging
+import time
 from typing import Any
 
 from ..brain import BrainStreamResult, ChatMessage, ChatOptions
@@ -49,6 +52,36 @@ _TASK_FRAMING = (
 )
 
 _runtime: dict[str, Any] = {}
+
+# How many agents deep the current call is. A contextvar rather than a
+# parameter so a worker spawned under asyncio.gather inherits its parent's
+# depth without threading an argument through every dispatch path. Ported
+# from Valinor 2026-09-02: the dispatch handler had imported these since
+# ad0fa64 and every dispatch failed on the import.
+_depth: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "valar_subagent_depth", default=0
+)
+
+
+def current_depth() -> int:
+    """How many agents deep we already are. 0 is the top-level persona."""
+    return _depth.get()
+
+
+@contextlib.contextmanager
+def dispatch_depth():
+    """Run a dispatch one level deeper, restoring on the way out."""
+    token = _depth.set(_depth.get() + 1)
+    try:
+        yield
+    finally:
+        _depth.reset(token)
+
+
+def default_persona_name() -> str:
+    """The identity a bare-model dispatch borrows a prompt from."""
+    cfg = _runtime.get("config")
+    return getattr(cfg, "default_persona", "") or "Sulivan"
 
 
 def configure_subagents(brain: Any, personas: Any, config: Any) -> None:
@@ -78,10 +111,41 @@ def _to_chat_messages(msgs: list[dict]) -> list[ChatMessage]:
     ]
 
 
+def _record_subagent_run(persona, task: str, result: dict, origin: str) -> None:
+    """A worker or routine turn is the persona's own activity (spec section 1
+    of docs/superpowers/specs/2026-09-02-persona-private-memory-design.md)."""
+    try:
+        from ..memory import persona_memory as pm
+
+        root = getattr(persona, "memory_dir", None)
+        if not root:
+            return
+        run_id = f"sub-{int(time.time() * 1000)}"
+        tools = list(result.get("tools_used") or [])
+        pm.append_log(root, {
+            "session": run_id,
+            "origin": origin,
+            "client": "",
+            "question": pm.head(task),
+            "tools": tools,
+            "touched": tools,
+            "answer": pm.head(result.get("content") or result.get("error") or ""),
+            "dispatches": [],
+        })
+        pm.upsert_session(root, {
+            "id": run_id, "client": "", "origin": origin,
+            "title": pm.head(task, 80), "turns": 1, "topic": "",
+        })
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("persona memory: subagent run not recorded (%s)", exc)
+
+
 async def run_persona_subagent(
     persona_name: str,
     task: str,
     max_rounds: int = MAX_SUBAGENT_ROUNDS,
+    model_path: str = "",
+    origin: str = "dispatch",
 ) -> dict:
     """Run ``task`` as ``persona_name`` in a fresh context window.
 
@@ -102,6 +166,38 @@ async def run_persona_subagent(
         return {"ok": False, "content": "", "tools_used": [],
                 "error": f"persona '{persona_name}' unavailable: {exc}"}
 
+    # The worker's OWN turn, for its own tool loop: a memory handler called
+    # in here writes to HER memory/, not to the foreground persona's
+    # (spec sections 3 and 4). Set as soon as the persona resolves.
+    from ..memory.acting import acting
+
+    with acting(
+        persona.name,
+        persona.memory_dir,
+        session=f"sub-{int(time.time() * 1000)}",
+        origin=origin,
+    ):
+        return await _run_loaded_subagent(
+            brain, config, persona, persona_name, task, max_rounds, model_path, origin
+        )
+
+
+async def _run_loaded_subagent(
+    brain: Any,
+    config: Any,
+    persona: Any,
+    persona_name: str,
+    task: str,
+    max_rounds: int,
+    model_path: str,
+    origin: str,
+) -> dict:
+    """The body of a subagent run, once the persona is resolved and acting.
+
+    Split out of run_persona_subagent only so the acting-persona context
+    wraps the whole run without reindenting a hundred and fifty lines.
+    """
+
     # HER ChatOptions: the persona's deep_model sampling. Same model path as
     # the caller's persona (the daily 12B) = the router treats it as a no-op
     # class change; a different path would trigger a real swap, so keep
@@ -116,12 +212,16 @@ async def run_persona_subagent(
         top_k=int(dm.get("top_k", bc.top_k)),
         model=bc.model,
         persona_name=persona.name,
-        model_path=resolve_model(dm),
+        model_path=model_path or resolve_model(dm),
     )
 
-    # FRESH context window: her system prompt + the task. No caller history.
+    # FRESH context window: her system prompt + the task. No caller history,
+    # no private block (the worker profile); the honesty footer rides with
+    # every profile.
+    from ..memory.persona_block import honesty_footer
+
     msgs: list[dict] = [
-        {"role": "system", "content": f"{persona.system_prompt}\n\n{_TASK_FRAMING}"},
+        {"role": "system", "content": f"{persona.system_prompt}\n\n{_TASK_FRAMING}\n\n{honesty_footer()}"},
         {"role": "user", "content": task},
     ]
 
@@ -205,10 +305,14 @@ async def run_persona_subagent(
             )
     except Exception as exc:  # noqa: BLE001
         logger.error("subagent %s synthesis failed: %s", persona_name, exc)
-        return {"ok": False, "content": "", "tools_used": tools_used,
-                "error": str(exc)}
+        result = {"ok": False, "content": "", "tools_used": tools_used,
+                  "error": str(exc)}
+        _record_subagent_run(persona, task, result, origin)
+        return result
     logger.info(
         "subagent %s done: tools=%s, %d chars: %r",
         persona_name, tools_used, len(content), content[:200],
     )
-    return {"ok": bool(content), "content": content, "tools_used": tools_used}
+    result = {"ok": bool(content), "content": content, "tools_used": tools_used}
+    _record_subagent_run(persona, task, result, origin)
+    return result

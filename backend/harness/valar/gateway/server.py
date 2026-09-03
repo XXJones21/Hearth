@@ -124,9 +124,11 @@ def create_app(config: ValarConfig) -> FastAPI:
     apps_api.register(app, config)
 
     # --- the household: read and write persona.json -----------------------
-    from valar.gateway import personas_api
+    from valar.gateway import feed_api, personas_api, routines_api
 
     personas_api.register(app, config)
+    routines_api.register(app, config)
+    feed_api.register(app, config)
 
     # --- subsystems (built once, shared) ---------------------------------
     personas = PersonaEngine(config.persona_dir, config.default_persona)
@@ -607,6 +609,26 @@ def create_app(config: ValarConfig) -> FastAPI:
         asyncio.create_task(journal_sync_loop(personas, brain, config))
 
     @app.on_event("startup")
+    async def _start_soth_routine() -> None:
+        """The clock behind Soth's daily push routine: a deterministic change
+        sweep gates the model work, so an unchanged day costs no inference.
+        Defined in Persona/*/routines.yaml; switch in Engram/Areas/routines.md."""
+        from ..agents.soth_routine import soth_routine_loop
+
+        asyncio.create_task(soth_routine_loop(personas, brain, config))
+
+    @app.on_event("startup")
+    async def _start_persona_consolidation() -> None:
+        """The clock behind each persona's archive: loose log and index files
+        older than a week move into its mind.sqlite, six-hourly, so a persona
+        folder never holds more than a week of paper."""
+        from ..memory.persona_consolidate import persona_consolidate_loop
+
+        asyncio.create_task(
+            persona_consolidate_loop(personas, config), name="persona-consolidate"
+        )
+
+    @app.on_event("startup")
     async def _warm_models() -> None:
         """Pre-load Whisper + NeuTTS backbone + the default persona's voice clone,
         and make the daily model resident, at boot. With the always-on stack the
@@ -717,6 +739,7 @@ async def _run_text_turn(session, persona, text: str, voice_loop, emit) -> None:
             )
 
     try:
+        session.last_input = "text"
         await voice_loop.run_turn(session, persona, text, emit)
     except asyncio.CancelledError:
         logger.info("text turn cancelled (reset/disconnect)")
@@ -981,6 +1004,67 @@ async def _handle_command(raw: str, session, personas, voice_loop, emit) -> None
             name,
         )
 
+    elif action == "open_channel":
+        # The per-persona durable channel (Soth Phase 3, but persona-generic):
+        # one server action does the whole swap so the client cannot race the
+        # persona switch against the history seed. History comes from the
+        # channel naming convention over session records (memory/channel.py);
+        # topic_hint stamps every later turn as channel history. An empty
+        # channel opens empty; that is not an error, it is day one.
+        from ..memory.channel import channel_topic, load_channel_turns
+
+        name = (cmd.get("persona") or "").strip()
+        try:
+            target = personas.load(name)
+        except PersonaNotFound as exc:
+            await emit("error", {"action": "error", "message": str(exc)})
+            return
+        turns = load_channel_turns(target.name)
+
+        session.turn_epoch += 1
+        task = session.turn_task
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("open_channel: cancelled in-flight turn task")
+        session.reset_audio()
+        await end_session(
+            session,
+            personas.current(),
+            voice_loop.brain,
+            voice_loop.config,
+            emit,
+            reason="client",
+        )
+        personas.switch(target.name)
+        await emit(
+            "persona_switched",
+            {
+                "action": "persona_switched",
+                "persona_name": target.name,
+                "status": "success",
+            },
+        )
+        session.history = list(turns)
+        session.topic_hint = channel_topic(target.name)
+        session.touch()
+        await emit(
+            "channel_opened",
+            {
+                "action": "channel_opened",
+                "persona": target.name,
+                "session_id": session.session_id,
+                "turns": [
+                    {"user": t.user, "assistant": t.assistant} for t in turns
+                ],
+            },
+        )
+        logger.info(
+            "open_channel: %s persona=%s seeded %d turns",
+            session.session_id,
+            target.name,
+            len(turns),
+        )
+
     elif action == "say":
         # Speak a short cue verbatim in the persona voice, no LLM turn (e.g. the
         # visionOS immersive-mode switch). Skipped if a turn is already in flight.
@@ -1082,6 +1166,7 @@ async def _handle_audio(
             if text.strip():
                 await emit("transcription", {"action": "transcription", "text": text})
                 persona = personas.current()
+                session.last_input = "voice"
                 await voice_loop.run_turn(session, persona, text, emit, stt_ms=stt_ms)
             else:
                 session.state = State.IDLE

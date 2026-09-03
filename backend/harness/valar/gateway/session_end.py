@@ -215,6 +215,8 @@ async def end_session(
     # Fresh start: cleared history + a new id so ledger/telemetry do not glue
     # the next turns onto the ended session.
     session.history.clear()
+    session.memory_block = ""
+    session.memory_block_persona = ""
     session.session_id = str(uuid.uuid4())
     session.topic_hint = None
     # open_task deliberately SURVIVES. Live 2026-08-16: the idle watchdog

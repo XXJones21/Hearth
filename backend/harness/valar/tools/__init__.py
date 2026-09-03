@@ -18,6 +18,7 @@ imported lazily on first invoke.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import importlib
 import inspect
 import logging
@@ -249,7 +250,13 @@ class ToolRegistry:
             else:
                 loop = asyncio.get_running_loop()
                 call = (lambda: fn(args)) if style == "dict" else (lambda: fn(**kwargs))
-                result = await loop.run_in_executor(None, call)
+                # A sync handler runs in the default executor, which starts a
+                # THREAD with a fresh context. Contextvars do not cross that
+                # boundary on their own, so the acting persona (and anything
+                # else a handler reads from context) would be None inside
+                # every sync tool. Copy the context and run the call in it.
+                ctx = contextvars.copy_context()
+                result = await loop.run_in_executor(None, lambda: ctx.run(call))
         except Exception as exc:  # noqa: BLE001
             logger.error("tool '%s' raised: %s", name, exc)
             return ToolResult.error(f"tool '{name}' failed: {exc}")

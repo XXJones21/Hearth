@@ -1,7 +1,7 @@
 ---
 title: Building a Hearth release
 status: draft
-last_reviewed: 2026-08-26
+last_reviewed: 2026-09-03
 related:
   - _index.md
   - developing.md
@@ -12,6 +12,7 @@ related:
 sources:
   - README.md
   - wiki/developing.md
+  - wiki/raw/legacy/macos-package-handoff.md
   - tasks/clients/macos-package-handoff.md
   - scripts/pack_backend.sh
   - scripts/build_omnivoice.sh
@@ -206,4 +207,4 @@ Artifacts and a `SHA256SUMS.txt` go in `releases/<version>/` alongside a
 0.1.0 alpha, published 2026-08-22, shipped Windows, macOS and Android. Its
 macOS half was built from a dedicated handoff document written for the Mac
 seat. This article supersedes it, that task is complete, and the original is
-kept at `wiki/raw/legacy/macos-package-handoff.md`.
+kept as a staged source, named in this page's frontmatter.

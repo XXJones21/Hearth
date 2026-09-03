@@ -1,7 +1,7 @@
 ---
-title: Backend Component Catalog
+title: Backend component catalog
 status: draft
-last_reviewed: 2026-08-04
+last_reviewed: 2026-09-03
 related:
   - ../_index.md
 sources:
@@ -13,8 +13,7 @@ sources:
   - D:/Tools/Valinor/wiki/raw/backend-audit-2026-08-04/audit-host.md
 ---
 
-# Backend Component Catalog
-
+# Backend component catalog
 Everything that has to be true on a host machine for one voice turn to
 complete. Compiled 2026-08-04 from six parallel read-only audits of the Valinor
 repository, with all live-state questions resolved in a single verification pass
