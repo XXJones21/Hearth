@@ -38,21 +38,14 @@ it to be rough.
 
 ## See it
 
-Click a still to play the clip (GitHub opens it in its own player).
+Each link opens the clip directly in your browser.
 
-**Every client at once.** Windows, macOS, iPhone, Android and Apple Vision
-Pro, all connected to one house, seen from the headset.
-
-<a href="design/media/all-clients-from-vision-pro.mp4">
-  <img src="design/media/all-clients-from-vision-pro.jpg" alt="Seen through Apple Vision Pro: Sulivan floating in a room beside a MacBook, a Windows laptop and two phones, each showing the same persona." width="100%">
-</a>
-
-**Sulivan in the room.** A full visionOS walkthrough of the flame body,
-including a second brain session.
-
-<a href="design/media/visionos-walkthrough-sulivan-flame.mp4">
-  <img src="design/media/visionos-walkthrough-sulivan-flame.jpg" alt="Sulivan as a flame with two eyes, hovering in a bedroom seen through Apple Vision Pro." width="100%">
-</a>
+- [**Every client at once**](https://raw.githubusercontent.com/XXJones21/Hearth/main/design/media/all-clients-from-vision-pro.mp4)
+  (11 s). Windows, macOS, iPhone, Android and Apple Vision Pro, all
+  connected to one house, seen from the headset.
+- [**Sulivan in the room**](https://raw.githubusercontent.com/XXJones21/Hearth/main/design/media/visionos-walkthrough-sulivan-flame.mp4)
+  (94 s). A full visionOS walkthrough of the flame body, including a second
+  brain session.
 
 ## What you need
 
