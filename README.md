@@ -7,7 +7,23 @@
 A companion that lives on your own machine.
 
 Your conversations, your memory, and your persona's voice stay on your
-hardware. Nothing is sent anywhere, because there is nowhere for it to go.
+hardware. Local hardware ensures your data never leaves your machine because
+there is no cloud to send it to.
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/XXJones21/Hearth/main/design/media/sulivan-idle-desktop.mp4">
+    <img src="design/media/sulivan-idle-desktop.gif" alt="Sulivan idle on the desktop: a small flame with two capsule eyes, blinking and glancing around." width="300">
+  </a>
+  <br>
+  <sub>Sulivan, idle, on the desktop.</sub>
+</p>
+
+The brain is Gemma 4, using the 12B quantization-aware build on larger GPUs
+and the E4B or E2B builds on smaller machines, served by llama.cpp's
+llama-server. The voice is OmniVoice through omnivoice.cpp, a compiled engine
+that designs a voice from attributes and clones it per sentence. Hearing is a
+Whisper base model on the same machine, and the hearth-probe crate performs
+the hardware scan to pick the model tier.
 
 Hearth is pre-alpha. It is not ready for people who are not already expecting
 it to be rough.
@@ -78,6 +94,10 @@ gateway, and a voice engine, all started and watched by the app.
 
 ## Alpha builds
 
+Download the Windows installer, run it, and meet Sulivan. The installer scans
+your hardware, picks a model, and downloads the files, while the
+[first run](wiki/first-run.md) handles the onboarding.
+
 The first packaged alpha (0.1.0) covers three platforms. iOS and visionOS
 come later through TestFlight; they are built but need Apple's pipeline.
 
@@ -101,7 +121,8 @@ if the house is on one.
 
 The Android and Apple clients are companions to a house, not houses: one
 desktop install carries the models and the memory, and the small screens
-connect to it.
+connect to it. After installing, the [first run](wiki/first-run.md) is where
+you will meet your persona.
 
 ## Running the client from source
 
