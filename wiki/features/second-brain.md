@@ -235,5 +235,4 @@ and an archive. That layer is the persona's, private by rule (another persona
 may ask it, never read its files), and it reaches the second brain only through
 the day report each persona files and the reviews Selene writes from those
 reports. The second brain stays yours; the persona's memory stays the
-persona's. The design lives in the Valinor repository as
-`docs/superpowers/specs/2026-09-02-persona-private-memory-design.md`.
+persona's. The design was settled in a September 2026 spec.

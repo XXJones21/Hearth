@@ -120,8 +120,8 @@ The calendar used to be a third case and is now neither. `calendar_today` and
 `calendar_next` were disabled entries pointing at a handler module that never
 existed, and they assumed a Google-backed calendar. They are replaced by
 `calendar_read` and `calendar_write` over the house's own store at
-`$ENGRAM/Areas/Calendar/YYYY-MM.md`, ported from Valinor 2026-08-26. Nothing to
-sign in to.
+`$ENGRAM/Areas/Calendar/YYYY-MM.md`, ported in 2026-08-26. Nothing to sign in
+to.
 
 **`requires_capability` is set on nothing.** The fourth gate is built and
 unused. Tools that only make sense with a screen (`compose_view`, `forge_card`,
