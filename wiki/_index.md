@@ -57,6 +57,7 @@ The ideas the product is built around, one page each.
 | Personas, the companions you design | [`features/personas.md`](features/personas.md) |
 | The persona face, how they look back | [`features/persona-face.md`](features/persona-face.md) |
 | The second brain, memory you own | [`features/second-brain.md`](features/second-brain.md) |
+| The house feed, what they did while you were away | [`features/house-feed.md`](features/house-feed.md) |
 | Voice, designed and spoken locally | [`features/voice.md`](features/voice.md) |
 | Apps and extensions, cards and tools | [`features/apps-and-extensions.md`](features/apps-and-extensions.md) |
 

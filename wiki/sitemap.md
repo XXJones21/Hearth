@@ -52,6 +52,7 @@ The ideas the product is built around, and the first hour with it.
 - [Personas](features/personas.md)
 - [The persona face](features/persona-face.md)
 - [The second brain](features/second-brain.md)
+- [The house feed](features/house-feed.md)
 - [Voice](features/voice.md)
 - [Apps and extensions](features/apps-and-extensions.md)
 
