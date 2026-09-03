@@ -1,7 +1,7 @@
 ---
-title: Packaging Options
+title: Packaging options
 status: draft
-last_reviewed: 2026-08-06
+last_reviewed: 2026-09-03
 related:
   - native-runtime.md
   - component-catalog.md
@@ -11,8 +11,7 @@ sources:
   - D:/Tools/Valinor/wiki/raw/backend-audit-2026-08-04/
 ---
 
-# Packaging Options
-
+# Packaging options
 How Hearth's backend becomes something another person installs. Written from
 three parallel research passes on 2026-08-04: how comparable products actually
 ship, what containers can and cannot do with a GPU, and what it takes to bundle
@@ -40,7 +39,7 @@ support requires the WSL2 backend, so choosing Docker adds a layer on top of a
 WSL dependency rather than removing one. Native Windows containers accelerate
 only DirectX and explicitly not CUDA. Docker Desktop also cannot be
 redistributed: images may be bundled, the runtime may not, so every user
-installs and licenses it themselves, and the free tier excludes organisations
+installs and licenses it themselves, and the free tier excludes organizations
 over 250 employees or $10M revenue.
 
 **2. The entire product category ships native installers.**
@@ -102,7 +101,7 @@ Three routes off it, in order of readiness:
 speech, diarization and voice activity detection on ONNX Runtime with no
 network, supports seven TTS model families including zero-shot voice cloning,
 and has a Rust crate. It is worth noting that this comes from **k2-fsa, the same
-organisation that publishes OmniVoice**, so this is not a jump to a stranger's
+organization that publishes OmniVoice**, so this is not a jump to a stranger's
 ecosystem. Zero-shot cloning models with published ONNX exports exist, including
 a 0.6B multilingual model with INT4 weights reported at roughly 1.1 to 1.2 GB
 peak memory on an M2 MacBook Air. The size argument is stark: the ONNX Runtime
@@ -199,7 +198,7 @@ Do both, in this order.
 4. **Move Whisper to `whisper-rs`.** Low risk, proven, and it removes the
    speech-side justification for Python entirely.
 5. **Spike the TTS route.** ONNX first, since it is available today and comes
-   from the same organisation as the current engine. `neutts-rs` with
+   from the same organization as the current engine. `neutts-rs` with
    pre-encoded voices as the alternative if voice quality demands it.
 6. **When torch leaves, build Path B.** The Windows installer drops by
    gigabytes, the macOS notarization problem shrinks to signing a handful of

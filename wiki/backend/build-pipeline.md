@@ -1,7 +1,7 @@
 ---
-title: Build Pipeline
+title: Build pipeline
 status: draft
-last_reviewed: 2026-08-06
+last_reviewed: 2026-09-03
 related:
   - component-catalog.md
   - portability-ledger.md
@@ -14,8 +14,7 @@ sources:
   - D:/Tools/Hearth/wiki/raw/research-bundling.md
 ---
 
-# Build Pipeline
-
+# Build pipeline
 How Hearth becomes two downloadable artifacts, one per platform, and what each
 of them contains. This is the build side. What the user experiences afterwards
 is the first-time setup, drafted in `tasks/first-time-user.md` in the Valinor
@@ -59,9 +58,9 @@ whether it is resolved when we build or when the user installs.
 | Every apt package and its version | Which model tier fits this machine |
 | The Python interpreter and every pinned wheel | Which model file to download |
 | The compiled `llama-server` for each accelerator | Which accelerator backend to select |
-| The Rust supervisor, as a release binary | The generated systemd drop-ins or plist |
+| The Rust supervisor, as a release binary | The generated configuration, with this machine's paths and ports |
 | Persona configs, prompts, voice clones | The paths, because they are now this user's paths |
-| The service units and their ordering | Whether the voice and the brain can coexist |
+| The process tree and its start order, compiled into the client | Whether the voice and the brain can coexist |
 
 Anything on the left that leaks to the right becomes a support ticket. The
 current stack gets this backwards in several places: it builds a CUDA wheel from
@@ -69,96 +68,38 @@ source on the target machine, it compiles the supervisor with `cargo run` on
 every service start, and it resolves model paths from literals baked into
 persona files.
 
-## The manifest
+## Windows: producing the installers
 
-Both builders read one file so the two artifacts cannot drift. It is the
-component catalog made executable: for each component, what it is, which
-platforms it ships to, where it comes from, and what it depends on.
+Hearth ships to Windows as a native installer. Decided 2026-08-06; see
+[`native-runtime.md`](native-runtime.md) for the process model and install
+layout, and [`packaging-options.md`](packaging-options.md) for how the decision
+was made.
 
-```yaml
-components:
-  - id: llama-server
-    kind: binary
-    platforms: [windows, macos]
-    source:
-      windows: { release: llama.cpp, asset: linux-cuda-x64 }   # runs inside WSL
-      macos:   { release: llama.cpp, asset: macos-arm64-metal }
-  - id: supervisor
-    kind: binary
-    build: cargo build --release -p valinor-server
-  - id: harness
-    kind: python
-    entry: Valar/app.py
-  - id: voice
-    kind: python
-    package: omnivoice==0.1.5
-    torch: { windows: cu130, macos: mps }
-personas:
-  ship: [sulivan, selene]
-```
+The build is two commands: `bash scripts/pack_backend.sh` stages the backend,
+then `npm run tauri build` produces the bundle. Because
+`desktop-client/src-tauri` is a member of the workspace, both artifacts land at
+the workspace root rather than under the crate:
 
-## Windows: producing `Hearth.wsl`
+- `target/release/bundle/nsis/Hearth_0.1.0_x64-setup.exe`
+- `target/release/bundle/msi/Hearth_0.1.0_x64_en-US.msi`
 
-> **SUPERSEDED 2026-08-06.** The Windows artifact is native, not a WSL image;
-> see [`native-runtime.md`](native-runtime.md) for the process model and
-> install layout, and `packaging-options.md` for why the decision moved.
-> The build-versus-install discipline above survives intact, and most steps
-> below translate directly: the pinned llama-server release asset (Windows
-> CUDA instead of Linux CUDA), the resolved Python environment (a vendored
-> `python-build-standalone` tree instead of a venv in a distro), the
-> supervisor as a release binary, the product tree copy, and the generated
-> configuration. What dies with the image: the apt set, the distro hygiene,
-> the oobe plumbing, and systemd, whose seven unit behaviors move into the
-> client's supervision layer. This section is kept as the record of the
-> investigated alternative.
+`tauri.conf.json` sets `bundle.targets` to `all`, so the NSIS installer and the
+MSI are both produced and both ship.
 
-The artifact is a gzipped tar of a provisioned Linux root filesystem. Since WSL
-2.4.4 this is a first-class Microsoft-supported format that installs by being
-double-clicked in File Explorer.
-
-1. **Start from a clean Ubuntu 24.04 root filesystem.** Not a copy of the
-   working machine. A scripted provision from a base image is the only way the
-   artifact is reproducible, and reproducibility is what stops the four
-   configuration files that were missing from git happening again.
-2. **Install the system dependencies.** `python3-venv`, `python3-dev`,
-   `build-essential`, `cmake`, `git`, `libsndfile1`, `ffmpeg`. Note that
-   `espeak-ng` leaves with NeuTTS and is no longer needed.
-3. **Place `llama-server`.** Use the upstream llama.cpp release binary for
-   Linux CUDA rather than building it. This closes a real gap: nothing in the
-   repository builds the Linux binary today, and the provenance of the one on
-   the working machine is recorded nowhere. Pin the release tag in the manifest.
-4. **Build the Python environment once, at build time.** One environment, not
-   two. The two-virtualenv split existed because NeuTTS needed a CUDA-built
-   `llama-cpp-python` pinned to CUDA 11.8 while OmniVoice needs a newer torch.
-   With NeuTTS gone, the CUDA 11.8 pin goes with it and everything converges on
-   OmniVoice's torch. Verify this with a dependency resolve before committing to
-   it, but the reasoning holds.
-5. **Compile the supervisor as a release binary** and place it on the path. The
-   current launcher runs `cargo run` on every service start, which means every
-   boot needs a Rust toolchain and pays a debug-build resolve. Neither belongs
-   in a shipped product.
-6. **Copy the product tree.** The harness, the one module of `Server/` that is
-   actually live, the persona configs and voice clones for the personas that
-   ship. Not the whole repository.
-7. **Install the service units, and generate the drop-ins.** The four drop-ins
-   that were missing from git are configuration, not content: the TTS endpoint,
-   the tool switch, and the reasoning mode. Generate them from the manifest at
-   install time so they can never go missing again.
-8. **Configure the distro.** `/etc/wsl.conf` with `boot.systemd=true`.
-   `/etc/wsl-distribution.conf` with `oobe.defaultName` (required for the
-   double-click install to work), an `oobe.command` that runs the first-launch
-   setup and gates access until it succeeds, a Start Menu shortcut with the
-   Hearth icon, and a Windows Terminal profile.
-9. **Apply Microsoft's distro hygiene.** Disable or mask `systemd-resolved`,
-   `systemd-networkd`, `NetworkManager`, the `systemd-tmpfiles-*` units and
-   `tmp.mount`. Do not include `/etc/resolv.conf`. Include a uid 0 root in
-   `/etc/passwd` and leave no password hashes in `/etc/shadow`.
-10. **Tar and gzip.** The tar must contain the root of the filesystem, not a
-    directory containing it, and must carry no kernel or initramfs. Gzip is the
-    recommended compression; other formats risk breaking older WSL versions.
+`hearth-supervisor` is built, never downloaded. `cargo build --release` in
+`backend/supervisor` produces it, `pack_backend.sh` stages it into the client's
+resources, and it ships as a Tauri bundle resource rather than a sidecar.
+Provisioning copies it to `<root>\runtime\hearth-supervisor.exe`.
 
 **Not baked in:** model weights. They are gigabytes, they are tier-dependent,
 and they are the one thing that genuinely must be chosen on the user's machine.
+
+**The rejected alternative.** The Windows artifact was once going to be a
+`.wsl` image: a gzipped tar of a provisioned Linux root filesystem, carrying an
+apt set, a distro configuration, and systemd to run the supervisor. That
+approach was rejected on 2026-08-06 in favor of the native runtime, and Hearth
+does not ship a `.wsl`. [`packaging-options.md`](packaging-options.md) holds the
+comparison that retired it.
 
 ### The install root
 
@@ -168,8 +109,7 @@ setup, `D:\Hearth` by default, and everything above that is install-time
 lands under it: the staged weights at `<root>\models`, the install record at
 `<root>\hearth-install.json`, the generated configuration, and the runtime
 itself at `<root>\runtime` with the voice environment at `<root>\envs`
-(native, per [`native-runtime.md`](native-runtime.md); the earlier draft's
-`<root>\wsl` distro import is superseded).
+(native, per [`native-runtime.md`](native-runtime.md)).
 
 Two consequences the installer must honor:
 
@@ -181,7 +121,7 @@ Two consequences the installer must honor:
 
 ## macOS: producing `Hearth.app`
 
-No WSL, no systemd, no CUDA. Simpler in structure and harder in signing.
+No CUDA. Simpler in structure and harder in signing.
 
 1. **Fetch the upstream `llama-server` for macOS arm64 with Metal.** Same
    pinned release as Windows, different asset.
@@ -189,22 +129,23 @@ No WSL, no systemd, no CUDA. Simpler in structure and harder in signing.
    with site-packages already resolved at build time. This is what `uv` installs
    when it manages a Python version, and it is the shape ComfyUI Desktop ships
    specifically to avoid resolving dependencies on the user's machine.
-3. **Build the supervisor for arm64** and register it as the Tauri sidecar.
-   Tauri's sidecar mechanism is a naming and permission convention, not a
-   process manager, so supervision stays in the Rust process, which is where it
-   already lives.
-4. **Include the same persona tree** as Windows, from the same manifest.
-5. **Code sign and notarize.** Every binary, including the sidecar and anything
-   inside the Python tree. This is the step with no equivalent on Windows and it
-   is where Mac builds usually fail first.
+3. **Build the supervisor for arm64** and ship it as a Tauri bundle resource.
+   `tauri.conf.json` declares no `externalBin`, so the supervisor is not a
+   sidecar: the client spawns it as an ordinary child process, and supervision
+   stays in the Rust process, which is where it already lives.
+4. **Include the same persona tree** as Windows.
+5. **Code sign and notarize.** Every binary, including the supervisor and
+   anything inside the Python tree. This is the step with no equivalent on
+   Windows and it is where Mac builds usually fail first.
 6. **Package as a `.dmg`.**
 
 **Note the supervision asymmetry**, because it is a real design decision rather
-than an accident: on Windows the supervisor runs inside WSL under systemd, on
-macOS it runs as a sidecar under the app. The supervisor binary is the same and
-the thing it supervises is the same. What differs is who starts the supervisor.
-That is the smallest possible difference between the two platforms and it is
-worth defending against attempts to unify it further.
+than an accident: the client starts and supervises the same process tree on
+both platforms, and all that differs is how a child is contained and killed, a
+kill-on-job-close Job Object and a suppressed console window on Windows against
+a process group on macOS. The supervisor binary is the same and the thing it
+supervises is the same. That is the smallest possible difference between the
+two platforms and it is worth defending against attempts to unify it further.
 
 ## What the client does on first run
 
@@ -212,20 +153,22 @@ This is where the build side hands off to the setup flow.
 
 1. **Scan the hardware.** GPU vendor and memory, unified memory on Apple
    Silicon, system RAM, free disk on the target volume, compute capability where
-   applicable. Two rules from the audit: use `nvidia-smi` for VRAM and never
-   WMI, which reports 4 GB for a 16 GB card because of a 32-bit field overflow;
-   and check free disk against Windows rather than against the distro, which
-   reports far more space than the host actually has.
+   applicable. One rule from the audit: use `nvidia-smi` for VRAM and never
+   WMI, which reports 4 GB for a 16 GB card because of a 32-bit field overflow.
 2. **Choose the tier and say so.** Report what was found, which tier it implies,
    how large the download is, and whether the voice and the brain will be able
    to coexist on this machine. On 8 GB they cannot, and the user should learn
    that here rather than as a pause mid-sentence.
-3. **Provision the backend.** On Windows: confirm WSL is present, offer to
-   install it if not, then fetch and import `Hearth.wsl`. On macOS: unpack the
-   bundled runtime.
-4. **Download the model** into the backend's own filesystem. On Windows that
-   means inside the distro rather than on the Windows mount, because weights on
-   the mount take minutes to load and can exceed the model swap timeout.
+3. **Provision the backend.** The same chains run in parallel on both
+   platforms, and only the fetched assets differ:
+   - Unpack the bundled `backend.tar.gz` into `<root>\runtime\backend`, then
+     copy the supervisor and the voice binaries into place.
+   - Fetch and unpack the `llama-server` build for the accelerator the scan
+     chose.
+   - Fetch and unpack a `python-build-standalone` interpreter tree.
+   - Pip install the harness requirements into it.
+   - Fetch the voice weights.
+4. **Download the model** into `<HEARTH_DIR>/Models`.
 5. **Generate the configuration** from the scan: the model path, the context
    size, the offload depth, the accelerator backend, the coexistence policy.
    Every one of these is a hard-coded constant today.
@@ -255,20 +198,11 @@ them is research.
 
 ## Open questions
 
-1. **Does the client bundle the backend or fetch it?** Bundling makes one large
-   download and a simpler flow. Fetching makes a small client, lets the backend
-   update independently, and lets a client-only install skip it entirely. The
-   research favours fetching, and it is also the only way a client-only machine
-   stays small.
-2. **How does a `.wsl` image update?** There is no layer model, so a whole-image
-   replacement is a multi-gigabyte redownload for a one-line fix. An in-distro
-   updater is the sensible answer and it is code we write. Design it now rather
-   than after the first patch.
-3. **Does the Mac get the same voice engine on day one?** OmniVoice documents
+1. **Does the Mac get the same voice engine on day one?** OmniVoice documents
    Apple Silicon support with torch on MPS, so in principle yes. It has never
    been run there. That is a spike, and it gates whether the Mac artifact is a
    full Hearth or a text-first one.
-4. **Where do the shipped voice clones come from, and under what licence?** They
+2. **Where do the shipped voice clones come from, and under what license?** They
    are the product's voices and this has not been answered.
-5. **Who signs the macOS build?** Notarization needs an Apple Developer account
+3. **Who signs the macOS build?** Notarization needs an Apple Developer account
    and a signing identity, and nothing gets past Gatekeeper without it.

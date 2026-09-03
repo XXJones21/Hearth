@@ -1,7 +1,7 @@
 ---
 title: The tool catalog
 status: draft
-last_reviewed: 2026-08-15
+last_reviewed: 2026-09-03
 related:
   - ../features/apps-and-extensions.md
   - ../card-forge.md
@@ -139,70 +139,70 @@ stays fixed so the list can be referred to by number.
 
 ### Documents and files
 
-1. ~~**`search_files`**~~ — **built 2026-08-15.** Grep across the allowed
+1. ~~**`search_files`**~~: **built 2026-08-15.** Grep across the allowed
    roots. The scan budget is per root rather than shared, which is not a
    detail: with one budget, the first large folder walked consumed it and the
    tool reported "nothing matches" about folders it had never opened. A
    truncated search now says so and refuses to be read as proof of absence.
-2. ~~**`append_file`**~~ — **built 2026-08-15.** Adds to the end of an
+2. ~~**`append_file`**~~: **built 2026-08-15.** Adds to the end of an
    existing file and carries its text directly. The rule that bodies never
    travel in tool-call JSON is about documents; a line is not a document, and
    making this one go through a brain call would rewrite text nobody asked to
    change.
-3. **`rename_file`** / **`move_file`** — reorganise without leaving the
+3. **`rename_file`** / **`move_file`**: reorganize without leaving the
    conversation. Needs the permission card for a destination outside the roots.
-4. **`delete_file`** — the only genuinely destructive file tool, so it needs a
+4. **`delete_file`**: the only genuinely destructive file tool, so it needs a
    confirmation card of its own rather than the folder-grant card.
-5. **`open_path`** — hand a file or folder to the operating system so the
+5. **`open_path`**: hand a file or folder to the operating system so the
    operator can look at it. The client can already do this; the persona cannot
    ask for it.
 
 ### Memory
 
-6. **`forget`** — remove or correct a stored fact. `remember` writes and
+6. **`forget`**: remove or correct a stored fact. `remember` writes and
    nothing unwrites, so a wrong fact is permanent until the file is hand-edited.
-7. **`search_journal`** — full-text search across past sessions. The client has
+7. **`search_journal`**: full-text search across past sessions. The client has
    this endpoint; the persona has no tool for it and has to guess from recall.
-8. **`list_projects`** — what is in the second brain right now. `start_project`
+8. **`list_projects`**: what is in the second brain right now. `start_project`
    can create one, and nothing can enumerate them.
-9. **`update_project`** — append a decision or note under a project's
+9. **`update_project`**: append a decision or note under a project's
    `Key Decisions`. The daily review does this on a schedule; a conversation
    cannot do it on purpose.
-10. **`session_summary`** — summarise and file the current conversation on
+10. **`session_summary`**: summarise and file the current conversation on
     request, rather than waiting for the idle timer or a New session click.
 
 ### Time and attention
 
-11. **`create_reminder`** — a prompt at an absolute date and time. Timers are
+11. **`create_reminder`**: a prompt at an absolute date and time. Timers are
     relative and in-process only; nothing survives a restart or reaches
     tomorrow.
-12. **`calendar_read`** — the disabled calendar pair, given a real backend.
+12. **`calendar_read`**: the disabled calendar pair, given a real backend.
     "What is my day" is the most common question a companion cannot answer.
-13. **`calendar_write`** — create and move events. Read-only calendar access
+13. **`calendar_write`**: create and move events. Read-only calendar access
     covers half a use and invites the persona to describe changes it cannot
     make.
-14. **`manage_routine`** — add, edit, and remove entries in `Areas/routines.md`
+14. **`manage_routine`**: add, edit, and remove entries in `Areas/routines.md`
     from conversation. Today the record is edited by hand and the daily review
     is the only routine that exists.
 
 ### The world outside
 
-15. **`fetch_url`** — read a page the operator names or that `web_search`
+15. **`fetch_url`**: read a page the operator names or that `web_search`
     returned. Search gives titles and snippets; nothing can open the result.
-16. **`draft_email`** — compose into the mail client rather than sending.
+16. **`draft_email`**: compose into the mail client rather than sending.
     Sending is a trust question that a draft sidesteps entirely.
-17. **`clipboard`** — read what the operator just copied, and put a result
+17. **`clipboard`**: read what the operator just copied, and put a result
     where they can paste it. The shortest path between the house and every
     other program on the machine.
 
 ### The house itself
 
-18. **`house_status`** — what is running, which model is resident, how much
+18. **`house_status`**: what is running, which model is resident, how much
     VRAM is left. The client shows this; the persona cannot answer "why are you
     slow right now".
-19. **`switch_model`** — change the resident model for the next turn. The
+19. **`switch_model`**: change the resident model for the next turn. The
     machinery exists in the supervisor and has no conversational door.
-20. **`play_media`** — control local playback. `media` currently means imagery
+20. **`play_media`**: control local playback. `media` currently means imagery
     only, and a companion that cannot start music is conspicuously missing a
     limb.
 

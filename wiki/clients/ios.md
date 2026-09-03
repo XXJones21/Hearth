@@ -1,7 +1,7 @@
 ---
 title: Hearth on iOS
 status: draft
-last_reviewed: 2026-08-08
+last_reviewed: 2026-09-03
 related:
   - ../first-run.md
   - android.md
@@ -63,8 +63,8 @@ on-device features like speech recognition.
 
 A persona whose config asks for one is drawn as a face rather than an orb:
 two eyes, a mouth that only appears while it is speaking, and no eyebrows.
-It is drawn from a dozen numbers the persona owns -- how wide the head is,
-how far apart the eyes sit, how long they are -- so two personas wearing the
+It is drawn from a dozen numbers the persona owns (how wide the head is,
+how far apart the eyes sit, how long they are), so two personas wearing the
 same expressions still look like two different people.
 
 Nothing about it is a video or a canned animation. The eyes drift and blink
@@ -73,8 +73,8 @@ toward the keyboard when you open it to type, because that is where the
 words are coming from. While it talks, the mouth follows the actual sound of
 the voice rather than the text.
 
-The house can also name a reaction for a sentence -- a laugh, a sigh, a
-question, a startle -- and the face plays it on that sentence and settles
+The house can also name a reaction for a sentence (a laugh, a sigh, a
+question, a startle), and the face plays it on that sentence and settles
 back out of it. Those names come from the house, so the phone and the
 desktop react in the same places.
 
@@ -82,10 +82,10 @@ Turning on Accessibility > Motion > Reduce Motion stops the blinking, the
 gaze darting and the sway. The mouth still moves with the voice: that is
 speech, not decoration.
 
-The face lives in `HearthCore/Persona/Face/`, and its design -- the pose
-channels, the expression library, the timing -- is written down once in
-`wiki/raw/persona-face-spec.md` and implemented from that same document on
-every client.
+The face lives in `HearthCore/Persona/Face/`, and its design (the pose
+channels, the expression library, the timing) is written down once and
+implemented from that same spec on every client. See
+[The persona face](../features/persona-face.md).
 
 ## How pairing works
 

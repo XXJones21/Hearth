@@ -1,7 +1,7 @@
 ---
-title: Updating an Install
+title: Updating an install
 status: draft
-last_reviewed: 2026-08-07
+last_reviewed: 2026-09-03
 related:
   - backend/build-pipeline.md
   - install-macos.md
@@ -10,8 +10,7 @@ sources:
   - wiki/raw/macos-status.md
 ---
 
-# Updating an Install
-
+# Updating an install
 How an installed Hearth becomes a newer Hearth without being uninstalled
 first. Nothing here is built yet; this is the design and the decision that
 sits under it.

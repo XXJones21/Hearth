@@ -32,7 +32,7 @@ The first packaged alpha (0.1.0) covers three platforms. iOS and visionOS
 come later through TestFlight; they are built but need Apple's pipeline.
 
 **Windows.** An installer built with the ship loop:
-`desktop-client/src-tauri/target/release/bundle/nsis/` after
+`target/release/bundle/nsis/` after
 `bash scripts/pack_backend.sh && npm run tauri build`. Run it, and first run
 scans the machine, plans a model tier, downloads what it needs, and boots
 the house. Everything after that is local.

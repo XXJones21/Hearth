@@ -1,7 +1,7 @@
 ---
 title: Apps and extensions
 status: draft
-last_reviewed: 2026-08-08
+last_reviewed: 2026-09-03
 related:
   - ../card-forge.md
   - ../first-run.md
@@ -46,7 +46,7 @@ than it can write and debug the loop that would produce them.
 The `compose_view` handler cleans its input rather than rejecting it: an
 unrecognized cell style falls back to a default, a bad section is dropped
 while the rest of the card still renders, and only a completely empty layout
-is refused. See [The Card Forge](../card-forge.md) for the full vocabulary
+is refused. See [The card forge](../card-forge.md) for the full vocabulary
 and the reasoning behind it.
 
 Saving a composed card so it becomes part of the library, the second half of

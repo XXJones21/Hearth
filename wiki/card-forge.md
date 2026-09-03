@@ -1,15 +1,15 @@
 ---
-title: The Card Forge
+title: The card forge
 status: draft
-last_reviewed: 2026-08-05
+last_reviewed: 2026-09-03
 related:
   - first-run.md
   - backend/build-pipeline.md
   - _index.md
+sources: []
 ---
 
-# The Card Forge
-
+# The card forge
 When a persona has something to show you that no existing card can carry, it
 makes a new one. The card library grows by use rather than by release.
 
@@ -125,7 +125,7 @@ and keep the two in agreement, which is strictly harder than putting the right
 style on the right cell.
 
 `style` is a closed set the host resolves to real CSS, so a persona never
-authors a colour or a class.
+authors a color or a class.
 
 ## The shape of the tool
 
@@ -146,7 +146,7 @@ compose_view:
 ```
 
 The handler **cleans rather than validates**, which matters at small model
-sizes. An unrecognised cell style falls back instead of passing through, a
+sizes. An unrecognized cell style falls back instead of passing through, a
 column count is clamped, a bare string becomes a cell, and a section it cannot
 parse is dropped while the rest of the card still renders. A model that gets one
 section wrong should still get a card. Only an entirely empty layout is refused,

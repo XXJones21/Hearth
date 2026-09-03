@@ -1,7 +1,7 @@
 ---
 title: Personas
 status: draft
-last_reviewed: 2026-08-08
+last_reviewed: 2026-09-03
 related:
   - ../first-run.md
   - ../backend/voice-engine.md
@@ -34,8 +34,8 @@ with Hearth or one you make yourself:
 - **A designed voice.** A handful of instruct attributes, such as pitch,
   age, and accent, that produce a reference clip. See
   [Voice](voice.md) for how that clip becomes speech.
-- **A colour.** A single hex value that themes the sphere, the particles,
-  and the four state colours (idle, listening, thinking, speaking) throughout
+- **A color.** A single hex value that themes the sphere, the particles,
+  and the four state colors (idle, listening, thinking, speaking) throughout
   the app.
 
 A made persona also learns a small vocabulary of non-verbal tags it can place
@@ -54,9 +54,9 @@ suggestions.
 
 The opening line is the same on every install: "Let us make someone together.
 A persona is a companion of your own design who will live here with you:
-their purpose, their temperament, their voice, and their colour are all yours
+their purpose, their temperament, their voice, and their color are all yours
 to choose." From there you decide what this companion is for, their
-temperament, their voice, and their colour, and Sulivan writes the system
+temperament, their voice, and their color, and Sulivan writes the system
 prompt in their words once he has enough to describe them to someone else.
 
 When the persona is ready, Sulivan says goodbye in his own scripted farewell
@@ -73,7 +73,7 @@ first project there. See [The second brain](second-brain.md).
 
 Each persona is a folder under `personas/`, named after them. Inside it sits
 a manifest, `<name>.json` (the lowercased directory name), holding the system
-prompt, the visualization colours, the model configuration, and the voice
+prompt, the visualization colors, the model configuration, and the voice
 settings. A `voice/` subfolder holds the designed reference clip and its
 transcript, for example `personas/Wren/voice/wren_voice_reference.wav`
 alongside `wren_voice_reference.txt`.

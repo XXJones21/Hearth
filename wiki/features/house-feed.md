@@ -1,7 +1,7 @@
 ---
 title: The house feed
 status: draft
-last_reviewed: 2026-09-02
+last_reviewed: 2026-09-03
 related:
   - second-brain.md
   - personas.md
@@ -90,7 +90,7 @@ Every entry has the same shape, so a client needs one card, not one per kind:
 ```
 
 `author` is the persona name, which the client already knows how to give a face
-and a colour. `kind` is a label. `body` is markdown. `refs` are the files the
+and a color. `kind` is a label. `body` is markdown. `refs` are the files the
 entry is about.
 
 Two things to get right on a phone or a headset: an unknown `kind` must still
