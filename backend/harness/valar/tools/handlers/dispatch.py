@@ -106,15 +106,25 @@ async def dispatch_subagent(args: dict) -> ToolResult:
     label = persona or model
     logger.info("dispatch depth=%d -> %s: %s", depth, label, task[:80])
 
+    # The worker's log names who sent it (spec section 6: attribution is the
+    # harness's, never the model's).
+    try:
+        from ...agents.subagent import _runtime as _sub_runtime
+
+        caller = str(_sub_runtime["personas"].current_name() or "")
+    except Exception:  # noqa: BLE001 - attribution is best effort
+        caller = ""
+    origin = f"dispatch/{caller}" if caller else "dispatch"
+
     with dispatch_depth():
         try:
             if persona:
                 kw = {"max_rounds": rounds} if rounds > 0 else {}
-                res = await run_persona_subagent(persona, task, **kw)
+                res = await run_persona_subagent(persona, task, origin=origin, **kw)
             else:
                 kw = {"max_rounds": rounds} if rounds > 0 else {}
                 res = await run_persona_subagent(
-                    _model_persona_name(), task, model_path=model, **kw
+                    _model_persona_name(), task, model_path=model, origin=origin, **kw
                 )
         except Exception as exc:  # noqa: BLE001 - a worker never kills the caller
             logger.warning("dispatch to %s raised: %s", label, exc)

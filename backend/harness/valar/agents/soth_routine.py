@@ -310,7 +310,9 @@ async def run_tick(routine: dict, force: bool = False) -> str:
     parts = [task, "## What changed since your last run\n\n" + digest]
     if prev:
         parts.append("## Tail of your previous report\n\n" + prev)
-    res = await run_persona_subagent(str(routine["persona"]), "\n\n".join(parts))
+    res = await run_persona_subagent(
+        str(routine["persona"]), "\n\n".join(parts), origin="routine"
+    )
 
     if not res.get("ok") or not (res.get("content") or "").strip():
         streak = int(state.get("failure_streak") or 0) + 1

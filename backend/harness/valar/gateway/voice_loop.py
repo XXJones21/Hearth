@@ -59,6 +59,58 @@ from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.voice_loop")
 
+
+def _record_persona_turn(
+    persona,
+    session,
+    user_text: str,
+    reply_text: str,
+    tool_trace: list[dict] | None,
+    tools_invoked: list[str],
+    origin: str,
+) -> None:
+    """The persona's own paper trail for a foreground turn (spec section 3 of
+    docs/superpowers/specs/2026-09-02-persona-private-memory-design.md).
+
+    Sits beside the ledger's turn.decision because that is the one place the
+    trace, the telemetry and the answer are all in scope. Never breaks a
+    turn: the log is evidence, not a dependency.
+    """
+    try:
+        from ..memory import persona_memory as pm
+
+        root = getattr(persona, "memory_dir", None)
+        if not root:
+            return
+        dispatches = [
+            str((t.get("data") or {}).get("agent") or (t.get("data") or {}).get("persona") or "")
+            for t in (tool_trace or [])
+            if t.get("name") == "dispatch_subagent"
+        ]
+        pm.append_log(root, {
+            "session": session.session_id,
+            "origin": origin,
+            "client": str(getattr(session, "platform", "") or ""),
+            "question": pm.head(user_text),
+            "tools": list(tools_invoked),
+            "touched": pm.touched_from_trace(tool_trace),
+            "answer": pm.head(reply_text),
+            "dispatches": [d for d in dispatches if d],
+        })
+        first = session.history[0].user if session.history else user_text
+        pm.upsert_session(root, {
+            "id": session.session_id,
+            "client": str(getattr(session, "platform", "") or ""),
+            "origin": origin,
+            "title": pm.head(first, 80),
+            # record_turn appends to history after this site, so the turn
+            # being recorded is not in it yet.
+            "turns": len(session.history) + 1,
+            "topic": str(getattr(session, "topic_hint", "") or ""),
+        })
+    except Exception as exc:  # noqa: BLE001 - recording never breaks a turn
+        logger.warning("persona memory: turn not recorded (%s)", exc)
+
 # emit(kind, payload) — kind is a protocol action name; payload is dict OR bytes.
 Emit = Callable[[str, object], Awaitable[None]]
 
@@ -1360,6 +1412,11 @@ class VoiceLoop:
             answer_head=reply_text,
             open_task=open_task_ledger_head(session.open_task) if carry else None,
         )
+        _record_persona_turn(
+            persona, session, user_text, reply_text, tool_trace,
+            list(telemetry.tools_invoked),
+            origin=str(getattr(session, "last_input", "") or "voice"),
+        )
 
         # Send the full text response (ai_response) for clients that display text.
         await emit(
@@ -1968,6 +2025,11 @@ class VoiceLoop:
             decisions=[{"round": 1, "reasoning": "", "tools": list(telemetry.tools_invoked)}],
             tools_invoked=list(telemetry.tools_invoked),
             answer_head=speech,
+        )
+        _record_persona_turn(
+            persona, session, user_text, speech, None,
+            list(telemetry.tools_invoked),
+            origin=str(getattr(session, "last_input", "") or "voice"),
         )
         logger.info(
             "structured interview turn (tools=%s): %r",

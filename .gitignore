@@ -83,3 +83,7 @@ apple-client/**/.build/
 # folders is the operator's business, not the product's.
 backend/harness/valar/tools/file_grants.yaml
 /releases/
+
+# A persona's own memory (notes, activity log, session index, archive) is
+# per-install state beside the manifest, never source.
+backend/personas/*/memory/

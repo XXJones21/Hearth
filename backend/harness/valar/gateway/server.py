@@ -617,6 +617,17 @@ def create_app(config: ValarConfig) -> FastAPI:
         asyncio.create_task(soth_routine_loop(personas, brain, config))
 
     @app.on_event("startup")
+    async def _start_persona_consolidation() -> None:
+        """The clock behind each persona's archive: loose log and index files
+        older than a week move into its mind.sqlite, six-hourly, so a persona
+        folder never holds more than a week of paper."""
+        from ..memory.persona_consolidate import persona_consolidate_loop
+
+        asyncio.create_task(
+            persona_consolidate_loop(personas, config), name="persona-consolidate"
+        )
+
+    @app.on_event("startup")
     async def _warm_models() -> None:
         """Pre-load Whisper + NeuTTS backbone + the default persona's voice clone,
         and make the daily model resident, at boot. With the always-on stack the
@@ -727,6 +738,7 @@ async def _run_text_turn(session, persona, text: str, voice_loop, emit) -> None:
             )
 
     try:
+        session.last_input = "text"
         await voice_loop.run_turn(session, persona, text, emit)
     except asyncio.CancelledError:
         logger.info("text turn cancelled (reset/disconnect)")
@@ -1153,6 +1165,7 @@ async def _handle_audio(
             if text.strip():
                 await emit("transcription", {"action": "transcription", "text": text})
                 persona = personas.current()
+                session.last_input = "voice"
                 await voice_loop.run_turn(session, persona, text, emit, stt_ms=stt_ms)
             else:
                 session.state = State.IDLE

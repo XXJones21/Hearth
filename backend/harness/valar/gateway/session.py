@@ -26,6 +26,10 @@ class Session:
     session_id: str
     platform: str = "unknown"
     stt_mode: str = "server"  # "server" | "local"
+    # How the current turn arrived: "voice" (an utterance) or "text" (a typed
+    # query or client transcription). Read by the persona-memory log so a
+    # turn's origin is recorded, never inferred.
+    last_input: str = "voice"
     audio_format: dict = field(default_factory=dict)
     state: State = State.IDLE
     history: list[Turn] = field(default_factory=list)
