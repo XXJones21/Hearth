@@ -1,6 +1,6 @@
 ---
 area: clients/ios
-updated: 2026-08-20
+updated: 2026-09-02
 ---
 
 # Hearth on iOS -- the backlog
@@ -17,6 +17,7 @@ outlives the work.
 | [sulivan-realityview.md](sulivan-realityview.md) | Sulivan becomes the fire on the phone. The `RealityView` premise lost; the reasoning stands. | open |
 | [qol-fixes.md](qol-fixes.md) | A running list of smaller app fixes. | open |
 | [persona-face-review.md](persona-face-review.md) | Review notes on the drawn face as shipped on the phone. | open |
+| [widgets.md](widgets.md) | The widget target still shows Xcode's template. Porting the Valinor widgets: persona, quick talk, a Control Center button, the flame on a widget. | open |
 
 ## Elsewhere
 
