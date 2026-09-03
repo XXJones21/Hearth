@@ -527,6 +527,25 @@ pub fn start(app: tauri::AppHandle, state: &HouseState, root: PathBuf) -> Result
         .iter()
         .find(|s| s.name == "harness")
         .and_then(|s| s.health_port);
+
+    // One house per machine, and the port is the guard rather than a lock
+    // file: a lock file outlives the process that wrote it and then lies,
+    // while a listening socket IS the house. stop() ran above, so anything
+    // still answering belongs to SOMEONE ELSE, and starting over it puts two
+    // llama-servers on one GPU and two harnesses on one Engram.
+    //
+    // Live on 2026-09-03: a release build installed to debug a customer issue
+    // started its own house first, and the next client adopted it. The
+    // household came up with the wrong personas and the operator's own were
+    // nowhere. Valinor spec 2026-09-03-house-as-a-service-design.md, section 3.
+    if let Some(port) = gateway_port {
+        if port_answers(port) {
+            return Err(format!(
+                "a house already answers on {port}; refusing to start a second"
+            ));
+        }
+    }
+
     let stopping = Arc::new(AtomicBool::new(false));
     let children: Arc<Mutex<Vec<Managed>>> = Arc::new(Mutex::new(Vec::new()));
     let status = Arc::new(Mutex::new(HouseStatus {

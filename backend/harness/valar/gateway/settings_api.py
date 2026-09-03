@@ -294,6 +294,11 @@ def register(app: FastAPI, config: ValarConfig) -> None:
                     "version": app.version,
                     "port": config.port,
                     "brain_backend": config.brain.backend,
+                    # What to call the person who lives here. House-wide, so
+                    # the house answers it rather than each client keeping its
+                    # own literal: both clients had "Joshua" hardcoded in the
+                    # header, which a customer would also have seen.
+                    "operator": str(getattr(config, "operator_name", "") or ""),
                 },
             }
         )
