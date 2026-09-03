@@ -151,13 +151,10 @@ offload depth, the CUDA architecture, the accelerator backend, and whether the
 brain and the voice can be resident at the same time. Doing it once, at install,
 is what turns a machine-specific configuration into a generated one.
 
-Two rules learned expensively and worth encoding:
+One rule learned expensively and worth encoding:
 
 - Use `nvidia-smi` for video memory, never WMI. `Win32_VideoController.AdapterRAM`
   reports 4 GB for a 16 GB card because the field is 32-bit and overflows.
-- Check free disk against Windows, not against the distro. Inside WSL the root
-  filesystem reports far more space than the host actually has, because the
-  distro disk is a growing virtual disk on the system drive.
 
 Three more encoded 2026-08-06:
 
