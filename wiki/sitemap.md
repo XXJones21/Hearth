@@ -1,7 +1,7 @@
 ---
 title: Site map
 status: draft
-last_reviewed: 2026-08-09
+last_reviewed: 2026-09-02
 related:
   - _index.md
   - getting-started.md
@@ -41,6 +41,7 @@ One page per platform, for someone meeting Hearth cold.
 - [Hearth on Windows](clients/windows.md)
 - [Hearth on macOS](clients/macos.md)
 - [Hearth on iOS](clients/ios.md)
+- [Hearth on Android](clients/android.md)
 - [Hearth on Apple Vision Pro](clients/visionos.md)
 
 ## Using Hearth
