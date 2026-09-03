@@ -8,17 +8,16 @@ related:
   - packaging-options.md
   - ../_index.md
 sources:
-  - D:/Tools/Valinor/tasks/first-time-user.md
-  - D:/Tools/Hearth/wiki/raw/research-shipping.md
-  - D:/Tools/Hearth/wiki/raw/research-containers.md
-  - D:/Tools/Hearth/wiki/raw/research-bundling.md
+  - first-time-user.md (unpublished research)
+  - wiki/raw/research-shipping.md
+  - wiki/raw/research-containers.md
+  - wiki/raw/research-bundling.md
 ---
 
 # Build pipeline
 How Hearth becomes two downloadable artifacts, one per platform, and what each
 of them contains. This is the build side. What the user experiences afterwards
-is the first-time setup, drafted in `tasks/first-time-user.md` in the Valinor
-repository.
+is the first-time setup, covered in [First run](../first-run.md).
 
 ## The shape: the client is the installer
 
@@ -184,7 +183,7 @@ Directly from the portability ledger, in the order the pipeline hits them.
 
 | Fix | Why the pipeline needs it |
 | --- | --- |
-| Derive the repository root instead of hard-coding it | roughly 110 literals; nothing in the image can carry `/mnt/d/Tools/Valinor` |
+| Derive the repository root instead of hard-coding it | roughly 110 literals; nothing shipped can carry a build machine's absolute path |
 | Remove the `jones` username assumption | four unit files, twelve persona manifests, six scripts |
 | Model path as an identifier plus a resolver | persona files cannot carry absolute paths into a shipped product |
 | Context size and offload from the scan | currently a unit-file constant that overrides every persona |

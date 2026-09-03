@@ -7,15 +7,14 @@ related:
   - backend/portability-ledger.md
   - _index.md
 sources:
-  - D:/Tools/Valinor/tasks/first-time-user.md
-  - D:/Tools/Valinor/hearth-pitch/mockups/hearth-setup-flow.html
+  - first-time-user.md (unpublished research)
+  - hearth-setup-flow.html (unpublished research)
 ---
 
 # First run
 What happens between someone downloading Hearth and having a companion that
-knows something about them. The visual reference is
-`hearth-pitch/mockups/hearth-setup-flow.html` in the Valinor repository,
-seventeen screens built against the real client shell.
+knows something about them. The visual reference is a
+seventeen-screen mockup built against the real client shell.
 
 ## Three beats
 
@@ -88,7 +87,7 @@ Two rules follow, and the second is the general one:
 Two mechanisms back the first rule beyond the flag, both added 2026-08-06:
 
 - **Hearth has its own port block.** The client defaults to `18700`, never the
-  internal Valinor stack's `8700`. Even if the flag is bypassed on a
+  development stack's `8700`. Even if the flag is bypassed on a
   development machine, the default dial finds nothing rather than the live
   house. The Hearth backend provisioner will bind the same block.
 - **The install record.** When a download completes, `hearth-install.json` is

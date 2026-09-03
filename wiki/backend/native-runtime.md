@@ -9,10 +9,10 @@ related:
   - portability-ledger.md
   - ../first-run.md
 sources:
-  - D:/Tools/Valinor/tasks/architecture-decision-native-windows.md
-  - D:/Tools/Valinor/tasks/research-native-windows.md
-  - D:/Tools/Valinor/tasks/research-backend-linuxisms.md
-  - D:/Tools/Valinor/tasks/research-wsl-steelman.md
+  - architecture-decision-native-windows.md (unpublished research)
+  - research-native-windows.md (unpublished research)
+  - research-backend-linuxisms.md (unpublished research)
+  - research-wsl-steelman.md (unpublished research)
 ---
 
 # Native runtime
@@ -20,7 +20,7 @@ Hearth's backend runs as native processes on both platforms. No WSL, no
 container, no Linux layer of any kind on the user's machine. Decided
 2026-08-06 after four parallel investigations; the decision memo and the three
 research reports are named in the frontmatter sources. WSL remains what it
-always was: the developer testbed where the Valinor house runs.
+always was: a tool on the build machine, not something Hearth ships.
 
 ## Why, in three sentences
 

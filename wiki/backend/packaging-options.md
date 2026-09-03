@@ -8,7 +8,7 @@ related:
   - portability-ledger.md
   - ../_index.md
 sources:
-  - D:/Tools/Valinor/wiki/raw/backend-audit-2026-08-04/
+  - backend-audit-2026-08-04 (unpublished research)
 ---
 
 # Packaging options
