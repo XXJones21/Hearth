@@ -33,6 +33,20 @@ def run_pass(personas) -> int:
             moved += result["turns"]
         except Exception as exc:  # noqa: BLE001 - one persona's failure never stops the pass
             logger.warning("consolidation skipped for %s: %s", name, exc)
+    # The inbox is a handover, not an archive: the reviews and the databases
+    # keep everything it held (spec section 5, the week clock). Two weeks
+    # rather than one, so a house that was off for a week still hands over.
+    try:
+        from .persona_day_report import prune_inbox
+        from .topic import resolve_engram_root
+
+        root = resolve_engram_root(None)
+        if root is not None:
+            removed = prune_inbox(root)
+            if removed:
+                logger.info("inbox prune removed %d folder(s)", removed)
+    except Exception as exc:  # noqa: BLE001 - pruning never blocks consolidation
+        logger.warning("inbox prune skipped: %s", exc)
     return moved
 
 

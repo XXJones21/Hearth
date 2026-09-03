@@ -115,16 +115,20 @@ async def dispatch_subagent(args: dict) -> ToolResult:
     except Exception:  # noqa: BLE001 - attribution is best effort
         caller = ""
     origin = f"dispatch/{caller}" if caller else "dispatch"
+    # The receiving side learns who is asking from the harness, not from a
+    # prefix the sender wrote (spec section 6). A worker that knows the
+    # asker can answer them; one that does not addresses the operator.
+    stamped = f"From {caller}: {task}" if caller else task
 
     with dispatch_depth():
         try:
             if persona:
                 kw = {"max_rounds": rounds} if rounds > 0 else {}
-                res = await run_persona_subagent(persona, task, origin=origin, **kw)
+                res = await run_persona_subagent(persona, stamped, origin=origin, **kw)
             else:
                 kw = {"max_rounds": rounds} if rounds > 0 else {}
                 res = await run_persona_subagent(
-                    _model_persona_name(), task, model_path=model, origin=origin, **kw
+                    _model_persona_name(), stamped, model_path=model, origin=origin, **kw
                 )
         except Exception as exc:  # noqa: BLE001 - a worker never kills the caller
             logger.warning("dispatch to %s raised: %s", label, exc)
