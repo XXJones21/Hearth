@@ -83,3 +83,6 @@ apple-client/**/.build/
 # folders is the operator's business, not the product's.
 backend/harness/valar/tools/file_grants.yaml
 /releases/
+
+# Working clone scripts/publish_wiki.py makes while rendering the GitHub wiki.
+.wiki-publish/
