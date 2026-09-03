@@ -166,6 +166,38 @@ async def run_persona_subagent(
         return {"ok": False, "content": "", "tools_used": [],
                 "error": f"persona '{persona_name}' unavailable: {exc}"}
 
+    # The worker's OWN turn, for its own tool loop: a memory handler called
+    # in here writes to HER memory/, not to the foreground persona's
+    # (spec sections 3 and 4). Set as soon as the persona resolves.
+    from ..memory.acting import acting
+
+    with acting(
+        persona.name,
+        persona.memory_dir,
+        session=f"sub-{int(time.time() * 1000)}",
+        origin=origin,
+    ):
+        return await _run_loaded_subagent(
+            brain, config, persona, persona_name, task, max_rounds, model_path, origin
+        )
+
+
+async def _run_loaded_subagent(
+    brain: Any,
+    config: Any,
+    persona: Any,
+    persona_name: str,
+    task: str,
+    max_rounds: int,
+    model_path: str,
+    origin: str,
+) -> dict:
+    """The body of a subagent run, once the persona is resolved and acting.
+
+    Split out of run_persona_subagent only so the acting-persona context
+    wraps the whole run without reindenting a hundred and fifty lines.
+    """
+
     # HER ChatOptions: the persona's deep_model sampling. Same model path as
     # the caller's persona (the daily 12B) = the router treats it as a no-op
     # class change; a different path would trigger a real swap, so keep

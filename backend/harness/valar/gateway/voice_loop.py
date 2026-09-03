@@ -569,8 +569,19 @@ class VoiceLoop:
         # where the turn is (for the typed error), `partial*` capture a stream
         # that died after first token.
         ctx: dict = {"stage": "start", "partial": False, "partial_text": ""}
+        # Whose turn this is, for the whole turn including its tool loop. A
+        # memory handler resolves its files from here and never from an
+        # argument (spec sections 3 and 4).
+        from ..memory.acting import acting
+
         try:
-            await impl(session, persona, user_text, emit, telemetry, ctx)
+            with acting(
+                persona.name,
+                persona.memory_dir,
+                session=session.session_id,
+                origin=getattr(session, "last_input", "voice"),
+            ):
+                await impl(session, persona, user_text, emit, telemetry, ctx)
         except Exception as exc:  # noqa: BLE001 - typed emit, then re-raise
             telemetry.error_stage = str(ctx["stage"])
             telemetry.error_kind = self._classify_error(exc)
@@ -1449,6 +1460,23 @@ class VoiceLoop:
             list(telemetry.tools_invoked),
             origin=str(getattr(session, "last_input", "") or "voice"),
         )
+        # Every tenth recorded turn, one short tool-free call asks what of
+        # this conversation is worth keeping (spec section 3). It runs as a
+        # background task on the same options, so it lands on the resident
+        # model without a swap and never delays the reply. record_turn has
+        # not appended this exchange yet, so it is added to the snapshot.
+        try:
+            from ..memory import review_fork
+
+            review_fork.schedule(
+                self.brain,
+                opts,
+                persona.memory_dir,
+                persona.name,
+                list(session.history) + [{"user": user_text, "assistant": reply_text}],
+            )
+        except Exception as exc:  # noqa: BLE001 - a review must never break a turn
+            logger.warning("review fork not scheduled: %s", exc)
 
         # Send the full text response (ai_response) for clients that display text.
         await emit(

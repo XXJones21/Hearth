@@ -559,7 +559,12 @@ tools:
           description: Optional corrected wording. Omit to remove the fact entirely.
       required: [fact]
 
+  # Retired 2026-09-02 (spec section 4): recall(scope: sessions) is this
+  # search, and a persona asking about its OWN work now has recall's self
+  # scope, which reads its own log rather than the shared journal. Kept
+  # disabled for one week rather than deleted, as the way back.
   - name: search_journal
+    enabled: false
     description: >-
       Search past conversations for a word or phrase and return the sessions
       that mention it, with dates. Use for "when did we talk about X", "what
@@ -646,10 +651,48 @@ tools:
           description: Which heading to append under. Default decisions.
       required: [project, note]
 
+  # The persona's own pen (2026-09-02, spec section 3 of Valinor's
+  # docs/superpowers/specs/2026-09-02-persona-private-memory-design.md).
+  # `remember` below writes the HOUSE's shared facts into Engram; this writes
+  # the persona's own notes, which come back in its prompt next session.
+  - name: memory
+    description: >-
+      Write to YOUR OWN memory, the notes that come back to you next
+      conversation. target notes for something you want to remember about
+      the work or about yourself; target user for something you learned
+      about the operator (a preference, a plan, a fact they told you);
+      target day for your report of today. action add appends, replace
+      clears the file first, remove deletes the entry whose text you name.
+      You do not write the date; it is stamped for you. Use this when the
+      operator tells you something that will still matter next week, or
+      when you finish something worth knowing you did. Do not use it for
+      what is already in this conversation.
+    handler: valar.tools.handlers.persona_notes:memory
+    domain: memory
+    risk: write
+    parameters:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [add, replace, remove]
+          description: add appends an entry, replace clears first, remove deletes a matching entry.
+        target:
+          type: string
+          enum: [notes, user, day]
+          description: notes is your own memory, user is what you know about the operator, day is today's report.
+        content:
+          type: string
+          description: The entry, in your own words. For remove, enough of the entry's text to identify it.
+      required: [action, content]
+
   - name: remember
     description: >-
-      Store a durable fact about the user for later (in long-term memory). Use when
-      the user says "remember that...", "don't forget...", or shares a lasting preference.
+      Store a durable fact about the user in the HOUSE's shared memory, where
+      every persona can see it. Use for a fact about the operator that the
+      whole house should have: a lasting preference, a standing instruction,
+      something true about their life. For something YOU want to remember,
+      in your own words, use the memory tool instead.
     handler: valar.tools.handlers.memory:remember
     domain: memory
     risk: write
@@ -694,38 +737,50 @@ tools:
 
   - name: recall
     description: >-
-      Quick search of the operator's long-term memory: saved personal facts,
-      session diaries, project notes, background knowledge. Use for a SINGLE
-      specific fact or detail -- "what did I tell you about...", "do you
-      remember my...". A query naming a day or period ("yesterday", "last
-      week", "August 18") returns that period's journal directly -- the
-      right call for "what did we do <when>". Scope the search by INTENT:
-      background for career, employers, jobs, education, life history;
-      projects for the operator's project work; sessions for past
-      conversations. For deep or multi-part questions about the operator's
-      past, use consult_memory instead. Prefer either over guessing or
-      answering from general knowledge.
+      Look up YOUR OWN record of what you did: a day ("2026-09-01" or
+      "yesterday"), a session id, or words to search your own turns and
+      notes for. This is deterministic and fast; use it before guessing
+      about anything you did. Pass reconstruct true to also write the day
+      or session out as a file you can point the operator at. For the
+      HOUSE's shared record instead, pass a scope other than self: the
+      operator's saved facts, project notes, session diaries and background
+      knowledge, which is a different thing from your memory and is
+      labelled as such. background = career, employers, jobs, education,
+      life history, INCLUDING anything worked on AT an employer (Meta,
+      Apple, Snap). personal_projects = the operator's own side projects.
+      sessions = past conversations. For deep or multi-part questions about
+      the operator's past, use consult_memory instead.
     handler: valar.tools.handlers.memory:recall
     domain: memory
     risk: read
-    speak: Let me think back.
+    speak: Let me check my own record.
     parameters:
       type: object
       properties:
+        day:
+          type: string
+          description: A day, YYYY-MM-DD. Leave empty unless the question is about one day.
+        session:
+          type: string
+          description: A session id, when you already have one from an earlier result.
         query:
           type: string
-          description: What to search memory for. Omit to list recent stored facts.
+          description: >-
+            Words to search for. With scope self this searches your own turns
+            and notes; with any other scope it is the shared search.
+        reconstruct:
+          type: boolean
+          description: Also write the day or session out as a file and return its path.
         scope:
           type: string
-          enum: [all, background, personal_projects, sessions]
+          enum: [self, house, background, personal_projects, sessions]
           description: >-
-            Search intent. background = career, employers, jobs, education,
-            life history -- INCLUDING anything worked on AT an employer
-            (Meta, Apple, Snap...). personal_projects = the operator's own
-            side projects only. sessions = past conversations. Default all.
+            self is your own memory and the default. Anything else is the
+            operator's shared record: house for all of it, or one of the
+            three intents to narrow it.
         max_results:
           type: integer
-          description: How many results to read (1-10). Default 5.
+          description: Maximum entries to return (default 8 for self, 5 for the house).
       required: []
 
   - name: generate_image

@@ -35,10 +35,16 @@ class ToolResult:
     content: str
     ok: bool = True
     data: dict[str, Any] = field(default_factory=dict)
+    # WHY a failure happened, so the harness can tell "this failed" from
+    # "this cannot do this kind of thing at all". Empty on success. Handlers
+    # ported from Valinor have passed it since ad0fa64 and every one of those
+    # error paths raised TypeError here instead of returning; found live
+    # 2026-09-02 when project_status failed mid-turn.
+    reason: str = ""
 
     @classmethod
-    def error(cls, message: str) -> "ToolResult":
-        return cls(content=message, ok=False)
+    def error(cls, message: str, *, reason: str = "") -> "ToolResult":
+        return cls(content=message, ok=False, reason=reason)
 
 
 @dataclass

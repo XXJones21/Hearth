@@ -178,10 +178,43 @@ def query_session(root: Path, session_id: str) -> list[dict]:
     return []
 
 
+def _search_live(root: Path, words: list[str], limit: int) -> list[dict]:
+    """The live week, which the database has not absorbed yet.
+
+    query_day already reads the loose files before the tables; a search that
+    read only the tables would answer "no record" for everything a persona
+    did this week, which is the week it is most often asked about. Substring
+    matching, because there is no index over a file and the week is small.
+    """
+    out: list[dict] = []
+    today = date.today()
+    for i in range(0, 8):
+        day = (today - timedelta(days=i)).isoformat()
+        for e in pm.read_log(root, day):
+            hay = " ".join(
+                str(x)
+                for x in (
+                    e.get("question"),
+                    e.get("answer"),
+                    " ".join(str(t) for t in (e.get("touched") or [])),
+                )
+                if x
+            ).lower()
+            if all(w in hay for w in words):
+                out.append(dict(e) | {"kind": "turn"})
+    for kind, filename in (("note", pm.NOTES_FILE), ("note", pm.USER_FILE)):
+        for entry in pm.read_entries(Path(root) / filename):
+            if all(w in entry.lower() for w in words):
+                out.append({"kind": kind, "text": entry, "as_of": entry[:10]})
+    return sorted(out, key=lambda r: r.get("ts") or r.get("as_of") or "", reverse=True)[:limit]
+
+
 def search(root: Path, query: str, limit: int = 20) -> list[dict]:
+    words = [w.lower() for w in query.split() if w]
     q = " ".join(f'"{w}"' for w in query.split() if w)
     if not q:
         return []
+    live = _search_live(root, words, limit)
     conn = open_db(root)
     try:
         turns = [_row(r) | {"kind": "turn"} for r in conn.execute(
@@ -196,4 +229,8 @@ def search(root: Path, query: str, limit: int = 20) -> list[dict]:
         )]
     finally:
         conn.close()
-    return sorted(turns + notes, key=lambda r: r.get("ts") or r.get("as_of") or "", reverse=True)[:limit]
+    seen = {(r.get("ts"), r.get("text")) for r in live}
+    older = [r for r in turns + notes if (r.get("ts"), r.get("text")) not in seen]
+    return sorted(
+        live + older, key=lambda r: r.get("ts") or r.get("as_of") or "", reverse=True
+    )[:limit]
