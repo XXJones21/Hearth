@@ -38,26 +38,21 @@ it to be rough.
 
 ## See it
 
-<!--
-  GitHub inlines a video only when the file is uploaded through the web
-  editor (drag it into this README while editing on github.com, or into an
-  issue), which produces a github.com/user-attachments URL. A video committed
-  to the repository renders as a link, not a player. Replace each line below
-  with the uploaded URL on its own line.
--->
+Click a still to play the clip (GitHub opens it in its own player).
 
-A first conversation with Sulivan, voice and face together:
+**Every client at once.** Windows, macOS, iPhone, Android and Apple Vision
+Pro, all connected to one house, seen from the headset.
 
-_video to come_
+<a href="design/media/all-clients-from-vision-pro.mp4">
+  <img src="design/media/all-clients-from-vision-pro.jpg" alt="Seen through Apple Vision Pro: Sulivan floating in a room beside a MacBook, a Windows laptop and two phones, each showing the same persona." width="100%">
+</a>
 
-Designing a persona of your own, from the creation interview to the first
-words in the new voice:
+**Sulivan in the room.** A full visionOS walkthrough of the flame body,
+including a second brain session.
 
-_video to come_
-
-The same persona on the desk, on a phone, and in the room on Apple Vision Pro:
-
-_video to come_
+<a href="design/media/visionos-walkthrough-sulivan-flame.mp4">
+  <img src="design/media/visionos-walkthrough-sulivan-flame.jpg" alt="Sulivan as a flame with two eyes, hovering in a bedroom seen through Apple Vision Pro." width="100%">
+</a>
 
 ## What you need
 
@@ -80,7 +75,7 @@ apple-client/       The iOS and visionOS apps.
 android-client/     The Android app. Compose; a phone client and a cover-screen home.
 vendor/             Voice engine sources built during packaging.
 scripts/            Builds the backend tarball the installer bundles.
-design/             Icons and the images this page uses.
+design/             Icons, and the stills and clips this page uses.
 wiki/               How it works, and why it is built this way.
 ```
 
