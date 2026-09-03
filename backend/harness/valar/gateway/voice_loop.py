@@ -628,18 +628,48 @@ class VoiceLoop:
         )
 
         ctx["stage"] = "memory"
+        from ..memory import persona_block as pb
+
+        # The persona's own block: snapshot once per session per persona,
+        # reused until the session ends or the persona changes.
+        private_block = ""
+        try:
+            if session.memory_block and session.memory_block_persona == persona.name:
+                private_block = session.memory_block
+            else:
+                caps = pb.caps_for(pb.slot_context())
+                operator = getattr(self.config, "operator_name", "") or "the operator"
+                private_block = pb.render_block(persona.memory_dir, caps, operator)
+                session.memory_block = private_block
+                session.memory_block_persona = persona.name
+        except Exception as exc:  # noqa: BLE001 - the block is additive
+            logger.warning("private block failed (continuing without): %s", exc)
+
         memory_block = ""
         try:
             # A channel's topic marker doubles as its project hint: the
             # channel:<name> prefix strips to the persona's own Engram
-            # project (channel:soth -> Projects/soth), and a persona without
-            # one degrades exactly as an unknown hint always has.
+            # project (channel:soth -> Projects/soth). The shared facts block
+            # is off by default now that the persona carries its own notes;
+            # a channel note still rides in.
             hint = getattr(session, "topic_hint", None)
             if isinstance(hint, str) and hint.startswith("channel:"):
                 hint = hint[len("channel:"):]
-            memory_block = self.memory.recall(user_text, project_hint=hint)
+            shared = bool(getattr(self.assembler.budget, "shared_memory_block", False))
+            if shared:
+                memory_block = self.memory.recall(user_text, project_hint=hint)
+            elif hint:
+                memory_block = self.memory.recall(user_text, project_hint=hint, include_facts=False)
         except Exception as exc:  # noqa: BLE001 - memory is additive
             logger.warning("memory recall failed (continuing without): %s", exc)
+
+        envelope_parts = [pb.clock_line(session.device_context)]
+        try:
+            hint_line = pb.day_hint(persona.memory_dir, user_text)
+            if hint_line:
+                envelope_parts.append(hint_line)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("day hint skipped: %s", exc)
 
         # First run on the normal path is the voice-check greeting; it gets
         # the minimal direction. The full interview direction (which describes
@@ -658,6 +688,8 @@ class VoiceLoop:
             telemetry=telemetry,
             device_context=session.device_context,
             tool_specs=self._tool_priming_specs(persona, session),
+            private_block=private_block,
+            turn_prefix=" ".join(envelope_parts),
         )
         tl = persona.config.get("tool_loop") if isinstance(persona.config, dict) else None
         tl = tl if isinstance(tl, dict) else {}

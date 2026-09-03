@@ -216,6 +216,13 @@ class ContextBudget:
     )
     # Rough chars-per-token for the heuristic estimator (no tokenizer dependency).
     chars_per_token: float = 3.6
+    # The shared Engram block (operator facts plus a keyword match) in every
+    # turn. Off since the persona's own block replaced it; kept for one week
+    # as the way back if the private block underperforms.
+    shared_memory_block: bool = field(
+        default_factory=lambda: _env_str("HEARTH_SHARED_MEMORY_BLOCK", "0").strip().lower()
+        in ("1", "true", "yes")
+    )
 
 
 @dataclass

@@ -183,9 +183,13 @@ async def run_persona_subagent(
         model_path=model_path or resolve_model(dm),
     )
 
-    # FRESH context window: her system prompt + the task. No caller history.
+    # FRESH context window: her system prompt + the task. No caller history,
+    # no private block (the worker profile); the honesty footer rides with
+    # every profile.
+    from ..memory.persona_block import honesty_footer
+
     msgs: list[dict] = [
-        {"role": "system", "content": f"{persona.system_prompt}\n\n{_TASK_FRAMING}"},
+        {"role": "system", "content": f"{persona.system_prompt}\n\n{_TASK_FRAMING}\n\n{honesty_footer()}"},
         {"role": "user", "content": task},
     ]
 

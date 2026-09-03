@@ -67,12 +67,12 @@ def _render_device_context(dc: dict | None) -> str:
     if now is None:
         now = datetime.now()
 
-    # Portable 12-hour format (avoid %-I / %#I); strip a single leading zero.
-    clock = now.strftime("%I:%M %p")
-    if clock.startswith("0"):
-        clock = clock[1:]
+    # The hour only: this block is a prompt PREFIX and a minute-precise clock
+    # broke the model's cache once a minute. The exact time rides in the
+    # user-turn envelope (persona_block.clock_line).
+    clock = now.strftime("%I %p").lstrip("0")
     day = str(now.day)  # drop leading zero portably (no %-d / %#d)
-    when = now.strftime(f"%A, %B {day}, %Y") + f", {clock}"
+    when = now.strftime(f"%A, %B {day}, %Y") + f", about {clock}"
     lines = ["Current date and time: " + when + (f" ({tz})" if tz else "")]
 
     loc = dc.get("location")
@@ -145,11 +145,9 @@ def _render_tool_priming(specs: list | None) -> str:
         "for weather, use the operator's location from '# Current context' rather "
         "than asking them where they are. Only answer directly when no tool fits. "
         "When the topic changes, call the tool again with a NEW query -- do not "
-        "reuse earlier tool results from the conversation. For questions about a "
-        "specific day or period (yesterday, last week, this month), put the period "
-        "in the memory query -- the journal is dated, and only dated records prove "
-        "WHEN something happened; treat any undated or old-dated note as background, "
-        "never as recent work. When a follow-up narrows the topic, search again "
+        "reuse earlier tool results from the conversation. For a specific day or "
+        "period, call recall with the day in the query; only dated records prove "
+        "when something happened. When a follow-up narrows the topic, search again "
         "with the refined words instead of answering from what you already found."
     )
     return "\n".join(lines)
@@ -188,6 +186,8 @@ class ContextAssembler:
         telemetry: TurnTelemetry,
         device_context: dict | None = None,
         tool_specs: list | None = None,
+        private_block: str = "",
+        turn_prefix: str = "",
     ) -> list[ChatMessage]:
         cpt = self.budget.chars_per_token
 
@@ -205,10 +205,13 @@ class ContextAssembler:
         device_block = _render_device_context(device_context)
         tool_block = _render_tool_priming(tool_specs)
 
-        # Compose the system message: persona, current context, tool awareness, memory.
+        # Compose the system message: persona, current context, tool awareness,
+        # the persona's own block, then any shared or channel context.
         parts = [persona, device_block]
         if tool_block:
             parts.append(tool_block)
+        if private_block:
+            parts.append(private_block)
         if memory:
             parts.append(f"# Relevant memory (from Engram)\n{memory}")
         system_content = "\n\n".join(p for p in parts if p)
@@ -232,11 +235,14 @@ class ContextAssembler:
                 messages.append(ChatMessage("user", turn.user))
             if turn.assistant:
                 messages.append(ChatMessage("assistant", turn.assistant))
-        messages.append(ChatMessage("user", user_text))
+        # The envelope: the volatile lines (exact clock, day hint) ride with the
+        # user turn, at the END of the prompt, where a change costs nothing.
+        envelope = f"{turn_prefix}\n{user_text}" if turn_prefix else user_text
+        messages.append(ChatMessage("user", envelope))
 
         # Telemetry: record context-fill per section.
         telemetry.persona_tokens = estimate_tokens(persona, cpt)
-        telemetry.memory_tokens = estimate_tokens(memory, cpt)
+        telemetry.memory_tokens = estimate_tokens(memory, cpt) + estimate_tokens(private_block, cpt)
         telemetry.history_tokens = used
         telemetry.user_tokens = estimate_tokens(user_text, cpt)
         telemetry.history_turns_included = len(selected)

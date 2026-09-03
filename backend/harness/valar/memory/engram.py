@@ -43,7 +43,12 @@ class EngramMemory:
         self._brain_sync = brain_sync
         return True
 
-    def recall(self, query: str, project_hint: Optional[str] = None) -> str:
+    def recall(
+        self,
+        query: str,
+        project_hint: Optional[str] = None,
+        include_facts: bool = True,
+    ) -> str:
         """Return a memory context block for this turn, or '' when unavailable.
 
         Pulls operator facts always (they are small, always-relevant) plus, when
@@ -55,7 +60,7 @@ class EngramMemory:
             return ""
         bs = self._brain_sync
         parts: list[str] = []
-        if imported and bs is not None:
+        if imported and bs is not None and include_facts:
             try:
                 facts = bs.load_operator_facts()  # type: ignore[union-attr]
                 if facts:

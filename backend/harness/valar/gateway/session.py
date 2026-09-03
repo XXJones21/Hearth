@@ -63,6 +63,11 @@ class Session:
     # Engram topic for this chat (project or life-root name). Passed into
     # memory.recall so every turn loads that claude.md. Cleared on session end.
     topic_hint: str | None = None
+    # The persona's private block, built once per session per persona and
+    # reused (snapshot, never volatile). Cleared when the session ends;
+    # rebuilt when the speaking persona changes.
+    memory_block: str = ""
+    memory_block_persona: str = ""
     # Leftover file work from tool_loop.carry (list_dir files not yet read).
     # Mechanical, not spoken history. Survives session end; retired on TTL.
     open_task: dict | None = None
