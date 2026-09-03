@@ -88,16 +88,15 @@ backend/harness/valar/tools/file_grants.yaml
 # per-install state beside the manifest, never source.
 backend/personas/*/memory/
 
+# Working clone scripts/publish_wiki.py makes while rendering the GitHub wiki.
+.wiki-publish/
+
 # Agent configuration. The doc pipeline (orchestrator, researcher, author,
 # reviewer) and its style skill are working tooling for whoever is editing the
 # wiki, not part of the product a stranger installs. scripts/lint_wiki.py is
 # deliberately NOT here: the linter is a guardrail the repository should carry.
 CLAUDE.md
 .claude/
-
-# Working clone used to push wiki/ to the GitHub wiki repository. Machine-local,
-# and it holds its own .git.
-.wiki-publish/
 
 # Review artifacts written by the doc pipeline's reviewer stage. Scoring output
 # for whoever ran it, not a wiki page.
