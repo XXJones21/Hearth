@@ -20,7 +20,7 @@ written.
 
 | ID | Task | Type | Shape | Scope | Confidence | Phase | Agent State | Score |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
-| T1 | Correct the 8 GB contradiction, the Windows install root, and the download figure in Installing Hearth | Fix | how-to | S | High | A | Backlog | |
+| T1 | Correct the 8 GB contradiction, the Windows install root, and the two download claims in Installing Hearth | Fix | how-to | S | High | A | Complete | 6 |
 | T2 | Correct the Windows install root and reconcile the coexistence sentence on Hearth on Windows | Fix | platform-overview | S | High | A | Backlog | |
 | T3 | Correct the install root and the 8 GB example in the First run record | Fix | decision-record | S | High | A | Backlog | |
 | T4 | Correct the download figure and retire the Windows-guide announcement on Hearth on macOS | Fix | platform-overview | S | High | A | Backlog | |
@@ -36,6 +36,14 @@ written.
 | T14 | Drop install-macos.md from the Building a Hearth release frontmatter | Fix | how-to | XS | High | C | Backlog | |
 | T15 | Extract the how-to and reference material from What the desktop app is | Restructure | platform-overview | L | High | D | Backlog | |
 | T16 | Retire Installing on macOS once every salvage task is Complete | Consolidate | how-to | S | High | E | Backlog | |
+| T17 | Correct the install root and the coexistence claim on Build pipeline | Fix | how-to | S | Medium | A | Backlog | |
+| T18 | Correct the Windows install root on Native runtime | Fix | decision-record | S | Medium | A | Backlog | |
+| T19 | Correct the Hearth home folder path on The second brain | Fix | concept | S | Medium | A | Backlog | |
+| T20 | Capture the plan screen figure for Installing Hearth | Add | how-to | XS | High | | Backlog | |
+| T21 | Capture the first-run voice check figure for Installing Hearth | Add | how-to | XS | High | | Backlog | |
+| T22 | State the Windows floor in Before you start on Installing Hearth | Add | how-to | S | High | | Backlog | |
+| T23 | Name which downloaded artifacts carry no published sha256 | Add | how-to | S | Medium | | Backlog | |
+| T24 | Record the corpus unit convention as a decision | Add | decision-record | S | Medium | | Backlog | |
 
 ## The consolidation verdict
 
@@ -206,6 +214,15 @@ appears twice in one phase.
 Phase A is safe to run before any of the rest, because a wrong sentence on a
 surviving page is wrong whether or not anything folds.
 
+T17, T18 and T19 join Phase A. They are the same class of defect on three pages
+the `graph` pass did not examine, found by the T1 research survey, and their
+targets do not overlap with each other or with T1 through T5.
+
+T20 through T24 carry no phase yet. T20 and T21 are figure capture, which is
+work for a person with a screenshot tool rather than for a writer agent. T22,
+T23 and T24 target pages whose ownership is an open question on each task, and
+a phase cannot be assigned before the target is settled.
+
 ## What the tooling added
 
 `python scripts/lint_wiki.py` returns 28 pages checked, 0 errors, 198 warnings.
@@ -229,6 +246,13 @@ as an open question on T6 with a named reassessment trigger.
 
 `python scripts/lint_wiki.py --figures` returns 0 figures pending capture, so
 no figure task is opened.
+
+Updated after the T1 run: `python scripts/lint_wiki.py` now returns 28 pages
+checked, 0 errors, 200 warnings, and `--figures` returns 2 pending, both placed
+on `wiki/installing.md` by the T1 review and opened as T20 and T21. The error
+count is unchanged at 0, which is the gate that matters. The warning count moved
+by two, both of them the new `figure-pending` work orders; `wiki/installing.md`
+carries eight warnings, the two figures and six `long-paragraph`.
 
 ## Reconciling the research artifact
 
@@ -265,27 +289,63 @@ verbatim onto T1 and T9.
 
 ## Task list
 
-### T1: Correct the 8 GB contradiction, the Windows install root, and the download figure in Installing Hearth
+### T1: Correct the 8 GB contradiction, the Windows install root, and the two download claims in Installing Hearth
 
 The page contradicts itself about the same machine forty lines apart, states a
-Windows install root the planner does not produce, and describes a download
-figure as covering more than it counts. All three are corrections to existing
+Windows install root the planner does not produce, prints a download figure
+beside a sentence naming more items than the figure counts, and states that
+every downloaded file is hash-verified. All four are corrections to existing
 sentences on one page, and none of them waits on a consolidation verdict.
+
+The page's four size figures were dispatched as suspected defects and are not
+defects. The research stage established that 3.77 GB, 7.14 GB, 4.5 GB and 8.6 GB
+are the planner's byte counts rendered by the product's own `human()`, which
+divides by 2^30 and labels the result GB, so they match what the installer
+prints on screen and stay as they are.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Fix
 - Scope: S
 - Confidence: High
-- Sizing evidence: wiki/installing.md, read in full this run. Lines 39-42 under `### macOS` state that an 8 GB M2 MacBook Air runs the mind and the voice at once and speaks; lines 75-78 under `## The scan and the plan` state that on an 8 GB machine the honest phrasing is that the persona will think and speak one at a time. Lines 85-86 under `## Choosing where it lives` state the default is `D:\Hearth` on Windows. Lines 96-97 under `## The download` list four things downloading.
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/installing.md, read in full this run. Lines 39-42 under `### macOS` state that an 8 GB M2 MacBook Air runs the mind and the voice at once and speaks; lines 75-78 under `## The scan and the plan` state that on an 8 GB machine the honest phrasing is that the persona will think and speak one at a time. Lines 42-44 under `### macOS` state free disk of "roughly 4.5 GB on an 8 GB Mac and 8.6 GB on a 16 GB Mac". Lines 74-75 state a 16 GB machine gets Gemma 4 12B at 65,536 tokens "for a 7.14 GB download", and the plan table at lines 68-72 gives an 8 GB Mac a 17,408-token context window and a 3.77 GB download. Lines 85-86 under `## Choosing where it lives` state the default is `D:\Hearth` on Windows. Lines 96-97 under `## The download` list four things downloading.
+- Sources of truth:
+  - source: crates/hearth-probe/src/plan.rs, covers the whole budget arithmetic: reserves and the coexistence decision at 104-159, the context window at 163 and 279-283, the two-entry `downloads[]` and their sum at 214-234, `disk_required` as total plus a fifth at 236-237, and the small-machine warning string at 144-148 with the branch that pushes it
+  - source: crates/hearth-probe/dictionary.yaml, covers every constant the arithmetic uses: reserves at 79-89, the per-platform voice engine at 91-129, tier 0 at 132-177 and tier 2 at 198-211, and the runtime artifacts at 27-67 whose bytes the planner never counts
+  - source: crates/hearth-probe/src/machine.rs, covers the default install root per platform at 224-272 and the fixtures the figures are quoted from at 275-360
+  - source: crates/hearth-probe/src/lib.rs, covers `human()` at 24-35, where every size the product prints is bytes divided by GiB under a `GB` label. This is what settles whether the page's figures are stale
+  - source: crates/hearth-probe/tests/plan_fixtures.rs, covers the pinned contract for the 8 GB Air at 36-52, including the assertion that no `one at a time` warning is produced, and the context-window floor at 54-75
+  - source: desktop-client/src-tauri/src/provision.rs, covers what is fetched outside the planner: the module contract at 1-14 and the backend, inference engine and Python runtime chains at 248-369
+  - source: desktop-client/src/lib/probe.ts, covers the five provisioning rows at 120-134 and the client's own `human()` at 158-164, byte-identical to the Rust one
+  - source: desktop-client/src/components/setup/SetupFlow.tsx, covers what the plan screen shows a reader: the per-item download rows and the `Download` total at 474-484 and 548, the context window and `Mind and voice` rows at 501-506, the panel title keyed on coexist at 446, and the install-root field seeded at 132
+  - source: desktop-client/src-tauri/src/probe.rs, covers `probe_install_root` at 86-88, the default the setup screen displays, and the voice row that is counted but not fetched at 178-196
+  - source: crates/hearth-probe/src/download.rs, covers the hash behaviour at 154-206: verification happens only where the dictionary carries a sha256, and a mismatch deletes the file and fails
+  - source: desktop-client/src-tauri/src/config_gen.rs, covers HEARTH_HOME rendered as `<root>/home` at line 64, with the relative path from crates/hearth-probe/src/defaults.rs:46
+  - contextual: wiki/page-types.md, covers the how-to shape at 96-128, which names Installing Hearth as a how-to in the corpus
+  - contextual: tasks/docs/tracker.md, covers the recorded task state, the questions carried onto T1, and the ownership of T2 through T5
+- Docs:
+  - wiki/installing.md, `### macOS` lines 39-46, `## The scan and the plan` lines 58-79 (the table at 68-72, the sentence at 74-75, the sentences at 75-79), `## Choosing where it lives` lines 85-86, and `## The download` lines 96-97 and line 100
 - Artifacts:
   - Research: tasks/docs/artifacts/T1.research.json
+  - Author: tasks/docs/artifacts/T1.author.json, wrote wiki/installing.md
+  - Review: wiki/installing.review.json, verdict NEEDS_WORK, score 1 to 6
+- Verification: `python scripts/lint_wiki.py` reports 28 pages checked, 0 errors, 200 warnings, run after the reviewer's edits. `python scripts/lint_wiki.py --figures` reports 2 figures pending capture, both added by the reviewer on this page and both opened as T20 and T21. Neither the author nor the reviewer nor the orchestrator could execute commands in this run, so both linter passes were run by a separate subagent with a shell.
 - Open questions:
-  - Is the plan's download figure meant to cover four provisioned items or the two it sums? crates/hearth-probe/src/plan.rs:214-234 sums the model build and the voice only, while wiki/installing.md:95-97 and wiki/install-macos.md:84-86 both describe four things downloading. Either the prose is overstating what the number covers, or the inference engine and Python runtime are fetched by a path outside the planner that this pass did not find.
-  - What context window does an 8 GB Mac actually plan? Both install pages say 17,408 tokens. The value has the right shape (crates/hearth-probe/src/plan.rs:280-283 rounds to a multiple of 1024) but no fixture asserts it, and confirming it needs the planner run rather than read.
+  - Which machines actually take turns between the model and the voice, and at what memory? The author reported writing the general behaviour and naming no machine class, because the only band available is derived by hand rather than from an executed planner run and no fixture exercises it.
+  - Do wiki/clients/macos.md:51-54 and wiki/install-macos.md:84-86 get the same treatment this task gave the four-things sentence? The author reported keeping all four items and adding a sentence naming what the plan figure counts, and reported that a different choice on those pages would leave the corpus inconsistent. Those pages are T4's and T16's.
+  - How many bytes do the inference engine and the Python runtime add on top of the plan's download figure, and should a page say so? The author reported that the page now tells a reader the figure is incomplete without telling them by how much, and that the voice environment's pip installs have no recorded size at all.
+  - Should a page name which downloaded artifacts carry no published sha256? The author reported that the page now claims verification only for files that carry a hash, and does not name the exceptions, so a reader cannot learn from this page what is unverified.
+  - Was the linter run against this edit? The author reported that it could not execute commands in its session and checked the mechanical conventions by reading instead. See the orchestrator's verification note below.
+  - Should wiki/installing.md keep the product's unit convention, GiB printed under a GB label, or restate its figures in decimal GB? The four figures at lines 42-44, 72 and 75 are correct under the first and wrong under the second, and the same bytes produce the dispatching lead's 4.05, 4.86, 7.66 and 9.19. Matching what the installer prints on screen argues for keeping the page as it is; nothing in wiki/style-guide.md or wiki/page-types.md states a rule, and this run found no source that settles which convention the corpus should use.
+  - Does T1 correct the sentence at wiki/installing.md:96-97 by narrowing it to the two items the plan's number counts, or by keeping all four and separating the number from the sentence? Both are true statements; the choice is the author's and this stage does not make it. Whichever is chosen has to be made consistently across wiki/clients/macos.md:51-54 and wiki/install-macos.md:84-86, which say the same thing.
+  - Does the corpus want to state the provisioning bytes the plan figure omits, roughly 35 MB on macOS and 657 MB on Windows with CUDA? It is a real gap for a reader on a metered connection, but naming it is new content rather than a correction, and T1 is a corrections-only task per tasks/docs/tracker.md:309-311.
+  - Is wiki/installing.md:100, `Every file is verified against a published sha256 hash once it lands`, T1's to fix or a new tracker row? It is contradicted by source, it sits inside the `## The download` section T1 already opens, and it is outside the task statement. This stage records the defect and does not decide the ownership.
+  - Do wiki/backend/build-pipeline.md:106 and :158, wiki/backend/native-runtime.md:79, and wiki/features/second-brain.md:64 get tracker rows? All four are contradicted by source, all four carry defects T1 through T5 are correcting elsewhere, and none is owned by any task in tasks/docs/tracker.md. build-pipeline.md:158 in particular is a fourth instance of the coexistence claim.
+  - Is the coexistence sentence at wiki/clients/windows.md:199-201, carried as an open question on T2, correct? This run derived that an 8 GB dedicated GPU plans tier 1 with the voice resident and does not take turns, and that the !coexist branch is reached at roughly 4.5 to 5.4 GB of VRAM. That is arithmetic from crates/hearth-probe/src/plan.rs:110-159 and dictionary.yaml, not an executed planner run, and the page is T2's to settle, so it is passed on rather than answered.
+- Orchestrator rulings on two of the questions above, recorded so the author is not left choosing:
+  - The unit question is settled for this task by leaving the figures alone. The page matches what the installer prints, and a corrections task does not introduce a disagreement between a page and its own screen. Whether the corpus should state a unit policy stays open and is not T1's.
+  - The sha256 sentence at line 100 is T1's. It is one contradicted sentence, on T1's page, inside a section T1 already opens, and the research stage established exactly which artifacts carry a hash and which do not. Leaving it would mean editing three lines above a sentence known to be false.
 
 ##### Draft
 
@@ -299,8 +359,35 @@ The install root sentence at lines 85-86 describes the corrected behaviour:
 roomiest non-removable, non-system fixed drive, falling back to a visible
 `Hearth` in the user profile on a single-drive machine.
 
-The download figure at lines 96-97 is under an open question. Do not assert
-either number until the research stage settles what the planner counts.
+The four size figures at lines 42-44, 72 and 75 do not change. They verify
+correct against source under the product's own renderer.
+
+The sentence at lines 96-97 and the number at line 72 are each true and
+misleading beside each other. The sentence describes what provisioning does;
+the number counts the model build and the voice weights only.
+
+Line 100 overstates hash coverage. The model weights and the Python runtime are
+hash-verified; the two OmniVoice GGUFs carry `sha256: null` and the llama.cpp
+archives carry no sha256 field at all.
+
+This task is corrections only. The page's structure belongs to T9, so the
+author runs in `update` mode.
+
+Notes from the author, on where the delivered change departed from the
+direction above:
+
+- On the download sentence, the author reported choosing to keep all four items
+  and add one sentence naming what the plan figure counts, rather than narrowing
+  the sentence to two. The reason given was that narrowing would drop true
+  information a reader on a metered connection needs.
+- On the 8 GB replacement, the author reported not restating that the plan
+  explains its own reasoning including anything it traded away, because the page
+  already says that two sentences earlier, and reported keeping only the half
+  that was not already on the page.
+- At `## Choosing where it lives`, the author reported splitting the existing
+  paragraph in two at the corrected sentence, because the longer correct sentence
+  pushed the paragraph past the style guide's length, and reported changing no
+  wording outside the corrected sentence.
 
 ### T2: Correct the Windows install root and reconcile the coexistence sentence on Hearth on Windows
 
@@ -334,6 +421,14 @@ a Windows section inside `wiki/installing.md` rather than a page mirroring
 
 Lines 199-201 are not to be changed until the open question is settled. If the
 sentence is right for a small Windows GPU, it stays.
+
+Note from the T1 run: `tasks/docs/artifacts/T1.research.json` reports deriving,
+from crates/hearth-probe/src/plan.rs:110-159 and dictionary.yaml rather than
+from an executed planner run, that an 8 GB dedicated GPU plans with the voice
+resident and does not take turns, and that the take-turns branch is reached at
+roughly 4.5 to 5.4 GB of VRAM. The research stage passed this on rather than
+answering it, because the page is T2's. Treat it as a lead to confirm, not as
+a settled figure to publish.
 
 ### T3: Correct the install root and the 8 GB example in the First run record
 
@@ -397,6 +492,14 @@ overview.
 
 Lines 51-54 wait on the same open question as T1 and should be resolved
 consistently with it, since three pages now state the same thing.
+
+Note from the T1 run: `tasks/docs/artifacts/T1.research.json` reports that this
+page's size figures at line 42 and lines 97-99 verify correct against source and
+must not be changed. T1 was dispatched on a premise that those figures were
+stale, and they are not: they are the planner's byte counts under the product's
+own renderer. The only defect the T1 survey found here is the four-things
+sentence at lines 51-54, plus the `~/Hearth` macOS default at the same lines,
+which it reports as correct.
 
 ### T5: Correct the settings-screen claim and state the persona-creation route on Personas
 
@@ -799,3 +902,207 @@ an inbound reference leaves a dead link on a page that was correct before.
 
 The recommendation is demotion to `wiki/raw/` rather than deletion, subject to
 the open question above.
+
+### T17: Correct the install root and the coexistence claim on Build pipeline
+
+The page carries two of the defects Phase A is correcting elsewhere, on a page
+no task owned. Found by the T1 research survey rather than by the `graph` pass.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: wiki/backend/build-pipeline.md, frontmatter lines 1-12 opened this run, where line 4 reads `type: how-to`. The two defect locations are reported by tasks/docs/artifacts/T1.research.json and were not opened by the orchestrator, so the size is not evidence-backed and is sized up rather than down.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts: (none yet)
+- Open questions:
+  - Does line 106 state the `D:\Hearth` default, and does line 158 state that on 8 GB the voice and the brain cannot coexist? The T1 research artifact reports both, each contradicted by the same source that settles wiki/installing.md:76-78 and 85-86. Neither line was opened by the orchestrator.
+
+##### Draft
+
+Direction is the same as T1's on both claims. The research stage confirms the
+locations before an author is dispatched.
+
+### T18: Correct the Windows install root on Native runtime
+
+A layout block naming a Windows install root the planner does not produce, on a
+page no task owned.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: wiki/backend/native-runtime.md, frontmatter lines 1-12 opened this run, where line 4 reads `type: decision-record`. The defect location is reported by tasks/docs/artifacts/T1.research.json and was not opened by the orchestrator.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts: (none yet)
+- Open questions:
+  - Does line 79 read `Windows: <root> = D:\Hearth (chosen at setup)`? The T1 research artifact reports it and reports the macOS half, `~/Hearth`, as correct. Neither line was opened by the orchestrator.
+  - This page is a decision record. Does the line sit inside a dated decision, in which case wiki/page-types.md governs how a superseded statement is corrected rather than overwritten?
+
+##### Draft
+
+Direction on the install root is the same as T1's. The decision-record shape
+constrains how the correction is made, which is what the research stage
+establishes first.
+
+### T19: Correct the Hearth home folder path on The second brain
+
+The page names the Hearth home folder as a hidden dotdir that the installed
+product does not create on macOS or Windows.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: wiki/features/second-brain.md, frontmatter lines 1-12 opened this run, where line 4 reads `type: concept`. The defect location is reported by tasks/docs/artifacts/T1.research.json and was not opened by the orchestrator.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts: (none yet)
+- Open questions:
+  - Does line 64 name the Hearth home folder as `~/.hearth`? The T1 research artifact reports it, and reports that desktop-client/src-tauri/src/config_gen.rs:64 renders HEARTH_HOME as `<root>/home`, that crates/hearth-probe/src/machine.rs:245-248 keeps the `.hearth` dotdir for Linux only, and that backend/harness/valar/tools/handlers/second_brain.py:59-62 records `~/.hearth` as the systemd or WSL testbed layout. The line was not opened by the orchestrator.
+
+### T20: Capture the plan screen figure for Installing Hearth
+
+The page describes the one screen a reader has to recognise and approve before
+anything downloads, and reproduces its contents as a table. The reviewer placed
+a pending figure there during the T1 run.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: `python scripts/lint_wiki.py --figures`, run after the T1 review, reports this figure pending at wiki/installing.md:88. The linter is the standing queue for figure work and its output is quoted below verbatim; the orchestrator did not open the line itself.
+- Sources of truth: (none, this is capture work rather than a writing task)
+- Docs:
+  - wiki/installing.md, line 88, inside `## The scan and the plan`
+- Artifacts: (none, the route is neither Author nor Review)
+- Open questions:
+  - None.
+
+##### Draft
+
+This is work for a person with a screenshot tool, not for a writer agent. The
+linter carries the order:
+
+- path: `images/pending/installing-plan-screen.png`
+- alt: The plan Hearth shows before it downloads anything
+- spec: CAPTURE: setup on an 8 GB Apple Silicon Mac, the plan card at the point
+  of approval, showing the model, context window, memory and download rows and
+  the approve button, 1280x800
+
+### T21: Capture the first-run voice check figure for Installing Hearth
+
+The page describes the final screen of setup and its two buttons in prose. The
+reviewer placed a pending figure there during the T1 run.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: `python scripts/lint_wiki.py --figures`, run after the T1 review, reports this figure pending at wiki/installing.md:137. The orchestrator did not open the line itself.
+- Sources of truth: (none, this is capture work rather than a writing task)
+- Docs:
+  - wiki/installing.md, line 137, inside `## Proving it works`
+- Artifacts: (none, the route is neither Author nor Review)
+- Open questions:
+  - None.
+
+##### Draft
+
+Work for a person with a screenshot tool. The linter carries the order:
+
+- path: `images/pending/installing-voice-check.png`
+- alt: The final screen of setup, after Sulivan has spoken
+- spec: CAPTURE: the last setup screen just after the spoken line, both answer
+  buttons visible and neither pressed, 1280x800
+
+### T22: State the Windows floor in Before you start on Installing Hearth
+
+The macOS subsection tells a reader whether their machine qualifies. The Windows
+subsection does not, and the page it forwards them to has no requirements
+section either, so half the audience cannot answer the only question that
+section exists to answer.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: S
+- Confidence: High
+- Sizing evidence: wiki/installing.md, read in full by the orchestrator this run before the T1 edits. `### macOS` at lines 35-46 states a chip requirement, a memory floor with the refusal below it, free disk, and the verified OS version. `### Windows` at lines 48-56 states none of the four: it describes the scan and forwards to wiki/clients/windows.md for what the app looks like once running. Raised independently as F3 in wiki/installing.review.json, at a detraction of 2, and left unfixed there because supplying the numbers is research and authoring rather than review.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts: (none yet)
+- Open questions:
+  - What is the Windows floor, in the same four terms the macOS subsection uses? The reviewer named crates/hearth-probe/dictionary.yaml and the refusal branch at crates/hearth-probe/src/plan.rs:151-157 as where the numbers live, and warned against publishing the hand-derived 4.5 to 5.4 GB VRAM band from tasks/docs/artifacts/T1.research.json without an executed planner run behind it.
+  - Is this separable from T10, which is blocked on someone performing a Windows install? The requirements can be established from source, whereas the procedure cannot, so this task is not blocked by the same thing. Confirm that reading before dispatching.
+
+##### Draft
+
+State the Windows floor in the same four terms `### macOS` uses. This is not the
+Windows procedure, which is T10 and is blocked; it is the prerequisites, which
+source can settle.
+
+### T23: Name which downloaded artifacts carry no published sha256
+
+T1 corrected the page to claim hash verification only for files that carry a
+hash, which is true. It now tells a reader that some files are unverified
+without telling them which.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: wiki/installing.md line 100, read by the orchestrator this run before the T1 edits, stated "Every file is verified against a published sha256 hash once it lands". tasks/docs/artifacts/T1.research.json records that claim as contradicted and names the exceptions: both OmniVoice GGUFs at crates/hearth-probe/dictionary.yaml:117 and 120 with a FOLLOW-UP note at 126-128, and the llama.cpp archives at dictionary.yaml:44-54. Raised by the author as unresolved and by the reviewer as a further improvement needing its own row.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts: (none yet)
+- Open questions:
+  - Which page should carry this? It is new content rather than a correction, and wiki/installing.md is a how-to whose shape is already contested under T9. A reference or concept page may be the better home.
+  - Is the missing hash on the OmniVoice GGUFs a permanent property or an open FOLLOW-UP in the dictionary? If it is being fixed, documenting the gap dates the page immediately.
+
+##### Draft
+
+Establish the home before writing. The facts are already in the T1 research
+artifact.
+
+### T24: Record the corpus unit convention as a decision
+
+T1 was dispatched on the premise that four size figures were stale, and they
+were not: they are the product's own rendering, bytes divided by 2^30 under a
+GB label. Nothing in the corpus records that, so the next reader to check a
+figure against a decimal calculator files the same defect again.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: tasks/docs/artifacts/T1.research.json records the convention at crates/hearth-probe/src/lib.rs:24-35 with desktop-client/src/lib/probe.ts:158-164 byte-identical, records that nothing in wiki/style-guide.md or wiki/page-types.md states a rule, and lists the absence in `gaps[]`. Raised independently by the reviewer as a further improvement. The orchestrator opened neither source file.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts: (none yet)
+- Open questions:
+  - Where does a convention like this belong: wiki/style-guide.md, wiki/page-types.md, or a decision record of its own?
+  - Which pages carry affected figures? The T1 research artifact names wiki/installing.md, wiki/clients/macos.md and wiki/install-macos.md, the last of which is scheduled for retirement under T16.
+
+##### Draft
+
+This run is the evidence that the gap costs real work: a correct page was
+dispatched for correction on it. Record the convention where a future task will
+look before refiling the same defect.
