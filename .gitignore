@@ -98,6 +98,9 @@ backend/personas/*/memory/
 CLAUDE.md
 .claude/
 
-# Review artifacts written by the doc pipeline's reviewer stage. Scoring output
-# for whoever ran it, not a wiki page.
+# A backstop, not the convention. Reviewer artifacts belong beside the research
+# and author artifacts for their task, under tasks/docs/artifacts/, because the
+# tracker cites all three as evidence and an ignored artifact is a citation to a
+# file nobody else has. This rule catches a reviewer that regresses to writing
+# beside the document, so scoring output never lands in the published corpus.
 wiki/**/*.review.json
