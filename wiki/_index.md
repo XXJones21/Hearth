@@ -1,6 +1,7 @@
 ---
 title: Hearth wiki
-status: draft
+status: open
+type: landing
 last_reviewed: 2026-09-03
 related:
   - getting-started.md
@@ -69,12 +70,14 @@ than houses of their own, and they reach it over your network.
 
 These pages are for a reader who cloned the repository rather than installed the
 app. They map the tree and the build loops, give the procedure for cutting a
-release across every platform, and describe how the card library grows by use
-rather than by release.
+release across every platform, describe how the card library grows by use
+rather than by release, and set out how the documentation itself is written.
 
 - [Developing on Hearth](developing.md)
 - [Building a Hearth release](releasing.md)
 - [The card forge](card-forge.md)
+- [Hearth style guide](style-guide.md)
+- [Page types](page-types.md)
 
 ## Looking under the hood
 
