@@ -455,9 +455,6 @@ function Found({
           <Row k="Graphics" v={gpu?.name ?? 'none detected'} />
           <Row k={gpu?.vram_bytes ? 'Video memory' : 'Memory'} v={human(memory)} />
           <Row k="Free disk" v={human(destFree ?? machine.free_disk_bytes)} />
-          {machine.wsl_present !== null && (
-            <Row k="Linux subsystem" v={machine.wsl_present ? 'Ready' : 'Not installed'} />
-          )}
           {machine.simulated && <Row k="Simulated" v={machine.simulated} />}
         </Card>
 

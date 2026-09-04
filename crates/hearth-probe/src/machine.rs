@@ -30,18 +30,14 @@ pub struct Machine {
     pub arch: String,
     pub cpu_cores: usize,
     pub ram_bytes: u64,
-    /// Free space on the volume Hearth would install to. On Windows this is
-    /// deliberately the WINDOWS volume: inside WSL the root filesystem reports
-    /// far more free space than the host actually has, because the distro disk
-    /// is a growing virtual disk on C:. Believing the inside number is how a
-    /// model copy took the whole VM down once.
+    /// Free space on the volume Hearth would install to, which is the volume
+    /// containing the install root rather than the largest disk on the machine.
+    /// Taking the largest was a real bug here: see `free_disk_for`.
     pub free_disk_bytes: u64,
     pub gpu: Option<Gpu>,
     /// True on Apple Silicon, where the GPU and the host share one pool and the
     /// budget arithmetic has to subtract the operating system.
     pub unified_memory: bool,
-    /// Windows only. None elsewhere.
-    pub wsl_present: Option<bool>,
     /// Set when this Machine came from --simulate rather than from hardware.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub simulated: Option<String>,
@@ -85,7 +81,6 @@ pub fn scan() -> Result<Machine> {
 
     let unified_memory = os == "macos" && arch == "aarch64";
     let gpu = detect_gpu(&os, unified_memory, ram_bytes);
-    let wsl_present = if os == "windows" { Some(detect_wsl()) } else { None };
 
     Ok(Machine {
         os,
@@ -95,7 +90,6 @@ pub fn scan() -> Result<Machine> {
         free_disk_bytes: free_disk_for(&default_model_dir()),
         gpu,
         unified_memory,
-        wsl_present,
         simulated: None,
     })
 }
@@ -167,25 +161,12 @@ fn apple_chip() -> Option<String> {
     }
 }
 
-/// One call. Never a poll.
-///
-/// Repeated one-off `wsl.exe` invocations bounce the systemd user manager and
-/// restart the resident model. That cost this project a day in June.
-fn detect_wsl() -> bool {
-    Command::new("wsl.exe")
-        .args(["-l", "-q"])
-        .output()
-        .map(|o| o.status.success() && !o.stdout.is_empty())
-        .unwrap_or(false)
-}
-
 /// Free space on the volume the weights would actually land on.
 ///
-/// Taking the largest disk on the machine is WRONG and was a real bug here:
-/// run inside WSL it picked the distro's own filesystem, which reports the
-/// virtual disk's maximum size rather than the space the host can actually
-/// give it. That is exactly the trap in the audit, reproduced by the code
-/// written to avoid it.
+/// Taking the largest disk on the machine is WRONG and was a real bug here: it
+/// reported a size the host could not actually give, and a model copy filled
+/// the volume it had really landed on. That is exactly the trap in the audit,
+/// reproduced by the code written to avoid it.
 ///
 /// The right answer is the volume containing the install path: the disk whose
 /// mount point is the longest prefix of it. Public because the destination is
@@ -225,9 +206,8 @@ pub fn default_model_dir() -> PathBuf {
     default_install_root().join("models")
 }
 
-/// The one folder Hearth lives under: models, configuration, the install
-/// record, and eventually the WSL distro's own disk. Deleting it (plus the
-/// distro unregister) IS the uninstall, so nothing of the product may land
+/// The one folder Hearth lives under: models, configuration, and the install
+/// record. Deleting it IS the uninstall, so nothing of the product may land
 /// outside it.
 pub fn default_install_root() -> PathBuf {
     if std::env::consts::OS == "windows" {
@@ -290,7 +270,6 @@ pub fn simulated(name: &str) -> Option<Machine> {
                 backend: "cuda".into(),
             }),
             unified_memory: false,
-            wsl_present: Some(true),
             simulated: Some("rtx4080".into()),
         },
         // The M1 Air. The machine tier 0 exists for.
@@ -309,7 +288,6 @@ pub fn simulated(name: &str) -> Option<Machine> {
                 backend: "metal".into(),
             }),
             unified_memory: true,
-            wsl_present: None,
             simulated: Some("m1-air-8gb".into()),
         },
         "m1-air-16gb" => Machine {
@@ -327,7 +305,6 @@ pub fn simulated(name: &str) -> Option<Machine> {
                 backend: "metal".into(),
             }),
             unified_memory: true,
-            wsl_present: None,
             simulated: Some("m1-air-16gb".into()),
         },
         // No GPU at all. Must produce a plan or an honest refusal, never a panic.
@@ -339,7 +316,6 @@ pub fn simulated(name: &str) -> Option<Machine> {
             free_disk_bytes: 120 * 1024 * 1024 * 1024,
             gpu: None,
             unified_memory: false,
-            wsl_present: Some(false),
             simulated: Some("no-gpu".into()),
         },
         // Below the floor. "It will not run here" is a legitimate answer.
@@ -351,7 +327,6 @@ pub fn simulated(name: &str) -> Option<Machine> {
             free_disk_bytes: 20 * 1024 * 1024 * 1024,
             gpu: None,
             unified_memory: false,
-            wsl_present: Some(false),
             simulated: Some("tiny".into()),
         },
         _ => return None,
