@@ -1,12 +1,11 @@
 ---
 title: Native runtime
-status: draft
+status: closed
+type: decision-record
 last_reviewed: 2026-09-03
 related:
   - packaging-options.md
-  - component-catalog.md
   - build-pipeline.md
-  - portability-ledger.md
   - ../first-run.md
 sources:
   - architecture-decision-native-windows.md (unpublished research)

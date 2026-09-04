@@ -1,6 +1,7 @@
 ---
 title: Getting started
-status: draft
+status: closed
+type: how-to
 last_reviewed: 2026-09-03
 related:
   - installing.md

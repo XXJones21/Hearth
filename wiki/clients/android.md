@@ -1,6 +1,7 @@
 ---
 title: Hearth on Android
-status: draft
+status: open
+type: platform-overview
 last_reviewed: 2026-09-03
 related:
   - ios.md
@@ -148,7 +149,7 @@ The code can only be shown on the house's own machine. The routes that manage
 pairing answer from there and nowhere else, even to a caller with a valid
 token, so a stolen and already-paired phone cannot pair its thief's phone or
 revoke yours. The phone's own pairing screen says where to find a code,
-because a field labelled "Pairing code" with nothing else on it leaves no way
+because a field labeled "Pairing code" with nothing else on it leaves no way
 to work that out.
 
 **The phone can always get back in.** Three situations end with the same

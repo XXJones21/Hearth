@@ -1,6 +1,7 @@
 ---
 title: Updating an install
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-09-03
 related:
   - backend/build-pipeline.md

@@ -1,6 +1,7 @@
 ---
 title: Installing Hearth
-status: draft
+status: scoped
+type: how-to
 last_reviewed: 2026-08-09
 related:
   - install-macos.md

@@ -1,6 +1,7 @@
 ---
 title: Personas
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-09-03
 related:
   - ../first-run.md

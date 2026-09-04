@@ -1,6 +1,7 @@
 ---
 title: Hearth on iOS
-status: draft
+status: open
+type: platform-overview
 last_reviewed: 2026-09-03
 related:
   - ../first-run.md
@@ -112,7 +113,7 @@ the phone and the house belong to the same person.
 
 A request from the house's own machine (127.0.0.1) never needs a token,
 since the desktop client already has full filesystem access to everything
-the gateway could hand it. A request from anywhere else must present one.
+the harness could hand it. A request from anywhere else must present one.
 The routes that manage pairing itself, such as viewing or revoking paired
 devices, only answer from the house's own machine, even with a valid token,
 so a stolen and already-paired phone cannot pair its own thief's device or

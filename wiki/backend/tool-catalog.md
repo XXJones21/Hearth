@@ -1,6 +1,7 @@
 ---
 title: The tool catalog
-status: draft
+status: scoped
+type: reference
 last_reviewed: 2026-09-03
 related:
   - ../features/apps-and-extensions.md
@@ -168,7 +169,7 @@ stays fixed so the list can be referred to by number.
 9. **`update_project`**: append a decision or note under a project's
    `Key Decisions`. The daily review does this on a schedule; a conversation
    cannot do it on purpose.
-10. **`session_summary`**: summarise and file the current conversation on
+10. **`session_summary`**: summarize and file the current conversation on
     request, rather than waiting for the idle timer or a New session click.
 
 ### Time and attention

@@ -1,6 +1,7 @@
 ---
 title: Building a Hearth release
-status: draft
+status: scoped
+type: how-to
 last_reviewed: 2026-09-03
 related:
   - _index.md

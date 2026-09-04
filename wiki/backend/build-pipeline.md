@@ -1,10 +1,9 @@
 ---
 title: Build pipeline
-status: draft
+status: open
+type: how-to
 last_reviewed: 2026-09-03
 related:
-  - component-catalog.md
-  - portability-ledger.md
   - packaging-options.md
   - ../_index.md
 sources:

@@ -1,6 +1,7 @@
 ---
 title: Hearth on macOS
-status: draft
+status: scoped
+type: platform-overview
 last_reviewed: 2026-08-08
 related:
   - ../install-macos.md
@@ -69,7 +70,7 @@ folder is the uninstall.
 While Hearth is open, it runs five local programs that talk only to each
 other and to your client, all on `127.0.0.1`:
 
-- **harness**, at port 18700, the gateway your client connects to
+- **harness**, at port 18700, what your client connects to
 - **hearth-supervisor**, at 18765 for control and 18766 for assets, which
   starts, health-checks, and swaps the model
 - **llama-server**, at 18080, the language model itself, running on Metal

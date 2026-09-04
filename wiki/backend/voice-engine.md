@@ -1,11 +1,11 @@
 ---
 title: The voice engine
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-09-03
 related:
   - build-pipeline.md
   - native-runtime.md
-  - component-catalog.md
   - ../first-run.md
 sources:
   - backend/harness/valar/voice/tts_cpp.py

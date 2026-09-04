@@ -1,10 +1,10 @@
 ---
 title: First run
-status: draft
+status: scoped
+type: how-to
 last_reviewed: 2026-09-03
 related:
   - backend/build-pipeline.md
-  - backend/portability-ledger.md
   - _index.md
 sources:
   - first-time-user.md (unpublished research)

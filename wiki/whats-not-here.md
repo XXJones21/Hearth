@@ -1,6 +1,7 @@
 ---
 title: What is not here
-status: draft
+status: open
+type: landing
 last_reviewed: 2026-09-03
 related:
   - _index.md
