@@ -183,10 +183,20 @@ class ToolRegistry:
             reg = reg.subset([n for n in reg._specs if n not in gated])
         return reg
 
-    def schemas(self) -> list[dict[str, Any]]:
-        """OpenAI-compatible tool schemas for every enabled tool -- what gets
-        passed as ``tools=[...]`` on the brain's function-calling request."""
-        return [s.to_openai_schema() for s in self._specs.values()]
+    def schemas(self, exclude: set[str] | None = None) -> list[dict[str, Any]]:
+        """OpenAI-compatible tool schemas for every enabled tool, minus any
+        name in ``exclude``. This is what gets passed as ``tools=[...]`` on
+        the brain's function-calling request.
+
+        ``exclude`` is how a withdrawn tool disappears for the rest of a turn.
+        It filters the CALLER's view rather than mutating the registry, because
+        the registry is shared and outlives the turn while withdrawal is
+        turn-scoped by definition. Nothing to reset, nothing to forget.
+        """
+        skip = exclude or set()
+        return [
+            s.to_openai_schema() for n, s in self._specs.items() if n not in skip
+        ]
 
     def has(self, name: str) -> bool:
         return name in self._specs

@@ -34,6 +34,7 @@ contract and offers ``maybe_run_tools`` as the seam a future gateway change call
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -66,6 +67,20 @@ MAX_TOOL_ROUNDS = 2
 # leaving ~27k of headroom.
 BATCH_READ_CHARS = 100_000
 _BULK_READ_TOOLS = frozenset({"read_file", "search_files", "fetch_url"})
+
+# How many of ONE round's tool calls may run at once. The loop ran every call
+# serially until 2026-08-28, which is invisible for a local read and decisive
+# for a dispatch: an agent emitting five `dispatch_subagent` calls waited for
+# each worker in turn, so an agent-authored fan-out was always 1-wide while the
+# same fan-out written in Python was 5-wide. That made every measured
+# comparison between the two a comparison of the harness against itself.
+#
+# 5 is the operator's ceiling, chosen for headroom rather than throughput: the
+# orchestrator persona and the speaking subagent are also live, so a full round
+# plus those is 7 agents against one resident model. Bulk readers are excluded
+# from parallel rounds entirely, since their character budget is accumulated
+# sequentially and a local read gains nothing from overlap.
+PARALLEL_TOOL_CALLS = 5
 
 # The two halves of a failed tool result. The handler's message is the only
 # place a next tool may be named; this note is the harness speaking, and it
@@ -101,12 +116,61 @@ class ToolCallingLoop:
     module decoupled from the streaming voice path and unit-testable with a fake.
     """
 
-    def __init__(self, registry: ToolRegistry, max_rounds: int = MAX_TOOL_ROUNDS):
+    def __init__(self, registry: ToolRegistry, max_rounds: int = MAX_TOOL_ROUNDS, ledger=None):
         self.registry = registry
         self.max_rounds = max(1, int(max_rounds))
+        self.ledger = ledger
         # Decision records for the turn: one {round, reasoning, tools} per
         # brain response that carried tool calls (SCX v2 / ledger exhaust).
         self.decisions: list[dict[str, Any]] = []
+
+    async def _prefetch(self, fresh_calls: list) -> dict[int, Any]:
+        """Run one round's independent tool calls at once, keyed by position.
+
+        Returns {} when the round is not eligible, in which case the caller
+        invokes each tool in place and behaviour is byte-for-byte what it was.
+        Eligibility is narrow on purpose:
+
+        - more than one call, since one call has nothing to overlap with;
+        - no bulk reader in the round, because their character budget
+          accumulates across the round's results and a deferral decision made
+          from a partial total is not the same decision. Reads are local and
+          fast, so nothing is lost by leaving that path alone.
+
+        Results are keyed by INDEX rather than tool_call id: ids come from the
+        model and are neither guaranteed present nor unique. Ordering of the
+        message list is unaffected, since the caller still walks fresh_calls in
+        order and appends each result where it always went. Permission resume
+        stays in the caller too, so a round that trips several permission
+        prompts still raises them one at a time.
+        """
+        if len(fresh_calls) < 2:
+            return {}
+        names = [(c.get("function") or {}).get("name", "") for c in fresh_calls]
+        if any(n in _BULK_READ_TOOLS for n in names):
+            return {}
+
+        sem = asyncio.Semaphore(PARALLEL_TOOL_CALLS)
+
+        async def one(idx: int, call: dict) -> tuple[int, Any]:
+            fn = call.get("function", {})
+            raw = fn.get("arguments") or "{}"
+            try:
+                args = json.loads(raw) if isinstance(raw, str) else dict(raw)
+            except Exception:  # noqa: BLE001 - the caller re-parses and handles it
+                return idx, None
+            async with sem:
+                return idx, await self.registry.invoke(fn.get("name", ""), args)
+
+        logger.info("running %d tool calls concurrently (cap %d): %s",
+                    len(fresh_calls), PARALLEL_TOOL_CALLS, names)
+        out: dict[int, Any] = {}
+        for idx, res in await asyncio.gather(
+            *(one(i, c) for i, c in enumerate(fresh_calls))
+        ):
+            if res is not None:
+                out[idx] = res
+        return out
 
     async def run(
         self,
@@ -143,11 +207,16 @@ class ToolCallingLoop:
         job is done; leftover file work is session.open_task (2026-08-16)."""
         if not self.registry.names():
             return messages
-        tools = self.registry.schemas()
+        # Schemas are built PER ROUND, not once. A tool withdrawn in round 2
+        # has to be gone from round 3's offer, and from every later batch in
+        # the same turn. maybe_run_tools builds a fresh loop per batch, so the
+        # ledger is the only thing that carries withdrawal across them.
         seen_calls: set[tuple[str, str]] = set()
         force_answer = False
         batch_chars = 0
         for round_idx in range(self.max_rounds):
+            withdrawn = self.ledger.withdrawn() if self.ledger is not None else set()
+            tools = self.registry.schemas(exclude=withdrawn)
             response = await brain_tool_call(messages, tools)
             tool_calls = (response or {}).get("tool_calls") or []
 
@@ -203,7 +272,8 @@ class ToolCallingLoop:
             # tool results in the message list (OpenAI contract). Carry only the
             # calls actually executed so every tool_call id has a matching result.
             messages.append({"role": "assistant", "content": response.get("content") or "", "tool_calls": fresh_calls})
-            for call in fresh_calls:
+            prefetched = await self._prefetch(fresh_calls)
+            for call_idx, call in enumerate(fresh_calls):
                 fn = call.get("function", {})
                 name = fn.get("name", "")
                 raw_args = fn.get("arguments") or "{}"
@@ -241,7 +311,13 @@ class ToolCallingLoop:
                         }
                     )
                     continue
-                result = await self.registry.invoke(name, args)
+                result = prefetched.get(call_idx)
+                if result is None:
+                    result = await self.registry.invoke(name, args)
+                if self.ledger is not None:
+                    self.ledger.record(
+                        name, bool(result.ok), getattr(result, "reason", ""), args
+                    )
                 if on_tool_result is not None:
                     try:
                         await on_tool_result(name, result)
@@ -281,6 +357,19 @@ class ToolCallingLoop:
                         "content": content,
                     }
                 )
+                if self.ledger is not None and name in self.ledger.withdrawn():
+                    # Name the tool and the shape of the gap, so the model has
+                    # something specific to say. The last clause is the same
+                    # turn shape that produced "I shall attempt to locate those
+                    # breakfast options for you momentarily"; the deferral
+                    # guard catches it if the model tries anyway.
+                    messages[-1]["content"] = str(messages[-1]["content"]) + (
+                        f"\n[{name} cannot answer this. It was tried and failed "
+                        "the same way twice. Do not call it again this turn. "
+                        "Tell the operator plainly that you cannot look this "
+                        "up, name what you cannot do, and do not promise to "
+                        "try later.]"
+                    )
             if batch_chars >= BATCH_READ_CHARS:
                 # Spent. Another round here could only defer, burning a
                 # decision call for nothing. End the batch so the caller
@@ -329,15 +418,18 @@ async def _resume_after_permission(registry, name: str, args: dict, pending) -> 
                 "and do not invent file contents."
             ),
             ok=False,
+            reason="internal",
         )
-    reason = (
-        "The operator denied access to that folder."
-        if decision == "denied"
-        else "The permission request timed out before anyone approved it."
-    )
+    if decision == "denied":
+        message = "The operator denied access to that folder."
+        failure = "denied"
+    else:
+        message = "The permission request timed out before anyone approved it."
+        failure = "timeout"
     return ToolResult(
-        content=reason + " Do not invent file contents.",
+        content=message + " Do not invent file contents.",
         ok=False,
+        reason=failure,
     )
 
 
@@ -349,6 +441,7 @@ async def maybe_run_tools(
     on_tool_result=None,
     max_rounds: int = MAX_TOOL_ROUNDS,
     decisions_out: list | None = None,
+    ledger=None,
 ):
     """Opt-in entry point a future gateway can call before the streaming answer.
 
@@ -363,7 +456,7 @@ async def maybe_run_tools(
     reg = registry or ToolRegistry.from_yaml()
     if not reg.names():
         return messages
-    loop = ToolCallingLoop(reg, max_rounds=max_rounds)
+    loop = ToolCallingLoop(reg, max_rounds=max_rounds, ledger=ledger)
     try:
         # The rounds that DID run are the evidence for why a turn failed, so
         # they must reach the ledger even when a later round raises. Live
