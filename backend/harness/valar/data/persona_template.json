@@ -29,8 +29,8 @@
     "max_rounds": 4
   },
   "tool_grants": {
-    "_comment": "Resident defaults. No dev, no briefs; those are the operator's own surfaces.",
-    "domains": ["weather", "timers", "search", "news", "memory", "media"],
+    "_comment": "Resident defaults. No dev, no briefs; those are the operator's own surfaces. personas is here so a resident can make another resident: leaving it out meant the only route to a second persona was switching back to Sulivan, which no page documented and nothing intended.",
+    "domains": ["weather", "timers", "search", "news", "memory", "media", "personas"],
     "allow": [],
     "deny": []
   },
