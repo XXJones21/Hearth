@@ -1,7 +1,7 @@
 ---
 title: First run
 status: scoped
-type: how-to
+type: decision-record
 last_reviewed: 2026-09-03
 related:
   - backend/build-pipeline.md
