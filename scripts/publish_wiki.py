@@ -19,6 +19,12 @@ What the GitHub wiki cannot take as-is, and what this does about it:
   anything outside the published set) becomes a link to that file on main.
 - `_index.md` is the landing page, so it becomes Home, and `_Sidebar.md` is
   generated from its section headings and links, which are the reading order.
+- `related` in the frontmatter becomes a See also section at the foot of the
+  page. Every page already carries the block; before this it was thrown away.
+- A figure the author asked for but nobody has captured yet, under
+  `images/pending/`, is dropped. The placeholder is a work order for whoever
+  takes the screenshot, and a reader should see a sparser page rather than
+  broken art.
 
 wiki/raw/ is excluded on purpose: those are working notes and unprocessed
 sources, not articles, and the authoring rule already says canonical pages
@@ -45,7 +51,13 @@ WIKI = ROOT / "wiki"
 
 FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
 LINK = re.compile(r"(?<!\!)\[([^\]]*)\]\(([^)\s]+)\)")
-IMAGE = re.compile(r"\!\[([^\]]*)\]\(([^)\s]+)\)")
+IMAGE = re.compile(r"\!\[([^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+# A figure the author requested and nobody has captured. Matched with its
+# whole line so dropping it leaves no blank gap.
+PENDING_FIGURE = re.compile(
+    r"[ \t]*\!\[[^\]]*\]\([^)\s]*images/pending/[^)\s]*(?:\s+\"[^\"]*\")?\)[ \t]*\r?\n?"
+)
+RELATED_BLOCK = re.compile(r"^related:\s*$", re.M)
 
 
 def collect() -> dict[Path, str]:
@@ -80,9 +92,55 @@ def rewrite_target(target: str, src: Path, pages: dict[Path, str]) -> str:
     return f"{url}#{anchor}" if anchor else url
 
 
-def render(src: Path, pages: dict[Path, str]) -> str:
+def frontmatter_of(text: str) -> tuple[str, list[str]]:
+    """The page title and its `related` entries, read before stripping."""
+    m = FRONTMATTER.search(text)
+    if not m:
+        return "", []
+    block = m.group(0).splitlines()
+    title, related, inside = "", [], False
+    for line in block[1:-1]:
+        if line.startswith("title:"):
+            title = line.split(":", 1)[1].strip().strip('"').strip("'")
+            inside = False
+        elif RELATED_BLOCK.match(line):
+            inside = True
+        elif inside:
+            item = re.match(r"^\s+-\s+(.*)$", line)
+            if item:
+                related.append(item.group(1).strip())
+            elif line.strip():
+                inside = False
+    return title, related
+
+
+def see_also(related: list[str], src: Path, pages: dict[Path, str], titles: dict[Path, str]) -> str:
+    """A See also block, using each destination's own title as the link text.
+
+    Link text is the human title rather than the filename, because the wiki
+    publishes flat: a reader navigates a rail of titles and never sees a
+    directory.
+    """
+    lines = []
+    for entry in related:
+        if re.match(r"^[a-z]+:", entry):
+            continue
+        resolved = (src.parent / entry.split("#")[0]).resolve()
+        if resolved == src:
+            continue
+        label = titles.get(resolved) or resolved.stem.replace("-", " ").capitalize()
+        lines.append(f"- [{label}]({rewrite_target(entry, src, pages)})")
+    if not lines:
+        return ""
+    return "## See also\n\n" + "\n".join(lines) + "\n"
+
+
+def render(src: Path, pages: dict[Path, str], titles: dict[Path, str] | None = None) -> str:
     text = src.read_text(encoding="utf-8")
+    _, related = frontmatter_of(text)
     text = FRONTMATTER.sub("", text, count=1)
+    text = PENDING_FIGURE.sub("", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
 
     def link(m: re.Match) -> str:
         return f"[{m.group(1)}]({rewrite_target(m.group(2), src, pages)})"
@@ -100,7 +158,15 @@ def render(src: Path, pages: dict[Path, str]) -> str:
 
     text = IMAGE.sub(image, text)
     text = LINK.sub(link, text)
-    return text.lstrip("\r\n")
+    text = text.lstrip("\r\n").rstrip() + "\n"
+
+    # The landing page is already nothing but routing; a See also under it
+    # would repeat the page it sits on.
+    if related and src.name != "_index.md":
+        block = see_also(related, src, pages, titles or {})
+        if block:
+            text += "\n" + block
+    return text
 
 
 def sidebar(pages: dict[Path, str]) -> str:
@@ -131,10 +197,15 @@ def sidebar(pages: dict[Path, str]) -> str:
 
 def build(out: Path) -> dict[Path, str]:
     pages = collect()
+    titles = {
+        src: frontmatter_of(src.read_text(encoding="utf-8"))[0] for src in pages
+    }
     for stale in out.glob("*.md"):
         stale.unlink()
     for src, name in pages.items():
-        (out / name).write_text(render(src, pages), encoding="utf-8", newline="\n")
+        (out / name).write_text(
+            render(src, pages, titles), encoding="utf-8", newline="\n"
+        )
     (out / "_Sidebar.md").write_text(sidebar(pages), encoding="utf-8", newline="\n")
     return pages
 
