@@ -1,0 +1,374 @@
+{
+  "document": "wiki/clients/windows.md",
+  "task_id": "T2",
+  "score_before": 1,
+  "score_after": 5,
+  "score_delta": 4,
+  "verdict": "FAIL",
+  "score_notes": "Baseline: 10 - (F1 1 + F2 2 + F3 1 + F4 1 + F5 1 + F6 1 + F7 1 + F8 1 + F9 1 + F10 0.5) = 10 - 10.5 = -0.5, floored to the minimum of 1. After: 10 - (F1 1 + F2 2 + F8 1 + F9 1) = 10 - 5 = 5. Delta +4. Accounted: F3, F4, F5, F6, F7, F10 in changed[]; F1, F2, F8, F9 in remaining[]. Every one of the ten baseline ids sits in exactly one of the two lists, and no id was appended on regrade. The floor at 1 is doing real work in score_before: the honest baseline penalty is 10.5, so the starting grade is a floor rather than a measurement, and the delta of +4 understates the six findings cleared.",
+  "tooling_deviation": "scripts/lint_wiki.py was NOT run in this session. This run has Read, Grep, Write and Edit only, with no command execution. Nothing below is presented as linter output. To avoid re-reporting what the linter owns, scripts/lint_wiki.py was read as a file: READER_DRIFT at line 109, BOLD_LEAD at 115, PARAGRAPH_WORDS 60 and SECTION_WORDS 200 at 128-129, em-dash at 328, british-spelling at 340, dead-link at 372, long-paragraph at 384, bold-lead at 386 and long-section at 393. Every defect matching one of those checks was excluded from found[] rather than graded. Two edits made in this run happen to clear linter warnings as a side effect (F6 splits a paragraph over 60 words; F7 adds an images/pending target, which line 368 records as a warning rather than an error), but neither was driven by the linter.",
+  "dimensions": {
+    "voice": 8,
+    "clarity": 5,
+    "inclusive_language": 9,
+    "technical_notation": 7,
+    "grammar_mechanics": 8
+  },
+  "pass_scores": {
+    "type": 4,
+    "intent": 4,
+    "structure": 5,
+    "style": 8
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "§What the installer gives you (lines 144-187)",
+      "issue": "A platform overview is carrying install-guide and reference material. The section prints two fenced catalogs: the install-root layout and the supervised process tree with its port numbers (18765, 18766, 18080, 18700, 18702). wiki/page-types.md:249-251 sends install trees, process trees and port tables to a reference page, and 243-246 says installation lives on the install page and links from here. wiki/clients/macos.md:49-87 has the same shape, so this is a corpus-level inconsistency between the published rule and two of the five client pages rather than a defect T2 introduced.",
+      "fix": "Move the two fenced catalogs to a reference page and leave a describing paragraph plus a link, or amend wiki/page-types.md if the client pages are the intended shape. One decision, applied to windows.md and macos.md together.",
+      "detraction": 1,
+      "reason": "Nothing here misleads a reader on this page, and the material is accurate where it sits, so the cost is corpus-level: the platform overview is drifting into a second install guide, which page-types.md:243-246 records as how the corpus grew two of them once already. Charged medium rather than the vocabulary's high because the reader consequence on this page is low.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "whole page, between §The hardware probe picks your model and §First launch",
+      "issue": "The page has no `What it needs` section. wiki/page-types.md:236-238 makes it item 5 of the platform-overview spine, and four of the five client pages carry one: wiki/clients/macos.md:31 `What your Mac needs`, wiki/clients/ios.md:128, wiki/clients/android.md:218, wiki/clients/visionos.md:171. macOS states four facts (Apple Silicon, 8 GB floor, free disk, macOS version). Windows states none: no memory floor, no GPU floor, no free-disk figure, no verified Windows version. The page also never tells a reader that Hearth can decline to install on a machine that is too small, which crates/hearth-probe/src/plan.rs:151-157 does through PlanError::TooSmall and which wiki/clients/macos.md:39-40 states for Mac.",
+      "fix": "Add a `What it needs` section between §The hardware probe picks your model and §First launch, stating the memory or VRAM floor, the free-disk figure, the Windows version the install has been verified on, and that Hearth refuses rather than installing something that cannot run.",
+      "detraction": 2,
+      "reason": "This is the question a reader arrives with. Someone holding a Windows machine cannot find out from this page whether it runs Hearth, and every other client page answers that in one screen. A missing prerequisite is high severity by the contract's own rule.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§The hardware probe picks your model, line 197",
+      "issue": "\"The dictionary that drives this defines four tiers, from a small model that fits an 8 GB GPU up to a mixture-of-experts model for the largest cards.\" On Windows an 8 GB dedicated GPU does not land on the smallest tier. crates/hearth-probe/dictionary.yaml:131-177 makes tier 0 Gemma 4 E2B and 179-196 makes tier 1 Gemma 4 E4B at 4,977,171,584 bytes. Per the derivation in tasks/docs/artifacts/T2.research.json, an 8 GB card gives a coexist budget of 5,744,518,759 bytes, which clears tier 1 plus its 83,886,080-byte context floor, so the card gets tier 1. The 8 GB figure is the unified-memory Mac case borrowed onto a dedicated card: crates/hearth-probe/src/plan.rs:107-109 says in as many words that \"an 8 GB Mac is a different problem from an 8 GB graphics card\", and dictionary.yaml:150 sizes tier 0's ladder against an 8 GB Mac.",
+      "fix": "Drop the machine class from the sentence and use the phrasing the research artifact verified: \"from a small on-device model up to a mixture-of-experts model for the largest cards\".",
+      "detraction": 1,
+      "reason": "A reader with an 8 GB card is told to expect the smallest model when the planner gives them the next tier up, so they under-estimate what their machine will do and may read the page's 16 GB example as far out of reach.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§The hardware probe picks your model, lines 201-203",
+      "issue": "\"The plan also says whether the model and the voice can both stay resident in memory. On that 16 GB GPU they can, and when they cannot, it says so plainly, so you know what to expect before you commit to the download.\" The corrected sentence names the mechanism and withholds the consequence. It tells a reader the plan will say something without saying what, so \"what to expect\" is exactly what the reader does not get. The consequence is available and does not require naming a machine class or a VRAM figure: crates/hearth-probe/src/plan.rs:144-147 pushes the warning \"Your persona will think and speak one at a time. You will hear a short pause before a reply is spoken.\" Testing the orchestrator's judgement as instructed: dropping the machine class was right, because tasks/docs/artifacts/T2.research.json records that nothing in the tree names a card inside the 4,466,165,856 to 5,432,533,497 byte band. Dropping the user-visible consequence along with it was the over-correction.",
+      "fix": "Keep the mechanism and no figure, and add the consequence from plan.rs:144-147: the persona thinks and speaks one at a time, so a short pause comes before a reply is spoken.",
+      "detraction": 1,
+      "reason": "A reader whose plan reports the take-turns branch has no way to know from this page whether that means a small delay or a broken product. Naming the pause is the whole value of the sentence.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "opening, lines 22-25, and §Status line 234",
+      "issue": "The opening states the product positioning and never says what this page covers or where the install lives. wiki/clients/macos.md:27-29 does both in its third paragraph: \"This page covers what your Mac needs, what the install puts on your disk, and how updates work. For the step-by-step install, see Installing on macOS.\" On windows.md the only link to the install page sits in the last sentence of the last section, 234 lines down.",
+      "fix": "Add one orienting paragraph under the abstract naming what the page covers and linking Installing Hearth.",
+      "detraction": 1,
+      "reason": "A Windows reader who came to install has to read or scroll the entire page to find the entry point to the task, and the page never tells them up front that the install itself is documented elsewhere.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§First launch, lines 212-217",
+      "issue": "A three-step ordered sequence is written as one sentence with a nested parenthetical: \"it walks you through three things in order: installing (the scan, the plan, the download, and a verification pass that proves each piece works, ending with Sulivan speaking a first line out loud so you can confirm you heard him), a conversation where Sulivan helps you build your own persona, and a first look at the second brain that persona keeps for you.\" wiki/style-guide.md:152 says sequential actions are an ordered list, never comma-stacked prose. wiki/page-types.md:234-236 makes this the platform overview's one inline procedure, in how-to shape. The comparable sections on the other clients are ordered lists: wiki/clients/macos.md:95-106 and wiki/clients/android.md:41-49.",
+      "fix": "Turn the sentence into a three-item ordered list, one thing per item, keeping the link to First run below it.",
+      "detraction": 1,
+      "reason": "The reader cannot see the three stages of first launch without parsing a 77-word sentence whose second stage is buried behind a parenthesis. Charged medium rather than the vocabulary's high because it is one sentence rather than a run of paragraphs, and because the reader is not performing these steps by hand.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§What the desktop app is, lines 66-75, and the page as a whole",
+      "issue": "The page carries no figure at all, and it describes several surfaces a reader has to look at and act on: the waking overlay, Settings > On disk > Journal and memory with its Connect and Remove buttons, Settings > The house with Start, Stop and Restart, the right-rail Sessions tab, and the permission card. wiki/style-guide.md:113-118 requires a figure where a section describes a surface. The On disk pane is the sharpest case: two dense paragraphs describe one row among several and two buttons whose consequences differ. wiki/style-guide.md:122 uses this exact capture as its worked example, naming images/pending/windows-ondisk.png, so the figure is already specified and simply absent from the page.",
+      "fix": "Add the pending-figure placeholder for the On disk pane after the paragraph that describes Connect and Remove, following the convention at wiki/installing.md:88.",
+      "detraction": 1,
+      "reason": "A reader has to reconstruct a settings pane from prose before they can find the one row that changes something rather than opening a folder.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F8",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§The hardware probe picks your model, lines 205-208, and the fenced tree at line 156",
+      "issue": "\"Every download is verified against a published sha256 after it lands.\" Contradicted by crates/hearth-probe/dictionary.yaml:117 and :120, which give `sha256: null` for both OmniVoice GGUFs with a FOLLOW-UP at 126-128 recording that the hashes do not exist yet, by dictionary.yaml:25-26 for the llama.cpp zips, and by crates/hearth-probe/src/plan.rs:223-232, which builds the voice download with sha256: None. The same sentence was corrected on wiki/installing.md under T1. The fenced tree at line 156 carries the same claim in miniature: \"models\\  model weights, sha256-verified\".",
+      "fix": "Owned elsewhere. When T29 corrects the sentence, correct the fenced tree annotation at line 156 in the same edit.",
+      "detraction": 1,
+      "reason": "The page promises an integrity guarantee the product does not give for every file, and a reader who trusts it will not think to check a voice download that arrives corrupt.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F9",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§Status, lines 229-234",
+      "issue": "A dated status log on a platform overview. \"the native-runtime decision that replaced an earlier WSL-based plan is final as of 2026-08-06.\" wiki/page-types.md:246-248 states the rule and quotes this exact date as its example of what belongs in a decision record instead. The section also stands where the spine's honest-limits section belongs: the page has no `What it cannot do yet`, and its limits are scattered instead, the missing in-app updater at lines 224-225 and the voice arriving after the first run at lines 184-187. wiki/clients/ios.md:147, android.md:233 and visionos.md:184 all carry the section; macos.md:120 carries `Status and limitations`.",
+      "fix": "Owned elsewhere. Move the dated sentence to wiki/backend/native-runtime.md, which already owns that decision, and rewrite the section as `What it cannot do yet`, gathering the limits already stated further up the page.",
+      "detraction": 1,
+      "reason": "The date reads as a changelog rather than as a capability, and it ages: a reader in six months cannot tell whether \"final as of 2026-08-06\" is still true. Meanwhile the limits a reader needs before relying on the app are spread across three sections.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F10",
+      "pass": "style",
+      "dimension": "technical_notation",
+      "location": "§What the installer gives you, the fenced install-root tree, line 159",
+      "issue": "In the fenced tree at lines 154-162 every annotation starts at the same column except one: `envs\\voice\\` is followed by 14 spaces where the others are aligned to column 24, so its description sits one character out.",
+      "fix": "Remove one space after `envs\\voice\\`.",
+      "detraction": 0.5,
+      "reason": "A ragged column in a monospaced block is the one place a reader is entitled to expect alignment, and the eye stops on it.",
+      "discovered": "baseline"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Decide whether the install-root tree and the process/port tree belong on a platform overview, or move them to a reference page and leave a describing paragraph plus a link. The same decision covers wiki/clients/macos.md:49-87.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Not attempted. This is a Pass 0 type finding, and gotcha 8 puts reshaping out of reviewer scope. It also cannot be settled on this page alone: wiki/clients/macos.md:49-87 carries the same catalogs, so either both client pages move their fenced trees to a reference page or wiki/page-types.md:249-251 is amended. No tracker row owns the question. T15 owns §What the desktop app is, which is a different section."
+    },
+    {
+      "id": "F2",
+      "action": "Add a `What it needs` section to wiki/clients/windows.md stating the memory or VRAM floor, the free-disk figure, the verified Windows version, and that Hearth refuses to install on a machine that is too small.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Not attempted. Writing an absent spine section is authoring, not reviewing, and it is blocked on facts nobody has verified. Research has to answer four questions before the section can be written: (1) the smallest Windows machine Hearth will install on, which is derivable as a memory pool of 4,466,165,856 bytes from crates/hearth-probe/src/plan.rs:14, 110-121 and 151-157 with dictionary.yaml:84, 89, 113 and 174-177, but has never been stated in a unit the corpus has settled, and tasks/docs/tracker.md T24 records the GiB-labelled-GB problem as still open; (2) the free-disk figures for the Windows tiers, where wiki/clients/macos.md:42-44 gives 4.5 GB and 8.6 GB for Mac and no source in the tree gives the Windows equivalents; (3) which Windows version the install has been verified on, which nothing in the tree states; (4) whether a GPU is required at all, given that the no-gpu fixture at crates/hearth-probe/src/machine.rs:334-343 is Windows with 16 GiB of RAM and no GPU and still plans tier 2. I invented none of these. See objective_gaps[] entry for \"decide whether your Windows machine can run Hearth\"."
+    },
+    {
+      "id": "F5",
+      "action": "Add one orienting paragraph under the abstract naming what the page covers and linking Installing Hearth.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added one 36-word paragraph under the abstract: what the page covers, then a link to Installing Hearth. The four things it names are the page's four remaining sections, so it promises nothing the page does not deliver, and it deliberately does not promise a `what your machine needs` section because there is not one (F2). The install link now appears on the first screen as well as at the foot of §Status. Target already exists at wiki/installing.md, title read from its frontmatter line 2, so no new dead link."
+    },
+    {
+      "id": "F3",
+      "action": "Replace \"a small model that fits an 8 GB GPU\" with the research-verified \"a small on-device model\", and name the dictionary as the model dictionary on first mention.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "\"a small model that fits an 8 GB GPU\" is now \"a small on-device model\", which is the phrasing tasks/docs/artifacts/T2.research.json records as verified against crates/hearth-probe/dictionary.yaml:131-231. No replacement machine class was invented: a 6 GB card is what the research derivation puts on tier 0, but the tree names no card and the same reasoning that removed the machine class from the coexistence sentence applies here. \"The dictionary\" also became \"The model dictionary\", because the bare noun had no antecedent anywhere on the page. The 16 GB anchor in the next sentence is untouched, so the reader keeps a size reference for the common case."
+    },
+    {
+      "id": "F4",
+      "action": "Add the take-turns consequence from crates/hearth-probe/src/plan.rs:144-147 to the coexistence sentence, with no machine class and no VRAM figure.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The sentence now ends with the consequence rather than with a promise that the plan will explain itself: \"the persona thinks and speaks one at a time, and you hear a short pause before a reply is spoken\". That is the user-visible half of the warning at crates/hearth-probe/src/plan.rs:144-147, restated in the page's second person. The orchestrator's ruling is preserved intact: no machine class, no VRAM figure, no band. The paragraph is 53 counted words, under the 60-word limit at scripts/lint_wiki.py:129, so the author's split at this paragraph still holds. This is a hand count, not a linter run."
+    },
+    {
+      "id": "F8",
+      "action": "Correct the sha256 claim at lines 205-208 and the matching annotation in the fenced tree at line 156.",
+      "state": "deferred",
+      "owner": "T29",
+      "needs": null,
+      "result": "Not attempted, per the dispatch: tracker row T29 owns the sha256 claim at lines 205-208. Handing over one thing T29's scope may not name: the same claim is repeated inside the fenced install-root tree, where line 156 annotates the models folder \"model weights, sha256-verified\". Correcting only the prose leaves the tree asserting it. tasks/docs/artifacts/T2.research.json records the same pairing at its claim on wiki/clients/windows.md:204-207."
+    },
+    {
+      "id": "F6",
+      "action": "Turn the three-thing sequence in §First launch into a three-item ordered list, keeping the First run link below it.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The 77-word sentence is now a three-item ordered list, one stage per item, with the bolded lead naming the stage and the sentence after it giving the detail. Nothing was cut: the scan, the plan, the download, the verification pass, Sulivan's first spoken line, the persona conversation and the second brain all survive, and the First run link stands on its own line below the list, as at wiki/clients/macos.md:89-106. The list form matches wiki/style-guide.md:70-74, and the bolded leads sit inside list items rather than opening paragraphs, so they are the correct shape rather than the retired one the linter watches for at scripts/lint_wiki.py:115."
+    },
+    {
+      "id": "F7",
+      "action": "Add the pending-figure placeholder for the Settings > On disk pane after the paragraph describing Connect and Remove.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added the placeholder at the end of the paragraph describing Connect and Remove, using the path wiki/style-guide.md:122 already specifies for this page, images/pending/windows-ondisk.png. The capture instruction was widened from the style guide's example to ask for Remove in frame as well, because the two buttons are the thing the paragraph distinguishes. Placement and spacing follow wiki/installing.md:88. Checked against scripts/lint_wiki.py: line 367-368 records an images/pending target as a `figure-pending` warning rather than a dead link, and line 216 keeps an image line out of the paragraph word count, so the placeholder cannot push the surrounding prose over a limit. One figure only. The other surfaces this page describes are listed in further_improvements rather than placed, because they sit in the section T15 owns and a capture queue is worth more when each entry is a decision someone made."
+    },
+    {
+      "id": "F9",
+      "action": "Move the dated native-runtime sentence out of §Status and rewrite the section as `What it cannot do yet`.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Not attempted, per the dispatch: the dated sentence is deliberately untouched and no tracker row owns it, so this needs a row opening. It is larger than the one sentence the dispatch names. Deleting the date leaves §Status as three sentences of pre-alpha notice standing where the spine's honest-limits section belongs, so the fix is to rewrite the section as `What it cannot do yet` and gather the limits the page already states elsewhere: no in-app updater, voice unavailable until its environment finishes installing on first run, and a folder holding unrelated files refused as a memory tree. The decision itself has a home already at wiki/backend/native-runtime.md, which the page lists in `related`. Sequence this with F2, since both change the page's section spine and a reader should meet `What it needs` and `What it cannot do yet` as a pair."
+    },
+    {
+      "id": "F10",
+      "action": "Remove one space after `envs\\voice\\` in the fenced install-root tree.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Removed one space. All six annotations in the fenced install-root tree now begin at the same column. No path, name or description changed."
+    }
+  ],
+  "objectives_source": "Derived by the reviewer. tasks/docs/artifacts/T2.research.json carries `objectives: []`, and wiki/clients/windows.md records none in its frontmatter, so no stage upstream of this one wrote down what the page is for. The six below are what the page plainly sets out to teach, read from its section spine and its opening, and levelled against the table in the hearth-style skill. They are proposed rather than ratified, and the orchestrator should either adopt them or replace them, because a platform overview with no recorded objectives cannot be checked for content that serves none.",
+  "objective_gaps": [
+    {
+      "objective": "decide whether your Windows machine can run Hearth",
+      "bloom": "evaluate",
+      "taught": false,
+      "why": "The page has no `What it needs` section and states no floor of any kind: no memory or VRAM minimum, no free-disk figure, no verified Windows version, and no statement that Hearth declines to install on a machine that is too small. §The hardware probe picks your model describes how the machine is sized but names only the 16 GB case, so a reader below that has nothing to measure themselves against. The other four client pages all answer this: wiki/clients/macos.md:31-47 gives four facts, and wiki/clients/ios.md:128, android.md:218 and visionos.md:171 each carry the section. This is the single largest reader gap on the page and it is finding F2.",
+      "needs": "research"
+    },
+    {
+      "objective": "name what Hearth on Windows cannot do yet",
+      "bloom": "remember",
+      "taught": false,
+      "why": "Partially taught, and nowhere gathered. The limits exist on the page but are scattered into sections about other subjects: the missing in-app updater sits at the end of §Updates, the voice being unavailable until its environment installs sits at the end of §What the installer gives you, and §Status carries only a pre-alpha notice and a dated decision. A reader cannot find the limits by scanning, which is the whole purpose of the spine's honest-limits section. This is finding F9.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "install Hearth on Windows",
+      "bloom": "apply",
+      "taught": false,
+      "why": "Correctly not taught here, recorded so the gap is not read as an oversight. wiki/page-types.md:243-245 keeps installation off a platform overview, and wiki/whats-not-here.md:23-25 registers the missing Windows install guide as a known gap. As of this run the page links Installing Hearth from its opening as well as its foot (F5), so the reader reaches the task in one screen. The corpus-level gap stands: wiki/installing.md is the page that survives T16, and whether it is parameterized by platform or joined by a Windows guide is not this page's decision.",
+      "needs": null
+    },
+    {
+      "objective": "explain how Hearth chooses a model for your machine",
+      "bloom": "understand",
+      "taught": true,
+      "why": "Taught in §The hardware probe picks your model, and materially better after this run. The false 8 GB tier claim is gone (F3) and the take-turns consequence is stated (F4), so a reader now learns what the plan decides, what it tells them, and what a machine that cannot hold both actually feels like. What is still missing is any threshold, which is a deliberate open question rather than an omission: tasks/docs/artifacts/T2.research.json records that no source in the tree names a graphics card inside the take-turns band.",
+      "needs": null
+    },
+    {
+      "objective": "describe what the Hearth desktop app does on Windows",
+      "bloom": "understand",
+      "taught": true,
+      "why": "Taught, but at a cost the reader pays. §What the desktop app is runs about 1135 words with no H3 and carries nine bolded-lead paragraphs, so the material is present and hard to retrieve. Owned by tracker row T15 and already reported by scripts/lint_wiki.py, so it is deliberately absent from found[] and carries no detraction here.",
+      "needs": null
+    },
+    {
+      "objective": "describe what the installer puts on your machine",
+      "bloom": "understand",
+      "taught": true,
+      "why": "Taught in §What the installer gives you, and the install-root default is now correct after T2. The section teaches more than the objective asks, which is finding F1.",
+      "needs": null
+    },
+    {
+      "objective": "CONTENT SERVING NO OBJECTIVE: the supervised process tree and its port numbers",
+      "bloom": null,
+      "taught": null,
+      "why": "The fenced tree at lines 175-184 lists five processes with ports 18765, 18766, 18080, 18700 and 18702. No objective a platform overview carries needs a port number: a reader deciding whether to use this client does not, and a reader debugging one is on a different page. wiki/page-types.md:249-251 sends port tables to a reference page. Recorded here rather than charged a second time, because it is the same shape defect as F1 and double-counting it would inflate the score.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "CONTENT SERVING NO OBJECTIVE: the file-tool behavior at lines 128-146",
+      "bloom": null,
+      "taught": null,
+      "why": "Two paragraphs describe `read_file`, `list_dir`, `write_file`, the allow-listed roots in `file_roots.yaml`, the permission card, its five-minute wait, and grants recorded in `file_grants.yaml`. None of that is Windows-specific: it is harness behavior a persona has on every client, and it would read identically on the macOS page. It serves no objective this page carries, and it is a strong candidate for a concept page under wiki/features/ that all five client pages link to. It sits inside the section T15 owns, so it is recorded rather than charged.",
+      "needs": "restructure"
+    }
+  ],
+  "changed": [
+    {
+      "id": "F3",
+      "summary": "Corrected the tier claim: \"a small model that fits an 8 GB GPU\" is now \"a small on-device model\". Also named the model dictionary on first mention."
+    },
+    {
+      "id": "F4",
+      "summary": "Gave the coexistence sentence its consequence: when the model and the voice cannot both stay resident, the persona thinks and speaks one at a time and a short pause comes before a reply. No machine class and no VRAM figure, per the orchestrator's ruling."
+    },
+    {
+      "id": "F5",
+      "summary": "Added an orienting paragraph under the abstract naming what the page covers, and linking Installing Hearth from the first screen instead of only from the last line."
+    },
+    {
+      "id": "F6",
+      "summary": "Turned the 77-word first-launch sentence into a three-item ordered list, keeping every detail and the First run link."
+    },
+    {
+      "id": "F7",
+      "summary": "Added the pending-figure placeholder for the Settings > On disk pane, at the path wiki/style-guide.md:122 already specifies for this page."
+    },
+    {
+      "id": "F10",
+      "summary": "Aligned the `envs\\voice\\` annotation with the other five in the fenced install-root tree."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "A platform overview carrying install-guide and reference material: the install-root tree and the supervised process tree with its port numbers, which wiki/page-types.md:249-251 sends to a reference page.",
+      "why_unfixed": "Pass 0 type finding. Gotcha 8 puts reshaping out of reviewer scope, and it cannot be settled on this page alone because wiki/clients/macos.md:49-87 has the same shape. Deferred to the orchestrator; no tracker row owns it.",
+      "detraction": 1
+    },
+    {
+      "id": "F2",
+      "dimension": "clarity",
+      "issue": "No `What it needs` section. The page states no memory floor, no GPU floor, no free-disk figure and no verified Windows version, and never says Hearth can decline to install.",
+      "why_unfixed": "Writing an absent spine section is authoring, and it is blocked on four facts nobody has verified for Windows. Deferred to the orchestrator with the research questions recorded in the checklist entry. Guessing them would have been worse than leaving the gap visible.",
+      "detraction": 2
+    },
+    {
+      "id": "F8",
+      "dimension": "clarity",
+      "issue": "\"Every download is verified against a published sha256 after it lands\", contradicted by crates/hearth-probe/dictionary.yaml:117 and :120, dictionary.yaml:25-26 and crates/hearth-probe/src/plan.rs:223-232. Repeated in the fenced tree at line 156.",
+      "why_unfixed": "Owned by tracker row T29 and deliberately untouched, per the dispatch.",
+      "detraction": 1
+    },
+    {
+      "id": "F9",
+      "dimension": "clarity",
+      "issue": "A dated status log on a platform overview, which wiki/page-types.md:246-248 bans while quoting this page's own date as the example. The section also stands where the spine's honest-limits section belongs.",
+      "why_unfixed": "Deliberately untouched, per the dispatch. No tracker row owns it, so it needs one opening. Deferred to the orchestrator.",
+      "detraction": 1
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline penalty is the sum of all ten found[] detractions: F1 type-mixture 1, F2 missing-spine 2, F3 stale-claim 1, F4 under-informs 1, F5 no-abstract 1, F6 term-list-as-prose 1, F7 missing-figure 1, F8 stale-claim 1, F9 status-log 1, F10 notation nit 0.5, total 10.5. 10 - 10.5 = -0.5, so score_before is the floor, 1. Open penalty is the sum of remaining[]: F1 1 + F2 2 + F8 1 + F9 1 = 5, so score_after is 10 - 5 = 5, and score_delta is +4. Two detractions deviate from the vocabulary table in the hearth-style skill and both are argued rather than assumed. F1 is charged 1 instead of the table's 2 for type-mixture, because the material is accurate where it sits and no reader of this page is misled by it; the cost is corpus-level duplication, and the identical shape at wiki/clients/macos.md:49-87 means the rule and the pages disagree rather than the page being wrong on its own. F6 is charged 1 instead of the table's 2 for term-list-as-prose, because it is a single sentence rather than a run of paragraphs and the reader is not performing the steps by hand. F4 uses the id `under-informs`, which is not in the published vocabulary; the closest entry, stale-claim, is defined as a statement the source tree contradicts, and this sentence is not contradicted, it is incomplete. The vocabulary has no id for a page that names a mechanism and withholds the consequence, and it is worth one, because that is the failure mode a cautious correction produces. Note that score_before is a floor and not a measurement: the true baseline penalty of 10.5 means the page's opening grade would have been negative, so the +4 delta understates the six findings cleared. The verdict of FAIL at 5 reflects what is still open rather than the quality of the prose, and three of the four open items are owned by rows other than T2.",
+    "what_worked": "Two corrections now hold that a reader can act on. F3 removed a false hardware claim: the page told a reader with an 8 GB graphics card to expect the smallest model, when crates/hearth-probe/src/plan.rs:107-109 says in as many words that an 8 GB Mac and an 8 GB graphics card are different problems, and the derivation in the research artifact puts that card a tier higher. F4 answered the question the orchestrator's correction had left hanging. Dropping the machine class from the coexistence sentence was the right call, since nothing in the tree names a card inside the take-turns band, but the sentence was left promising that the plan would say something without saying what, so \"you know what to expect\" was exactly what the reader did not get. The consequence is now on the page in the reader's terms, taken from the warning string at plan.rs:144-147, with no figure invented. F5 moved the install entry point from line 234 to the first screen, which is where wiki/clients/macos.md:27-29 puts it, so a reader who came to install no longer has to read a platform overview to find out that the install is documented elsewhere. F6 turned a 77-word sentence with a nested parenthetical into the three ordered stages of first launch. F7 put the page's first figure request on it, for the one settings pane the page describes across two dense paragraphs, and F10 straightened a ragged column in the install-root tree.",
+    "what_holds_score_down": "All five points come from four open findings, and only one of them is unowned work this run could plausibly have started. F2 is the big one and the one a reader feels: this page cannot tell anyone whether their Windows machine runs Hearth. There is no memory floor, no GPU floor, no free-disk figure, no Windows version, and no statement that Hearth refuses rather than installing something that cannot run. Every other client page answers that question in one screen, and macOS answers it with four facts. The floor is derivable from source at 4,466,165,856 bytes of memory pool, but the corpus has not settled whether it prints that as 4.47 GB or 4.16 GB, which tracker row T24 still carries, and the disk figures and the verified Windows version exist nowhere in the tree. Writing the section from guesses would have been worse than leaving the gap visible. F9 keeps §Status a dated changelog on a page type that bans one, and it occupies the slot where the honest-limits section belongs, so the page's limits stay scattered across three sections; nobody owns it yet. F1 keeps two reference catalogs, including a port table, on a describing page. F8 keeps an integrity promise the product does not make for every file, and it is repeated inside the fenced tree at line 156, which a fix aimed only at the prose sentence will miss. Two further problems carry no detraction here and still cost the reader: §What the desktop app is is about 1135 words with no H3 and nine bolded-lead paragraphs, which is T15's and which the linter already reports, and roughly two of those paragraphs describe file-tool behavior that is not Windows-specific at all.",
+    "further_improvements": [
+      {
+        "action": "Add a `What it needs` section between §The hardware probe picks your model and §First launch, stating the memory or VRAM floor, the free-disk figure, the Windows version the install has been verified on, and that Hearth refuses on a machine that is too small. Settle the unit question in tracker row T24 first, so the page and the plan screen do not print two numbers for one boundary.",
+        "why": "It is the question a reader arrives with, it is item 5 of the platform-overview spine, and four of the five client pages answer it.",
+        "expected_score_effect": "Clears the 2 on F2; open penalty 5 to 3, score 5 to 7"
+      },
+      {
+        "action": "Open a tracker row for §Status: move the dated native-runtime sentence to wiki/backend/native-runtime.md, which already owns that decision and is already in this page's `related`, and rewrite the section as `What it cannot do yet`, gathering the limits the page already states, no in-app updater, no voice until its environment finishes installing, and a folder with unrelated files refused as a memory tree.",
+        "why": "wiki/page-types.md:246-248 bans a dated status log on this type and quotes this page's own date as the example, and the honest-limits section is the other half of the spine gap above.",
+        "expected_score_effect": "Clears the 1 on F9; open penalty 3 to 2, score 7 to 8"
+      },
+      {
+        "action": "When T29 corrects the sha256 sentence at lines 212-215, correct the annotation in the fenced install-root tree at line 156 in the same edit, where the models folder is described as \"model weights, sha256-verified\".",
+        "why": "The claim appears twice on the page and only the prose is likely to be in scope, which would leave the tree asserting an integrity guarantee the OmniVoice GGUFs and the llama.cpp zips do not carry.",
+        "expected_score_effect": "Clears the 1 on F8; open penalty 2 to 1, score 8 to 9"
+      },
+      {
+        "action": "Decide, once, whether the install-root tree and the supervised process tree belong on a platform overview or on a reference page, and apply the decision to wiki/clients/windows.md and wiki/clients/macos.md together. If the client pages are the intended shape, amend wiki/page-types.md:249-251 instead.",
+        "why": "The published rule and two of the five client pages currently disagree, and leaving that unresolved is how the corpus grew two install guides once already.",
+        "expected_score_effect": "Clears the 1 on F1; open penalty 1 to 0, score 9 (capped, since further improvements remain)"
+      },
+      {
+        "action": "Split §What the desktop app is under T15, and while splitting it, lift the two file-tool paragraphs at lines 128-146 to a concept page under wiki/features/ that every client page links to.",
+        "why": "About 1135 words with no H3 and nine bolded-lead paragraphs is the corpus's most common structural fault, and the file-tool behavior is not Windows-specific: it would read identically on the macOS page, so it is duplicated material waiting to happen.",
+        "expected_score_effect": "None in this artifact's math. The length and bold-lead defects are reported by scripts/lint_wiki.py and owned by T15, so they were excluded from found[] rather than graded."
+      },
+      {
+        "action": "Queue three more figures once the sections settle: the waking overlay with its Try again and Settings buttons, Settings > The house with Start, Stop and Restart, and the permission card that stops a turn when a path falls outside the allow-listed roots.",
+        "why": "Each is a surface the page describes in prose and a reader has to act on, which wiki/style-guide.md:113-118 says carries a figure. They were left unplaced because all three sit in the section T15 is about to reshape.",
+        "expected_score_effect": "None yet. Prevents a repeat missing-figure finding after the T15 restructure."
+      },
+      {
+        "action": "Record `objectives[]` for this page, either in its frontmatter or in the research artifact, and adopt or replace the six the reviewer derived in objectives_source.",
+        "why": "Both upstream artifacts carry no objectives, so nothing but this gap analysis says what the page is for, and the next reviewer will derive a different set.",
+        "expected_score_effect": "None directly. Makes the content-serving-no-objective check repeatable instead of a judgement call."
+      }
+    ]
+  }
+}

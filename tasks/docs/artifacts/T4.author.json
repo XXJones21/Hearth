@@ -1,0 +1,49 @@
+{
+  "task_id": "T4",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": ["## What installing gives you", "## Status and limitations"]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "The open choice the dispatch and the research artifact left to the author: whether the free-disk figure at line 42 needs the same qualifier as the four-item download sentence.",
+      "why": "One qualifier only, beside the four-item list under '## What installing gives you'. Line 42 does not describe a download at all: it states how much free disk Hearth requires and says Hearth checks that space before it starts. That figure is disk_required from crates/hearth-probe/src/plan.rs:237, the two-item total plus a fifth, so it is what the installer's own check enforces and the page reports it accurately as such. Qualifying it would also require a magnitude, and no source supplies one: the omitted engine and Python runtime come to 36,326,051 bytes on macOS, but the voice environment's pip installs at crates/hearth-probe/dictionary.yaml:59-67 carry no recorded size anywhere, so the page cannot say whether the plan's one-fifth headroom absorbs them. A bare warning that the budget is short, with no number, leaves a reader budgeting disk worse off than the accurate figure does. The residual fact is recorded in unresolved[]."
+    },
+    {
+      "from": "The qualifier's placement inside the paragraph, relative to the T1 passage at wiki/installing.md:106-112.",
+      "why": "The two qualifying sentences are copied from wiki/installing.md:109-111 unchanged, so the two pages now say this the same way. What differs is that on this page the four-item sentence ends in a colon that introduces the install-tree code block. Keeping one paragraph would have run past 60 words against wiki/style-guide.md's paragraph target, so the sentence was split at 'together.' and the folder clause ('Everything lands in one folder you choose (`~/Hearth` by default):') moved to the end of the new paragraph to keep the colon against the fence. No fact was added or dropped in the split, and the ~/Hearth default is unchanged."
+    },
+    {
+      "from": "The hearth-style skill's instruction to run scripts/lint_wiki.py and scripts/doc_graph.py.",
+      "why": "Neither was run. This session's tool set is Read, Grep, Write and Edit, with no command execution, so the linter could not be invoked. The five mechanical conventions at wiki/developing.md:221-232 were applied by hand to the added prose (no em dashes, no emojis, sentence case headings unchanged, relative links unchanged, American spelling), but that is a manual check and not a linter run."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "By how much the real macOS install exceeds the free-disk figure at wiki/clients/macos.md:42, and therefore whether that figure needs a qualifier of its own.",
+      "why": "The measurable part of what the planner never counts is 36,326,051 bytes, the macOS Python runtime at crates/hearth-probe/dictionary.yaml:33-36 plus the Metal llama-server asset at 44-46. The voice environment's pip installs at dictionary.yaml:59-67 record no size anywhere in the dictionary, so no total can be stated from source and the page states none. Recorded as a gap by the research stage."
+    },
+    {
+      "what": "Whether the 17,408-token context window at wiki/clients/macos.md:101 is pinned by anything.",
+      "why": "The research stage marked the claim unverifiable: the figure is consistent with crates/hearth-probe/src/plan.rs:279-283 and tier 0's max_ctx at crates/hearth-probe/dictionary.yaml:140, but crates/hearth-probe/tests/plan_fixtures.rs:35-75 asserts only n_ctx >= 16384. Nothing contradicts it, T4 changed no digit on this page, and the open item is whether the corpus wants a fixture that pins it."
+    },
+    {
+      "what": "The dated provenance now at wiki/clients/macos.md:122-124, 'The install guide reflects one real, end-to-end install on an 8 GB M2 Air, verified 2026-08-07.'",
+      "why": "The dated-status-log rule at wiki/page-types.md:246-248 reaches this line rather than the Windows-guide bullet T4 removed, which carried no date. The orchestrator ruled these lines out of T4's scope and no open tracker row was identified as owning them, so the page still carries a dated line inside its honest-limits section."
+    },
+    {
+      "what": "Ownership of the fourth Windows-guide announcement at wiki/installing.md:156-159.",
+      "why": "Tracker row T12 at tasks/docs/tracker.md:786-789 says T2 and T4 remove 'the other three announcements', but the research stage's grep returned four. The fourth sits on wiki/installing.md, whose task T1 reads Complete, so no open row owns it. It is not on T4's target page and was not touched."
+    },
+    {
+      "what": "wiki/clients/macos.md gives a reader no route to wiki/whats-not-here.md, where the Windows install gap stays registered at 23-25.",
+      "why": "The dispatch forbade adding that link, because it is new content and T4 is a corrections task. Nothing is lost from the register, but a Windows reader who arrives on this page now learns nothing about where the gap is tracked."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

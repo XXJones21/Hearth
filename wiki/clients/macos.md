@@ -19,7 +19,7 @@ sources:
 # Hearth on macOS
 
 Hearth is a local-first AI companion that runs entirely on your Mac. It gives
-you a persona, Sulivan is the one you meet first, who holds a conversation,
+you a persona (Sulivan is the one you meet first) that holds a conversation,
 remembers what you tell it, and speaks back in a cloned voice. Nothing is
 sent anywhere: the model, the voice, and your memory all live on your own
 machine.
@@ -50,8 +50,14 @@ versions are untested rather than known to fail.
 
 The client is the installer: there is no separate backend to download.
 Opening Hearth for the first time downloads the model weights, a voice, the
-inference engine, and a private Python runtime together, all into one folder
-you choose (`~/Hearth` by default):
+inference engine, and a private Python runtime together.
+
+Before it downloads anything, Hearth shows you a plan. The download figure in
+that plan covers two of those four, the model and the voice. The inference
+engine and the Python runtime are fetched alongside them and are not counted in
+that number.
+
+Everything lands in one folder you choose (`~/Hearth` by default):
 
 ```
 Hearth/
@@ -74,9 +80,9 @@ other and to your client, all on `127.0.0.1`:
 - **hearth-supervisor**, at 18765 for control and 18766 for assets, which
   starts, health-checks, and swaps the model
 - **llama-server**, at 18080, the language model itself, running on Metal
-- the **voice engine** and the voice service in front of it, at 18702; on
-  macOS this is `omnivoice.cpp`, a small engine built against Apple's GPU
-  rather than the CPU-only path some builds fall back to
+- the **voice service** and the **voice engine** behind it, at 18702; on
+  macOS the engine is `omnivoice.cpp`, built against Apple's GPU rather than
+  the CPU-only path some builds fall back to
 
 Hearth starts this tree when it opens and stops it when it quits, so this is
 usually not something you need to think about. If you do, Settings >
@@ -119,7 +125,6 @@ Hearth for macOS is pre-alpha. The install guide reflects one real,
 end-to-end install on an 8 GB M2 Air, verified 2026-08-07. Some things to
 know before you rely on it:
 
-- The Windows install guide does not exist yet; only macOS is documented.
 - The app is unsigned, so first launch needs the right-click-Open step
   above, and there is no automatic updater.
 - Once setup finishes, Sulivan interviews you and helps you build a persona

@@ -109,7 +109,7 @@ folder the whole product lives under, in the tradition of an installer that
 asks once where things go and then owns everything beneath that answer.
 
 ```
-<root>\                     the chosen folder, D:\Hearth by default
+<root>\                     the install root; the default is computed
   hearth-install.json       the record: machine, plan, what landed, where
   models\                   weights, sha256-verified
   runtime\                  vendored Python, llama-server, the supervisor,
@@ -120,7 +120,7 @@ asks once where things go and then owns everything beneath that answer.
 ```
 
 The runtime is native on both platforms; see
-[`backend/native-runtime.md`](backend/native-runtime.md). An earlier draft of
+[Native runtime](backend/native-runtime.md). An earlier draft of
 this section imported a WSL distro under `<root>\wsl`; that is superseded.
 
 Three rules follow:
@@ -148,7 +148,7 @@ the VM boundary.
 Every hardware constant the portability ledger flags is a value this scan
 should produce instead: the model and quantization, the context size, the
 offload depth, the CUDA architecture, the accelerator backend, and whether the
-brain and the voice can be resident at the same time. Doing it once, at install,
+model and the voice can be resident at the same time. Doing it once, at install,
 is what turns a machine-specific configuration into a generated one.
 
 One rule learned expensively and worth encoding:
@@ -176,14 +176,20 @@ Three more encoded 2026-08-06:
 ### Say what you found, and be honest about it
 
 The scan reports back rather than proceeding silently: the machine, the tier it
-implies, the itemised download, and one sentence on why that model. This is the
+implies, the itemized download, and one sentence on why that model. This is the
 moment the draft calls "cool, downloading this."
 
-Where the machine is small, say so plainly and in the user's language. On 8 GB
-the brain and the voice cannot both stay resident, and the honest phrasing is
-"your persona will think and speak one at a time," not a note about VRAM. The
-user then chooses knowingly instead of discovering a pause mid-sentence and
-assuming the product is broken.
+Where the machine is small, say so plainly and in your language. Where the model
+and the voice cannot both stay resident, the honest phrasing is "your persona
+will think and speak one at a time," not a note about VRAM. You then choose
+knowingly instead of discovering a pause mid-sentence and assuming the product
+is broken.
+
+Where the machine cannot run Hearth at all, the refusal is written the same
+way. It leads with what that means, then the arithmetic behind it: what the
+machine has to work with, what is left after the voice, speech recognition, and
+headroom, and how big the smallest model is.
+[Installing on macOS](install-macos.md) quotes the shipped wording.
 
 ### Verification is part of the install
 

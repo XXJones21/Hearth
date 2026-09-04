@@ -1,0 +1,57 @@
+{
+  "task_id": "T5",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/features/personas.md",
+      "sections": [
+        "frontmatter: sources",
+        "## Making your first one",
+        "## Making another one",
+        "## Where a persona lives",
+        "## Voices, briefly",
+        "## Switching and multiple personas",
+        "## Changing a persona later"
+      ]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "Deliverable spec, the passing fix: quote the first-run opening line with 'colour' so it matches backend/harness/valar/gateway/first_run.py:47-53",
+      "why": "wiki/style-guide.md requires American spelling, and scripts/lint_wiki.py raises british-spelling at severity error on `colour` in prose, with no quote exemption for this page (the only exempt page is style-guide.md). I truncated the quote before that clause instead, which is the same device the page already uses further along and leaves every quoted word matching what ships. The sentence immediately after the quote already tells the reader they choose the purpose, temperament, voice, and color."
+    },
+    {
+      "from": "Deliverable spec, correction two: rewrite the false claim at lines 111-113 in place",
+      "why": "The Personas page material is a second subject, and the style guide's test (name the section in one phrase; if it needs an 'and', split it) and its 200-word section limit both point at a split. The switching section keeps switching and per-device pinning; the Personas page became its own section, `## Changing a persona later`, immediately after it."
+    },
+    {
+      "from": "wiki/page-types.md, concept section headings as imperative action titles",
+      "why": "The two new headings are gerund phrases, `## Making another one` and `## Changing a persona later`, to stay parallel with the existing `## Making your first one` and the other headings on a page this task did not send me to restructure. A reader scanning the headings sees the answer to 'how do I make another persona' directly under 'Making your first one'."
+    },
+    {
+      "from": "hearth-style: run scripts/lint_wiki.py before handing anything back",
+      "why": "This agent's tool set is Read, Grep, Write, and Edit, with no command execution, so I could not run the linter or doc_graph.py. Every statement above about lint behavior is read from the source of scripts/lint_wiki.py (BRITISH at line 97, severity default 'error' at line 137, QUOTES_BANNED_FORMS at line 120, PARAGRAPH_WORDS 60 and SECTION_WORDS 200 at lines 128-129) rather than from a run. I wrote to those thresholds by hand: no new paragraph exceeds 60 words and neither new section exceeds 200."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "No wiki page documents the Personas page itself, so `## Changing a persona later` describes a surface the reader cannot be sent to a how-to for.",
+      "why": "Recorded as a gap in the research artifact: desktop-client/src/components/personas/PersonasView.tsx line 28 names wiki/clients/persona-page.md as its design of record and that file does not exist. A concept page is supposed to link to the how-to pages that act on it, and there is none to link to. The page therefore states the behaviour and carries no procedure, per wiki/page-types.md lines 153-154."
+    },
+    {
+      "what": "Whether the page should tell a reader that a persona made outside first run does not reach the desktop switch chips until the client reconnects.",
+      "why": "The behaviour is verified (list_personas is sent only on client_info_ack and after persona_switched), but the research stage left open whether it is intended. Writing it would document a possible defect as behaviour, so the page says nothing about it and `## Making another one` states only that the persona exists as soon as the folder is written."
+    },
+    {
+      "what": "What a reader actually hears when their persona calls create_persona outside first run, given that the tool's return text announces a handover the house does not perform.",
+      "why": "Ruled out of this page by the dispatch and owned by tracker row T31 as a product defect. The page now states what the product is meant to do, so a reader who meets the announcement gets no explanation here until T31 lands."
+    },
+    {
+      "what": "Whether the removal control's exact gate should ever be written down for a reader who cannot find it.",
+      "why": "The orchestrator ruled that the page says removal is behind developer mode without naming the two switches, because a switch path is a procedure and wiki/page-types.md lines 153-154 send procedures to a how-to page. There is no how-to page for the Personas page to carry it (see the first item), so the route is currently written nowhere."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

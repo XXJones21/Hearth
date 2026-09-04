@@ -1,0 +1,56 @@
+{
+  "task_id": "T3",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/first-run.md",
+      "sections": [
+        "### One folder, and deleting it is the uninstall",
+        "### Say what you found, and be honest about it"
+      ]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "Deliverable spec, correction two: the choice the research stage declined to make, between stating the principle with no worked example and re-anchoring it on the refusal case.",
+      "why": "Chose to re-anchor on the refusal case at crates/hearth-probe/src/plan.rs:87-92. This is inside the direction rather than a departure from it, and it is recorded because the direction asked for the choice to be recorded either way. Reason: a decision record whose worked example is deleted leaves the principle asserted and never demonstrated, and the refusal is the one small-machine case a verified claim still supports. Its shipped message also demonstrates the principle rather than merely restating it, since it leads with what the outcome means and only then gives the arithmetic behind it. No machine class is named, no VRAM band is written, and the take-turns phrasing is kept as a conditional attached to the coexistence condition rather than to any machine size."
+    },
+    {
+      "from": "Deliverable spec, correction one: bring the line 112 annotation into agreement with the page's own text at lines 161-165.",
+      "why": "The annotation now reads \"the install root; the default is computed\" rather than restating the rule from 161-165. The rule as written there is 44 words and does not fit a fenced tree annotation, and the direction called for the annotation to stay short. \"The install root\" is the term the page itself establishes two lines above at 108-109 and the term wiki/style-guide.md:35 makes canonical for an install location. The word \"computed\" is what removes the reader's inference that a literal drive is involved; the full rule, unchanged, still sits fifty lines down."
+    },
+    {
+      "from": "The hearth-style skill's instruction to run python scripts/lint_wiki.py before grading.",
+      "why": "This run has no command execution. My tool set is Read, Grep, Write, and Edit, so the linter was not run and no claim is made that it passed. The two rules named in the dispatch were instead checked statically against scripts/lint_wiki.py: PARAGRAPH_WORDS is 60 at line 129 and the finding fires on a strict excess, and READER_DRIFT at line 109 is the pattern \\b the (operator|user)s?\\b. The replacement passage is two paragraphs of 57 and 46 words and contains neither \"the user\" nor \"the operator\", so both flagged findings should clear, but that is arithmetic over the rules rather than an observed linter run."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Which supported, shipping machine class reaches the take-turns path, so that the be-honest principle can carry a worked example of a small machine again.",
+      "why": "The claim that such a class exists is filed unverifiable in the findings. The window on macOS and Windows is roughly 4.16 to 5.06 GiB of pool, above a 4 GiB machine that is refused outright and below a 6 GiB machine that coexists, and the only class the arithmetic admits is a Linux one resting on a constant crates/hearth-probe/dictionary.yaml:100-101 flags as unmeasured. The page therefore states the take-turns phrasing as a conditional on coexistence and names no machine."
+    },
+    {
+      "what": "Whether Hearth ships a supported Linux desktop client.",
+      "why": "Open question in the findings. Linux is the one platform whose arithmetic reaches the take-turns branch, and no page in wiki/ rules it in or out, while crates/hearth-probe/src/machine.rs:248 and dictionary.yaml:102 both branch on it. Until it is answered no Linux machine may be named as the replacement example."
+    },
+    {
+      "what": "Whether the take-turns branch at crates/hearth-probe/src/plan.rs:137-150 is still intended to ship.",
+      "why": "Open question in the findings, and an engineering question this pass cannot settle. crates/hearth-probe/tests/plan_fixtures.rs:40-41 says the orchestration it promises may never need building for this class. The page still quotes the branch's shipped warning string, so if the branch is being retired in code this decision record should record that retirement rather than the quotation simply outliving it."
+    },
+    {
+      "what": "Whether tasks/docs/tracker.md:459-460 should be corrected where it cites wiki/page-types.md:179 as governing a superseded statement.",
+      "why": "Line 179 governs a rejected alternative. The supersession rule is wiki/style-guide.md:175-177. The dispatch already carried the correction into this task, but the tracker row itself is not mine to edit and the next author reading it would be sent to the wrong constraint."
+    },
+    {
+      "what": "Whether the stale WSL doc comments at crates/hearth-probe/src/machine.rs:218-223 and 228-231 want a tracker row.",
+      "why": "Recorded as a gap in the findings with no owning row. They describe the WSL distro and its unregister step as part of the install root, which wiki/first-run.md:122-124 records as superseded. It is stale source comment rather than a documentation defect, and out of scope for a documentation-only task, so it is returned rather than acted on."
+    },
+    {
+      "what": "Confirmation from an executed linter run that wiki/first-run.md is clean after this edit.",
+      "why": "No command execution was available in this run, so python scripts/lint_wiki.py and python scripts/lint_wiki.py --warnings were not run. The two previously reported findings on the rewritten paragraph were checked against the rules as written in the script, not observed to clear."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

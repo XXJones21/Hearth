@@ -1,0 +1,42 @@
+{
+  "task_id": "T2",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/clients/windows.md",
+      "sections": [
+        "frontmatter (related)",
+        "## What the installer gives you",
+        "## The hardware probe picks your model",
+        "## Status"
+      ]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "the hearth-style instruction to run scripts/lint_wiki.py before handing work back",
+      "why": "This run has Read, Grep, Write and Edit only, with no command execution, so the linter could not be run. Paragraph and section word counts were checked by hand against PARAGRAPH_WORDS = 60 and SECTION_WORDS = 200 at scripts/lint_wiki.py:128-129: the corrected install-root paragraph is about 47 counted words, the split plan paragraphs about 51 and 43, and the prose in `## What the installer gives you` rises from roughly 168 to 197 words, which stays under the section limit. Those are hand counts, not a linter run."
+    },
+    {
+      "from": "the direction to keep a link to the install page in `## Status`",
+      "why": "The link points at wiki/installing.md rather than at a Windows-specific guide, because the ratified architecture is one install how-to parameterized by platform and wiki/installing.md is the page that survives T16. Its title, `Installing Hearth`, is read from wiki/installing.md:2 and is used as the link text."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "At what GPU size the plan stops holding the model and the voice resident at the same time on Windows, and which machines that describes.",
+      "why": "The corrected sentence names the mechanism without a machine class, on the orchestrator's ruling. The research artifact records the take-turns band as 4,466,165,856 to 5,432,533,497 bytes of VRAM, but its gaps[] records that no source in the tree names a graphics card shipping inside that band, so no page can tell a reader whether the band describes hardware anyone owns. The corpus still states the threshold nowhere, and states nowhere that Windows holds the smaller `omnivoice.cpp` voice while Linux holds the torch one, which is the fact the band turns on."
+    },
+    {
+      "what": "The frontmatter `sources` entry `wiki/install-macos.md` at wiki/clients/windows.md:13 will name a file that does not exist once T16 retires that page.",
+      "why": "The orchestrator ruled the entry stays: scripts/lint_wiki.py:284-286 never resolves a `sources` entry, so it trips nothing, and the entry records genuine provenance. Left exactly as found, and recorded here so the corpus-wide question of what a `sources` entry means after its source is retired reaches the tracker rather than being closed by silence."
+    },
+    {
+      "what": "Whether the edited page passes `python scripts/lint_wiki.py` and `--warnings`.",
+      "why": "No command execution was available in this run, so no linter output was produced. The 101-word long-paragraph warning the research artifact recorded at wiki/clients/windows.md:195 should be gone, since that paragraph is now two paragraphs of about 51 and 43 words, but that is a hand count rather than a verified linter result."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}
