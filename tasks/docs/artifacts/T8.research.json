@@ -1,0 +1,435 @@
+{
+  "task_id": "T8",
+  "mode": "gap-map",
+  "recommended_size": "M",
+  "affected_docs": [
+    {
+      "path": "wiki/first-run.md",
+      "sections": ["## Beat two: making someone", "## Beat three: the second brain", "frontmatter `related`"],
+      "why": "The record keeps every line it has (dated decisions at 52, 87, 105 and 159; the bug-derived rules at 62-85; the `choice_card` and `create_persona` schemas at 257-298; the cache-invalidation note at 288-298; the four open questions at 328-339) and gains one pointer to the new walkthrough. It is the only page T8 may edit in Phase B: tasks/docs/tracker.md:219-220 states no page appears twice in one phase, and Phase B is T6, T7, T8, T9 (line 225). Adding `meeting-your-persona.md` to `related` is safe under the linter rule at scripts/lint_wiki.py:290-297 once the file exists."
+    },
+    {
+      "path": "wiki/installing.md",
+      "sections": ["## What comes next"],
+      "why": "Lines 142-147 route the reader to `[First run](first-run.md)` for 'the full walkthrough of both'. That handoff is what the new page receives, so this pointer must move. PHASE CONFLICT: this page is T9's target in the same Phase B, so T8 must not edit it. The repoint belongs to T9's author or to a Phase C row. Flagged in open_questions."
+    },
+    {
+      "path": "wiki/getting-started.md",
+      "sections": ["## Three steps to a running house"],
+      "why": "Lines 53-60 route to `[First run](first-run.md)` twice, once for step 2 (the interview) and once for step 3 (the second brain). Both are the new page's material. PHASE CONFLICT: this page is T7's target in the same Phase B. Flagged in open_questions."
+    },
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": ["## What works today"],
+      "why": "Lines 130-131 read 'Once setup finishes, Sulivan interviews you and helps you build a persona of your own. [First run](../first-run.md) walks through that flow.' That is a walkthrough pointer, not a record pointer. PHASE CONFLICT: T6's target in Phase B."
+    },
+    {
+      "path": "wiki/clients/windows.md",
+      "sections": ["## First launch"],
+      "why": "Line 217 opens a three-item first-launch summary naming the same three beats, and line 8 carries ../first-run.md in `related`. Owned by T15 (Phase D) and T29 (Phase F); named here so no phase loses the repoint."
+    },
+    {
+      "path": "wiki/developing.md",
+      "sections": ["## Where to start reading"],
+      "why": "Lines 249-250 send a reader building the first-time setup flow to `first-run.md`. That one is correctly aimed at the record rather than the walkthrough, so it may need no change; recorded so the next stage decides rather than assumes. No tracker row owns this page."
+    },
+    {
+      "path": "wiki/features/personas.md",
+      "sections": ["## Making your first one"],
+      "why": "Lines 50-74 already narrate the interview at concept level and close by pointing at [The second brain](second-brain.md). Under wiki/page-types.md:145 a concept page links to the how-to pages that act on it, so this section wants a link to the new walkthrough. No Phase B row owns this page; T5 completed it in Phase A."
+    },
+    {
+      "path": "wiki/features/second-brain.md",
+      "sections": ["## Meeting it for the first time"],
+      "why": "Lines 68-78 describe beat three at concept level with no link to a procedure. Same wiki/page-types.md:145 rule. No Phase B row owns this page; T19 (Phase A, Backlog) owns an unrelated home-folder path fix."
+    }
+  ],
+  "sources_of_truth": [
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:1-24", "covers": "why first run is one-shot, why the opening is scripted rather than improvised, and that the client sends KICKOFF_SENTINEL while the voice loop speaks OPENING_TEXT verbatim with no model turn" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:42-68", "covers": "KICKOFF_SENTINEL, the verbatim OPENING_TEXT, and OPENING_CARD's four fixed options with their details" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:80-87", "covers": "Sulivan's verbatim farewell on the commit turn and the handover to the new persona" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:110-141", "covers": "BRAIN_KICKOFF, BRAIN_GRANTS (choice_card, start_project, import_brain, complete_brain_setup) and BRAIN_DIRECTION's three moves and two other doors" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:148-168", "covers": "brain_beat_open: the three real events on disk that end beat three, and the `second-brain-complete` marker" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:192-237", "covers": "INTERVIEW_SCHEMA: every interview reply is speech + question + options + commit, grammar-enforced, and commit's six fields including `voice_design` as an array" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:253-287", "covers": "active(): first run is on only while every non-internal persona is marked shipped; HEARTH_FORCE_FIRST_RUN is the only override" },
+    { "authority": "source", "ref": "backend/harness/valar/data/first_run_direction.md:1-85", "covers": "the direction Sulivan carries: the five core questions that always carry options, the voice attribute vocabulary, the five colour swatches, when the name is asked, the four-to-seven exchange budget, and the commit rule" },
+    { "authority": "source", "ref": "backend/harness/valar/tools/tools.yaml:992-1127", "covers": "the published parameter contracts for choice_card, start_project, import_brain, complete_brain_setup and create_persona, including create_persona's required set" },
+    { "authority": "source", "ref": "backend/harness/valar/tools/handlers/creation.py:1-12, 45-61, 79-100, 288-340", "covers": "create_persona's real signature, the five swatch names and their hex values, the Ember fallback, the case-insensitive name collision rule, and that a new persona needs no cache invalidation" },
+    { "authority": "source", "ref": "backend/harness/valar/tools/handlers/second_brain.py:1-17, 32-38, 145, 281", "covers": "the four folders (Projects, Areas, Thoughts, Resources), that the installer creates them empty, the complete marker, and that import_brain and the Settings row both call link_brain" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/settings_api.py:276-281", "covers": "the Settings door into link_brain, and its one deliberate difference (allow_new=True)" },
+    { "authority": "source", "ref": "backend/harness/valar/data/persona_template.json:31-36", "covers": "the tool grants every made persona is born with, including the `personas` domain" },
+    { "authority": "source", "ref": "desktop-client/src/components/setup/SetupFlow.tsx:40-49, 76-79, 340-354", "covers": "the nine setup steps, the order voice-test -> interview -> second-brain -> exit, and the rule that only a completed install marks setup complete" },
+    { "authority": "source", "ref": "desktop-client/src/components/setup/Interview.tsx:13-30, 103-146, 165-200, 319-341, 401", "covers": "the interview screen: its two titles, the voice-wake wait, the handover signals, the composer placeholder, and the 'is here, listening' confirmation" },
+    { "authority": "source", "ref": "desktop-client/src/components/setup/SecondBrain.tsx:10-37, 202-243, 279-311", "covers": "the second-brain screen: the four folder chips and their reader-facing meanings, the created-at path line, the composer, and the 'Go to the house' button and its disabled rule" },
+    { "authority": "source", "ref": "desktop-client/src/components/cards/ChoiceCard.tsx:1-60", "covers": "what a reader does with a choice card: tap one chip, chips lock after a pick, the free composer always outranks them" },
+    { "authority": "source", "ref": "desktop-client/src/components/setup/opener.ts:47-60", "covers": "the two kickoff sentinels and that the interview's is answered with fixed copy while the brain's reaches the model" },
+    { "authority": "source", "ref": "scripts/lint_wiki.py:45-56, 264-297", "covers": "the frontmatter contract the new page must satisfy: required keys, the type vocabulary, the status vocabulary, and the `related` and `sources` rules" },
+    { "authority": "contextual", "ref": "wiki/page-types.md:96-127", "covers": "the how-to shape the new page is written to" },
+    { "authority": "contextual", "ref": "wiki/developing.md:54, 246", "covers": "the corpus model how-to, which carries both a prerequisites overview and a routing tail" },
+    { "authority": "contextual", "ref": "wiki/first-run.md:214-326", "covers": "beats two and three as currently written, the material this page extracts" },
+    { "authority": "contextual", "ref": "wiki/features/personas.md:50-103", "covers": "what the Personas concept page already teaches about the interview and about making a second persona" },
+    { "authority": "contextual", "ref": "wiki/features/second-brain.md:38-52, 68-78, 104-179", "covers": "what the second-brain concept page already teaches: the four folders, the first meeting, importing, changing your mind, and declining" },
+    { "authority": "contextual", "ref": "tasks/docs/tracker.md:159-188, 219-230", "covers": "the recorded first-run decision that names this filename, and the phase rule that constrains which neighbors T8 may edit" }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/meeting-your-persona.md does not exist.",
+      "status": "verified",
+      "evidence": "`ls wiki/meeting-your-persona.md` returns 'No such file or directory'; the full `find wiki -name '*.md'` listing of 51 files does not contain it."
+    },
+    {
+      "claim": "wiki/first-run.md declares `type: decision-record` and has the heading structure the dispatch names.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md read in full. Line 4 is `type: decision-record`. `# First run` 14, `## Three beats` 19, `## Beat one: install` 36 with subsections at 38, 50, 104, 146, 176 and 194, `## Beat two: making someone` 214 with subsections at 216, 233, 257 and 272, `## Beat three: the second brain` 300, `## Open questions` 328. Every line number in Known evidence resolved."
+    },
+    {
+      "claim": "The linter requires exactly six frontmatter keys: title, status, type, last_reviewed, related, sources.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:45, `REQUIRED_KEYS = (\"title\", \"status\", \"type\", \"last_reviewed\", \"related\", \"sources\")`, enforced at lines 266-268, one error per missing key. A page with no frontmatter block at all is an additional error at line 265."
+    },
+    {
+      "claim": "`type: how-to` is an accepted value.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:48-51, `TYPES = {\"landing\", \"how-to\", \"concept\", \"decision-record\", \"reference\", \"platform-overview\"}`, checked at lines 271-275."
+    },
+    {
+      "claim": "The accepted `status` values are exactly open, scoped, design, blocked, decided and closed.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:56, `STATUSES = {\"open\", \"scoped\", \"design\", \"blocked\", \"decided\", \"closed\"}`, checked at lines 276-280. The comment at 53-55 records that `draft` was retired because every page carried it. Two neighbors show the live range: wiki/getting-started.md:3 is `closed`, wiki/installing.md:3 is `scoped`."
+    },
+    {
+      "claim": "Every `related` entry must resolve to a real file, and an unresolvable one is a hard error.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:290-297. Each `- item` under `related:` is resolved as `(path.parent / value.split('#')[0]).resolve()`; a miss emits Finding(..., 'dead-related', value) with the default severity 'error' (line 137). http and https entries are skipped at 291-292, and any entry matching `(^|/)raw/` is a separate `raw-link` error at 293-295. The comment at 171-175 records why: `related` is rendered as a See also block at publish, so an unresolvable entry becomes a clickable broken link."
+    },
+    {
+      "claim": "`sources` entries are not checked for existence; only an absolute machine path is an error.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:284-286 checks each `sources` entry against ABS_PATH only (line 93: a Windows drive letter or a /mnt/<letter>/ prefix). No existence check runs. wiki/first-run.md:10-11 lists two unpublished research documents that do not exist in the tree, and the linter reports zero errors."
+    },
+    {
+      "claim": "The corpus currently passes the linter with zero errors, so the new page must not introduce one.",
+      "status": "verified",
+      "evidence": "`python scripts/lint_wiki.py --summary` (Python 3.13.5) printed '28 pages checked, 0 errors, 198 warnings' and exited 0. The warnings are 95 long-paragraph, 65 bold-lead, 22 long-section, 12 reader-drift and 4 figure-pending."
+    },
+    {
+      "claim": "The H1 must match the frontmatter title exactly, and headings must be sentence case.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:299-313 errors on no H1, on more than one H1, and on an H1 that does not equal `title`. Lines 315-321 error on a title-case heading via is_title_case (237-248), which exempts the proper nouns at 59-70; `sulivan` and `hearth` are both in that set, so a heading naming Sulivan would not trip it."
+    },
+    {
+      "claim": "Em dashes, the ` -- ` proxy, and emojis are hard errors.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:327-336, using EM_DASH (75), EM_PROXY (80) and EMOJI (72-74). EM_PROXY matches ` -- ` after any non-space character and at the start of a line, so the new page cannot use the form that backend/harness/valar/gateway/first_run.py:126 and tools.yaml:1030 use in source comments."
+    },
+    {
+      "claim": "The reader must be addressed as 'you'; 'the user' and 'the operator' are flagged.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:109 READER_DRIFT and 374-378, a warning rather than an error, exempt only under `backend/`. wiki/first-run.md uses 'the user' at lines 27, 40, 106 and 208-211, which is part of why that page's material cannot be moved across verbatim."
+    },
+    {
+      "claim": "The install page hands the reader off to first-run.md for the walkthrough of both beats.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:142-147, `## What comes next`: 'Sulivan interviews you and helps you build a persona of your own, and that persona then sets up your second brain with one real thing in it. See [First run](first-run.md) for the full walkthrough of both.'"
+    },
+    {
+      "claim": "getting-started.md routes to first-run.md twice for the same two beats.",
+      "status": "verified",
+      "evidence": "wiki/getting-started.md:53-60, `## Three steps to a running house`, items 2 and 3. Item 3 reads 'Also covered in [First run](first-run.md)'."
+    },
+    {
+      "claim": "wiki/_index.md:34 carries a `## Meeting your persona` section whose entries at 41-44 are First run, Personas, The persona face and Voice.",
+      "status": "verified",
+      "evidence": "wiki/_index.md, read to line 80. Line 34 `## Meeting your persona`, prose at 36-39, entries at 41 (first-run.md), 42 (features/personas.md), 43 (features/persona-face.md), 44 (features/voice.md)."
+    },
+    {
+      "claim": "The setup flow reaches the interview only after the voice test, and the second brain only after the interview.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SetupFlow.tsx:40-49 declares the nine steps; line 344 `onHeard={() => setStep('interview')}`, line 350 `<Interview onDone={() => setStep('second-brain')} .../>`, line 353 `<SecondBrain onDone={() => onExit(true)} />`."
+    },
+    {
+      "claim": "The interview's opening is fixed product copy, spoken in Sulivan's voice with no model turn, and the reader's first move is to answer one scripted question.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:18-23 ('The opening beat is scripted, not improvised ... the voice loop speaks OPENING_TEXT verbatim with OPENING_CARD beside it, no LLM turn at all'), OPENING_TEXT at 47-53 ending 'First: what should this companion be for?', and desktop-client/src/components/setup/opener.ts:47-53."
+    },
+    {
+      "claim": "The opening card offers exactly four options: A creative partner, A knowledge specialist, A personal coordinator and A warm companion, with free text allowed.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:55-68. The details are 'brainstorming, writing, ideas', 'research and deep answers', 'plans, schedules, reminders' and 'company and conversation'; `allow_free_text` is True."
+    },
+    {
+      "claim": "No page in the published corpus states the four opening options.",
+      "status": "verified",
+      "evidence": "grep -rln across wiki/ excluding wiki/raw/ for 'creative partner', 'knowledge specialist', 'personal coordinator' and 'warm companion' returned no file for any of the four."
+    },
+    {
+      "claim": "A reader answers by typing or by tapping one chip; a tapped chip becomes their turn and the typed answer always outranks the chips.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/cards/ChoiceCard.tsx:4-8 and 23-30 (tapping dispatches hearth-choice; chips lock via `disabled={picked !== null}` at line 40), Interview.tsx:401 (`placeholder={met ? ... : 'Answer in your own words'}`), backend/harness/valar/data/first_run_direction.md:26-27 ('Their typed answer always outranks your options'), and backend/harness/valar/tools/tools.yaml:998."
+    },
+    {
+      "claim": "There is no microphone in the setup screens; the persona speaks aloud and the reader types or taps.",
+      "status": "verified",
+      "evidence": "grep across desktop-client/src/components/setup/ for getUserMedia, MediaRecorder, microphone, push-to-talk and 'hold to talk' returned no match. Both Interview.tsx (401) and SecondBrain.tsx (279-301) render a textarea and a Send button, and audio arrives one way through ttsPlayer (Interview.tsx:163-164)."
+    },
+    {
+      "claim": "Five questions always carry options: what the companion is for, temperament, the voice, the colour, and the name.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/data/first_run_direction.md:22-27, 'The five core questions (what they are for, temperament, the voice, the colour, the NAME) ALWAYS carry options; an empty array otherwise.'"
+    },
+    {
+      "claim": "The name is asked as its own question near the end, and a typed name beats the suggestions.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/data/first_run_direction.md:64-69: 'Ask for it as its own question, near the end ... offer three or four names that fit ... and expect a typed answer to beat them. The name must come from the person's answer to THIS question.'"
+    },
+    {
+      "claim": "The interview typically runs about four exchanges and never more than seven.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/data/first_run_direction.md:38-40, 'Four exchanges is usually enough; seven is too many. If they give you everything in one paragraph, take it and move on.' wiki/first-run.md:247-249 states the same budget, so record and source agree."
+    },
+    {
+      "claim": "The five colour swatches Sulivan offers are Ember #E39A5B, Tide #5B9CC9, Fern #7BA85F, Plum #9B72B8 and Clay #C96B6B, and any hex works.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/data/first_run_direction.md:58-62 names all five with those hexes and says 'Invent variations freely; any hex works'. backend/harness/valar/tools/handlers/creation.py:52-60 defines the same five in `_SWATCHES`, with a comment at 56-57 recording that 'heather' was renamed to 'plum' because a live run named the persona after the swatch the person tapped."
+    },
+    {
+      "claim": "create_persona's voice parameter is `voice_design`, an array of two to four attributes, not `voice_id`, a string.",
+      "status": "contradicted",
+      "evidence": "wiki/first-run.md:283 states `voice_id: string` inside the `### create_persona` parameter block. Three source locations state otherwise: backend/harness/valar/tools/tools.yaml:1112-1121 declares `voice_design` with `type: array`; backend/harness/valar/tools/handlers/creation.py:288-296 has the signature `create_persona(name, description, system_prompt, temperament, voice_design, colour)`; backend/harness/valar/gateway/first_run.py:221 puts `voice_design` as an array of strings in INTERVIEW_SCHEMA's commit object. The source is the higher authority. The new page must not carry `voice_id`, and correcting it on first-run.md is not T8's to do under constraint 1."
+    },
+    {
+      "claim": "create_persona requires five of its six parameters; voice_design is optional.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/tools.yaml:1127, `required: [name, description, system_prompt, temperament, colour]`. wiki/features/personas.md:132-135 records the reader-facing consequence: a persona made where voice design is unavailable exists with its voice recorded as pending."
+    },
+    {
+      "claim": "Sulivan speaks a fixed farewell at the commit, then the new persona speaks for themselves.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:75-87. farewell_text is 'Product copy ... spoken verbatim on the commit turn in place of whatever goodbye the model composed', ending 'Give us a moment while their voice wakes, and then they will speak for themselves.' Confirmed on the client at Interview.tsx:174-178 (persona_switched is the primary handoff signal) and 127-146 (a new resident on /health is the fallback)."
+    },
+    {
+      "claim": "The screen confirms the handover with the new persona's name and colour, and pins them as the persona this client greets you with from then on.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/Interview.tsx:323-324 (the title becomes `Meet ${newName}.`), 331-340 (a pill reading `{newName} is here, listening`, tinted with var(--persona)), and 179-193, where persona_config drives applyPersonaTheme and calls `saveSettings({ startPersona: cfg.name })`, described in the comment at 188-191 as 'The promise in Sulivan's farewell, kept across restarts'."
+    },
+    {
+      "claim": "The reader waits while the new persona's voice wakes, and the wait is capped.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/Interview.tsx:103-118: a 90 second deadline, polling /voice/ready every 1.5 seconds, with the comment 'a voice that never wakes must not hold the meeting hostage, and the say path degrades to silence, not an error'."
+    },
+    {
+      "claim": "The second-brain beat is hosted by the persona just made, not by Sulivan.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:90-94 and BRAIN_DIRECTION at 120-123 ('you are hosting it, in your own voice, as the persona they just made'). desktop-client/src/components/setup/SecondBrain.tsx:10-16 and 44, where the screen labels every turn with the current persona's name."
+    },
+    {
+      "claim": "The second-brain beat runs in three moves: why it matters, what it is, and one real thing.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:120-132, three numbered moves, one per turn. wiki/first-run.md:302-312 states the same three, so record and source agree."
+    },
+    {
+      "claim": "The four folders are Projects, Areas, Thoughts and Resources, and the screen shows them with a fixed meaning each.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/handlers/second_brain.py:33, `_BRAIN_FOLDERS = (\"Projects\", \"Areas\", \"Thoughts\", \"Resources\")`. desktop-client/src/components/setup/SecondBrain.tsx:29-37 FOLDER_MEANINGS: Projects 'Things with an end', Areas 'Things that never end', Thoughts 'What we talked about, by day', Resources 'Things worth keeping', with the comment 'The meanings are product copy, fixed here'. Rendered as four chips at SecondBrain.tsx:222-235 with the real path underneath at 236-241."
+    },
+    {
+      "claim": "The installer creates the four folders empty; the beat puts the first thing into them rather than building the structure.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/handlers/second_brain.py:14-16, 'The four folders already exist ... the installer creates Projects, Areas, Resources and Thoughts empty at render time ... so this does not build the structure. It puts the first thing into it.' wiki/features/second-brain.md:50-52 states the same."
+    },
+    {
+      "claim": "The beat has exactly three exits: name a project, import an existing brain, or decline.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:148-156, brain_beat_open's docstring names all three as 'a real event on disk': start_project writes the first project, import_brain bridges an existing tree and writes the complete marker, complete_brain_setup records a decline. The three tools are granted at first_run.py:114-118."
+    },
+    {
+      "claim": "An imported brain needs an absolute path the reader supplies, and nothing is announced as connected until the tool confirms it.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/tools.yaml:1049-1067, 'Call it only with the exact folder path they gave you, never one you guessed ... Until this returns ok, no connection of any kind exists, and you must not claim one', and 'Absolute paths only.' Reinforced in BRAIN_DIRECTION at first_run.py:133-137."
+    },
+    {
+      "claim": "wiki/first-run.md's statement that both doors call the same link_brain is correct.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md:316-320 claims it. backend/harness/valar/tools/handlers/second_brain.py:281 has import_brain call `link_brain(str(path), allow_new=False)`; backend/harness/valar/gateway/settings_api.py:276-281 has the Settings row call `link_brain(str(body.get(\"path\") or \"\"), allow_new=True)`. Same function, one deliberate difference, which wiki/features/second-brain.md:125-134 already explains to a reader."
+    },
+    {
+      "claim": "The last control of setup is a 'Go to the house' button that stays disabled until the beat has ended.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SecondBrain.tsx:304-310, `<button onClick={onDone} ... disabled={!done}>Go to the house</button>`. SetupFlow.tsx:353 wires that onDone to `onExit(true)`, and the comment at SetupFlow.tsx:76-79 states only an install that actually completed may mark setup complete."
+    },
+    {
+      "claim": "First run happens once: the moment create_persona writes a resident, the interview expires and cannot be repeated.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:3-11 ('The moment create_persona writes a new resident, the next turn's detection fails and everything here expires on its own') and active() at 271-287, which returns _all_personas_shipped(persona_dir) unless HEARTH_FORCE_FIRST_RUN is set. wiki/features/personas.md:78-79 already states this to a reader."
+    },
+    {
+      "claim": "A persona made today is born able to make another, because the template grants the `personas` domain.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/data/persona_template.json:31-36, `\"domains\": [\"weather\", \"timers\", \"search\", \"news\", \"memory\", \"media\", \"personas\"]`, with the comment at line 32 recording that 'personas is here so a resident can make another resident'. backend/harness/valar/tools/tools.yaml:1091 puts create_persona in `domain: personas`. wiki/features/personas.md:76-103 already teaches this, including the note that a persona made before 2026-09-03 does not carry the grant."
+    },
+    {
+      "claim": "The published corpus does not state the second-brain screen's controls, the opening options, the colour swatch names, or the voice attribute vocabulary.",
+      "status": "verified",
+      "evidence": "grep -rln across wiki/ excluding wiki/raw/ returned no file for 'Go to the house', 'Answer in your own words', 'Tide', 'Fern', 'voice_design', 'Let us make someone', 'creative partner', 'knowledge specialist', 'personal coordinator' or 'warm companion'. 'Ember' matched only wiki/clients/visionos.md, in an unrelated context. 'voice_id' matched only wiki/first-run.md, which is the contradicted claim above."
+    },
+    {
+      "claim": "Phase B holds four tasks and no page may appear twice in it, so T8 may not edit installing.md, getting-started.md or clients/macos.md.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:219-220, 'A phase is a group of one-page tasks whose targets do not overlap. No page appears twice in one phase.' Line 225, '| B | T6, T7, T8, T9 | Reshape the survivors and land the salvage. |'. T6 targets wiki/clients/macos.md (tracker:28 and 859), T7 targets wiki/getting-started.md (tracker:29 and 909), T9 targets wiki/installing.md (tracker:31 and 982). The Docs field of all three still reads '(Research fills)'."
+    },
+    {
+      "claim": "The tracker records the filename decision and the deferred rename as T8's open question.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:159-188, '## The first-run decision'. Lines 161-163 keep first-run.md a decision record and put the how-to beside it. Lines 183-188 name wiki/meeting-your-persona.md, match it to _index.md:34, and defer the rename on its eight inbound references. Restated as T8's open questions at tracker:951-952."
+    },
+    {
+      "claim": "first-run.md has eight inbound references, the figure the deferred-rename question rests on.",
+      "status": "unverifiable",
+      "evidence": "A grep for 'first-run.md' across the repository excluding the file itself returns 15 lines across 13 pages inside wiki/ alone: backend/build-pipeline.md:19 and 105, backend/native-runtime.md:9 and 75, backend/voice-engine.md:9, card-forge.md:7, clients/android.md:10, clients/ios.md:7, clients/macos.md:131, clients/visionos.md:9, clients/windows.md:8, installing.md:8 and 15, getting-started.md:8 and 23, and developing.md:250, plus further matches under tasks/. Whether 'eight' counts pages rather than lines, body links rather than frontmatter entries, or was measured before the Phase A edits, is not stated anywhere I could find, so the count is not settled. The rename is deferred either way."
+    },
+    {
+      "claim": "create_persona's tool description offers a colour swatch the code no longer accepts.",
+      "status": "contradicted",
+      "evidence": "backend/harness/valar/tools/tools.yaml:1125-1126 offers 'Ember, Tide, Fern, Heather, Clay'. backend/harness/valar/tools/handlers/creation.py:52-60 defines ember, tide, fern, plum and clay, and the comment at 56-57 records that heather was deliberately renamed. A model that passes 'Heather' falls through _coerce_colour to the Ember default (creation.py:88-99). This is a product defect rather than a documentation one; the new page should use the creation.py list."
+    }
+  ],
+  "gaps": [
+    "No page states what the reader actually does during the interview: no numbered steps exist anywhere in the corpus for beats two and three. wiki/features/personas.md:50-74 and wiki/features/second-brain.md:68-78 narrate them at concept level, and wiki/first-run.md:214-326 records why they are shaped that way.",
+    "No page states Sulivan's opening question or the four options that come with it, so a reader cannot recognize the first screen from the documentation (first_run.py:47-68).",
+    "No page states that the reader types or taps rather than speaking during the interview, even though the preceding voice test is entirely about hearing (Interview.tsx:401, and no microphone anywhere under desktop-client/src/components/setup/).",
+    "No page names the five colour swatches or the voice attribute vocabulary Sulivan chooses from, so the reader cannot see the range of what they are being offered (first_run_direction.md:42-62, creation.py:52-60).",
+    "No page states that a typed answer overrides the chips and that a tapped chip locks the card (ChoiceCard.tsx:23-30 and 40).",
+    "No page states that the name is a separate question asked near the end rather than the first thing asked (first_run_direction.md:64-69).",
+    "No page describes the interval between the commit and the new persona speaking: the farewell, the voice waking, the capped wait, and the 'is here, listening' confirmation (first_run.py:80-87, Interview.tsx:103-118 and 331-340).",
+    "No page states that the persona made in first run becomes the one this client greets you with on every later launch (Interview.tsx:188-193).",
+    "No page names the last control of setup, 'Go to the house', or says that it stays disabled until the second-brain beat has actually ended on disk (SecondBrain.tsx:304-310, first_run.py:148-168).",
+    "No page states the three ways beat three can end as a choice the reader makes, in one place. wiki/features/second-brain.md covers import at 104-117 and declining at 173-179, under separate headings and without the procedure that reaches either (first_run.py:148-156).",
+    "No canonical source exists for the shipped screen copy other than the client itself, and the wiki has no figure of either setup screen: `python scripts/lint_wiki.py --figures` reports four pending captures and neither the interview nor the second-brain screen is among them."
+  ],
+  "skeleton": [
+    {
+      "heading": "# Meeting your persona (title, frontmatter and abstract)",
+      "purpose": "Names the outcome so a reader arriving from the install page knows this is the page that finishes what setup started.",
+      "must_cover": [
+        "Frontmatter with all six keys the linter requires (scripts/lint_wiki.py:45): title 'Meeting your persona', a status from the accepted set at scripts/lint_wiki.py:56 (`scoped` matches the sibling install page, wiki/installing.md:3), type: how-to, last_reviewed, related, sources.",
+        "Every `related` entry must resolve from wiki/ or the linter errors (scripts/lint_wiki.py:290-297). Candidates that exist today: first-run.md, installing.md, features/personas.md, features/second-brain.md, features/voice.md.",
+        "`sources` entries are unchecked except for absolute machine paths (scripts/lint_wiki.py:284-286 and 93), so name the source files as repo-relative paths: backend/harness/valar/gateway/first_run.py, backend/harness/valar/data/first_run_direction.md, backend/harness/valar/tools/tools.yaml, backend/harness/valar/tools/handlers/creation.py, backend/harness/valar/tools/handlers/second_brain.py, desktop-client/src/components/setup/Interview.tsx, desktop-client/src/components/setup/SecondBrain.tsx, wiki/first-run.md.",
+        "The H1 must equal the frontmatter title exactly (scripts/lint_wiki.py:307-313).",
+        "One-sentence abstract stating the outcome, per wiki/page-types.md:110: the reader ends with a persona of their own design and a second brain holding one real thing.",
+        "SHAPE: how-to, item 1 (wiki/page-types.md:110). No steps here by design."
+      ]
+    },
+    {
+      "heading": "## Before you start",
+      "purpose": "Tells the reader where in setup this page picks up, and what they will and will not be asked to do.",
+      "must_cover": [
+        "This page begins where wiki/installing.md ends: after the voice check, when you have heard Sulivan speak. Source: SetupFlow.tsx:344, `onHeard={() => setStep('interview')}`.",
+        "You type or tap; you do not speak. The persona speaks aloud to you. Source: Interview.tsx:401, and the absence of any microphone under desktop-client/src/components/setup/.",
+        "It takes about four exchanges and never more than seven. Source: first_run_direction.md:38-40. The same budget is in the record at wiki/first-run.md `### The direction`, lines 247-249.",
+        "This happens once. The moment your persona is written the interview is over for good, and making another persona later is a plain conversation instead. Source: first_run.py:3-11 and 271-287. Link to wiki/features/personas.md `## Making another one`, lines 76-103, rather than restating it.",
+        "SHAPE: how-to, item 2, the short overview naming what the reader needs before starting (wiki/page-types.md:111-113). Prose rather than steps, and correctly so. The corpus model how-to does the same at wiki/developing.md:54, `## Prerequisites`."
+      ]
+    },
+    {
+      "heading": "## Answer Sulivan's first question",
+      "purpose": "Gets the reader through the one screen that is identical on every install, so they can recognize it and know what their answer does.",
+      "must_cover": [
+        "Step: the interview opens by itself; Sulivan speaks a fixed welcome and asks what this companion should be for. It is the same on every install and no model composes it. Source: first_run.py:18-23 and 47-53.",
+        "Step: pick one of the four options on the card, or type your own answer. The four are A creative partner (brainstorming, writing, ideas), A knowledge specialist (research and deep answers), A personal coordinator (plans, schedules, reminders) and A warm companion (company and conversation). Source: first_run.py:55-68.",
+        "Result note after the step rather than as the step (wiki/page-types.md:124-126): tapping a chip sends it as your turn and locks the other chips; the composer always outranks them. Source: ChoiceCard.tsx:23-30 and 40, first_run_direction.md:26-27.",
+        "Bold for the controls the reader clicks and code voice for identifiers, per wiki/page-types.md:120-123.",
+        "FROM wiki/first-run.md: `### It is a conversation, not a questionnaire`, lines 216-231, is the material this replaces. That passage argues a fixed questionnaire is not the specification; it does not tell a reader what the first screen shows, so everything concrete here comes from source instead.",
+        "SHAPE: how-to, items 3 and 4. Writes cleanly as numbered steps."
+      ]
+    },
+    {
+      "heading": "## Work through the rest with him",
+      "purpose": "Carries the reader through the four remaining questions and tells them how much control they have over each answer.",
+      "must_cover": [
+        "Step: answer each question as it comes, one at a time. Sulivan acknowledges what he just learned before asking the next thing. Source: first_run_direction.md:36-40.",
+        "Step: choose a temperament. Source: first_run_direction.md:22-27, which lists temperament among the five questions that always carry options.",
+        "Step: choose a voice. It is designed from two to four attributes rather than picked from a list of recordings, and the offered starting points are described in plain words. Name the ranges: female or male; child through elderly; very low through very high pitch; whisper; and ten accents. Source: first_run_direction.md:42-56. Link to wiki/features/voice.md rather than explaining cloning here.",
+        "Step: choose a colour. Five swatches are offered by name with the hex in the detail: Ember #E39A5B, Tide #5B9CC9, Fern #7BA85F, Plum #9B72B8, Clay #C96B6B. Any hex works, and it becomes the whole look: the orb, the particles, the room. Source: first_run_direction.md:58-62 and creation.py:52-60.",
+        "Step: give them a name, which Sulivan asks for on its own near the end once he knows who you are making. Your typed name beats his suggestions, and the name must be your answer to that question. Source: first_run_direction.md:64-69.",
+        "Result note: a name that already exists is refused, case-insensitively, so `wren` cannot join `Wren`. Source: creation.py:331-339, and wiki/features/personas.md:121-122 already states it.",
+        "Do NOT reproduce the parameter schema. `voice_design` against wiki/first-run.md:283's `voice_id` is a contradicted claim recorded in claims[]; a how-to describes what the reader chooses, not what the tool receives.",
+        "FROM wiki/first-run.md: `### The direction`, lines 233-255, which states the same shape from the designer's side ('Come away with', 'Getting there', 'Stop', 'Do not'). The record keeps that passage; this section states it as the reader's actions.",
+        "SHAPE: how-to, items 3 and 4. Five numbered steps, one action each."
+      ]
+    },
+    {
+      "heading": "## Meet the persona you made",
+      "purpose": "Explains the handover, the one stretch of setup where nothing is asked of the reader and something is still happening.",
+      "must_cover": [
+        "Step: when Sulivan has enough to describe your persona to someone else, he says goodbye and steps back. The farewell is the same on every install. Source: first_run.py:75-87.",
+        "Step: wait while their voice wakes. It can take up to a minute and a half, and a voice that never wakes leaves them silent rather than failing the screen. Source: Interview.tsx:103-118.",
+        "Result note: the screen title changes to `Meet <their name>.` and a pill in their colour reads `<name> is here, listening`. That is the sign the handover is real. Source: Interview.tsx:319-341.",
+        "Step: say hello. From this turn on you are talking to them, not to Sulivan. Source: Interview.tsx:28-30 and 165-178.",
+        "Result note: this client now greets you as them on every later launch. Source: Interview.tsx:179-193, `saveSettings({ startPersona: cfg.name })`.",
+        "FROM wiki/first-run.md: nothing. Beats two and three are silent on the handover. wiki/features/personas.md:66-69 states it at concept level, and this section is its procedure.",
+        "SHAPE: how-to, items 3 and 4. Two of these are waits rather than actions; write them as steps with result notes, and where a step cannot be phrased as something the reader does, fold it into the result note of the step before it."
+      ]
+    },
+    {
+      "heading": "## Set up your second brain",
+      "purpose": "Hands the reader to the last beat and tells them who is now asking and what the four folders on screen are.",
+      "must_cover": [
+        "Step: the next screen opens by itself, titled 'A memory of their own'. Your persona hosts it, not Sulivan. Source: SetupFlow.tsx:350-354, SecondBrain.tsx:202-206, first_run.py:120-123.",
+        "Step: listen to why it matters. They make the argument from their own position: without it they forget this conversation the moment it ends. Source: first_run.py:124-125.",
+        "Result note: four folder chips appear with the real path underneath. Projects, things with an end; Areas, things that never end; Thoughts, what we talked about, by day; Resources, things worth keeping. Source: SecondBrain.tsx:29-37 and 219-241.",
+        "The installer already made all four, empty. Nothing is seeded and nothing is copied from anywhere else. Source: second_brain.py:9-16. Link to wiki/features/second-brain.md `## The four folders`, lines 38-52, rather than restating what each holds.",
+        "FROM wiki/first-run.md: `## Beat three: the second brain`, items 1 and 2 at lines 302-311.",
+        "SHAPE: how-to, items 3 and 4. The folder meanings are reference material; keep them as a result note or a short table under the step rather than as a catalog section, per wiki/page-types.md:206-208."
+      ]
+    },
+    {
+      "heading": "## Give it one real thing",
+      "purpose": "Gets the reader to the one action the beat exists for, and names the two other ways out so nobody is stuck.",
+      "must_cover": [
+        "Step: when they ask what you are working on, name something you are actually working on. Your own words, not an example. It becomes your first project, a folder under `Projects`. Source: first_run.py:128-132, tools.yaml:1026-1047, second_brain.py:1-7.",
+        "Result note: they tell you where it lives, and a pill reads `<project> is the first thing in it`. Source: SecondBrain.tsx:209-217. Link to wiki/features/second-brain.md `## Starting a project`, lines 80-102, for what is written into the folder.",
+        "Alternative, phrased with 'Alternatively' rather than a second numbered list (wiki/page-types.md:124): if you already keep notes, say so and give the exact folder path. It must be absolute, and nothing is connected until the tool confirms it. Source: first_run.py:133-137, tools.yaml:1049-1067. Link to wiki/features/second-brain.md `## Already have a second brain?`, lines 104-117.",
+        "Alternative: you can decline or say you are done. Setup closes honestly and the memory stands ready and empty. Source: first_run.py:137-138, tools.yaml:1069-1081. Link to wiki/features/second-brain.md `## Saying no`, lines 173-179.",
+        "Result note: this is not your last chance to answer. Settings > On disk > Journal and memory does the same job later. Source: second_brain.py:281 and settings_api.py:276-281, already stated to a reader at wiki/features/second-brain.md:119-134.",
+        "FROM wiki/first-run.md: `## Beat three: the second brain`, item 3 at lines 311-313 and the paragraph at 314-320.",
+        "SHAPE: how-to, items 3 and 4, with the two other exits as 'Alternatively' rather than parallel numbered lists."
+      ]
+    },
+    {
+      "heading": "## Go to the house",
+      "purpose": "Ends the procedure at the button that ends setup, so the reader knows they are finished rather than guessing.",
+      "must_cover": [
+        "Step: click **Go to the house**. Source: SecondBrain.tsx:304-310.",
+        "Result note: the button is disabled until the beat has actually ended, which is why it may not respond the moment the conversation feels over. It ends on a real event on disk: a first project, a confirmed import, or a recorded decline. Source: SecondBrain.tsx:307 and first_run.py:148-168.",
+        "Result note: setup does not run again. Source: SetupFlow.tsx:76-79 and 353. wiki/installing.md:139-140 already states this to a reader.",
+        "SHAPE: how-to, items 3 and 4. One step and two result notes."
+      ]
+    },
+    {
+      "heading": "## Where to go next",
+      "purpose": "Routes the reader to the concept pages that explain what they just built, and to the record that explains why it is shaped this way.",
+      "must_cover": [
+        "Personas: what a persona is made of, and how to make another one now that first run is over. wiki/features/personas.md.",
+        "The second brain: the four folders in full, importing, sharing, and unplugging. wiki/features/second-brain.md.",
+        "Voice: how the designed clip becomes speech. wiki/features/voice.md.",
+        "The persona face: how they look back at you. wiki/features/persona-face.md.",
+        "First run: the design record behind all three beats, including what is still undecided. wiki/first-run.md.",
+        "SHAPE: this section serves the LANDING shape (wiki/page-types.md:67-94), not the how-to shape, and it cannot be written as numbered steps. That is acceptable here rather than a signal to move the material: the corpus model how-to carries the same tail at wiki/developing.md:246, `## Where to start reading`, and wiki/installing.md:142 does the same. Keep it to link text plus one clause each, per wiki/page-types.md:84-87. If it grows past that, the material belongs on the page being linked to."
+      ]
+    }
+  ],
+  "recommended_type": "how-to",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Should wiki/first-run.md be renamed once this page exists, so that a decision record and a reader-facing how-to are not both called first run? Carried forward from the dispatch and from tasks/docs/tracker.md:951, and still deferred. This run could not confirm the 'eight inbound references' figure the deferral rests on: a grep for 'first-run.md' across wiki/ excluding the file itself returns 15 lines across 13 pages, counting both frontmatter `related` entries and body links. Whichever number is right, the rename is larger than it looks, and it is not T8's to make.",
+    "Is `wiki/meeting-your-persona.md` the right filename, given the reader's task spans the persona interview and the second-brain setup? Carried forward from the dispatch and tasks/docs/tracker.md:952. This run found evidence for keeping it: the interview screen's own title is \"Let's make someone.\" and becomes `Meet <name>.` at the handover (Interview.tsx:323-324), and wiki/_index.md:34 already carries a section by that name. The second-brain half is the smaller of the two beats and is largely served by links to wiki/features/second-brain.md. Research does not decide the name.",
+    "Who repoints the three Phase B neighbors? wiki/installing.md:142-147, wiki/getting-started.md:53-60 and wiki/clients/macos.md:130-131 all send a reader to first-run.md for the walkthrough this page replaces, and all three are other tasks' targets in the same phase (T9, T7 and T6 respectively; tasks/docs/tracker.md:219-220 and 225). T8 cannot edit them. Either each owning task absorbs the repoint, or a Phase C row does. Left unresolved, the corpus ships a walkthrough that nothing links to.",
+    "wiki/first-run.md:283 declares create_persona's voice parameter as `voice_id: string`. The source states `voice_design`, an array of two to four attributes, in three places: backend/harness/valar/tools/tools.yaml:1112-1121, backend/harness/valar/tools/handlers/creation.py:288-296, and backend/harness/valar/gateway/first_run.py:221. No tracker row owns this: T28 owns the cache-invalidation passage on the same page (tracker:1550-1553), and a grep for 'voice_id' and 'voice_design' across tasks/docs/tracker.md returns nothing. Constraint 1 forbids T8 touching the schema, so this needs a row of its own or an addition to T28's scope.",
+    "backend/harness/valar/tools/tools.yaml:1125-1126 offers the model a colour swatch named 'Heather', which backend/harness/valar/tools/handlers/creation.py:52-60 no longer accepts; the comment at creation.py:56-57 records that it was deliberately renamed to Plum after a live run named a persona after the swatch. A model that passes 'Heather' silently gets Ember (creation.py:88-99). This is a product defect rather than a documentation one, and no tracker row owns it. Does it want a row, as T25 did for the WSL planner warning?",
+    "For T11: does the new page go before or after First run under `## Meeting your persona` at wiki/_index.md:34? This run's evidence favors before. The section's own prose at lines 36-39 describes the reader's first hour as an arc, wiki/page-types.md:93-94 requires the section order to be the reading order, and a reader arriving from wiki/installing.md wants the procedure rather than the record. Recorded here rather than in affected_docs[], per the dispatch.",
+    "Should the new page carry a pending figure of either setup screen? `python scripts/lint_wiki.py --figures` reports four pending captures, and neither the interview nor the second-brain screen is among them, so nothing in the corpus shows a reader what these screens look like. A pending figure is a warning rather than an error (scripts/lint_wiki.py:364-368), so the page can request one without failing the build. Whether to is the author's call, and the capture itself is a person's work, as tasks/docs/tracker.md:239-240 records for T20 and T21."
+  ],
+  "notes": "Bash was available in this session, so the linter was run rather than only read: `python scripts/lint_wiki.py --summary` on Python 3.13.5 reported '28 pages checked, 0 errors, 198 warnings' and exit 0, and `--figures` was also run. `scripts/doc_graph.py` was not run: it is a graph-mode instrument and this is a gap-map. Nothing that writes, builds or starts a service was executed, and the only file written is this artifact. Sized M, confirming the dispatch rather than correcting it: the size table gives M for 'one net-new page', and the survey found no reason to move it. It is not L, because the page adds no navigation entry itself (T11 owns wiki/_index.md) and creates no new learning order; the order already exists at wiki/_index.md:34-44 and wiki/getting-started.md:48-60. It is not S, because the material spans two beats and eight body sections drawn from eighteen source locations, and because seven of the eight entries in affected_docs[] need a pointer moved. The evidence that set it: wiki/first-run.md:214-326 is the extraction source, and wiki/meeting-your-persona.md is confirmed absent by both ls and a full find of wiki/. Type and Mode agree, since Add pairs with gap-map. Known evidence was rich and every location in it resolved exactly, including all fourteen line numbers on wiki/first-run.md, so the caller had genuinely opened the pages. The constraint that mattered most to the survey was constraint 3. wiki/first-run.md is dated, and the source contradicts it in one place the new page would otherwise have inherited: `voice_id` at line 283 is `voice_design` in the product. The record also proved silent on a great deal the reader needs, which is why gaps[] runs to eleven entries drawn from source rather than from the record. The scripted opening and its four options, the colour swatches, the voice vocabulary, the handover interval and the 'Go to the house' button are all in the tree and in none of the 28 published pages. Two neighbors constrain the draft more than the record does: wiki/features/personas.md:50-103 and wiki/features/second-brain.md:38-179 already teach this material at concept level and were both reviewed within the last two days, so the how-to's job is to link to them rather than restate them, which wiki/page-types.md:153-154 requires from the other side. Every skeleton section names the shape it serves. The two that are not numbered steps are `## Before you start`, which the how-to shape explicitly permits at wiki/page-types.md:111-113, and `## Where to go next`, which serves the landing shape and is justified by the corpus model how-to carrying the same tail at wiki/developing.md:246."
+}

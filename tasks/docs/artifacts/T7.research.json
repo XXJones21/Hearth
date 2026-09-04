@@ -1,0 +1,249 @@
+{
+  "task_id": "T7",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/getting-started.md",
+      "sections": [
+        "frontmatter (line 4, type:)",
+        "# Getting started (abstract, lines 26-32)",
+        "## What you need (lines 34-46)",
+        "## Three steps to a running house (lines 48-60)",
+        "## Where to go next (lines 62-76)",
+        "## Before you start (lines 78-83)"
+      ],
+      "why": "Frontmatter line 4 declares `type: how-to`. The page's only numbered list, `## Three steps to a running house` at lines 48-60, defers every actual procedure to another page (`See [Installing](installing.md) for the full walkthrough.` at line 52, `See [First run](first-run.md).` at line 56, `Also covered in [First run](first-run.md).` at lines 59-60), so it routes rather than instructs. `## What you need` at lines 37-39 states that on Windows the smallest supported tier is a GPU with around 8 GB of video memory, which crates/hearth-probe contradicts on both available readings. Nowhere on the page, or anywhere in wiki/, does the corpus tell a reader where to get Hearth, although a public GitHub release carrying four installer artifacts has existed since 2026-08-22. This is the only file this task changes."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:100-160",
+      "covers": "The whole hardware floor. `base` at 110-113, `voice_resident` and the two budgets at 119-121, the coexist arm at 128-136, the take-turns arm at 137-150, and `PlanError::TooSmall` at 151-157, which is the only place a machine is refused."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:12-25, 271-321",
+      "covers": "MIN_CTX 4096 at line 14, TARGET_CTX 16384 at line 25, ctx_for at 271-274, and best_fit and fit_at at 284-321, which decide which tier a given budget reaches."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:79-89, 102, 113, 132-197",
+      "covers": "The reserves (stt_bytes 805306368 at line 84, os_unified_bytes 2415919104 at 88, headroom_bytes 1073741824 at 89), cpp_platforms [macos, windows] at 102, the C++ voice resident cost 966367641 at 113, tier 0 Gemma 4 E2B labelled Minimum at 132-177 with its Q3_K_M build at 2536786016 bytes and a kv rate of 12288, and tier 1 Gemma 4 E4B labelled Small at 179-196 at 4977171584 bytes with a kv rate of 20480."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:49-51, 82, 276-292, 311-336",
+      "covers": "memory_pool() takes VRAM when a GPU reports it and otherwise total RAM (49-51); unified_memory is true only for macos on aarch64 (82), so a Windows machine never takes the os_unified_bytes deduction. The m1-air-8gb fixture at 276-292 carries ram_bytes of 8 GiB and vram_bytes None."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/tests/plan_fixtures.rs:36-52",
+      "covers": "The pinned contract for an 8 GB Apple Silicon Mac: tier 0, p.coexist true, and an explicit assertion that no warning contains the phrase one at a time."
+    },
+    {
+      "authority": "primary",
+      "ref": "https://api.github.com/repos/XXJones21/Hearth/releases/tags/v0.1.0-alpha",
+      "covers": "The live release record, fetched 2026-09-04. tag_name v0.1.0-alpha, name Hearth 0.1.0 alpha, published_at 2026-08-22T03:20:11Z, prerelease true, draft false, html_url https://github.com/XXJones21/Hearth/releases/tag/v0.1.0-alpha, five attached assets with names and sizes, and the full notes body."
+    },
+    {
+      "authority": "primary",
+      "ref": "https://github.com/XXJones21/Hearth/releases/tag/v0.1.0-alpha",
+      "covers": "The reader-facing release page: the title, the pre-release badge, and the notes that give a per-platform instruction for each artifact including the unsigned-dmg step."
+    },
+    {
+      "authority": "source",
+      "ref": ".github/workflows/publish-wiki.yml",
+      "covers": "The only workflow in the repository. It renders wiki/ into the GitHub wiki on pushes to main. There is no release-building or release-publishing automation anywhere in .github/."
+    },
+    {
+      "authority": "source",
+      "ref": ".gitignore:85",
+      "covers": "/releases/ is git-ignored, which settles that the releases/<version>/ directory named at wiki/releasing.md:199 is local build staging on the machine that cut the release rather than a place a reader fetches from."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:129-155",
+      "covers": "The concept shape: the five-part shape at 138-145 and the three rules at 147-154, of which 153-154 reads: No procedures. If steps appear, they belong on a how-to page this one links to."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:67-94",
+      "covers": "The landing shape. Lines 91-92 forbid a landing page carrying anything a reader can act on; line 93 requires every published page to appear exactly once in exactly one section."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:48-50, 271-274",
+      "covers": "TYPES is landing, how-to, concept, decision-record, reference, platform-overview, and line 271 records an error for any type: outside that set, so concept passes."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/releasing.md:37-49, 197-210",
+      "covers": "What the project says a release is (the artifact table at 37-42, and Nothing but Android is signed today at 47), the Publishing step at 197-204 ending then to the GitHub release, and the History note at 208 dating 0.1.0 alpha to 2026-08-22."
+    },
+    {
+      "authority": "contextual",
+      "ref": "README.md:72-79, 111-133",
+      "covers": "The repository README's own ## What you need, which repeats the contradicted Windows sentence, and ## Alpha builds, which describes how each artifact is built and never names the release URL."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/developing.md:28-36, 54-61, 150-178",
+      "covers": "The build-from-source path: the abstract naming the page the front door for anyone who has cloned the repository, ## Prerequisites at line 54, and ### The ship loop at line 150, which is the loop that produces an installable client."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md:27",
+      "covers": "You have the Hearth installer. This is the reader position that page assumes, and it is why the pre-installer reader has nowhere else in the corpus to stand."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/getting-started.md declares type: how-to in its frontmatter.",
+      "status": "verified",
+      "evidence": "wiki/getting-started.md:4 reads `type: how-to`; line 3 reads `status: closed`. Read in full this session. The file is 83 lines, not the 84 the dispatch stated; the section line ranges in the dispatch are otherwise exact."
+    },
+    {
+      "claim": "concept is an accepted value for type: and the retype will not trip the linter.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:48-50 defines TYPES as landing, how-to, concept, decision-record, reference, platform-overview; line 271 records an error only when type is outside that set. python scripts/lint_wiki.py run this session reports 28 pages checked, 0 errors, 198 warnings."
+    },
+    {
+      "claim": "The page carries no procedure a reader can execute on it; its numbered list routes rather than instructs.",
+      "status": "verified",
+      "evidence": "wiki/getting-started.md:48-60. Each of the three items ends by handing the reader to another page: line 52 See [Installing](installing.md) for the full walkthrough, line 56 See [First run](first-run.md), lines 59-60 Also covered in [First run](first-run.md). No item carries a command, a control, or an action performed on this page."
+    },
+    {
+      "claim": "The concept shape forbids procedures, so the retyped page cannot keep a numbered task list.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md:153-154: No procedures. If steps appear, they belong on a how-to page this one links to. The five-part shape it must take instead is at wiki/page-types.md:138-145."
+    },
+    {
+      "claim": "The routing dropped from ## Where to go next cannot move to wiki/_index.md as a second copy, and drops without loss because the index already carries all of it.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md:93 requires every published page to appear exactly once in exactly one section. All seven pages listed at wiki/getting-started.md:67-76 are already in wiki/_index.md: clients/windows.md at :63, clients/macos.md at :64, clients/ios.md at :65, features/personas.md at :42, features/second-brain.md at :53, features/voice.md at :44, features/apps-and-extensions.md at :55."
+    },
+    {
+      "claim": "wiki/installing.md rules itself out as a home for the pre-installer reader.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:27 reads: You have the Hearth installer. This page is the narrative version of what. It continues at 28-29 with the scan, the plan, the download. Confirmed by grep -n on that sentence, which returns line 27."
+    },
+    {
+      "claim": "The tracker cites that sentence as wiki/installing.md:24. That citation is off by three lines.",
+      "status": "contradicted",
+      "evidence": "tasks/docs/tracker.md:909 and :1097 both cite wiki/installing.md:24. The sentence is at wiki/installing.md:27, established by grep this session; the dispatch prompt's own :27 is correct. The reasoning the tracker builds on the sentence is unaffected."
+    },
+    {
+      "claim": "A genuine public distribution point for Hearth exists. This overturns the premise the dispatch and the tracker carried.",
+      "status": "verified",
+      "evidence": "https://api.github.com/repos/XXJones21/Hearth/releases/tags/v0.1.0-alpha, fetched 2026-09-04, returns tag_name v0.1.0-alpha, name Hearth 0.1.0 alpha, published_at 2026-08-22T03:20:11Z, prerelease true, draft false, html_url https://github.com/XXJones21/Hearth/releases/tag/v0.1.0-alpha. git remote -v confirms this worktree's origin is https://github.com/XXJones21/Hearth.git, so the release belongs to this repository."
+    },
+    {
+      "claim": "The release carries four installer artifacts and a checksum file, with these exact names and sizes.",
+      "status": "verified",
+      "evidence": "Same API fetch. Assets, name and size in bytes: Hearth_0.1.0_aarch64.dmg 31695047; Hearth_0.1.0_android.apk 44898056; Hearth_0.1.0_x64-setup.exe 98615115; Hearth_0.1.0_x64_en-US.msi 104611840; SHA256SUMS.txt 368. The HTML release page displays Assets 7, which is these five plus GitHub's two auto-generated source archives; the archives are not confirmed by name and the count is not load-bearing."
+    },
+    {
+      "claim": "The live artifact names are exactly the names wiki/releasing.md predicts and the publication date matches to the day, so the corpus and the release corroborate each other independently.",
+      "status": "verified",
+      "evidence": "wiki/releasing.md:39-41 gives Hearth_<v>_x64-setup.exe and .msi, Hearth_<v>_aarch64.dmg, Hearth_<v>_android.apk. wiki/releasing.md:208 reads: 0.1.0 alpha, published 2026-08-22, shipped Windows, macOS and Android. wiki/releasing.md:199-204 says artifacts and a SHA256SUMS.txt go to the GitHub release and quotes 0.1.0's closing line as: Hearth is pre-alpha software. It is not ready for people who are not already expecting it to be rough. The fetched release notes body ends with that exact sentence."
+    },
+    {
+      "claim": "The release notes already give a per-platform instruction, so the page can link to them rather than restate them.",
+      "status": "verified",
+      "evidence": "Full body fetched from the API 2026-09-04. Opening line: The first packaged alpha. Three platforms today; iOS and visionOS follow through TestFlight. Windows: run Hearth_0.1.0_x64-setup.exe (or the MSI). Android: sideload Hearth_0.1.0_android.apk (signed), pair with a running desktop install from Settings. macOS: open Hearth_0.1.0_aarch64.dmg and drag Hearth to Applications, Apple Silicon only, no Intel slice, the dmg is unsigned and not notarized so the first open needs a right-click, Open, Open anyway, once. Checksums in SHA256SUMS.txt."
+    },
+    {
+      "claim": "No page anywhere in wiki/ names the download location, even though the release exists.",
+      "status": "verified",
+      "evidence": "A case-insensitive grep across the whole tree excluding target/ and .git for releases/download, releases/tag, releases/latest, a bare /releases path, and gh release returns, outside wiki/raw/, only .gitignore:85 and six upstream dependency URLs in crates/hearth-probe/dictionary.yaml (python-build-standalone at lines 30 and 34, llama.cpp at 45, 48, 50 and 53). No published wiki page carries a Hearth download link. wiki/releasing.md:199 is the closest and is an instruction to the person cutting the release, not to a reader."
+    },
+    {
+      "claim": "README.md does not name the download location either. Its ## Alpha builds section describes how each artifact is built.",
+      "status": "verified",
+      "evidence": "README.md:111-133, read in full. Windows at 116-118: An installer built with the ship loop; see releasing. macOS at 120-122: The same app, built on a Mac. Android at 124-129: A signed APK from cd android-client and ./gradlew assembleRelease. No URL to the release page appears anywhere in README.md; its other GitHub links point at the rendered wiki or at raw.githubusercontent.com media."
+    },
+    {
+      "claim": "Publishing a release is a manual act, so the corpus cannot infer a future release location from CI.",
+      "status": "verified",
+      "evidence": ".github/workflows/ contains exactly one file, publish-wiki.yml, which renders wiki/ into the GitHub wiki on push to main; find for workflow YAML returns only that file. .gitignore:85 ignores /releases/, and no releases/ directory exists in this worktree, so wiki/releasing.md:199's releases/<version>/ is local staging."
+    },
+    {
+      "claim": "There is no way to obtain Hearth for iOS or visionOS today.",
+      "status": "verified",
+      "evidence": "The fetched release notes open: Three platforms today; iOS and visionOS follow through TestFlight. The release carries no iOS asset. wiki/releasing.md:42 lists iOS and visionOS as a TestFlight build signed via Apple, and 44-45 states: Three of the four shipped in 0.1.0 alpha. iOS and visionOS did not, and remain the outstanding half. README.md:113-114 says the same."
+    },
+    {
+      "claim": "Nothing but the Android APK is signed, and the macOS artifact is neither signed nor notarized.",
+      "status": "verified",
+      "evidence": "wiki/releasing.md:39-41 marks Windows no, macOS no, and not notarized, Android yes. wiki/releasing.md:47-49 states that nothing but Android is signed today and calls it a deliberate alpha position. Corroborated by the fetched release notes. The corpus already carries the right-click Open step at wiki/install-macos.md:49 and wiki/clients/macos.md:98, both of which a reader reaches only after they have the file."
+    },
+    {
+      "claim": "wiki/getting-started.md:37-39, that on Windows the smallest supported tier is a GPU with around 8 GB of video memory, is contradicted by the planner on both available readings.",
+      "status": "contradicted",
+      "evidence": "The page states it at wiki/getting-started.md:37-39. Contradicted by crates/hearth-probe. Reading one, that 8 GB is where Hearth stops supporting a machine: on Windows unified_memory is false (machine.rs:82), so base is stt 805306368 plus headroom 1073741824 = 1879048192 (plan.rs:110-113 with dictionary.yaml:84 and 89), and Windows is in cpp_platforms (dictionary.yaml:102) so the voice holds 966367641 (dictionary.yaml:113). The smallest plan the dictionary can produce is tier 0's Q3_K_M at 2536786016 (dictionary.yaml:176) plus a MIN_CTX floor of 12288 times 4096 = 50331648 (plan.rs:14 and 302), so 2587117664 of budget. PlanError::TooSmall at plan.rs:151-157 fires only when even sequential_budget misses that, which is a pool below 4466165856 bytes: about 4.5 GB decimal, and 4.16 GB in the units crates/hearth-probe/src/lib.rs:26-34 actually prints. The Windows floor is therefore roughly 4.5 GB of VRAM, not 8 GB. Reading two, that an 8 GB card lands on the smallest tier: an 8 GB card has a pool of 8589934592 and a coexist_budget of 5744518759, which clears tier 1 Gemma 4 E4B at 4977171584 plus its 20480 times 4096 = 83886080 floor (dictionary.yaml:185 and 189), so the coexist arm at plan.rs:128-136 returns tier 1, labelled Small, one tier above the smallest. The budget arithmetic and the take-turns band were first derived in tasks/docs/artifacts/T2.research.json; every constant and branch condition cited here was re-read from source this session."
+    },
+    {
+      "claim": "wiki/getting-started.md:39-41, that 8 GB is the Mac floor and that an 8 GB Apple Silicon Mac runs a persona and its voice at the same time, is correct.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/tests/plan_fixtures.rs:36-52 asserts, for the m1-air-8gb fixture, tier 0, repo unsloth/gemma-4-E2B-it-GGUF, and p.coexist, with an explicit assertion that no warning contains the phrase one at a time. Its comment records that this test used to assert the opposite and changed when omnivoice.cpp replaced the torch voice. The fixture carries 8 GiB of RAM and no VRAM at machine.rs:276-292, so memory_pool() returns RAM (machine.rs:49-51). On the floor half: unified base is 4294967296 and the C++ voice 966367641, so a plan of any kind needs a pool above 6882084960 bytes and coexistence above 7848452601; a 6 GB unified machine is refused at plan.rs:151-157, and no Apple Silicon Mac ships between 6 and 8 GB. The unified arithmetic is taken from tasks/docs/artifacts/T1.research.json and re-checked against dictionary.yaml:84-89 and 113 read this session."
+    },
+    {
+      "claim": "Naming the machine an M2 rather than an M1 does not change the plan, so the page's 8 GB M2 MacBook Air is safe even though the fixture is named m1-air-8gb.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:82 keys unified_memory on os macos and arch aarch64 only, and machine.rs:49-51 keys the pool on VRAM-or-RAM. No chip generation appears among the planner's inputs, and plan.rs:1-5 declares the module pure of I/O, environment and clock."
+    },
+    {
+      "claim": "The contradicted Windows sentence appears on exactly one published wiki page and nowhere else in the corpus.",
+      "status": "verified",
+      "evidence": "A grep across wiki/ excluding raw/ for video memory, smallest supported tier and 8 GB returns the Windows-VRAM formulation only at wiki/getting-started.md:37-39. wiki/_index.md:25 says only: a Windows machine with a capable GPU, or on an Apple Silicon Mac with 8 GB of memory or more, which names no VRAM figure and is not affected. The macOS 8 GB statements at wiki/clients/macos.md:37-39, wiki/install-macos.md:27-28 and wiki/installing.md:44-46 are the verified claim, not the contradicted one."
+    },
+    {
+      "claim": "README.md repeats the contradicted Windows sentence, so the defect also exists outside the corpus root.",
+      "status": "verified",
+      "evidence": "README.md:74-79: On Windows the smallest supported tier is a GPU with around 8 GB of video memory; larger GPUs run larger models with more headroom. Contradicted by the same crates/hearth-probe evidence recorded above. README.md is outside Corpus root wiki/ and no row in tasks/docs/tracker.md owns it."
+    },
+    {
+      "claim": "Retyping the page breaks no inbound link, because the page keeps its path.",
+      "status": "verified",
+      "evidence": "grep -rn for getting-started across wiki/ and README.md returns three live references: wiki/_index.md:7 under related, wiki/_index.md:29 as - [Getting started](getting-started.md), and README.md:79 as an absolute GitHub wiki URL. All three continue to resolve. The only other hit is an unrelated Obsidian docs URL at wiki/raw/research-tauri-plugins.md:151."
+    },
+    {
+      "claim": "The page's only current linter finding is one long-paragraph warning, on a paragraph the author rewrites anyway.",
+      "status": "verified",
+      "evidence": "python scripts/lint_wiki.py --warnings reports exactly one line for this file: wiki/getting-started.md:36: [long-paragraph] 80 words (warning). Line 36 is inside ## What you need."
+    },
+    {
+      "claim": "The corpus documents the build-from-source path, so the page can link to it rather than restate it.",
+      "status": "verified",
+      "evidence": "wiki/developing.md:30-33 names itself the front door for anyone who has cloned the repository and wants to build, run, or change Hearth. ## Prerequisites at wiki/developing.md:54 names Node.js and npm, a Rust toolchain, and Python 3. ### The ship loop at wiki/developing.md:150-167 is the loop that produces an installable client. The whole-release procedure across every platform is wiki/releasing.md, headed # Building a Hearth release at line 25."
+    },
+    {
+      "claim": "The 0.1.0-alpha release is still the newest release, so a version-pinned link is not yet stale.",
+      "status": "unverifiable",
+      "evidence": "The listing page at https://github.com/XXJones21/Hearth/releases, fetched 2026-09-04, showed one release. That is consistent with 0.1.0-alpha being the only release, but a single fetch of a rendered listing is not proof that no newer release exists or will exist by the time this page publishes, and I did not fetch the releases list from the API. The choice between the pinned tag URL and a floating latest URL is recorded in open_questions."
+    }
+  ],
+  "gaps": [
+    "No page in wiki/ tells a reader where to download Hearth, although a public GitHub release carrying four installer artifacts has existed since 2026-08-22. The gap is a missing link on a page that keeps, not a missing product.",
+    "No published page states that iOS and visionOS cannot be obtained at all today. wiki/clients/ios.md and wiki/clients/visionos.md are linked from wiki/_index.md:65 and :67 with no such warning, and wiki/getting-started.md:69 currently sends a reader to the iOS page from a section headed as a next step.",
+    "No page in wiki/ states the real Windows floor. The corpus holds only the contradicted 8 GB VRAM figure at wiki/getting-started.md:37-39 and the unquantified a capable GPU at wiki/_index.md:25, so deleting the wrong number leaves the corpus with nothing to put in its place.",
+    "No page warns that the Windows and macOS artifacts are unsigned before a reader is sent to download them. The right-click Open step exists at wiki/install-macos.md:49 and wiki/clients/macos.md:98, both of which a reader reaches only after they already have the file.",
+    "The corpus carries no statement that the project publishes by hand and on no schedule, which is what .github/workflows/ holding only publish-wiki.yml and .gitignore:85 ignoring /releases/ together imply."
+  ],
+  "skeleton": [],
+  "recommended_type": "concept",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Should the page link the version-pinned release URL https://github.com/XXJones21/Hearth/releases/tag/v0.1.0-alpha, which is what I verified and which names exact artifacts, or the floating https://github.com/XXJones21/Hearth/releases, which survives the next release but which I did not verify will always list something? A pinned link goes stale silently; a floating link cannot be checked against an asset list. This needs an owner's decision, not an author's guess.",
+    "Which task owns README.md:74-79? It repeats the contradicted Windows sentence verbatim, it sits outside Corpus root wiki/, and no row in tasks/docs/tracker.md names it. Under the documentation-parity rule in CLAUDE.md it needs a row of its own, and T7's author should not silently edit a file outside the corpus.",
+    "What number replaces the contradicted Windows figure? Source gives three candidates and they say different things. Hearth refuses a Windows machine below about 4.5 GB of VRAM, which is 4.16 GB in the units the product itself prints. It holds the model and the voice resident together at about 5.4 GB and above, which is 5.06 GB as printed. Between those two it plans, but warns that the persona will think and speak one at a time. An 8 GB card gets tier 1, labelled Small. Stating the refusal floor is honest but oversells a 4.5 GB card; stating the coexistence threshold is kinder but is not the floor. This is an editorial call the author should not make alone.",
+    "wiki/backend/build-pipeline.md:158 still states that on 8 GB the model and the voice cannot coexist. tasks/docs/artifacts/T1.research.json recorded this as contradicted and noted that no task owns the page. It is outside T7's scope and still unowned.",
+    "The index entry for this page is Phase C work rather than T7's. wiki/_index.md:24-27 currently introduces the Getting started group as covering whether your machine qualifies, what the install does, and how an existing install becomes a newer one. Once T7 lands, Getting started is also where the corpus says how to obtain Hearth, and tasks/docs/tracker.md:1071-1073 already assigns that prose to T11. Confirm T11's dispatch is told the download statement now lives there.",
+    "Does anything need to change for a reader who lands on wiki/clients/ios.md or wiki/clients/visionos.md expecting to install? Neither page is in T7's scope and neither states that no build is obtainable. Raised here because T7 is the task that makes the corpus honest about distribution, and it can only be honest about the three platforms it covers."
+  ],
+  "notes": "The dispatch's central direction is overturned by evidence, which the dispatch itself invited. A genuine distribution point exists: https://github.com/XXJones21/Hearth/releases/tag/v0.1.0-alpha carries Hearth_0.1.0_x64-setup.exe, Hearth_0.1.0_x64_en-US.msi, Hearth_0.1.0_aarch64.dmg, Hearth_0.1.0_android.apk and SHA256SUMS.txt, published 2026-08-22T03:20:11Z and flagged prerelease. Building from the repository is therefore not the only path a reader has, and an author told that it is would understate what a reader can do. The orchestrator's grep was sound and its conclusion followed from it; what a grep of wiki/ could not see is that the corpus never links a thing that already exists. Three independent corroborations rule out a bad fetch: the live asset names are exactly the Hearth_<v> names wiki/releasing.md:39-41 predicts, the publication date matches wiki/releasing.md:208 to the day, and the release notes end with the exact sentence wiki/releasing.md:203-204 quotes as 0.1.0's closing line. git remote -v confirms XXJones21/Hearth is this worktree's origin. What remains true from the corrected premise is the shape of the fix: the honest content is a statement plus a link, not an invented URL, and it now has a verified URL to point at.\n\nSized S rather than the M the tracker carried, and the reason is that the research this task was waiting on is now finished. M requires several pages or one net-new page, and neither holds: exactly one file changes, wiki/getting-started.md, which is 83 lines rather than the 84 the dispatch stated. Two of its four sections drop outright, verified as pure duplication by locating all seven links at lines 67-76 already present in wiki/_index.md. type: how-to becomes type: concept on line 4, which scripts/lint_wiki.py:48-50 accepts. ## What you need needs one contradicted sentence replaced, and choosing the replacement number is an editorial call recorded in open_questions rather than a research gap. The new statement of how a reader obtains Hearth has a verified URL, verified artifact names and sizes, verified platform coverage and a verified unsigned-dmg caveat, so nothing is left to discover. Retyping breaks no inbound link because the path does not move.\n\nType and Mode agree. Type is Fix, Mode is affected, and the tracker's row at line 29 calls it Restructure, which is a narrower label for the same work and does not change the survey shape.\n\nOn tooling. Bash was available in this session, contrary to the caller's warning, and I used it only for grep, find, sed, cat, wc, git remote -v, and the repository's own read-only scripts. python scripts/lint_wiki.py ran and reports 28 pages checked, 0 errors, 198 warnings, with the only finding on this page being wiki/getting-started.md:36: [long-paragraph] 80 words. I did not run scripts/doc_graph.py, which is a graph-mode instrument and was not needed to survey a single page. WebFetch was used three times, all against github.com or api.github.com, because whether a public release exists is a question about a hosted service rather than about the source tree and cannot be settled by reading the repository. One heredoc write of this artifact failed on embedded backticks, so the file was written with the Write tool instead; no other file was created or modified.\n\nOn borrowed evidence. Two claims lean on earlier runs and say so inline. The Windows budget arithmetic and the take-turns band come from tasks/docs/artifacts/T2.research.json; the unified-memory arithmetic and the 8 GB Mac coexistence come from tasks/docs/artifacts/T1.research.json. In both cases I re-read the underlying constants from crates/hearth-probe/dictionary.yaml, crates/hearth-probe/src/plan.rs, crates/hearth-probe/src/machine.rs and crates/hearth-probe/tests/plan_fixtures.rs this session and cite those lines directly. I executed no Rust and ran no probe; the arithmetic is derived from constants I read, as it was in T1 and T2.\n\nOne correction to the record, reported and not acted on: tasks/docs/tracker.md cites wiki/installing.md:24 for You have the Hearth installer at both :909 and :1097. The sentence is at line 27. The reasoning built on it is unaffected."
+}

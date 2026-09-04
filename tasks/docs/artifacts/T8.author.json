@@ -1,0 +1,90 @@
+{
+  "task_id": "T8",
+  "mode": "draft",
+  "docs_written": [
+    {
+      "path": "wiki/meeting-your-persona.md",
+      "sections": [
+        "# Meeting your persona",
+        "## Before you start",
+        "## Answer the question Sulivan opens with",
+        "## Work through the rest with him",
+        "## Meet the persona you made",
+        "## Set up your second brain",
+        "## Give it one real thing",
+        "## Go to the house",
+        "## Where to go next"
+      ]
+    }
+  ],
+  "sections": [
+    { "heading": "# Meeting your persona (title, frontmatter and abstract)", "status": "written" },
+    { "heading": "## Before you start", "status": "written" },
+    { "heading": "## Answer the question Sulivan opens with", "status": "written" },
+    { "heading": "## Work through the rest with him", "status": "written" },
+    { "heading": "## Meet the persona you made", "status": "written" },
+    { "heading": "## Set up your second brain", "status": "written" },
+    { "heading": "## Give it one real thing", "status": "written" },
+    { "heading": "## Go to the house", "status": "written" },
+    { "heading": "## Where to go next", "status": "written" }
+  ],
+  "deviations": [
+    {
+      "from": "skeleton heading 3, `## Answer Sulivan's first question`",
+      "why": "Written as `## Answer the question Sulivan opens with`. The linter's sentence-case check (scripts/lint_wiki.py:237-248) exempts a heading word only when it matches the PROPER set at lines 59-70; `sulivan` is in that set but the possessive `Sulivan's` is not, so the skeleton's wording would have been a hard sentence-case error on a page that must add none."
+    },
+    {
+      "from": "skeleton section 6, must_cover point 1: `the next screen opens by itself`",
+      "why": "The source says the reader clicks. After the handover the interview screen renders a `Second brain setup` button (desktop-client/src/components/setup/Interview.tsx:413-424), and desktop-client/src/components/setup/SetupFlow.tsx:350 wires that onDone to the second-brain step. Written as the closing step of `## Meet the persona you made` instead. The code comment at Interview.tsx:414-416 still says the button opens the house, which SetupFlow contradicts; the page follows SetupFlow."
+    },
+    {
+      "from": "skeleton section 1, must_cover point 3: the `sources` list",
+      "why": "Kept every file the skeleton named and added desktop-client/src/components/setup/SetupFlow.tsx and desktop-client/src/components/cards/ChoiceCard.tsx, because the step order and the choice-card behavior on the page come from those two files. `sources` entries are unchecked except for absolute machine paths (scripts/lint_wiki.py:284-286), so the additions cost nothing."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Nothing in the corpus links to wiki/meeting-your-persona.md. wiki/installing.md:142-147, wiki/getting-started.md:53-60 and wiki/clients/macos.md:130-131 all still send the reader to First run for this walkthrough.",
+      "why": "All three are other tasks' targets in the same phase (T9, T7 and T6), and tasks/docs/tracker.md:219-220 forbids a page appearing twice in one phase, so T8 may not edit them. The repoint has to land in those tasks or in a later phase."
+    },
+    {
+      "what": "wiki/_index.md carries no entry for this page under `## Meeting your persona` (line 34).",
+      "why": "The index belongs to T11. Until it lands, the page is unreachable from the wiki's entry point."
+    },
+    {
+      "what": "wiki/first-run.md:283 still declares create_persona's voice parameter as `voice_id: string`.",
+      "why": "Three source locations declare `voice_design`, an array of two to four attributes (tools.yaml:1112-1121, handlers/creation.py:288-296, gateway/first_run.py:221). The findings grade the record's version `contradicted`, so this page prints no schema at all and describes what the reader chooses. Correcting the record is T43."
+    },
+    {
+      "what": "backend/harness/valar/tools/tools.yaml:1125-1126 offers a color swatch named `Heather` that backend/harness/valar/tools/handlers/creation.py:52-60 no longer accepts, so a model that passes it silently gets Ember.",
+      "why": "A product defect, opened as T44 and outside this page's target. The page documents the five swatches the handler accepts (Ember, Tide, Fern, Plum, Clay) rather than the set the schema advertises."
+    },
+    {
+      "what": "wiki/first-run.md still carries the beat-two and beat-three procedure that this how-to now owns.",
+      "why": "wiki/page-types.md:150-154 says a record containing steps points at the how-to instead. Constraint 3 of the dispatch keeps first-run.md untouched by T8, including its `related` pointer to this new page, so the reconciliation needs its own row."
+    },
+    {
+      "what": "Whether wiki/first-run.md should be renamed now that a decision record and a reader-facing how-to both describe first run, and how many inbound references that rename would move.",
+      "why": "Deferred at tasks/docs/tracker.md:951 and left open by the research stage. The findings grade the `eight inbound references` figure `unverifiable`: a grep returns 15 lines across 13 pages inside wiki/ alone. Nothing on this page depends on either answer."
+    },
+    {
+      "what": "Whether `meeting-your-persona` is the right name for a page that spans both the persona interview and the second-brain setup.",
+      "why": "Research recorded it as open (tasks/docs/tracker.md:952) and did not decide. The dispatch fixed the filename for this run, so the page was written to it; the question itself is not settled by having written the file."
+    }
+  ],
+  "figures_requested": [
+    {
+      "section": "Answer the question Sulivan opens with",
+      "path": "wiki/images/pending/meeting-your-persona-interview.png",
+      "alt": "The interview, with Sulivan's opening question and its four options",
+      "spec": "CAPTURE: desktop client, the interview screen at the opening turn, title Let's make someone, Sulivan's welcome and the four-option choice card visible, composer empty, 1280x800"
+    },
+    {
+      "section": "Set up your second brain",
+      "path": "wiki/images/pending/meeting-your-persona-second-brain.png",
+      "alt": "The second-brain screen, with the four folder chips and the path underneath",
+      "spec": "CAPTURE: desktop client, the second-brain setup screen, title A memory of their own, all four folder chips and the Created at path line visible, Go to the house button disabled, 1280x800"
+    }
+  ],
+  "extraction_needed": []
+}

@@ -1,14 +1,14 @@
 ---
 area: docs
 status: open
-updated: 2026-09-03
+updated: 2026-09-04
 ---
 
 # Wiki task list
 
 **Corpus root:** wiki/
 **Date:** 2026-09-03
-**Updated:** 2026-09-03 (Phase A run: T2 through T5, all four Complete)
+**Updated:** 2026-09-04 (Phase B run: T6 through T9, all four Complete)
 
 The install cluster consolidation, the first-run split, and the documentation
 defects the `graph` pass verified against the source tree. The decision record
@@ -25,10 +25,10 @@ written.
 | T3 | Correct the install root and the 8 GB example in the First run record | Fix | decision-record | S | High | A | Complete | 5 |
 | T4 | Correct the download figure and retire the Windows-guide announcement on Hearth on macOS | Fix | platform-overview | S | High | A | Complete | 1 |
 | T5 | Correct the settings-screen claim and state the persona-creation route on Personas | Fix | concept | M | High | A | Complete | 7 |
-| T6 | Remove the install procedure from Hearth on macOS and salvage what only it holds | Restructure | platform-overview | S | High | B | Backlog | |
-| T7 | Retype Getting started to concept and give it the download location | Restructure | concept | M | High | B | Backlog | |
-| T8 | Write the reader-facing first-run walkthrough | Add | how-to | M | High | B | Backlog | |
-| T9 | Give Installing Hearth a how-to spine and absorb the macOS salvage | Restructure | how-to | M | High | B | Backlog | |
+| T6 | Remove the install procedure from Hearth on macOS and salvage what only it holds | Restructure | platform-overview | S | High | B | Complete | 9 |
+| T7 | Retype Getting started to concept and state honestly how a reader obtains Hearth | Restructure | concept | S | High | B | Complete | 8 |
+| T8 | Write the reader-facing first-run walkthrough | Add | how-to | M | High | B | Complete | 8 |
+| T9 | Give Installing Hearth a how-to spine and absorb the macOS salvage | Restructure | how-to | M | High | B | Complete | 9 |
 | T10 | Write the Windows install procedure | Add | how-to | L | High | D | Backlog | |
 | T11 | Update the wiki index for the retirement and the new how-to | Fix | landing | S | High | C | Backlog | |
 | T12 | Restate the Windows gap as steps inside Installing Hearth | Fix | landing | S | High | C | Backlog | |
@@ -60,6 +60,29 @@ written.
 | T38 | Settle whether concept pages take action-title headings | Fix | reference | S | Medium | | Backlog | |
 | T39 | Capture the On disk pane figure for Hearth on Windows | Add | platform-overview | XS | High | | Backlog | |
 | T40 | Capture the Personas page figure for Personas | Add | concept | XS | High | | Backlog | |
+| T41 | Correct the Windows video-memory requirement in README.md | Fix | (outside the corpus) | S | Medium | | Backlog | |
+| T42 | Say on the iOS and visionOS pages that no build is obtainable yet | Add | platform-overview | S | Medium | | Backlog | |
+| T43 | Correct the create_persona voice parameter in the First run record | Fix | decision-record | S | High | | Backlog | |
+| T44 | The colour swatch the model is offered and the handler rejects | Fix | (product, not a page) | XS | High | | Backlog | |
+| T45 | Link the persona walkthrough from the three pages no Phase B task owns | Fix | (three pages) | S | High | | Backlog | |
+| T46 | Point the First run record at the walkthrough and reconcile its steps | Restructure | decision-record | M | High | | Backlog | |
+| T47 | Capture the interview figure for Meeting your persona | Add | how-to | XS | High | | Backlog | |
+| T48 | Capture the second-brain figure for Meeting your persona | Add | how-to | XS | High | | Backlog | |
+| T49 | Capture the house row figure for Hearth on macOS | Add | platform-overview | XS | High | | Backlog | |
+| T50 | Capture the macOS first-open dialog figure for Installing Hearth | Add | how-to | XS | High | | Backlog | |
+| T51 | Move the macOS install tree and process list to a reference page | Restructure | reference | M | High | | Backlog | |
+| T52 | Say what a Windows machine with no dedicated GPU gets | Fix | concept | M | High | | Backlog | |
+| T53 | Name the step that removes the Hearth client on Windows | Fix | how-to | S | High | | Backlog | |
+| T54 | Say what happens when setup is interrupted part way through | Add | how-to | S | High | | Backlog | |
+| T55 | Record learning objectives for the pages the pipeline grades | Add | (process, not a page) | L | High | | Backlog | |
+| T56 | Two nits on Hearth on macOS the reviewer deferred | Fix | platform-overview | XS | High | | Backlog | |
+| T57 | Two nits on Getting started the reviewer deferred | Fix | concept | XS | High | | Backlog | |
+| T58 | One nit on Meeting your persona the reviewer deferred | Fix | how-to | XS | High | | Backlog | |
+| T59 | Move the disk-check sentence out of the macOS branch on Installing Hearth | Fix | how-to | XS | High | | Backlog | |
+| T60 | Add the home row to the Windows install tree on Hearth on Windows | Fix | platform-overview | XS | High | | Backlog | |
+| T61 | Capture the persona-in-use figure for Getting started | Add | concept | XS | High | | Backlog | |
+| T62 | Capture the handover figure for Meeting your persona | Add | how-to | XS | High | | Backlog | |
+| T63 | The persona name length limit is off by one at each end | Fix | (product, not a page) | XS | High | | Backlog | |
 
 ## The consolidation verdict
 
@@ -192,17 +215,33 @@ open question recorded on T8.
 Integrity rule 9. `wiki/install-macos.md` is retired by T16 and by nothing
 else, and T16 does not open until every row below reads `Complete`.
 
-| Passage | Lines | Lands in | Task |
-| :-- | :-- | :-- | :-- |
-| The unsigned right-click-Open procedure, the only numbered steps in the cluster | 43-53 | wiki/installing.md | T9 |
-| The verbatim message shown to a machine below the floor | 32-34 | wiki/installing.md | T9 |
-| The Backend and Mind-and-voice rows of the plan table | 76-77 | wiki/installing.md | T9 |
-| The macOS uninstall, including copying `home/` out first | 128-133 | wiki/installing.md | T9 |
-| The log filenames and four named failure modes | 135-155 | wiki/installing.md | T9 |
-| Starting and stopping the backend on macOS | 118-126 | wiki/clients/macos.md | T6 |
-| The measured RTF of 0.96 on the 8 GB Air (from clients/macos.md) | 102 | wiki/clients/macos.md | T6 |
-| The Windows install root tree (from clients/windows.md) | 153-161 | wiki/installing.md | T9 |
-| The four-tier model dictionary description (from clients/windows.md) | 196-202 | wiki/installing.md | T9 |
+| Passage | Lines | Lands in | Task | Landed |
+| :-- | :-- | :-- | :-- | :-- |
+| The unsigned right-click-Open procedure, the only numbered steps in the cluster | 43-53 | wiki/installing.md | T9 | Yes, as `## Open Hearth for the first time on macOS` |
+| The verbatim message shown to a machine below the floor | 32-34 | wiki/installing.md | T9 | Yes, as prose rather than a blockquote, by ruling |
+| The Backend and Mind-and-voice rows of the plan table | 76-77 | wiki/installing.md | T9 | Yes, and the table now carries all five rows |
+| The macOS uninstall, including copying `home/` out first | 128-133 | wiki/installing.md | T9 | Yes, with the copy-out step placed before the deletion |
+| The log filenames and four named failure modes | 135-155 | wiki/installing.md | T9 | Yes, as `## Work out what went wrong` |
+| Starting and stopping the backend on macOS | 118-126 | wiki/clients/macos.md | T6 | Yes, as `## Start and stop the house` |
+| The measured RTF of 0.96 on the 8 GB Air (from clients/macos.md) | 102 | wiki/clients/macos.md | T6 | Yes, published as 0.961 with its provenance |
+| The Windows install root tree (from clients/windows.md) | 153-161 | wiki/installing.md | T9 | Yes, with a `home` row the source tree omitted |
+| The four-tier model dictionary description (from clients/windows.md) | 196-202 | wiki/installing.md | T9 | Yes, under `### What the plan says` |
+
+All nine rows landed in the Phase B run of 2026-09-04, and the T9 reviewer
+verified its seven independently against their sources rather than taking the
+author's report for it. Two rows landed with a deliberate difference from the
+source passage, both recorded above and both reasoned in the task detail: the
+refusal message carries no figures because one of its three is contradicted by
+current source, and the Windows tree gained a `home` row because the source tree
+omits a directory the installer always creates.
+
+Salvage is therefore no longer what blocks T16. The remaining precondition is
+the inbound references, which is Phase C. Note that the Phase B tasks already
+shrank that list: T6 and T9 each repointed their own page's prose links and
+`related` entry, and each deliberately left its `sources` entry naming
+`wiki/install-macos.md` as provenance. The T6 research stage also reported one
+inbound reference the list at the top of this section omits, at
+wiki/first-run.md:192.
 
 The research stage listed a tenth item, `wiki/getting-started.md:36-46`, the
 side-by-side requirements written for a reader who has not chosen a platform.
@@ -249,6 +288,31 @@ Phases F and G were opened by the Phase A run of T2 through T5. Every task in
 them came out of a research stage rather than out of the `graph` pass, which is
 the pattern this pipeline should expect: a corrections task that reads the source
 tree properly finds the same defect on pages nobody surveyed.
+
+Phase B ran on 2026-09-04 and completed all four of its tasks. It ran in two
+groups rather than one, which is a departure from the phase rule as written and
+is worth recording as a precedent. The rule groups tasks so that no page appears
+twice, and by that test all four were disjoint. But T8 created a page that T6,
+T7 and T9 all needed to link to, and a dead body link is a hard linter error, so
+running the four at once risked three broken pages if T8 failed. T8's author ran
+first and alone, and the other three followed in parallel once the page existed.
+The rule that actually governed was creation before reference, which the phase
+rule does not express. A phase whose tasks are disjoint by page can still be
+ordered by dependency.
+
+That sequencing also solved a real problem the T8 research stage raised: the
+three pages routing readers to the old record were exactly T6's, T7's and T9's
+targets, T8 could not edit them, and left alone the corpus would have shipped a
+walkthrough nothing linked to. Each of the three authors carried the repoint for
+the page it already owned.
+
+Phase B opened twenty-three new rows, T41 through T63. That is more than the
+phase contained, and it is not a sign the phase went badly: the research stages
+found defects on pages nobody had surveyed, the authors reported what they could
+not place rather than dropping it, and the reviewers left every unfinished
+checklist entry as work somebody has to schedule. Three of the new rows are
+product defects rather than documentation, six are figure captures, and one,
+T55, is a finding all four reviews made independently.
 
 ## What the tooling added
 
@@ -304,6 +368,36 @@ limitation explicitly rather than claiming a linter run they had not made, and
 several established what the linter owns by reading `scripts/lint_wiki.py` as a
 file so that they did not report findings the linter already covers. Both linter
 passes above were run by a separate subagent with a shell.
+
+Updated after the Phase B run of T6 through T9. Again run twice, once after the
+authors and once after the reviewers, and this time the two passes disagreed on
+the gate, which is the case that justifies running both.
+
+| When | Pages | Errors | Warnings | Figures pending |
+| :-- | :-- | :-- | :-- | :-- |
+| After the four authors | 29 | 2 | 193 | 8 |
+| After the four reviewers | 29 | 0 | 196 | 10 |
+
+The two errors after the author stage were both `british-spelling` on
+`wiki/clients/macos.md`, and both traced to the orchestrator's own T6 dispatch,
+which used a British spelling in the direction and in a figure capture spec that
+the author then followed. They were the only errors in the corpus. The T6
+reviewer was told about them explicitly and cleared both, which is why the gate
+reads 0 after the review stage. The lesson is narrow and worth keeping: a
+dispatch prompt is prose an author will copy, so it is subject to the same house
+rules as the page.
+
+Pages rose from 28 to 29 with `wiki/meeting-your-persona.md`. Warnings fell from
+198 to 193 across the author stage and rose to 196 across the review stage, and
+the whole of that rise is figure work orders: pending captures went 4 to 8 to
+10. The final breakdown is 88 `long-paragraph`, 62 `bold-lead`, 24
+`long-section`, 12 `reader-drift` and 10 `figure-pending`. The six new figures
+are T47, T48, T49, T50, T61 and T62.
+
+`python scripts/publish_wiki.py --out <temp>` was run once at the end of this
+phase, because the phase added a page and moved content between pages, which is
+where a broken cross-reference or a duplicate basename surfaces. It rendered 29
+pages plus the sidebar and reported nothing.
 
 ## Reconciling the research artifact
 
@@ -847,17 +941,54 @@ in the same change.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Restructure
 - Scope: S
 - Confidence: High
-- Sizing evidence: wiki/clients/macos.md, read in full this run. `## Installing` runs lines 85-102 and contains a four-step numbered procedure. Line 102 carries the measured RTF of 0.96 on the 8 GB Air. Lines 81-83 carry one sentence on Settings > Connection. wiki/page-types.md:243-245 states that installation lives on the install page and that a platform overview which grows an install procedure has become a second install guide.
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/clients/macos.md, re-read in full on 2026-09-04 after the Phase A edits moved its lines. `## Installing` now runs lines 91-108 and contains a four-step numbered procedure. Line 108 carries the measured RTF of 0.96 on the 8 GB Air, inside step 4. Lines 87-89 carry one sentence on Settings > Connection at the end of `## What installing gives you`. Lines 110-120 are `## Updating`, whose lines 117-120 carry the unsigned-app reasoning for why there is no in-app updater. wiki/page-types.md:243-245 states that installation lives on the install page and that a platform overview which grows an install procedure has become a second install guide.
+- Sources of truth:
+  - source: desktop-client/src/components/settings/SettingsView.tsx:238, 271, 288, 291, 297, 661, covers the actual Settings pane the salvaged passage describes: a section labelled `Connection` holding a row labelled `The house` with Start, Stop and Restart controls, and a separately scoped `Connections` section in the same pane
+  - source: desktop-client/src/components/settings/SettingsView.tsx:272, covers the shipped hint text the salvaged sentence paraphrases
+  - source: wiki/raw/macos-status.md:21-23, covers the sole record of the measured real-time factor, which states 0.961 on a tool-grounded reply and never publishes
+  - tooling: `python scripts/doc_graph.py --json`, run 2026-09-04, covers the current cluster shape and the duplicate scores between this page's sections and wiki/install-macos.md and wiki/installing.md
+  - tooling: `python scripts/lint_wiki.py --warnings`, run 2026-09-04, covers the mechanical findings on this page
+  - contextual: wiki/page-types.md:214-252, covers the platform-overview shape and its rules on installation, dated status logs and reference material
+  - contextual: wiki/install-macos.md:118-126, covers the start-and-stop material this task copies
+- Docs:
+  - wiki/clients/macos.md, `## Installing`, `## What installing gives you` and `## Status and limitations`
 - Artifacts:
   - Research: tasks/docs/artifacts/T6.research.json
+  - Author: tasks/docs/artifacts/T6.author.json, wrote wiki/clients/macos.md
+  - Review: tasks/docs/artifacts/T6.review.json, verdict PASS, minor nits open, score 6 to 9
+- Review checklist, and where each entry went:
+  - L1, the two `british-spelling` hard errors: `done` by the reviewer. Both were the only errors in the corpus and both originated in the orchestrator's dispatch wording rather than in the author's judgment.
+  - F1 close-versus-quit stated for macOS, F2 uninstall and containment claims corrected, F3 duplicated updater bullet trimmed, F4 `last_reviewed` bumped: all `done` by the reviewer. The reviewer graded F2 at 2 points because the page's own tree names `home/` as where memory and journal live and four lines later told the reader that deleting that folder is the uninstall, with no warning.
+  - F5, the page calling the local server "the house" and then "the backend" twice: `deferred`, no research needed. Opened as T56.
+  - S1, the missing persona surface section: `deferred`, `needs: restructure`, `owner: T36`. T36 exists at tasks/docs/tracker.md and its statement covers writing this page's missing sections, so it is confirmed rather than reopened. The reviewer adds that T36 inherits two facts already on this page that belong in that section: the cloned voice, and the real-time factor now hanging off a ports bullet.
+  - S2, extracting the install tree and port list to a reference page: `deferred`, `needs: restructure`. Opened as T51 from the author's `extraction_needed`, and confirmed here to cover it.
+  - R3, whether the start-and-stop section carries two further verified facts: `deferred`, an orchestrator decision rather than research. Opened as T56 alongside F5.
+- Verification: `python scripts/lint_wiki.py` reports 29 pages checked, 0 errors, 196 warnings, run after the reviewers finished. `python scripts/publish_wiki.py` rendered 29 pages plus the sidebar with no broken cross-reference, unresolved link or duplicate basename. Neither the author nor the reviewer could execute commands in this run, and both said so rather than reporting a linter pass they had not made; every command above was run by a separate subagent with a shell.
+- Objective gaps recorded by the reviewer, which derived six objectives because neither the page nor the research artifact records any:
+  - "Describe how the persona appears on macOS" is not taught. The reviewer reports the page never says what Hearth looks like on a Mac, and that the platform-overview shape requires the section. This is T36's, not charged against this task.
+  - "Start and stop the house from Settings" is taught as description rather than as an ordered procedure, and the shape's one inline-procedure slot is empty. The reviewer names it the natural candidate if that slot is ever filled. Recorded, not opened: the page deliberately holds no procedure this phase.
+  - The reviewer reports two blocks serving no objective, the install-root tree with the port list and the real-time measurement. The first is T51's and the second moves with T36.
 - Open questions:
-  - Should wiki/clients/macos.md keep at all? `python scripts/doc_graph.py --json` reports it as the only page of the six in the install cluster with no entry in `unique`, meaning no section the tool considers its own. This run kept it on objectives rather than on the score, and the reassessment trigger is named: after this task removes `## Installing`, check whether what remains is taught by wiki/installing.md and wiki/updates.md. If it is, the page returns for a fold verdict.
+  - Does wiki/installing.md carry the macOS install procedure and the troubleshooting section by the time this page publishes? The author reported that three links on this page now point there for material T9 had not landed when it wrote, that the dispatch directed the repoint on the ground that T9 lands both in this phase, and that nothing on this page can verify T9 completed.
+  - Should the start-and-stop salvage widen to carry three further facts the author found verified in source and already published for Windows? The author reported all three and reported leaving each off the page because the dispatch settled only the Restart control: that closing the window on macOS hides it and leaves the backend running while Quit is the explicit stop; that the Start, Stop and Restart controls appear only when the device has no remote server address and does have an install root, so a Mac that joined a house elsewhere sees no house row at all; and that Stop and Quit file the conversation to the journal before anything is killed, which is the reason to prefer Stop over killing the process.
+  - Does the corpus want a reader-facing performance number resting on one run from 2026-08-07 with no artifact in the source tree asserting it? The author reported publishing the figure with its provenance stated, as directed, and reported the question of whether it should be re-measured or retired as still open.
+  - For T16: one deliberate reference to wiki/install-macos.md remains on this page, the `sources` frontmatter entry. The author reported leaving it exactly as found, per the ruling.
+  - Who writes the persona surface section this page still lacks? The author reported leaving the shape gap open rather than filling it, because T36 owns it and filling it here would mean writing claims this stage did not verify.
+  - Should wiki/clients/macos.md keep at all? The reassessment trigger stands but the premise recorded for it does not. `python scripts/doc_graph.py --json`, run 2026-09-04, gives this page a `unique` entry of `Status and limitations` and reports a five-page cluster, not a six-page one in which this page alone lacks a unique section. The trigger itself is unchanged: after this task removes `## Installing`, is what remains taught by wiki/installing.md and wiki/updates.md? The research stage reported two facts pointing opposite ways. Against the page: the same run scores `Updating` a 0.76 duplicate of wiki/installing.md's `Updating, briefly`, and `What your Mac needs` a 0.83 duplicate of wiki/install-macos.md's `What you need`, which T9 absorbs. For the page: the unsigned-app reasoning is absent from wiki/installing.md, though wiki/updates.md carries it in fuller form. The keep verdict at tasks/docs/tracker.md:76 is not revisited here.
+  - Does the measured real-time factor of 0.96 survive scrutiny as published prose? The research stage reported that its only record is wiki/raw/macos-status.md:21-23, which never publishes, states 0.961 rather than 0.96, and describes it as measured on a tool-grounded reply where the page says "In a real conversation"; and that nothing in the source tree asserts the value, which is a single run dated 2026-08-07.
+  - How should a page name the start-and-stop controls, given that no page currently names them fully? The research stage reported that wiki/install-macos.md:123 says "Settings > Connection", wiki/clients/windows.md:96 says "Settings > The house", and the source nests the second inside the first.
+  - Is wiki/first-run.md:192 an inbound reference to wiki/install-macos.md that T16 must redirect? The research stage reported it is, and that the tracker's inbound-reference list at tasks/docs/tracker.md:213-215 omits it. Recorded here for T16 because T6 is the task that shrinks that list.
+- Orchestrator rulings, so the author is not left choosing:
+  - The replacement link points at `wiki/installing.md`, not at `wiki/install-macos.md`. T9 lands the macOS procedure on that page in this same phase, and adding a fifth inbound reference to a page T16 retires is work T16 would have to undo.
+  - The real-time factor lands in `## What installing gives you`, beside the sentence on the voice engine being built against Apple's GPU, which is the surviving section that already discusses macOS voice performance. It does not go in `## Status and limitations`: that is the honest-limits section and a good measurement is not a limit. Writing a persona-surface section for this page is T36's work, not T6's.
+  - T6 repairs the orphaned back-reference in `## Status and limitations`, which reads "first launch needs the right-click-Open step above" and refers to a step inside the section being removed. Removing the section without repairing it leaves the page wrong.
+  - T6 owns the dated provenance sentence in `## Status and limitations`. It is a sentence about an install guide that this page will no longer contain, wiki/page-types.md:246-248 forbids a dated status log in the honest-limits section, and T4 declined it in Phase A naming this task's ground.
+  - The copied passage names the full path the source has, `Settings > Connection`, and the row within it, `The house`. It also names the Restart control and states that stopping frees the memory the model and the voice hold without closing Hearth. All three are verified in the source and all three are already published for Windows, which makes a macOS reader the only one without them.
+  - T6 owns the two prose links to wiki/install-macos.md on this page and the `related` frontmatter entry naming it, repointing each to wiki/installing.md. The `sources` entry stays: it is provenance, the linter never resolves it, and rewriting a page's history is not this task's work. That ruling matches the one recorded on T2.
 
 ##### Draft
 
@@ -871,31 +1002,103 @@ moves into a surviving section of this page. The start-and-stop material from
 lines 81-83, because this page is where a macOS reader looks for it once the
 install page is one page for both platforms.
 
-Note that lines 111-114 carry the reasoning for why there is no in-app updater
-on macOS, tied to the app being unsigned. That reasoning is macOS-specific, is
-not in `wiki/installing.md:140-146`, and is part of why this page keeps. Do not
-lose it.
+Note that the page carries the reasoning for why there is no in-app updater on
+macOS, tied to the app being unsigned. That reasoning is macOS-specific, is not
+in `wiki/installing.md`, and is part of why this page keeps. Do not lose it.
 
-### T7: Retype Getting started to concept and give it the download location
+Notes from the author, on where the delivered change departed from the direction
+above:
+
+- The author reported that the page now runs abstract, what it does today, what
+  installing gives you, start and stop the house, what it needs, updating, what
+  it cannot do yet, and that it retitled two headings to match the other four
+  client pages under the cross-client ordering rule.
+- The author reported putting the start-and-stop salvage under its own heading
+  rather than inside the section that already held the sentence it extends,
+  because keeping it inline would have made one section of roughly 310 words
+  covering two subjects.
+- The author reported publishing the real-time factor as 0.961 on a real
+  tool-grounded reply rather than as 0.96 in a real conversation, because that
+  is what the only source supports.
+- The author reported moving the dated provenance sentence rather than deleting
+  it: removed from the honest-limits section where the page-type rules forbid a
+  dated status log, and its substance restated as the provenance on the
+  measurement itself.
+- The author reported leaving the persona surface section absent and the page
+  carrying no inline procedure, because the only procedure the page held was the
+  install and that leaves.
+- The author reported confirming, before removing the numbered steps, that the
+  model tier figures and Sulivan's spoken first line already publish on
+  wiki/installing.md, so nothing in the removed steps leaves the corpus.
+
+### T7: Retype Getting started to concept and state honestly how a reader obtains Hearth
 
 The page is declared a how-to and has no task steps, duplicates two sections
 that survive elsewhere, and is the only page written for a reader who does not
-yet have an installer. That last property is why it keeps, and it is the only
-correct home for the corpus's largest gap.
+yet have an installer. That last property is why it keeps, and it is where the
+corpus has to say plainly how a reader gets Hearth today.
+
+The task statement was corrected twice on 2026-09-04, and the second correction
+reverses part of the first. It originally read "give it the download location".
+An orchestrator grep across wiki/ for GitHub URLs, `.dmg`, `.msi`, `releases/`
+and download phrasing found no reader-facing download location, and the
+statement was rewritten on the reading that Hearth is simply not distributed.
+The research stage then established that it is. A published release exists, and
+this orchestrator confirmed the corpus's own record of it: wiki/releasing.md:199-200
+states the artifacts and a `SHA256SUMS.txt` go to the GitHub release, and
+wiki/releasing.md:208 records "0.1.0 alpha, published 2026-08-22, shipped
+Windows, macOS and Android". A grep of wiki/ could not see this because the
+corpus never links a thing that already exists. The corrected statement stands
+as written, and the honest sentence it asks for is now a link rather than an
+admission of a gap.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Restructure
-- Scope: M
+- Scope: S
 - Confidence: High
-- Sizing evidence: wiki/getting-started.md, read in full this run. Frontmatter line 4 reads `type: how-to`. `## What you need` at lines 34-46 carries the side-by-side Windows and macOS requirements and the house-and-window framing. `## Three steps to a running house` at lines 48-60 restates the three beats that wiki/first-run.md:22-30 states. `## Where to go next` at lines 62-76 restates the routing that wiki/_index.md:29-67 carries. `## Before you start` at lines 78-83 carries the pre-alpha caveat.
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: corrected from M to S by tasks/docs/artifacts/T7.research.json, whose route ran at M. The research stage opened the file and reported that exactly one page changes, that the two dropped sections are pure duplication with all seven of their links already present in wiki/_index.md, that `concept` passes the linter's accepted type list at scripts/lint_wiki.py:48-50, and that retyping breaks no inbound link, which is below the M definition of several pages or a net-new page. The orchestrator's own read stands behind the anchors: wiki/getting-started.md, re-read in full on 2026-09-04, is 83 lines rather than the 84 first recorded. Frontmatter line 4 reads `type: how-to`, line 3 reads `status: closed`. `## What you need` at lines 34-46 carries the side-by-side Windows and macOS requirements and the house-and-window framing. `## Three steps to a running house` at lines 48-60 restates the three beats. `## Where to go next` at lines 62-76 restates routing that wiki/_index.md:22-95 carries. `## Before you start` at lines 78-83 carries the pre-alpha caveat and the Developing link.
+- Sources of truth:
+  - canonical: https://github.com/XXJones21/Hearth/releases/tag/v0.1.0-alpha, covers the distribution point: the research stage reported fetching it and finding it published 2026-08-22, marked prerelease and not draft, carrying `Hearth_0.1.0_x64-setup.exe`, `Hearth_0.1.0_x64_en-US.msi`, `Hearth_0.1.0_aarch64.dmg`, `Hearth_0.1.0_android.apk` and `SHA256SUMS.txt`
+  - source: crates/hearth-probe/src/plan.rs:151-157, covers `PlanError::TooSmall` and the refusal floor of 4,466,165,856 bytes of pool
+  - source: crates/hearth-probe/tests/plan_fixtures.rs:36-52, covers the pinned assertion that an 8 GB Apple Silicon Mac plans tier 0, coexists, and emits no "one at a time" warning
+  - tooling: `python scripts/lint_wiki.py`, run 2026-09-04, covers the accepted `type:` values at scripts/lint_wiki.py:48-50, which include `concept`, and the single existing warning on this page
+  - contextual: wiki/releasing.md:39-41, 199-200 and 208, covers the corpus's own record that the artifacts go to a GitHub release and that 0.1.0 alpha was published 2026-08-22 shipping Windows, macOS and Android
+  - contextual: wiki/page-types.md:129-154, covers the concept shape and its rule that a concept page carries no procedures
+  - contextual: wiki/_index.md:22-95, covers the routing that this page's `## Where to go next` duplicates
+- Docs:
+  - wiki/getting-started.md, frontmatter line 4 (`type:`), `## What you need`, `## Three steps to a running house`, `## Where to go next` and `## Before you start`
 - Artifacts:
   - Research: tasks/docs/artifacts/T7.research.json
+  - Author: tasks/docs/artifacts/T7.author.json, wrote wiki/getting-started.md
+  - Review: tasks/docs/artifacts/T7.review.json, verdict PASS, minor nits open, score 6 to 8
+- Review checklist, and where each entry went:
+  - F2, the page defining a persona where it should have defined the product: `done` by the reviewer, which reports this was the most expensive sentence on the page, since the corpus's only pre-installer entry point opened in the exact words the personas page uses for a persona.
+  - F4, saying that the Android artifact needs a house: `done` by the reviewer.
+  - F1, the concept shape's "what it looks like in use" section: `done` by the reviewer, which reports adding a 57-word section with no new outbound link, so the routing the reshape dropped is not rebuilt, plus the page's first figure request.
+  - F3, what the page tells a Windows reader with integrated graphics: `blocked`, `needs: research`. Opened as T52.
+  - F5, the page telling a reader twice that Sulivan interviews them, and F6, a persona called `it` one line above a section calling them `they`: both `deferred`, no research needed. Opened together as T57.
+- Verification: the corpus-wide run recorded on T6 covers this page. `python scripts/lint_wiki.py` reports 0 errors after the reviewers, and the reviewer reported clearing this page's one pre-existing long-paragraph warning and adding one `figure-pending` warning by design.
+- Objective gaps recorded by the reviewer, which derived five objectives because neither the page nor the research artifact records any:
+  - "Decide whether your machine can run Hearth" is not taught for a Windows machine with integrated graphics. The reviewer reports that the abstract promises the reader will find this out, and that the three bands actively invite such a reader to measure video memory they do not have. That is T52 and it is the largest reader gap on the page.
+  - "Name where to get Hearth today and which artifacts exist" is taught, and the reviewer records that this is the objective no page in the corpus taught before this task.
+  - The reviewer reports no content on the page serving no objective, and that all five derived objectives sit at a level matching `type: concept`.
+  - That no objectives are recorded anywhere is itself reported as a gap. Opened as T55, which is corpus-wide rather than this page's.
 - Open questions:
-  - Where does a reader download Hearth? No page in wiki/ names a source. The research pass reported that a case-insensitive grep across wiki/ excluding raw/ for release links, .dmg, and download phrasing returned no reader-facing download location, and that wiki/installing.md:24 treats holding the installer as already true. This task cannot close the gap until someone names the location, and the page should not invent one.
+  - Should the page state the video-memory bands in a unit a reader can check against their own screen? The reviewer reported recomputing both boundaries from source and getting 4.47 GB and 5.43 GB decimal, matching the page, and reported that the product prints GiB under a GB label so the same boundaries read 4.16 and 5.06 on screen, leaving the page about eight percent high against the product's own output. It reported that no reader is misled today, checking against real card sizes, and did not change it because that would override a directed editorial call. The unit half of this is T24.
+  - Who maintains the version-and-date sentence? The reviewer reported that it goes stale silently at the next release and recommended either giving it an owner or dropping the version.
+  - Is v0.1.0-alpha still the newest Hearth release when this page publishes? The author reported that the research stage graded this unverifiable, because a single fetch of the rendered listing showed one release and that is not proof no newer one exists or will exist. It reported that linking the floating index rather than the pinned tag means a later release does not make the link dead, but that the version and date sentence needs re-checking at the next release.
+  - Should the page link the version-pinned release URL, which is what the research stage verified and which names exact artifacts, or the floating releases index, which survives the next release but which that stage did not verify will always list something? A pinned link goes stale silently; a floating link cannot be checked against an asset list. Settled by an orchestrator ruling below.
+  - Which task owns README.md:74-79? The research stage reported that it repeats the contradicted Windows requirement sentence verbatim, that it sits outside the corpus root, and that no row in this tracker names it. Opened as T41.
+  - What number should a page give for the Windows requirements floor? The research stage reported three source-derived candidates that say different things: Hearth refuses below roughly 4.5 GB of video memory, which is 4.16 GB in the units the product itself prints; it holds the model and the voice resident together at roughly 5.4 GB and above, which is 5.06 GB as printed; and between those it plans but warns the persona will think and speak one at a time. It also reported that an 8 GB card gets tier 1, labelled Small, which is one tier above the smallest. The unit half of this question is T24.
+  - Does anything need to change for a reader who lands on wiki/clients/ios.md or wiki/clients/visionos.md expecting to install? The research stage reported that the release carries no iOS asset and that its notes say TestFlight follows, and that neither page states no build is obtainable. Opened as T42.
+  - For T11: once this task lands, wiki/getting-started.md is where the corpus says how to obtain Hearth, and wiki/_index.md:24-27 introduces the Getting started group without mentioning that. Recorded so T11's dispatch carries it.
+- Orchestrator rulings, so the author is not left choosing:
+  - The premise correction recorded above is itself corrected, and this is the more important of the two. A distribution point exists. The research stage fetched it live, and this orchestrator confirmed it from the tree independently: wiki/releasing.md:199-200 states that artifacts and a `SHA256SUMS.txt` go to the GitHub release, and wiki/releasing.md:208 records "0.1.0 alpha, published 2026-08-22, shipped Windows, macOS and Android", which matches the fetched release's date and asset set. The gap is therefore a missing link on a page that keeps, not a missing product. Note the limit on this confirmation: the orchestrator holds no web access and did not open the URL, so the live release rests on the research stage's report plus the two corroborating in-tree records above.
+  - The page links the floating releases index and names v0.1.0-alpha as what is published there today, with its date. Reason: wiki/releasing.md documents a continuing release process, so a version-pinned link on the corpus's entry page rots at the next release, while the floating index follows necessarily from a non-draft release existing. The pinned URL stays recorded here and in the research artifact as the evidence.
+  - The contradicted "around 8 GB of video memory" figure comes out. In its place the page states the behaviour in three bands, which is what source supports and what T2 landed on wiki/clients/windows.md for the same mechanism: below roughly 4.5 GB of video memory Hearth declines and says why; between there and roughly 5.4 GB it installs but the persona thinks and speaks one at a time; above that both stay resident. State it as behaviour a reader will see rather than as a spec table. A concept page whose job includes deciding whether a machine qualifies fails that job if it names no floor at all, which is the defect the reviewer scored as the largest reader gap on wiki/clients/windows.md.
+  - README.md is outside the corpus root and is not this author's to edit, even though it repeats the sentence being corrected here.
 
 ##### Draft
 
@@ -913,9 +1116,32 @@ Drop `## Three steps to a running house` and `## Where to go next`. Both are
 duplicates of pages that survive, and the routing belongs to `wiki/_index.md`
 under `wiki/page-types.md:93`.
 
-Add where to get Hearth, subject to the open question above. If the location is
-still unknown when this task runs, the honest page says the gap exists rather
-than guessing, and the gap goes to `wiki/whats-not-here.md`.
+State how a reader gets Hearth today. The research stage established that a
+published release exists, so the page links the floating releases index, names
+v0.1.0-alpha as what is published there today with its date, says which
+platforms have an artifact, and is honest that the macOS artifact is unsigned
+and not notarized and that there is no iOS artifact.
+
+Notes from the author, on where the delivered change departed from the direction
+above:
+
+- The author reported proceeding rather than stopping on the disagreement
+  between the dispatch's `Page type` and the page's own declared `type:`,
+  because the disagreement is the task rather than an ambiguity.
+- The author reported re-heading `## What you need` to an action title and
+  clearing the page's long-paragraph warning in the process.
+- The author reported writing the concept shape's links-out step inline, one
+  link per section, rather than as a closing links section, because a links
+  section would rebuild the routing the reshape had just dropped.
+- The author reported that the Windows three-band statement traces to the
+  evidence of a contradicted claim and to an open question rather than to a
+  verified claim, that the dispatch made the editorial call, and that it
+  confirmed the three branches directly in source: the coexist arm, the
+  take-turns arm with its one-at-a-time warning, and `PlanError::TooSmall` as
+  the only refusal. It reported naming no graphics card.
+- The author reported pruning `related` from ten entries to six and adding
+  `install-macos.md`, because the page now sends a reader toward an unsigned
+  macOS artifact, and reported that all six resolve.
 
 ### T8: Write the reader-facing first-run walkthrough
 
@@ -925,18 +1151,55 @@ that receives the handoff.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Add
 - Scope: M
 - Confidence: High
-- Sizing evidence: wiki/first-run.md, read in full this run. `## Beat two: making someone` runs lines 208-292 and `## Beat three: the second brain` runs lines 294-320; both contain reader-facing material inside a page whose frontmatter line 4 declares `type: decision-record` and whose lines 322-333 are a four-item open-questions section. wiki/installing.md:121-126 and wiki/getting-started.md:53-60 both route a reader there to perform first run. wiki/page-types.md:150-154 states that a concept or record page containing steps belongs on a how-to page it links to. wiki/_index.md:34 already carries a `## Meeting your persona` section.
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/first-run.md headings re-read on 2026-09-04 after the Phase A T3 edits moved its lines. `## Beat two: making someone` now starts at line 214 with subsections at 216, 233, 257 and 272, `## Beat three: the second brain` starts at line 300, and `## Open questions` starts at line 328. Frontmatter line 4 declares `type: decision-record`. wiki/installing.md:142-147 and wiki/getting-started.md:53-60 both route a reader to that page to perform first run. wiki/page-types.md:150-154 states that a concept or record page containing steps belongs on a how-to page it links to. wiki/_index.md:34 carries a `## Meeting your persona` section, whose entries at lines 41-44 are First run, Personas, The persona face and Voice. `wiki/meeting-your-persona.md` does not exist: a glob for it returns nothing.
+- Sources of truth:
+  - source: backend/harness/valar/tools/tools.yaml:1112-1121 and 1125-1126, covers the `create_persona` tool schema, including that the voice parameter is `voice_design` as an array, and the colour swatch list the model is offered
+  - source: backend/harness/valar/tools/handlers/creation.py:52-60, 88-99 and 288-296, covers the accepted colour swatches, the fallback when one does not match, and the handler signature
+  - source: backend/harness/valar/gateway/first_run.py:221, covers the first-run gateway's own declaration of `voice_design`
+  - source: the desktop client's interview surface, covers the screen titles the reader actually sees, including "Let's make someone." becoming "Meet <name>." at the handover
+  - tooling: `python scripts/lint_wiki.py --summary`, run 2026-09-04 under Python 3.13.5, covers the corpus baseline of 28 pages, 0 errors, 198 warnings that this new page must not break
+  - tooling: `python scripts/lint_wiki.py --figures`, run 2026-09-04, covers the four pending figure captures, none of which is an interview or second-brain screen
+  - contextual: wiki/first-run.md:214-326, covers the structure the extraction follows
+  - contextual: wiki/page-types.md:96-127, covers the how-to shape this page is written to
+- Docs:
+  - wiki/meeting-your-persona.md, the new page, all sections
 - Artifacts:
   - Research: tasks/docs/artifacts/T8.research.json
+  - Author: tasks/docs/artifacts/T8.author.json, wrote wiki/meeting-your-persona.md
+  - Review: tasks/docs/artifacts/T8.review.json, verdict PASS, minor nits open, score 6 to 8
+- Review checklist, and where each entry went:
+  - F1, a step telling the reader to say hello when the product speaks first: `done` by the reviewer. It reports the client sends a kickoff silently once the voice is ready and the persona greets the reader unprompted, that the button ending the beat does not render until that greeting completes, and that the original step also contradicted wiki/features/personas.md.
+  - F3, that the interview runs once but the persona stays editable afterwards, and F4, the two screen titles moved to code voice so their trailing periods read as part of the title: both `done` by the reviewer.
+  - F2, a figure for the handover surface: `done` by the reviewer, which added the placeholder and its capture order. Opened as T62 for the capture itself.
+  - F5, a one-line fix left after the fix cycle closed: `deferred`, no research needed. Opened as T58.
+  - F6, what the next launch shows when the app is closed part way through setup: `blocked`, `needs: research`. The reviewer reports that an unfinished setup leaves the completed flag false and the next launch returns to setup, but that step state initialises at the welcome screen, so the reader-facing outcome is not settled by source. Opened as T54.
+  - OBJ1, that no objectives are recorded for this task: `blocked`, `needs: research`. Opened as T55, widened to the corpus because all four reviews this phase reported the same absence.
+- Verification: the corpus-wide run recorded on T6 covers this page. The reviewer reported hand-checking the frontmatter against the linter and concluding the page adds no error, which the 0-error run after the reviewers confirms.
+- Objective gaps recorded by the reviewer, which derived five objectives because neither the page nor the research artifact records any:
+  - Four are taught outright: answering the opening question, choosing temperament, voice, colour and name, putting the first real thing into the second brain, and finishing setup.
+  - "Recognise the handover" is taught only after the reviewer's own F1 fix. Recorded so the fix is not read as cosmetic.
+  - "Finish setup" carries `needs: research` because of F6, which is T54.
+  - `## Where to go next` serves no objective and the reviewer explicitly did not charge it, reporting that the corpus's model how-to carries the same tail.
 - Open questions:
-  - Should wiki/first-run.md be renamed once this page exists, so that a decision record and a reader-facing how-to are not both called first run? The rename touches eight inbound references and is deferred rather than decided here.
-  - Is `wiki/meeting-your-persona.md` the right filename, given the reader's task spans the persona interview and the second-brain setup? The alternative considered was keeping the reader-facing page at `wiki/first-run.md` and renaming the record, which was rejected on the inbound-link cost.
+  - Which is right about the button that ends the interview, settled: the reviewer reports that SetupFlow is right and the comment is stale, because SetupFlow wires the interview's completion to the second-brain step and it is the second-brain screen's own completion that opens the house. It reports the comment describes an earlier cut, that the author's resolution was correct, and that the code comment is what should change.
+  - Is the persona name length limit off by one at each end? The reviewer reports that the page says "under 24 characters", matching the product's own rejection message, but that the regex accepts 24 and rejects a one-character name, so both the product copy and the page are off by one. Opened as T63.
+  - Nothing in the corpus links to this page yet. The reviewer reports this as the single thing standing between this work and a reader, and that it costs nothing in the score because the score grades the document. Three sibling tasks in this phase added their links; the index entry is T11's.
+  - Does wiki/first-run.md need a row of its own for the reconciliation this task leaves behind? The author reported that the record still carries the beat-two and beat-three procedure this how-to now owns, that wiki/page-types.md:150-154 says a record containing steps points at the how-to instead, and that constraint 3 kept it from touching that page including its `related` pointer to the new page. Opened as T46.
+  - Which is right about what the Second brain setup button does? The author reported that the comment at desktop-client/src/components/setup/Interview.tsx:414-416 says the button opens the house while SetupFlow.tsx:350 wires it to the second-brain step, that the two disagree, and that the page follows SetupFlow.
+  - Should wiki/first-run.md be renamed once this page exists, so that a decision record and a reader-facing how-to are not both called first run? Still deferred. The research stage reported that it could not confirm the eight-inbound-reference figure the deferral rests on: a grep for `first-run.md` across wiki/ excluding the file itself returned 15 lines across 13 pages, counting both frontmatter `related` entries and body links.
+  - Is `wiki/meeting-your-persona.md` the right filename, given the reader's task spans the persona interview and the second-brain setup? The research stage reported evidence for keeping it: the interview screen's own title is "Let's make someone." and becomes "Meet <name>." at the handover, and wiki/_index.md:34 already carries a section by that name. It also reported that the second-brain half is the smaller of the two beats and is largely served by links to wiki/features/second-brain.md.
+  - Is the `voice_id: string` declaration on wiki/first-run.md correct? The research stage reported that three source locations declare the parameter as `voice_design`, an array of two to four attributes: backend/harness/valar/tools/tools.yaml:1112-1121, backend/harness/valar/tools/handlers/creation.py:288-296 and backend/harness/valar/gateway/first_run.py:221. Opened as T43, because this task is forbidden from touching that page's schemas and T28 is scoped to a different passage on it.
+  - Does the colour swatch mismatch want a tracker row of its own, as T25 did for the planner's WSL warning? The research stage reported that backend/harness/valar/tools/tools.yaml:1125-1126 offers the model a swatch named `Heather` which backend/harness/valar/tools/handlers/creation.py:52-60 no longer accepts, that the comment at creation.py:56-57 records it was deliberately renamed to `Plum` after a live run named a persona after the swatch, and that a model passing `Heather` silently gets `Ember`. Opened as T44.
+  - Should the new page carry a pending figure of either setup screen? The research stage reported that `python scripts/lint_wiki.py --figures` lists four pending captures and neither the interview nor the second-brain screen is among them, so nothing in the corpus shows a reader what these screens look like, and that a pending figure is a warning rather than an error.
+  - For T11: does the new page go before or after First run under `## Meeting your persona` in wiki/_index.md? The research stage reported that its evidence favours before, because the section's own prose describes the reader's first hour as an arc, wiki/page-types.md:93-94 requires the section order to be the reading order, and a reader arriving from wiki/installing.md wants the procedure rather than the record.
+- Orchestrator rulings, so the author is not left choosing:
+  - The reachability problem the research stage raised is real and is solved by sequencing rather than by a later phase. It reported that the three pages currently routing a reader to wiki/first-run.md for this walkthrough are exactly T6's, T7's and T9's targets in this same phase, that T8 cannot edit them, and that left unresolved the corpus ships a walkthrough nothing links to. The ruling: T8's author runs first and alone, and the T6, T7 and T9 dispatches each carry the repoint for the page they already own. No page is edited by two tasks, and the new page exists before anything links to it.
+  - `wiki/meeting-your-persona.md` keeps its name for this task. The filename question stays open, but a page has to be written before it can be renamed, and the rename is a decision with its own inbound-link cost.
+  - Of the eight entries the research stage returned in `affected_docs[]`, exactly one is this author's: the new page, which the stage did not list because it does not exist yet. Seven are repoints on pages other tasks own. Three go to T6, T7 and T9 by the ruling above; wiki/clients/windows.md belongs to T15 and T29; and wiki/developing.md, wiki/features/personas.md and wiki/features/second-brain.md are unowned and open as T45.
 
 ##### Draft
 
@@ -954,6 +1217,25 @@ tool parameter schemas at lines 258-286, the persona cache invalidation note at
 lines 288-292, and the open questions. Nothing is deleted from `first-run.md`
 by this task; the record keeps its content and gains a link to this page.
 
+Notes from the author, on where the delivered page departed from the direction
+above:
+
+- The skeleton's heading `## Answer Sulivan's first question` was written as
+  `## Answer the question Sulivan opens with`. The author reported that the
+  linter's sentence-case check exempts a heading word only when it matches a
+  fixed proper-noun set, that the set holds `sulivan` but neither of the two
+  normalisations the check applies turns `Sulivan's` into it, and that the
+  skeleton's wording would therefore have been a hard error on a page required
+  to add none.
+- Where the skeleton said the second-brain screen opens by itself, the author
+  reported writing it as a step the reader takes, because the source renders a
+  Second brain setup button and wires it to that step, and reported the
+  disagreement between the button's comment and its wiring as an open question.
+- The author reported keeping every `sources` entry the skeleton named and
+  adding two, because the step order and the choice-card behaviour come from
+  those two files, and reported that the linter checks a `sources` entry only
+  for an absolute machine path.
+
 ### T9: Give Installing Hearth a how-to spine and absorb the macOS salvage
 
 The page is declared a how-to and contains no numbered step anywhere. Absorbing
@@ -962,19 +1244,64 @@ makes the macOS page's retirement safe.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Restructure
 - Scope: M
 - Confidence: High
-- Sizing evidence: wiki/installing.md and wiki/install-macos.md, both read in full this run. wiki/installing.md contains no numbered list between line 22 and line 147, and its abstract at lines 26-27 calls itself "the narrative version of the install". wiki/page-types.md:114-116 requires action-title sections with numbered steps inside them. The passages to absorb are wiki/install-macos.md lines 43-53, 32-34, 76-77, 128-133 and 135-155, and wiki/clients/windows.md lines 153-161 and 196-202.
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/installing.md and wiki/install-macos.md, both re-read in full on 2026-09-04 after the Phase A T1 edits. wiki/installing.md now runs 168 lines and contains no numbered list anywhere between line 22 and the end, and its second paragraph at lines 27-28 still calls the page "the narrative version of what happens next". wiki/page-types.md:114-116 requires action-title sections with numbered steps inside them. Its section headings are `## Before you start` (32, with `### macOS` at 38 and `### Windows` at 57), `## The scan and the plan` (67), `## Choosing where it lives` (90), `## The download` (106), `## Proving it works` (120), `## What comes next` (142), `## Platform notes` (149) and `## Updating, briefly` (161); only `## Before you start` and `## Proving it works` are action titles. The salvage passages currently sit at wiki/install-macos.md lines 43-53 (`## Opening it the first time`, the only numbered list in the cluster), 32-34 (the blockquoted decline message), 76-77 (the Backend and Mind-and-voice plan rows), 128-133 (`## Uninstalling`) and 135-155 (`## When something goes wrong`), and at wiki/clients/windows.md lines 155-173 (the install root prose and fenced tree) and 202-205 (the four-tier dictionary paragraph).
+- Sources of truth:
+  - source: desktop-client/src/components/setup/SetupFlow.tsx:444-547, covers what the plan screen renders on one screen: the model card at 463-480, the "What it will configure" card at 497-503, the install-root field and the single Download button
+  - source: desktop-client/src/components/setup/SetupFlow.tsx:113-121 and 391-401, covers where the below-the-floor refusal appears, which is after the scan under the panel title "Hearth cannot run on this machine."
+  - source: crates/hearth-probe/src/plan.rs:214-233 and 234, covers the two-element downloads vec and the sum that becomes the plan's download figure
+  - source: crates/hearth-probe/src/dict.rs:245-247, covers `smallest()` taking the minimum over tiers by `tier.bytes`, which is what makes the refusal message's smallest-model figure resolvable
+  - source: crates/hearth-probe/src/plan.rs:271-275, covers the context-window rounding to a multiple of 1024
+  - source: crates/hearth-probe/src/machine.rs:288 and the Apple fixture, covers the backend value being the lowercase string `metal` and `cuda_arch` being absent on Apple Silicon
+  - source: crates/hearth-probe/dictionary.yaml:28-36 and 37-54, with desktop-client/src-tauri/src/provision.rs:1-14, covers the inference engine and Python runtime, which are fetched alongside the model and are not in the plan's figure
+  - tooling: `python scripts/lint_wiki.py` and `--warnings`, run 2026-09-04, covers the page's current 0 errors and 8 warnings, the long-section rule at scripts/lint_wiki.py:392 and the bold-lead word list at :116
+  - contextual: wiki/page-types.md:96-127, covers the how-to shape the reshape targets
+  - contextual: wiki/install-macos.md and wiki/clients/windows.md, cover the seven salvage passages this task copies
+- Docs:
+  - wiki/installing.md, frontmatter and all eight sections: `## Before you start` with `### macOS` and `### Windows`, `## The scan and the plan`, `## Choosing where it lives`, `## The download`, `## Proving it works`, `## What comes next`, `## Platform notes` and `## Updating, briefly`
 - Artifacts:
   - Research: tasks/docs/artifacts/T9.research.json
+  - Author: tasks/docs/artifacts/T9.author.json, wrote wiki/installing.md
+  - Review: tasks/docs/artifacts/T9.review.json, verdict PASS, minor nits open, score 3 to 9
+- Review checklist, and where each entry went:
+  - F1 the entry point and where builds land, F2 the Windows prerequisites, F3 the missing `home` row in the Windows tree, F4 the negative branch after the spoken check, F5 a triple restatement trimmed, F6 the platform subheading order, F7 the plan-screen capture order, F8 the plan table column labels: all `done` by the reviewer.
+  - F9, the step a Windows reader takes to remove the client application: `blocked`, `needs: research`. Opened as T53.
+  - F10, a disk-check sentence left in the macOS branch by the reviewer's own F2 edit: `deferred`, no research needed, a one-sentence move. Opened as T59.
+- The reviewer's baseline of 3 needs reading in context. It reports that its structural pass came back completely clean, that the declared type matches what every section does, that the page is not two types at once and no required section is missing, and that eight of the nine baseline deductions sat in the Windows half of the prerequisites, one routing gap, and five small defects. It also disclosed scoring one finding at baseline rather than as a regrade discovery, on the ground that a reader meets a gap whether or not an upstream artifact confesses it.
+- Verification: the corpus-wide run recorded on T6 covers this page. The reviewer reported it could not run the linter and used the orchestrator's supplied run instead, which the 0-error run after the reviewers confirms.
+- Objective gaps recorded by the reviewer, which derived six objectives because neither the page nor the research artifact records any:
+  - "Install Hearth on a Windows PC" is not taught. The reviewer reports that the requirements and the shared procedure now land, but there is no Windows first-open step, which is T10, and the uninstall's last step is macOS-only, which is T53.
+  - Five are taught: installing on an Apple Silicon Mac, deciding whether the machine can run it (only after F2), recovering a failed install, uninstalling without losing memory and journal (only after F3), and explaining why Hearth chose its plan.
+  - The reviewer reports no content on the page serving no objective.
+- Salvage landed. All seven passages, as the author reported them:
+  1. The macOS first-open procedure: landed as `## Open Hearth for the first time on macOS`, three numbered steps, with the remembered-decision sentence written as a result note after the list rather than as a fourth step.
+  2. The below-the-floor message: landed as prose in the `## Before you start` lead, above both platform headings, carrying no fixture figures, per the ruling.
+  3. The `Backend` and `Mind and voice` plan rows: landed, and the table now carries all five rows in the ruled order.
+  4. The uninstall: landed as `## Uninstall Hearth`, with the copy-out-of-`home/` instruction placed before the deletion step.
+  5. The troubleshooting section: landed as `## Work out what went wrong`, last on the page, with all five log filenames and all four failure modes.
+  6. The Windows install root prose and tree: landed under `## Check what Hearth installed` as `### Windows`.
+  7. The four-tier dictionary paragraph: landed under `### What the plan says`.
+- Salvage verified independently. The reviewer checked all seven passages against their sources and reports every one landed intact, with three notes. It reports the refusal prose is better than its source, because it adds the two facts the original message omitted, that the refusal comes after the scan and that the reason is memory rather than disk. It reports correcting the Windows tree by adding a `home` row, on the ground that `crates/hearth-probe/src/defaults.rs:46-48` and `desktop-client/src-tauri/src/config_gen.rs:64` write that directory unconditionally, so the salvaged tree simply omitted it: that is a deliberate correction to an authorised salvage passage. It reports that wiki/clients/windows.md still carries the same omission, which is opened as T60. It also confirms the spine holds, that the page branches in exactly the three places the platforms differ, and that it reads as one guide rather than two stapled together.
 - Open questions:
-  - Is the plan's download figure meant to cover four provisioned items or the two it sums? crates/hearth-probe/src/plan.rs:214-234 sums the model build and the voice only, while wiki/installing.md:95-97 and wiki/install-macos.md:84-86 both describe four things downloading. Either the prose is overstating what the number covers, or the inference engine and Python runtime are fetched by a path outside the planner that this pass did not find.
-  - What context window does an 8 GB Mac actually plan? Both install pages say 17,408 tokens. The value has the right shape (crates/hearth-probe/src/plan.rs:280-283 rounds to a multiple of 1024) but no fixture asserts it, and confirming it needs the planner run rather than read.
-  - The two pages print the same plan table with different rows: wiki/install-macos.md:72-78 carries Backend and Mind-and-voice rows that wiki/installing.md:68-73 drops. Which row set is correct for each machine, and does the merged table keep all five rows?
+  - Where do a Windows reader's memory and journal live? The author reported that the uninstall section tells a reader to copy anything they want to keep out of `home/`, that the `home/` path comes from the macOS install root tree, and that the absorbed Windows tree lists six entries with no `home` among them. It reported writing the warning as the source states it and leaving the discrepancy visible rather than papering over it.
+  - How does a Windows reader remove the client application itself? The author reported that the absorbed material settles only the product side, that no source states the step for the app, and that it therefore named the Trash step for macOS only.
+  - Does a Windows reader need the supervised process tree on this page? The author reported that the install root tree landed here as salvage and the process tree is its natural neighbour, that it is outside this task's scope, and that the section points at wiki/clients/windows.md rather than duplicating a fourth copy.
+  - Does a real 8 GB Apple Silicon Mac plan 17,408 tokens, or does its reported memory move the figure? The research stage reported that the window is 17,408 only while the machine's reported RAM sits between 8,581,982,713 and 8,594,565,624 bytes, that below that it drops to 16,384 and at or above it rises to 18,432, and that exactly 8 GiB sits inside that band about 7.6 MiB above its floor. It also reported that crates/hearth-probe/src/machine.rs:75 takes the value from an external crate this repository does not vendor, so what a real Mac reports cannot be settled from this tree, and that the figure is right for the shipped fixture.
+  - What should be done with the refusal message, given that one of its three figures does not match current source? The research stage reported that wiki/install-macos.md:34 says the smallest model is 2.36 GB while crates/hearth-probe/src/dict.rs:245-247 makes that string print 2.89 GB, because `smallest()` takes the minimum over tiers and never reaches the Q3_K_M build the 2.36 GB names. It further reported that the message's other two figures belong to a Windows machine with no GPU, and that no Apple Silicon Mac produces this message at all. Settled by an orchestrator ruling below.
+  - Should the merged plan table add the "Layers on the GPU" row? The research stage reported that the setup screen shows it on every plan, so a five-row table is a selection rather than a transcription, and recommended leaving it out because it carries no reader decision.
+  - Who owns removing wiki/installing.md's own references to wiki/install-macos.md? Settled by an orchestrator ruling below.
+  - Should the macOS half of the install-root section point at wiki/clients/macos.md rather than repeating the tree? The research stage recommended pointing, because the Windows tree is salvage and has to land here while the macOS tree survives on a page that keeps, so writing it here would create a fourth copy.
+  - Is wiki/install-macos.md's right-click-Open passage the only numbered procedure in the cluster, as the salvage table states? The research stage reported it is not: wiki/clients/macos.md carries a four-step numbered install procedure whose first two steps are the same material, on a page the verdict keeps. It also reported that this tracker holds both claims and they disagree, at line 197 and at line 129. T6 removes that copy in this same phase.
+- Orchestrator rulings, so the author is not left choosing:
+  - The plan table takes all five rows in wiki/install-macos.md's order: Model, Context window, Backend, Mind and voice, Download. The research stage settled this against the setup screen, which renders all five. `Layers on the GPU` and `CUDA architecture` stay out, on the stage's recommendation and because the second never appears on Apple Silicon at all. Note for the author: the screen prints the backend value raw and lowercase, while both pages print it capitalised.
+  - The four-versus-two download question is settled and closed. The figure covers the two items it sums, and the page already says so correctly after T1. The reshape does not reopen that sentence.
+  - The refusal message is absorbed as prose, not as a verbatim blockquote. A quotation presented as the product's own words that contains a figure the product does not print is a fabricated quote, and the passage's other two figures come from a Windows machine with no GPU rather than from any Mac. Write what the refusal tells a reader, which is that Hearth declines, that the reason is memory rather than disk, and that the message names what is left after the voice, speech recognition and headroom against the smallest model it could use. Do not print the fixture figures, and do not place it under a macOS heading. The salvage row lands as prose, and the deviation is recorded.
+  - T9 owns wiki/installing.md's two prose references to wiki/install-macos.md and the `related` frontmatter entry naming it, repointing or removing each. The `sources` entry stays as provenance, matching the ruling on T2 and T6.
+  - The eleven-section spine in the research artifact's `notes`, under "RECOMMENDED SPINE", is accepted as direction. It branches by platform in three places only and writes the shared bulk once, which is the architecture the consolidation verdict ratified.
+  - Do not write or plan a Windows first-open procedure. The research stage confirmed that nothing in the tree or the corpus establishes what Windows shows on first open. T10 adds it when the fact exists.
 
 ##### Draft
 
@@ -983,17 +1310,49 @@ Reshape the page to the how-to spine, keeping its platform parameterization:
 
 Absorb from `wiki/install-macos.md`, preserving each passage rather than
 paraphrasing it away: the right-click-Open procedure at lines 43-53, which is
-the only numbered procedure in the cluster and which this page currently only
-mentions exists at lines 130-131; the verbatim decline message at lines 32-34;
-the Backend and Mind-and-voice plan rows at lines 76-77; the uninstall at lines
-128-133, of which this page has only the one-line version at line 92; and the
-troubleshooting section at lines 135-155, with its log filenames and four named
-failure modes.
+the only numbered procedure in the cluster and whose existence this page
+currently only mentions at lines 151-153; the verbatim decline message at lines
+32-34; the Backend and Mind-and-voice plan rows at lines 76-77; the uninstall at
+lines 128-133, of which this page has only the one-line version at line 104; and
+the troubleshooting section at lines 135-155, with its log filenames and four
+named failure modes.
 
-Absorb from `wiki/clients/windows.md` the install root tree at lines 153-161,
-because this page has no Windows equivalent, and the four-tier dictionary
-description at lines 196-202, because lines 74-78 here describe only two
-machine sizes.
+Absorb from `wiki/clients/windows.md` the install root prose and fenced tree at
+lines 155-168, because this page has no Windows equivalent, and the four-tier
+dictionary description at lines 202-205, because lines 77-86 here describe only
+two machine sizes.
+
+Every line number above was verified on 2026-09-04, after the Phase A edits.
+Locate each passage by its content rather than its line, because the author
+stage moves text and the numbers shift underneath it.
+
+Notes from the author, on where the delivered change departed from the direction
+above:
+
+- The author reported merging the spine's two platform headings for the folder
+  defaults into one heading, because the two defaults are two sentences sharing
+  one rule and two one-sentence headings would fragment the section.
+- The author reported retitling the spine's `## When something goes wrong` to an
+  action title, because the deliverable spec requires action titles and the
+  page-type rules put noun labels outside reference pages.
+- The author reported writing the `Backend` row value in lowercase code voice
+  rather than capitalised, because the finding that the screen prints the raw
+  lowercase string is graded verified.
+- The author reported not carrying forward the sentence calling this the deepest
+  install page Hearth has, measured on a real 8 GB M2 Air, because it describes
+  a retiring page rather than the product, and reported that the real-machine
+  provenance survives in the macOS requirements sentence.
+- The author reported not carrying forward the announcement that a dedicated
+  Windows install guide does not exist yet, because this page is now that guide,
+  and reported preserving the useful half of the paragraph as a pointer to
+  Hearth on Windows for the process tree and ports.
+- The author reported not importing the one-at-a-time residency tradeoff from
+  wiki/clients/windows.md, because it is not among the seven authorised passages
+  and no verified claim carries that behaviour.
+- The author reported writing the absorbed failure modes as a term list rather
+  than as bolded-lead paragraphs, so that the two bold-lead warnings on the
+  source page were not imported, and reported that the three sections expected
+  to clear 200 words all carry subheadings.
 
 Do not write the Windows procedure. That is T10 and it is blocked.
 
@@ -1890,3 +2249,558 @@ Work for a person with a screenshot tool. The linter carries the order:
 - spec: CAPTURE: desktop client, Personas page with a persona you made selected,
   showing the Who they are, Voice and What they may do sections and the Save and
   restart button, developer mode off, 1280x800
+
+### T41: Correct the Windows video-memory requirement in README.md
+
+The T7 research stage reported that README.md repeats, verbatim, the Windows
+requirement sentence that T7 corrects on wiki/getting-started.md, and that
+source contradicts it. README.md sits outside the corpus root, so no writer
+stage in Phase B may edit it, and CLAUDE.md's documentation-parity rule means it
+cannot simply be left disagreeing with the page it was copied from.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: unread by the orchestrator, sized up. Opened from tasks/docs/artifacts/T7.research.json, which reports the sentence at README.md:74-79.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Does a file outside `wiki/` belong in this tracker at all, and if it does, which corpus root does its research stage run against? Every other row in this file targets a page under wiki/.
+  - Which of the three source-derived figures does README.md take? The same question is open on T7, and the two must not be answered differently.
+
+##### Draft
+
+Whatever T7 lands on wiki/getting-started.md, stated in README.md's register.
+The two must agree, so this task runs after T7 and copies its resolution rather
+than deriving its own.
+
+### T42: Say on the iOS and visionOS pages that no build is obtainable yet
+
+The T7 research stage reported that the published release carries assets for
+Windows, macOS and Android but none for iOS, and that its notes say TestFlight
+follows. Neither client page states that a reader cannot obtain a build. Once
+T7 makes the corpus explicit about distribution, those two pages are the places
+where it is still silent.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: unread by the orchestrator, sized up. Opened from tasks/docs/artifacts/T7.research.json. Two pages are named, wiki/clients/ios.md and wiki/clients/visionos.md, and neither was opened in this run.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Does the honest-limits section of a platform overview take this, or does it belong in wiki/whats-not-here.md? wiki/page-types.md:239 names "What it cannot do yet" as the honest-limits section, which argues for the client pages.
+  - Is the TestFlight intention firm enough to state? The research stage reported it from the release notes rather than from the tree.
+
+##### Draft
+
+Two pages, so this splits into one task per page after research.
+
+### T43: Correct the create_persona voice parameter in the First run record
+
+The T8 research stage reported that wiki/first-run.md declares the
+`create_persona` voice parameter as `voice_id: string`, and that three source
+locations declare it as `voice_design`, an array of two to four attributes. T8
+was forbidden from touching that page's schemas and T28 is scoped to a different
+passage on it, so no row owned this.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: unread by the orchestrator at the cited anchor, sized to match T28's scope on the same page. Opened from tasks/docs/artifacts/T8.research.json, which reports the declaration at wiki/first-run.md:283 and the three contradicting locations at backend/harness/valar/tools/tools.yaml:1112-1121, backend/harness/valar/tools/handlers/creation.py:288-296 and backend/harness/valar/gateway/first_run.py:221.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Should this be folded into T28, which already owns a correction on the same page in Phase G, rather than run as its own row? A phase never contains a page twice, so the two cannot run in parallel.
+  - Does the corpus document the voice attribute vocabulary anywhere a reader can find it? The T8 research stage reported that the vocabulary is in the tree and in none of the 28 published pages.
+
+##### Draft
+
+A schema correction inside a decision record. The record's value is that it
+states what the tool actually takes, so a wrong parameter name is the one defect
+that makes the passage worthless rather than merely dated.
+
+### T44: The colour swatch the model is offered and the handler rejects
+
+The T8 research stage reported a product defect: the tool schema offers the
+model a colour swatch the handler no longer accepts, and a model that picks it
+silently gets a different colour. This is a defect in the product rather than in
+a page, so no writer stage runs on it. It is recorded here for the same reason
+T25 and T31 are.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: unread by the orchestrator, recorded from tasks/docs/artifacts/T8.research.json, which reports the swatch offered at backend/harness/valar/tools/tools.yaml:1125-1126, the accepted list at backend/harness/valar/tools/handlers/creation.py:52-60, the rename comment at creation.py:56-57, and the silent fallback at creation.py:88-99.
+- Sources of truth: (none, this is a product defect and no page states the swatch list)
+- Docs: (none, no page is edited)
+- Open questions:
+  - Is the fix to rename the swatch in the schema, or to accept the old name in the handler? The research stage reported that the rename was deliberate, after a live run named a persona after the swatch.
+
+##### Draft
+
+No writer stage. This row exists so the defect is not lost, and it is the
+engineer's to take.
+
+### T45: Link the persona walkthrough from the three pages no Phase B task owns
+
+The T8 research stage returned seven pages that route a reader toward the
+material the new walkthrough now holds. Three went to T6, T7 and T9, which
+already own those pages this phase. Two belong to T15 and T29. Three are
+unowned: a concept page that should link to the how-to that acts on it, a second
+concept page in the same position, and a developer page whose pointer may
+already be correctly aimed at the record.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: unread by the orchestrator at the cited anchors, sized from the three page count. Opened from tasks/docs/artifacts/T8.research.json, which names wiki/features/personas.md `## Making your first one`, wiki/features/second-brain.md `## Meeting it for the first time`, and wiki/developing.md `## Where to start reading`, and cites wiki/page-types.md:145 for the rule that a concept page links to the how-to pages that act on it.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Does wiki/developing.md need any change at all? The research stage reported that its pointer is correctly aimed at the record rather than at the walkthrough, and recorded it so the next stage decides rather than assumes.
+
+##### Draft
+
+Three pages, so this splits into one task per page after research. It cannot
+run in the same phase as any task that owns one of them.
+
+### T46: Point the First run record at the walkthrough and reconcile its steps
+
+T8 wrote `wiki/meeting-your-persona.md` by extracting beats two and three of
+`wiki/first-run.md`, and was forbidden from touching the record. So the record
+still carries the procedure the how-to now owns, and it does not link to it. The
+author reported both facts, and wiki/page-types.md:150-154 states that a record
+page containing steps points at the how-to instead of holding them.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Restructure
+- Scope: M
+- Confidence: High
+- Sizing evidence: wiki/first-run.md headings read by the orchestrator on 2026-09-04. `## Beat two: making someone` starts at line 214 with four subsections and `## Beat three: the second brain` starts at line 300, which is the material now duplicated by wiki/meeting-your-persona.md, whose sections the orchestrator read at lines 26 to 171 of that file. The record's frontmatter declares `type: decision-record` at line 4.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - How much of beats two and three stays? The record's value is the dated decisions, the rule derived from a bug, and the reasoning; the reader-facing steps are what moved. Where a passage is both, this task decides which page keeps it, and nothing is deleted before the how-to demonstrably carries it.
+  - Does this task or T43 correct the `voice_id` declaration? Both target the same page and a phase never contains a page twice.
+  - Does the rename question close here? T8 left open whether a record and a how-to should both be called first run. This is the task that would carry the rename.
+
+##### Draft
+
+The record keeps its record. It gains a link to wiki/meeting-your-persona.md at
+the point where a reader who wants to do the thing rather than understand the
+decision should leave. Nothing is deleted until the how-to is confirmed to carry
+it.
+
+### T47: Capture the interview figure for Meeting your persona
+
+Work for a person with a screenshot tool, requested by the T8 author. No writer
+stage runs on it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: requested in tasks/docs/artifacts/T8.author.json and placed as a pending figure in wiki/meeting-your-persona.md under `## Answer the question Sulivan opens with`. `python scripts/lint_wiki.py --figures` is the standing queue.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+- path: `wiki/images/pending/meeting-your-persona-interview.png`
+- The alt text and the capture spec are in the page's own placeholder, which is
+  where the linter reads them from.
+
+### T48: Capture the second-brain figure for Meeting your persona
+
+Work for a person with a screenshot tool, requested by the T8 author. No writer
+stage runs on it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: requested in tasks/docs/artifacts/T8.author.json and placed as a pending figure in wiki/meeting-your-persona.md under `## Set up your second brain`. `python scripts/lint_wiki.py --figures` is the standing queue.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+- path: `wiki/images/pending/meeting-your-persona-second-brain.png`
+- The alt text and the capture spec are in the page's own placeholder, which is
+  where the linter reads them from.
+
+### T49: Capture the house row figure for Hearth on macOS
+
+Work for a person with a screenshot tool, requested by the T6 author when it
+landed the start-and-stop salvage. No writer stage runs on it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: `python scripts/lint_wiki.py --figures`, run 2026-09-04, lists it pending at wiki/clients/macos.md:98 with its path, alt text and capture spec.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+- path: `images/pending/macos-house-row.png`
+- The alt text and the capture spec are in the page's own placeholder.
+
+### T50: Capture the macOS first-open dialog figure for Installing Hearth
+
+Work for a person with a screenshot tool, requested by the T9 author when it
+landed the right-click-Open procedure. No writer stage runs on it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: `python scripts/lint_wiki.py --figures`, run 2026-09-04, lists it pending at wiki/installing.md:88 with its path, alt text and capture spec.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+- path: `images/pending/installing-macos-first-open.png`
+- The alt text and the capture spec are in the page's own placeholder.
+
+### T51: Move the macOS install tree and process list to a reference page
+
+The T6 author reported that `wiki/clients/macos.md` still holds the install root
+directory tree and the five supervised programs with their ports, that
+wiki/page-types.md:249-250 moves reference material of that kind off a platform
+overview, and that it left both on the page because no reference page carries
+them for macOS yet and `wiki/clients/windows.md` holds the parallel material in
+the same shape. Nothing is deleted before its new home exists.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Restructure
+- Scope: M
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T6.author.json as an `extraction_needed` item. The orchestrator read wiki/clients/macos.md on 2026-09-04 before the edit and confirmed it then carried both the fenced install tree and the five-program list with ports 18700, 18765, 18766, 18080 and 18702.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Does one reference page serve both platforms, or does each client page get its own? The author reported the parallel Windows material is in the same shape, which makes this a two-page job either way.
+  - Does this overlap T33, which already moves the install and process catalogs off wiki/clients/windows.md? If it does, the two should be one task rather than two, because both would create the same destination page.
+
+##### Draft
+
+The destination page does not exist. Creating it is the first half of this task,
+and nothing comes off either client page until it does.
+
+### T52: Say what a Windows machine with no dedicated GPU gets
+
+The T7 reviewer reported this as the largest reader gap on `wiki/getting-started.md`
+and blocked on it. The page's abstract promises a reader will find out whether
+their machine runs Hearth, and the three video-memory bands T7 landed invite a
+reader with integrated graphics to measure video memory they do not have.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: M
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T7.review.json, which blocked F3 on research. The orchestrator read wiki/getting-started.md on 2026-09-04 before the reshape and confirmed it then stated a Windows floor in video-memory terms only.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Is a Windows machine with no dedicated GPU a supported configuration, and what should a page tell a reader with integrated graphics? The reviewer reported that source settles the mechanism and not the position: crates/hearth-probe/src/machine.rs:49-51 falls back to total system RAM when no GPU reports video memory and :55-57 resolves the backend to `cpu`, so a 16 GB integrated-graphics laptop clears the refusal floor and is planned a tier 1 or larger model on the processor rather than declined. It reported that wiki/clients/windows.md assumes CUDA or Vulkan, that wiki/installing.md says only that a smaller GPU gets a smaller plan, and that it wrote no sentence because both honest options are a product call plus a measurement nobody has made.
+  - How many pages state the Windows floor, and must they all change together? wiki/getting-started.md, wiki/clients/windows.md and wiki/installing.md all now speak to it.
+
+##### Draft
+
+The blocking fact is a product decision, not a documentation one: whether a
+CPU-only Windows install is supported. Research establishes what the planner
+does; someone has to say whether that is intended before a page states it.
+
+### T53: Name the step that removes the Hearth client on Windows
+
+The T9 reviewer blocked on this. `wiki/installing.md` now carries an uninstall
+section whose last step is macOS-only, so a Windows reader is told how to remove
+the product's folder and not how to remove the application.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T9.review.json, which blocked F9 on research. The orchestrator read wiki/clients/windows.md:170-173 on 2026-09-04 and confirmed it settles only the product side, saying uninstalling is deleting the folder and that nothing is left in the registry beyond the installer's own entry.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Does the Windows installer register an entry in Apps and features that uninstalls the client, and is that the step to tell a reader to take, or is the client removed some other way? This is the question the reviewer stopped on.
+
+##### Draft
+
+One step in an existing section, once the fact exists.
+
+### T54: Say what happens when setup is interrupted part way through
+
+The T8 reviewer blocked on this. `wiki/meeting-your-persona.md` walks a reader
+through a flow with no stated recovery path, and a reader whose app closes mid
+interview has no way to learn what they lost.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: S
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T8.review.json, which blocked F6 on research.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - With the app closed part way through the interview or the second-brain beat, what does the next launch of the desktop client show, and is the in-progress persona lost? The reviewer reported that an unfinished setup leaves the completed flag false and the next launch returns to setup, but that step state initialises at the welcome screen, so the reader-facing outcome is not settled by source.
+
+##### Draft
+
+A short section or a result note on the existing steps, once the behaviour is
+established by running it rather than by reading it.
+
+### T55: Record learning objectives for the pages the pipeline grades
+
+All four reviews in Phase B reported the same absence: no page and no research
+artifact records what the page is meant to teach, so every reviewer derived
+objectives itself and graded against derived intent. That makes a review
+unrepeatable, because the next reviewer derives a different set.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: L
+- Confidence: High
+- Sizing evidence: recorded from four review artifacts of 2026-09-04, T6.review.json, T7.review.json, T8.review.json and T9.review.json, each of which states that objectives are recorded nowhere and lists the set it derived. The orchestrator confirmed the mechanism by reading tasks/docs/tracker.md, where earlier phases record the same finding on T2.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Open questions:
+  - Where does an objective live: in page frontmatter, in the research artifact, or in the tracker task? Each choice puts the record in a different agent's hands.
+  - Is this a documentation task at all, or a change to the pipeline's contracts? It may belong beside the agent definitions rather than in the wiki backlog.
+  - Do the four derived sets from this phase become the starting record, or is deriving them again the point?
+
+##### Draft
+
+Decompose before dispatch. This is a corpus-wide addition touching the reviewer
+and researcher contracts, and the four sets already derived this phase are the
+evidence that it is worth doing rather than the deliverable.
+
+### T56: Two nits on Hearth on macOS the reviewer deferred
+
+Both surfaced after the T6 reviewer's fix cycle closed, and neither needs
+research.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T6.review.json, entries F5 and R3, on a page the orchestrator read in full on 2026-09-04.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - Should the start-and-stop section carry the two further facts the author left unresolved and the reviewer confirmed verified: that Quit, Stop and Restart file the conversation to the journal first, which is why Stop beats killing the process, and that the house row appears only on a Mac running its own house? Both are already published for Windows.
+
+##### Draft
+
+The page teaches that the local server is called "the house" and then calls it
+the backend twice. The reviewer named the two strings.
+
+### T57: Two nits on Getting started the reviewer deferred
+
+Both surfaced during the T7 reviewer's single regrade, and neither needs
+research. The reviewer reports both predate its own edits.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T7.review.json, entries F5 and F6, on a page the orchestrator read in full on 2026-09-04.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+The page tells a reader twice that Sulivan interviews them, and it calls a
+persona `it` one line above a section that calls them `they`. The reviewer
+reports the second argues against the product's own claim that you make someone
+rather than configure something.
+
+### T58: One nit on Meeting your persona the reviewer deferred
+
+A one-line fix the T8 reviewer found after its fix cycle closed.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T8.review.json, entry F5, on a page written and read in this run.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+The reviewer describes it as a one-line fix for whoever next opens the page, and
+reports deferring it only because its contract forbids a second fix cycle.
+
+### T59: Move the disk-check sentence out of the macOS branch on Installing Hearth
+
+The T9 reviewer's own F2 edit left a disk-check sentence in the macOS branch
+when it applies to both platforms. It reports this needs no research and is a
+one-sentence move.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T9.review.json, entry F10, which states the reviewer caused it and could not fix it inside its single fix pass.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+One sentence, out of `### macOS` and into the shared lead of the section.
+
+### T60: Add the home row to the Windows install tree on Hearth on Windows
+
+The T9 reviewer established that `home` exists on a Windows install and added
+the row to the copy of the tree on `wiki/installing.md`. The original on
+`wiki/clients/windows.md` still omits it, and that omission is what put a wrong
+tree into the salvage in the first place.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: the orchestrator read wiki/clients/windows.md:160-168 on 2026-09-04 and confirmed the fenced tree lists six entries with no `home` among them. tasks/docs/artifacts/T9.review.json cites crates/hearth-probe/src/defaults.rs:46-48 defining the relative path and desktop-client/src-tauri/src/config_gen.rs:64 joining it to the root unconditionally.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - Does this belong to T33, which already restructures this page's catalogs? If T33 rewrites the tree, this row folds into it.
+
+##### Draft
+
+One row in a fenced block, matching the wording the T9 reviewer used on
+wiki/installing.md so the two copies agree until T51 or T33 merges them.
+
+### T61: Capture the persona-in-use figure for Getting started
+
+Work for a person with a screenshot tool, placed by the T7 reviewer. No writer
+stage runs on it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: `python scripts/lint_wiki.py --figures`, run 2026-09-04 after the reviewers, lists it pending at wiki/getting-started.md:115 with its path, alt text and capture spec.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+- path: `images/pending/getting-started-persona-in-use.png`
+- The alt text and the capture spec are in the page's own placeholder.
+
+### T62: Capture the handover figure for Meeting your persona
+
+Work for a person with a screenshot tool, placed by the T8 reviewer. No writer
+stage runs on it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: `python scripts/lint_wiki.py --figures`, run 2026-09-04 after the reviewers, lists it pending at wiki/meeting-your-persona.md:122 with its path, alt text and capture spec.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - None recorded.
+
+##### Draft
+
+- path: `images/pending/meeting-your-persona-handover.png`
+- The alt text and the capture spec are in the page's own placeholder.
+
+### T63: The persona name length limit is off by one at each end
+
+A product defect the T8 reviewer found while fact-checking. No writer stage runs
+on it, and the page is not wrong relative to the product: the page and the
+product's own rejection message agree with each other and both disagree with the
+code that enforces the rule.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: recorded from tasks/docs/artifacts/T8.review.json, which cites the rejection message at backend/harness/valar/tools/handlers/creation.py:302 and the regex at creation.py:44.
+- Sources of truth: (none, this is a product defect)
+- Docs: (none, no page is edited until the product settles)
+- Open questions:
+  - Which end is wrong, the message or the regex? The reviewer reports the message says "under 24 characters" while the regex accepts 24 and rejects a one-character name. Fixing the regex and fixing the copy give a reader two different products.
+
+##### Draft
+
+No writer stage. Once the product settles, wiki/meeting-your-persona.md carries
+the sentence that has to match.

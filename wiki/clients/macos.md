@@ -2,9 +2,9 @@
 title: Hearth on macOS
 status: scoped
 type: platform-overview
-last_reviewed: 2026-08-08
+last_reviewed: 2026-09-04
 related:
-  - ../install-macos.md
+  - ../installing.md
   - ../updates.md
   - ../backend/native-runtime.md
 sources:
@@ -18,33 +18,20 @@ sources:
 
 # Hearth on macOS
 
-Hearth is a local-first AI companion that runs entirely on your Mac. It gives
-you a persona (Sulivan is the one you meet first) that holds a conversation,
-remembers what you tell it, and speaks back in a cloned voice. Nothing is
-sent anywhere: the model, the voice, and your memory all live on your own
-machine.
+Hearth on macOS runs the persona, the model, and the voice on your own Mac,
+with nothing sent anywhere else.
 
-This page covers what your Mac needs, what the install puts on your disk,
-and how updates work. For the step-by-step install, see
-[Installing on macOS](../install-macos.md).
+This page covers what the client does on a Mac, what installing it puts on
+your disk, what your Mac needs, and how updates work. For the step-by-step
+install, see [Installing Hearth](../installing.md).
 
-## What your Mac needs
+## What it does today
 
-**Apple Silicon.** M1 or later. Hearth downloads an arm64 build of its
-inference engine and an aarch64 build of its Python runtime, and there is no
-Intel path.
+Hearth gives you a persona, and Sulivan is the one you meet first. He holds a
+conversation, remembers what you tell him, and speaks back in a cloned voice.
 
-**8 GB of memory or more.** 8 GB is the smallest machine Hearth supports, and
-it is fully supported: an 8 GB M2 MacBook Air runs the persona and the voice
-at the same time. Below 8 GB, Hearth declines to install rather than set up
-something that cannot run, and tells you why.
-
-**Free disk.** Roughly 4.5 GB on an 8 GB Mac and 8.6 GB on a 16 GB Mac. The
-larger machine downloads a larger model. Hearth checks before it starts and
-warns you if the space is not there.
-
-**macOS 27.** That is what the install has been verified on. Earlier
-versions are untested rather than known to fail.
+Nothing is sent anywhere: the model, the voice, and your memory all live on
+your own machine.
 
 ## What installing gives you
 
@@ -69,9 +56,15 @@ Hearth/
   hearth-install.json    the record of what was decided and installed
 ```
 
-Nothing installs outside that folder: no system directories, no login items,
-no background service that keeps running once you quit Hearth. Deleting the
-folder is the uninstall.
+Nothing else installs outside that folder: no system directories, no login
+items, no background service that keeps running once you quit Hearth. The
+exceptions are Hearth itself, in Applications, and the small webview profile it
+keeps beside it.
+
+Uninstalling is quitting Hearth, deleting that folder, and dragging Hearth to
+the Trash. Copy anything you want to keep out of `home/` before you delete it,
+because your memory and journal go with the folder. See
+[Installing Hearth](../installing.md) for the full uninstall.
 
 While Hearth is open, it runs five local programs that talk only to each
 other and to your client, all on `127.0.0.1`:
@@ -84,28 +77,48 @@ other and to your client, all on `127.0.0.1`:
   macOS the engine is `omnivoice.cpp`, built against Apple's GPU rather than
   the CPU-only path some builds fall back to
 
-Hearth starts this tree when it opens and stops it when it quits, so this is
-usually not something you need to think about. If you do, Settings >
-Connection shows whether it is running and offers Start and Stop.
+That build stays ahead of the conversation on the smallest machine Hearth
+supports: one real tool-grounded reply synthesized at a real-time factor of
+0.961, faster than real time. It is a single measurement, recorded on
+2026-08-07 on an 8 GB M2 Air running macOS 27.
 
-## Installing
+The full walkthrough, including the plan Hearth shows you before it downloads
+anything, lives in [Installing Hearth](../installing.md).
 
-The full walkthrough, including the plan Hearth shows you before it
-downloads anything, lives in
-[Installing on macOS](../install-macos.md). The short version:
+## Start and stop the house
 
-1. Open the disk image and drag Hearth to Applications.
-2. Right-click Hearth and choose Open, then choose Open again in the dialog.
-   Hearth is not yet signed by Apple, so a plain double-click on first launch
-   shows a warning and refuses. macOS remembers your choice after this, and
-   every launch after the first is a normal double-click.
-3. Follow setup: a scan of your machine, a folder to install into, and a
-   plan. On an 8 GB Air, the plan downloads Gemma 4 E2B at a 17,408-token
-   context window, 3.77 GB total. A 16 GB Mac gets Gemma 4 12B at 65,536
-   tokens, 7.14 GB.
-4. Meet Sulivan. The last screen of setup is him speaking his first line to
-   you, out loud, in his own voice. In a real conversation on the 8 GB Air,
-   replies synthesize faster than real time, a measured RTF of 0.96.
+Hearth starts that tree when it opens and stops it when it quits, so this is
+usually not something you need to think about. Closing the window is not
+quitting: it hides Hearth in the menu bar and the house keeps running. Quit is
+the explicit stop.
+
+When you do need it, open **Settings > Connection** and find the row labeled
+**The house**. Read the singular carefully: a differently scoped
+**Connections** section, listing what the house is plugged into, sits further
+down the same pane.
+
+The row reports the house as running, with a count of its processes, as
+stopped, or as unknown, and it names anything that failed along with the
+reason. Three controls sit beside it: **Start**, **Stop**, and **Restart**.
+Stopping frees the memory the model and the voice are holding without closing
+Hearth, and starting brings them back without relaunching.
+
+![The house row in Settings > Connection, with Start, Stop, and Restart](images/pending/macos-house-row.png "CAPTURE: Settings > Connection, the row labeled The house, backend running with its process count shown, Start, Stop and Restart all visible, 1280x800")
+
+## What it needs
+
+- **Apple Silicon.** An M1 or later. Hearth downloads an arm64 build of its
+  inference engine and an aarch64 build of its Python runtime, and there is no
+  Intel path.
+- **8 GB of memory or more.** 8 GB is the smallest machine Hearth supports,
+  and it is fully supported: an 8 GB M2 MacBook Air runs the persona and the
+  voice at the same time. Below 8 GB, Hearth declines to install rather than
+  set up something that cannot run, and tells you why.
+- **Free disk.** Roughly 4.5 GB on an 8 GB Mac and 8.6 GB on a 16 GB Mac,
+  because the larger machine downloads a larger model. Hearth checks before it
+  starts and warns you if the space is not there.
+- **macOS 27.** That is what the install has been verified on. Earlier
+  versions are untested rather than known to fail.
 
 ## Updating
 
@@ -119,15 +132,17 @@ built yet: replacing an unsigned app automatically is a known rough edge on
 macOS, and the project is deciding whether to sign before building that
 piece. See [Updating an install](../updates.md) for the full design.
 
-## Status and limitations
+## What it cannot do yet
 
-Hearth for macOS is pre-alpha. The install guide reflects one real,
-end-to-end install on an 8 GB M2 Air, verified 2026-08-07. Some things to
-know before you rely on it:
+Hearth for macOS is pre-alpha. Some things to know before you rely on it:
 
-- The app is unsigned, so first launch needs the right-click-Open step
-  above, and there is no automatic updater.
-- Once setup finishes, Sulivan interviews you and helps you build a persona
-  of your own. [First run](../first-run.md) walks through that flow.
-- If something goes wrong, `install-macos.md` has a troubleshooting section
-  covering connection errors, silent voice, and interrupted downloads.
+- **The app is not signed by Apple.** First launch takes an extra step, which
+  [Installing Hearth](../installing.md) walks you through.
+- **There is no automatic updater.** Every new build is installed by hand,
+  under [Updating](#updating).
+
+Once setup finishes, Sulivan interviews you and helps you build a persona of
+your own. [Meeting your persona](../meeting-your-persona.md) walks through
+that flow. If something goes wrong,
+[Installing Hearth](../installing.md) has a troubleshooting section covering
+connection errors, silent voice, and interrupted downloads.

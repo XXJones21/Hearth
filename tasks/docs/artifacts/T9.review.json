@@ -1,0 +1,335 @@
+{
+  "document": "wiki/installing.md",
+  "score_before": 3,
+  "score_after": 9,
+  "score_delta": 6,
+  "verdict": "PASS, minor nits open",
+  "score_notes": "Baseline: 10 - (F1 1 + F2 2 + F3 1 + F4 0.5 + F5 0.5 + F6 0.5 + F7 0.5 + F8 0.5 + F9 0.5) = 10 - 7.0 = 3.0 -> floor 3. After: 10 - (F9 0.5 + F10 0.5) = 10 - 1.0 = 9.0 -> floor 9, and capped at 9 in any case because remaining[] and further_improvements are non-empty. Delta +6. Accounted: F1, F2, F3, F4, F5, F6, F7, F8 in changed[]; F9 and F10 in remaining[]. F9 is marked discovered baseline, not regrade: it was identified while reading the baseline document and deliberately left out of the first found[] because the author's artifact records it as unresolved item 4. On reflection that was the wrong call, because a reader meets the gap whether or not an upstream artifact confesses it, so it is scored at baseline and its detraction is in both sums. F10 is genuinely new on regrade and is a consequence of the F2 edit.",
+  "lint_state": "scripts/lint_wiki.py was NOT run in this session: the reviewer tool set here is Read, Grep, Write and Edit only, with no shell. The dispatch reports the corpus gate as 29 pages checked, 2 errors (both on another page, neither this one), 193 warnings, run after the authors finished. Nothing the linter owns (em dashes, emojis, sentence case, spelling, terminology, dead links, frontmatter keys and vocabularies, reader drift, bold-lead blocks, long paragraphs, long sections) is reported below, and nothing was edited on those grounds. Facts were established by reading source instead: crates/hearth-probe/dictionary.yaml, crates/hearth-probe/src/plan.rs, crates/hearth-probe/src/defaults.rs, desktop-client/src-tauri/src/config_gen.rs, wiki/getting-started.md, wiki/install-macos.md, wiki/clients/windows.md, wiki/clients/macos.md, wiki/meeting-your-persona.md. Two edits add prose and one adds a table row, so the long-paragraph and long-section thresholds are worth re-checking on the next lint run; every paragraph added is under 40 words and every H2 that grew already carries H3s.",
+  "dimensions": {
+    "voice": 9,
+    "clarity": 9,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 10,
+    "intent": 9,
+    "structure": 9,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "lead paragraph, line 27; also the first step of the update procedure",
+      "issue": "The lead asserted \"You have the Hearth installer.\" as a bare precondition and the page never said where an installer comes from. `## Update an install` step 1 said \"Download the new installer.\" with the same gap.",
+      "fix": "Name the acquisition step in the lead and route it to wiki/getting-started.md, which carries the releases page and what each release contains, and add the same pointer to the update step.",
+      "detraction": 1,
+      "reason": "A reader who arrives at the install page without a build has no first move. The corpus already answers this on a sibling page; this page did not join up to it.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Before you start / ### Windows",
+      "issue": "The Windows half of the prerequisites section stated no requirement a reader could check against their own machine: an architecture reassurance, a sentence saying Hearth sizes the plan \"the same way it does on a Mac\", and a tier observation. The macOS half states four checkable facts (architecture, memory floor, free disk, verified OS version).",
+      "fix": "State the video memory bands that decide the outcome on Windows, as wiki/getting-started.md:59-65 does, plus the free-disk rule.",
+      "detraction": 2,
+      "reason": "Half the audience the abstract names could not answer \"can my machine run this?\" from the section written to answer it, and would find out only after downloading a build and being refused after the scan.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Uninstall Hearth against ## Check what Hearth installed / ### Windows",
+      "issue": "The Important callout and step 1 both tell every reader to copy anything they want to keep out of `home/` inside the install root. The Windows install tree on this same page listed six entries and no `home\\`.",
+      "fix": "Add the `home\\` row to the Windows tree.",
+      "detraction": 1,
+      "reason": "A Windows reader acting on a data-loss warning went looking for a folder the page's own listing said was not there, and might have deleted the install root anyway.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Confirm Hearth works",
+      "issue": "Step 3 asks the reader to say whether they heard Sulivan, and the following paragraph only told the reader who heard him what that proves. The reader who did not hear him was left with no next move, although the page's own last section carries the voice checks.",
+      "fix": "Add the negative branch as a result note after the procedure, pointing at the voice entries in `## Work out what went wrong`.",
+      "detraction": 0.5,
+      "reason": "The one check the product says no automated test can perform was the one whose failure path the page did not follow up.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "### Where Hearth installs by default, ### Windows, ## Uninstall Hearth",
+      "issue": "The claim that nothing of the product lands outside the install root was made three times on one page, and the \"no distro to unregister, no virtual disk, nothing in the registry beyond the installer's own entry\" detail twice, forty lines apart.",
+      "fix": "Keep the platform-neutral statement where the install root is introduced and the Windows-specific detail with the Windows tree. Trim the restatement that closed the uninstall.",
+      "detraction": 0.5,
+      "reason": "Triple restatement of one fact costs scanning time and is the seam that makes a merged page read as salvage rather than as one guide.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Before you start against ## Check what Hearth installed",
+      "issue": "The page branches by platform in two H3 pairs and the two pairs were in opposite order: macOS then Windows in the first, Windows then macOS in the second.",
+      "fix": "Put macOS first in both.",
+      "detraction": 0.5,
+      "reason": "A reader who learned where their platform sits in the first branch had to re-read the headings at the second one.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "structure",
+      "dimension": "technical_notation",
+      "location": "plan-screen figure placeholder",
+      "issue": "The CAPTURE work order asked for \"the model, context window, memory and download rows and the approve button\". The page documents five rows (Model, Context window, Backend, Mind and voice, Download) and no `memory` row, and the control the procedure names is **Download**, not an approve button.",
+      "fix": "Rewrite the capture title to name the five documented rows, the Where Hearth installs field that shares the screen, and the Download button.",
+      "detraction": 0.5,
+      "reason": "A work order that names rows the page does not document produces a screenshot that does not match the table beside it.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F8",
+      "pass": "structure",
+      "dimension": "technical_notation",
+      "location": "### What the plan says, plan table",
+      "issue": "The plan table's header row was empty (`| | |`), so neither column was labeled.",
+      "fix": "Label the columns.",
+      "detraction": 0.5,
+      "reason": "A screen reader announces two empty column headers, and a reader scanning to the table had nothing telling them the right column holds one machine's values rather than a general specification.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F9",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Uninstall Hearth, step 4",
+      "issue": "Step 4 reads \"On macOS, drag Hearth itself to the Trash.\" The procedure has no Windows counterpart, so a Windows reader who works the list deletes the install root and still has the application and its installer entry.",
+      "fix": "Establish how a Windows install removes the client application, then add the step beside the macOS one or scope the step to both platforms.",
+      "detraction": 0.5,
+      "reason": "A four-step procedure that silently stops covering one of its two platforms at the last step leaves that reader with a half-uninstalled product and no statement that they are finished.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F10",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Before you start, the lead against ### macOS and ### Windows",
+      "issue": "The statement that Hearth compares the space it needs against your free disk before it starts and warns you when the space is not there sits only in `### macOS`. The behaviour is platform-neutral (crates/hearth-probe/src/plan.rs:236-243), so the Windows half now states the disk requirement without stating that Hearth checks it.",
+      "fix": "Move the disk-check sentence into the `## Before you start` lead, where it covers both platforms, and leave only the platform-specific figures in the H3s.",
+      "detraction": 0.5,
+      "reason": "The Windows reader is told what they need but not that the product will tell them if they do not have it, which is the part that decides whether they measure their own disk first.",
+      "discovered": "regrade"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Name the acquisition step in the lead and route it to Getting started; add the same pointer to the update procedure's download step.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Lead now opens \"Download the installer for your platform first.\" with a link to Getting started for where builds land and what each release carries. Update step 1 names the same destination. Added getting-started.md to `related`, which is reciprocal: getting-started.md already lists installing.md."
+    },
+    {
+      "id": "F2",
+      "action": "State checkable Windows requirements in ### Windows: the three video memory bands and the free-disk rule.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "### Windows now carries the three bands (declines below roughly 4.5 GB; installs one-at-a-time between roughly 4.5 and 5.4 GB; both resident above roughly 5.4 GB), the 16 GB tier observation, and the free-disk rule. The bands are taken from wiki/getting-started.md:59-65 and were re-derived here from source before publishing: base reserve stt 805,306,368 + headroom 1,073,741,824 (dictionary.yaml:84, :89) with no os_unified on a non-unified machine (plan.rs:110-113), voice resident 966,367,641 on Windows (dictionary.yaml:102, :113), smallest reachable tier-0 build Q3_K_M 2,536,786,016 (dictionary.yaml:174-177, reachable via fit_at at MIN_CTX, plan.rs:296-313) plus a 4096-token floor of 50,331,648. That puts the refusal threshold at 4,466,165,856 bytes and the coexistence threshold at 5,432,533,497 bytes, which are 4.47 GB and 5.43 GB read decimally, matching the sibling page's two figures to within 0.03. See remaining note in detailed_review about the decimal-versus-GiB basis."
+    },
+    {
+      "id": "F3",
+      "action": "Settle where a Windows install keeps memory and journal, and make the uninstall warning name a path a Windows reader can find.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Settled from source rather than deferred to research. crates/hearth-probe/src/defaults.rs:46-48 defines REL_HOME as `home`, REL_ENGRAM as `home/engram` and REL_HF_CACHE as `home/hf-cache`, and the comment at :36-37 states that only the binary paths vary by operating system. desktop-client/src-tauri/src/config_gen.rs:64 writes HEARTH_HOME as root.join(REL_HOME) unconditionally on every platform. So `home\\` does exist under a Windows install root and the salvaged tree simply omitted it. Added the row `home\\   your memory and journal live here`, matching the macOS tree's wording and position after `runtime\\`. This is a deliberate correction to authorized salvage passage 6 rather than a verbatim landing, and it is recorded as such."
+    },
+    {
+      "id": "F4",
+      "action": "Add the negative branch after the spoken check, pointing at the page's own voice troubleshooting.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added \"If you did not, the voice entries in Work out what went wrong, at the end of this page, are where to start.\" Written as a plain in-page reference rather than an anchor link, because no other page in the corpus links to a section anchor and the research artifact confirms no inbound link carries one."
+    },
+    {
+      "id": "F5",
+      "action": "Trim the third restatement of the nothing-lands-outside-the-folder claim from the uninstall close.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The uninstall now closes \"That is the whole uninstall.\" The distro, virtual disk and registry facts remain in ### Windows under Check what Hearth installed, which is authorized salvage and was not touched. The trimmed sentence was the author's addition, not part of salvage passage 4."
+    },
+    {
+      "id": "F6",
+      "action": "Reorder the platform H3s under Check what Hearth installed so macOS comes first, matching Before you start.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "### macOS now precedes ### Windows in both branching sections. Content of both subsections is unchanged apart from the F3 tree row."
+    },
+    {
+      "id": "F7",
+      "action": "Rewrite the plan-screen CAPTURE title to match the five documented rows and the Download button.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Capture title now reads: setup on an 8 GB Apple Silicon Mac, the plan screen at the point of approval, showing the model, context window, backend, mind-and-voice and download rows, the Where Hearth installs field, and the Download button, unpressed, 1280x800. Alt text unchanged. The other two placeholders were checked and are accurate."
+    },
+    {
+      "id": "F8",
+      "action": "Label the plan table's two columns.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Header row is now `| Plan row | Value |`. The five ruled rows and their values are untouched, including the lowercase `metal` in code voice."
+    },
+    {
+      "id": "F9",
+      "action": "Add the Windows counterpart to the uninstall's macOS Trash step, or scope the step so a Windows reader knows where they finish.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "No source read this run states how a Windows install removes the client application. wiki/clients/windows.md:170-173 settles only the product side (deleting the folder; nothing in the registry beyond the installer's own entry) and names no removal step for the app itself. Question research has to answer: does the Windows installer register an entry in Apps and features / Add or remove programs that uninstalls the client, and is that the step a reader should be told to take, or is the client removed some other way? Recorded by the author as unresolved item 4; this entry is the tracker row for it."
+    },
+    {
+      "id": "F10",
+      "action": "Move the free-disk check sentence from ### macOS into the ## Before you start lead so it covers both platforms.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Discovered on regrade, as a consequence of the F2 edit: writing the Windows disk requirement without repeating the macOS check sentence (which F5 was about) left the check stated on one platform only. Deferred rather than fixed because the reviewer contract allows one fix pass and this was found after it. The fix is a one-sentence move, not research: take \"Hearth compares that figure against your free disk before it starts and warns you when the space is not there.\" out of ### macOS and put it in the section lead beside the refusal paragraphs."
+    }
+  ],
+  "objective_gaps": [
+    {
+      "objective": "install Hearth on an Apple Silicon Mac",
+      "bloom": "apply",
+      "taught": true,
+      "why": "First-open procedure, plan approval, download, and the spoken confirmation are all numbered steps on this page, with the macOS requirements stated before them.",
+      "needs": null
+    },
+    {
+      "objective": "install Hearth on a Windows PC",
+      "bloom": "apply",
+      "taught": false,
+      "why": "The shared setup procedure covers Windows and, after the F2 edit, so do the requirements. Two ends are still missing. There is no step covering what Windows shows the first time the app is opened, which is a deliberate omission the dispatch rules on and T10 owns once the fact exists. And the uninstall's last step is macOS-only (F9), so the Windows reader is not told where they finish.",
+      "needs": "research"
+    },
+    {
+      "objective": "decide whether your machine can run Hearth before downloading anything",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "Not taught for Windows readers at baseline; taught for both platforms after F2. macOS gets the architecture, memory floor, disk figures and verified OS version; Windows gets the three video memory bands and the disk rule.",
+      "needs": null
+    },
+    {
+      "objective": "recover an interrupted or failed install",
+      "bloom": "analyze",
+      "taught": true,
+      "why": "The resume procedure under Let the download finish, the five log filenames, and the four named failure modes under Work out what went wrong all land, and the failure modes are written as a term list rather than bold-lead paragraphs.",
+      "needs": null
+    },
+    {
+      "objective": "uninstall Hearth without losing your memory and journal",
+      "bloom": "apply",
+      "taught": true,
+      "why": "Taught on both platforms only after F3. The Important callout and step 1 name `home/`, and the Windows tree now lists `home\\` so a Windows reader can find it. Removal of the client application on Windows is a separate gap, recorded under the Windows install objective and as F9.",
+      "needs": null
+    },
+    {
+      "objective": "explain why Hearth chose the plan it did",
+      "bloom": "understand",
+      "taught": true,
+      "why": "The five-row plan table, the two-machine comparison, the four-tier dictionary paragraph and the sentence on the Mind and voice row deliver it. Level note: understand maps to concept rather than how-to in the hearth-style table. One understand-level objective supporting five apply-level ones is not a type problem, and this material is what lets a reader judge the plan before approving it, which is an action on this page.",
+      "needs": null
+    },
+    {
+      "objective": "content serving no objective",
+      "bloom": "n/a",
+      "taught": true,
+      "why": "Negative result, stated because it is still a result. Every section maps to one of the objectives above. The install-root tree serves the uninstall and Windows install objectives, the four-tier paragraph serves the plan objective, and Check what Hearth installed serves both. Nothing on the page teaches something no objective claims, and nothing belongs on another page. Note that no objectives are recorded anywhere: tasks/docs/artifacts/T9.research.json carries `objectives: []` and the page frontmatter has no objectives key, so all six above are derived by this review from what the page sets out to teach.",
+      "needs": null
+    }
+  ],
+  "changed": [
+    { "id": "F1", "summary": "Lead now tells the reader to download the installer first and links Getting started for where builds land; the update procedure's download step names the same destination; getting-started.md added to `related`." },
+    { "id": "F2", "summary": "### Windows now states the three video memory bands and the free-disk rule, so a Windows reader can check their own machine before downloading. Bands re-derived from dictionary.yaml, plan.rs and defaults.rs before publishing." },
+    { "id": "F3", "summary": "Added the `home\\` row to the Windows install tree, correcting an omission inherited from the salvaged passage, so the uninstall's data-loss warning names a folder a Windows reader can find." },
+    { "id": "F4", "summary": "Added the negative branch after the spoken check, pointing at the voice entries in Work out what went wrong." },
+    { "id": "F5", "summary": "Trimmed the third restatement of the nothing-lands-outside-the-install-root claim from the uninstall close." },
+    { "id": "F6", "summary": "Reordered Check what Hearth installed so macOS precedes Windows, matching Before you start." },
+    { "id": "F7", "summary": "Rewrote the plan-screen capture work order to name the five documented rows, the install destination field, and the Download button." },
+    { "id": "F8", "summary": "Labeled the plan table's columns as Plan row and Value." }
+  ],
+  "remaining": [
+    {
+      "id": "F9",
+      "dimension": "clarity",
+      "issue": "The uninstall procedure's last step is macOS-only, so a Windows reader is not told how to remove the client application or that they have finished.",
+      "why_unfixed": "No source read this run states the Windows removal step. Blocked on research rather than guessed at or softened away; recorded as a checklist entry with the question research has to answer.",
+      "detraction": 0.5
+    },
+    {
+      "id": "F10",
+      "dimension": "clarity",
+      "issue": "The free-disk check sentence sits only in ### macOS, although the behaviour is platform-neutral, so the Windows half states the requirement without stating that Hearth checks it.",
+      "why_unfixed": "Discovered on regrade, as a consequence of the F2 edit; the contract allows one fix pass.",
+      "detraction": 0.5
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 10 - (F1 1 + F2 2 + F3 1 + F4 0.5 + F5 0.5 + F6 0.5 + F7 0.5 + F8 0.5 + F9 0.5) = 3.0, floored to 3. After the fix pass, open penalty is F9 0.5 + F10 0.5 = 1.0, giving 9.0, floored to 9 and capped at 9 regardless because remaining[] and further_improvements are non-empty. Delta +6. Two judgements drive the baseline number and both deserve stating plainly. F2 is scored high, at 2, because the abstract promises a Mac and a Windows PC and the prerequisites section answered the eligibility question for only one of them: reader consequence, not presentation, is the test, and a Windows reader would have learned their machine was too small only after downloading a build and being refused. F1 is scored medium rather than high because although the entry point was genuinely absent, the corpus routes almost every reader here through Getting started, which carries it. A baseline of 3 reads as FAIL on the verdict table and that would be a misleading headline on its own: the shape of this page was already right. Pass 0 came back completely clean, which is the finding that matters most on a page that was just reshaped. The declared `type: how-to` matches what every section does, the page is not two types at once, and no section the how-to shape requires is missing. All eight baseline deductions were concentrated in the Windows half of the prerequisites, one routing gap, and five small defects. The distance from 3 to 9 is mostly one section.",
+    "what_worked": "The reshape held. Graded against wiki/page-types.md:96-127, the page now has an abstract that states the outcome, a prerequisites section that names only what later steps use, action-title sections one per task, and numbered steps in imperative mood inside each. Bold is used for UI controls and only for UI controls (**Open**, **Where Hearth installs**, **Download**, **Settings > Connection**, **Start**), code voice for identifiers and paths, and result notes follow their actions rather than replacing them. There is not a Step N heading or a noun label anywhere. On the governing principle of the recommended spine, the page holds: it branches by platform in exactly the three places the platforms genuinely differ (requirements, first open, install layout), each branch is two short H3s or a scoped heading rather than a parallel procedure, and sections 4 through 6 and 8 through 11 are written once. It reads as one guide, not two stapled together. All seven salvage passages landed and landed intact. The macOS first-open procedure is three steps with the remembering note as a result note (passage 1). The refusal is absorbed as prose with no figures, per the ruling, and it is better than its source: it adds the two facts the blockquote omitted, that the refusal comes after the scan and that the reason is memory rather than disk (passage 2). The Backend and Mind and voice rows are present, with a sentence explaining what the Mind and voice row reports (passage 3). The uninstall carries the copy-out-of-home warning, correctly promoted to Important because it is a data-loss consequence inside a procedure rather than a requirement duplicated from a prerequisites list (passage 4). All five log filenames and all four failure modes are present, written as a term list, which is both the correct container under the style guide and the reason two bold-lead warnings did not come across (passage 5). The Windows install root prose and its fenced tree are present, the prose split sensibly between the default-location subsection and the tree (passage 6). The four-tier dictionary paragraph is present and tightened (passage 7). Of the changed[] items, F2 is the one that changes what the page can do: a Windows reader can now answer the question the section exists to answer. F3 is the one that matters most per word, because it turns a data-loss warning that pointed at a folder the page said did not exist into one that names a folder that does. F1 gives the page a first move. On the two specific questions the dispatch asked: the `## What comes next` link points at Meeting your persona, which exists, is a how-to, and was written in this same phase, so the ruling is satisfied and no reader is sent to the decision record. And `metal` in lowercase code voice does read correctly to a reader comparing the page against their screen: desktop-client/src/components/setup/SetupFlow.tsx:499 renders plan.backend with no transform and crates/hearth-probe/src/machine.rs:288 sets it to the lowercase string, so the page matches the screen character for character, and code voice is the right signal that the value is a literal rather than a proper noun. The author's deviation was correct and printing `Metal` would have been the error.",
+    "what_holds_score_down": "Two open items, one point between them. F9: the uninstall procedure's fourth step is macOS-only, so a Windows reader who works the list deletes the install root and still has the application installed, with nothing telling them whether they are finished. Nothing in the tree or the corpus states the Windows removal step, so it is blocked on research rather than guessed at. F10: the sentence saying Hearth compares what it needs against your free disk and warns you when the space is not there sits only in the macOS subsection, although crates/hearth-probe/src/plan.rs:236-243 makes it platform-neutral. That one is my own doing, introduced on regrade as a consequence of writing the Windows requirements without repeating a sentence F5 had just flagged as duplicated. Beyond the scored items, three things are open on the page and none of them is chargeable against it. The 17,408-token context window cannot be settled from this tree, because it depends on the exact byte count a real machine reports through a crate this repository does not vendor, and the dispatch rules it out as a defect the author introduced; it is correct for the m1-air-8gb fixture. The absence of a Windows first-open procedure is deliberate and belongs to T10. And wiki/clients/macos.md:97-108 will carry a second copy of the right-click-Open steps until T6 runs. One further item is worth flagging outward rather than downward: the two Windows video memory figures now on this page are correct for real graphics cards, but the thresholds they approximate are 4,466,165,856 and 5,432,533,497 bytes, which read as 4.47 GB and 5.43 GB decimally and as 4.16 GiB and 5.06 GiB in the units the product's own human() uses. The sibling page states them decimally. Real cards ship in powers of two, so a 4 GB card is refused and a 6 GB card coexists under either reading and no reader is misled today, but the two pages and the product are not using one basis and that is a corpus-level thing to settle rather than an installing.md defect.",
+    "further_improvements": [
+      {
+        "action": "Settle how a Windows install removes the client application, then add the step beside the macOS Trash step in ## Uninstall Hearth.",
+        "why": "F9. The procedure silently stops covering one of its two platforms at the last step, and the reader is not told they have finished.",
+        "expected_score_effect": "Clear the 0.5 F9 detraction (open penalty 1.0 -> 0.5)"
+      },
+      {
+        "action": "Move \"Hearth compares that figure against your free disk before it starts and warns you when the space is not there.\" out of ### macOS and into the ## Before you start lead.",
+        "why": "F10. The behaviour is platform-neutral and is currently stated for one platform only. A one-sentence move, no research needed.",
+        "expected_score_effect": "Clear the 0.5 F10 detraction (open penalty 0.5 -> 0)"
+      },
+      {
+        "action": "Add the `home\\` row to the Windows install tree on wiki/clients/windows.md:160-168, matching the correction made here.",
+        "why": "That page is the source this page's tree was salvaged from and it carries the same omission. It survives the consolidation, so the wrong listing outlives the retirement unless someone fixes it. Cited to crates/hearth-probe/src/defaults.rs:46-48 and desktop-client/src-tauri/src/config_gen.rs:64.",
+        "expected_score_effect": "No effect on this page's score; prevents the defect F3 fixed here from persisting in the corpus"
+      },
+      {
+        "action": "Decide one basis for the Windows video memory figures across wiki/getting-started.md and wiki/installing.md, and state it in the same units crates/hearth-probe/src/lib.rs:26-34 prints.",
+        "why": "The two thresholds are 4.47 GB and 5.43 GB decimally but 4.16 GiB and 5.06 GiB in the units the product labels GB. No reader is misled today because graphics cards ship in powers of two, but a reader with an unusual card and a page that disagrees with the product's own numbers is a future support question.",
+        "expected_score_effect": "No detraction open today; forecloses a stale-claim finding later"
+      },
+      {
+        "action": "Give ### Windows a verified operating system floor, the way ### macOS names macOS 27 as what the install has been verified on.",
+        "why": "The macOS half tells a reader which OS version the install was proven against and the Windows half says nothing. The WebView2 dependency implies a floor but no source read this run states one, so this needs research before it can be written.",
+        "expected_score_effect": "No detraction open today; would complete the symmetry F2 started"
+      },
+      {
+        "action": "When T10 lands the Windows first-open fact, add the sibling section beside ## Open Hearth for the first time on macOS.",
+        "why": "The scoped heading works today and a Windows reader skips it by title, which is the right handling of an unknown. Once the fact exists the page should state it rather than leave the asymmetry.",
+        "expected_score_effect": "No detraction open today; closes the install-on-Windows objective gap"
+      },
+      {
+        "action": "Record objectives[] for this page, in the research artifact or the frontmatter.",
+        "why": "tasks/docs/artifacts/T9.research.json carries `objectives: []` and the page has none, so the six objectives in objective_gaps[] are this review's derivation rather than anyone's stated intent. Nothing downstream checks a page against objectives nobody wrote down.",
+        "expected_score_effect": "No score effect; makes the next review's gap analysis verifiable rather than derived"
+      }
+    ]
+  }
+}

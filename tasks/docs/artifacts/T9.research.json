@@ -1,0 +1,288 @@
+{
+  "task_id": "T9",
+  "mode": "affected",
+  "recommended_size": "M",
+  "affected_docs": [
+    {
+      "path": "wiki/installing.md",
+      "sections": [
+        "frontmatter, lines 1-20 (`type: how-to` at line 4; the `related` and `sources` entries naming install-macos.md at lines 7 and 14)",
+        "the abstract and lead, lines 22-30 (the 'narrative version of what happens next' sentence at 27-28 and the pointer to install-macos.md at 29-30)",
+        "## Before you start, line 32, with ### macOS at 38 and ### Windows at 57",
+        "## The scan and the plan, line 67, with its plan table at 77-81 and its two-machine paragraph at 83-86",
+        "## Choosing where it lives, line 90, including the one-line uninstall at 104",
+        "## The download, line 106",
+        "## Proving it works, line 120, and its five capability checks at 125-129",
+        "## What comes next, line 142",
+        "## Platform notes, line 149, including the mention of the right-click-Open step at 151-153",
+        "## Updating, briefly, line 161",
+        "the two figure placeholders at lines 88 and 137"
+      ],
+      "why": "The page declares `type: how-to` at line 4 and contains no numbered list anywhere: a grep for a leading digit and period over the whole file returns nothing, against wiki/page-types.md:114-116, which requires action-title sections with numbered steps inside them. Only two of its eight H2 headings are action titles. Its plan table at 77-81 prints three of the five rows the setup screen displays, its uninstall is one line at 104 where wiki/install-macos.md:128-133 has four sentences, it mentions at 151-153 that a right-click-Open step exists without giving it, it describes two machine sizes at 83-86 where the dictionary defines four tiers, and it has no Windows install-root tree at all."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs",
+      "covers": "the Plan struct's fields including coexist and backend (39-72), the refusal message text (87-92), the budget arithmetic (100-159), the literal two-entry downloads vec and its sum (214-234), disk_required as the total plus a fifth (236-243), and ctx_for's rounding to a multiple of 1024 (271-275)"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml",
+      "covers": "the reserves held back before a model is chosen (69-89), the voice engine's platform split with its resident and download sizes (91-129), and the four tiers with their weights, kv rates, max_ctx and quantisation ladders (131-231)"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs",
+      "covers": "memory_pool and backend (46-58), what scan reads for RAM (69-95), the install root defaults for macOS and Windows (205-252), and the five simulated fixtures including m1-air-8gb and tiny (255-337)"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/dict.rs",
+      "covers": "the embedded dictionary (11, 221-223), the voice's platform-dependent repo, download size and resident cost (66-78), the quantisation ladder, and descending() and smallest() (239-249)"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/lib.rs",
+      "covers": "human(), which divides by 1,073,741,824 and labels the result GB, at lines 26-34"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/tests/plan_fixtures.rs",
+      "covers": "what the fixtures pin and what they leave open: tier, repo, file, coexist, backend, cuda_arch and n_gpu_layers are asserted, while n_ctx is only ever asserted as an inequality"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/components/setup/SetupFlow.tsx",
+      "covers": "the setup step order (40-49), the refusal panel (382-401), and every row the plan screen renders: the model card and download total (461-483), the What it will configure card (497-503), and the install destination field and Download button (516-547)"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/lib/probe.ts",
+      "covers": "the five provisioning rows the installing screen names, at lines 123-127"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/provision.rs",
+      "covers": "the module comment at 1-14 stating that three chains run alongside the model download, which is why the engine and the interpreter are fetched outside the planner"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/tauri.conf.json",
+      "covers": "the absence of any code-signing configuration: the bundle block carries no macOS signing identity and the file has no macOS block at all"
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py",
+      "covers": "the thresholds the reshaped page is measured against: BOLD_LEAD_WORDS 25 at line 116, SECTION_WORDS 200 at 128, PARAGRAPH_WORDS 60 at 129, and the checks at 380-393"
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md",
+      "covers": "the how-to shape at lines 96-127: abstract stating the outcome, a short prerequisites overview, action-title sections one per task, numbered steps inside each in imperative mood, bold for UI controls, code voice for identifiers and paths, 'Alternatively' rather than a second numbered list, and result notes that follow an action rather than replacing it"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/install-macos.md",
+      "covers": "the current text of five of the seven passages to absorb: the refusal blockquote at 32-34, the right-click-Open procedure at 43-53, the Backend and Mind-and-voice plan rows at 76-77, the uninstall at 128-133, and the troubleshooting section at 135-155. Not evidence for how the product behaves"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/clients/windows.md",
+      "covers": "the current text of the other two passages: the install root prose and fenced tree at 155-173, and the four-tier dictionary paragraph at 202-205. Also 217-229, which names no Windows first-open step"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/clients/macos.md",
+      "covers": "the macOS install-root tree at 60-70 and the Settings > Connection start-and-stop material at 87-89, both of which survive T16 on a page that keeps, and the duplicate four-step numbered install procedure at 91-108"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md",
+      "covers": "task ownership and sequencing: the ratified cluster verdict at 74-78, the ruling on clients/macos.md's duplicate procedure at 125-131, the salvage table at 195-205, the inbound-reference list at 211-215, the T9 row and draft at 970-1017, and T13's dependency on the right-click-Open step landing here at 1120-1134"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/artifacts/T1.research.json",
+      "covers": "the prior run's verification of the same planner arithmetic. Corroboration only; nothing in this artifact rests on it"
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/installing.md declares `type: how-to` and contains no numbered list anywhere in the file.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:4 reads `type: how-to`. A grep for a line-initial digit followed by a period over the whole file returns no match, so there is no numbered list anywhere, not merely after line 22. The file is 167 lines, not the 168 that both the dispatch and tasks/docs/tracker.md's T9 sizing evidence state; wc -l reports 167 and the file ends with a newline after 'design and what is still missing.'"
+    },
+    {
+      "claim": "The how-to shape wiki/installing.md has to meet is action-title sections with numbered steps inside them, one action per step in imperative mood.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md, `## How-to`, lines 96-127. The Shape list at 108-116 gives the four items; the Rules at 118-127 add bold for UI controls, code voice for identifiers and paths, 'Alternatively' rather than a second numbered list, result notes that follow an action rather than replacing it, and angle-bracket placeholders. Line 102 names wiki/installing.md as a how-to in the corpus."
+    },
+    {
+      "claim": "Only two of wiki/installing.md's eight H2 headings are action titles.",
+      "status": "verified",
+      "evidence": "wiki/installing.md, the eight H2 lines read this run: `## Before you start` (32), `## The scan and the plan` (67), `## Choosing where it lives` (90), `## The download` (106), `## Proving it works` (120), `## What comes next` (142), `## Platform notes` (149), `## Updating, briefly` (161). Only 32 and 120 name an action the reader takes."
+    },
+    {
+      "claim": "The plan screen renders Model, Context window, Backend, Mind and voice, and Download, so wiki/install-macos.md's five-row table is the faithful row set and wiki/installing.md's three-row table is a subset.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SetupFlow.tsx. The model card renders plan.model at :465 with plan.repo and plan.file at :466-468, one row per plan.downloads entry at :471-476, and a bold `Download` total at :477-480. The 'What it will configure' card renders `Context window` at :498, `Backend` at :499 and `Mind and voice` at :502. wiki/install-macos.md:72-78 prints all five; wiki/installing.md:77-81 prints Model, Context window and Download and drops the other two."
+    },
+    {
+      "claim": "The plan screen also renders two rows that neither page prints, and one of them never appears on Apple Silicon.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SetupFlow.tsx:500 renders `Layers on the GPU` unconditionally from plan.n_gpu_layers, and :501 renders `CUDA architecture` only when plan.cuda_arch is truthy. crates/hearth-probe/src/plan.rs:202-206 derives cuda_arch from gpu.compute_cap, which crates/hearth-probe/src/machine.rs:286 sets to None for the Apple fixture, and crates/hearth-probe/tests/plan_fixtures.rs:47 asserts `p.cuda_arch.is_none()` for the 8 GB Air."
+    },
+    {
+      "claim": "The Backend value the screen prints is the lowercase string `metal` on Apple Silicon, not the capitalized `Metal` the pages print.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:288 sets `backend: \"metal\".into()` for the Apple fixture, and :107 does the same in detect_gpu for any unified machine. crates/hearth-probe/src/plan.rs:192 assigns it to Plan.backend unchanged, and desktop-client/src/components/setup/SetupFlow.tsx:499 renders it with `v={plan.backend}` and no transform. crates/hearth-probe/tests/plan_fixtures.rs:46 asserts `p.backend == \"metal\"`. wiki/install-macos.md:76 prints `Metal`."
+    },
+    {
+      "claim": "An 8 GB Apple Silicon Mac plans a 17,408-token context window.",
+      "status": "verified",
+      "evidence": "Derived from cited literals in a function that crates/hearth-probe/src/plan.rs:1-5 documents as pure. Pool for the m1-air-8gb fixture is ram_bytes, 8,589,934,592, because vram_bytes is None and memory_pool falls through to RAM (machine.rs:276-292 with 46-53). base = stt 805,306,368 + headroom 1,073,741,824 + os_unified 2,415,919,104 = 4,294,967,296 (dictionary.yaml:79-89 with plan.rs:110-113). macOS is in cpp_platforms (dictionary.yaml:102), so voice_resident is 966,367,641 (dictionary.yaml:113 via dict.rs:76-78). coexist_budget = 3,328,599,655. Tier 0's Q4_K_M is first on the ladder at 3,106,738,272 bytes (dictionary.yaml:161-165) and clears the floor test at plan.rs:306, leaving 221,861,383 bytes. Over tier 0's kv rate of 12,288 (dictionary.yaml:141) that is 18,054 raw, under max_ctx 32,768, and plan.rs:274 rounds down to a multiple of 1024, giving 17,408. That clears TARGET_CTX 16,384 (plan.rs:25), so the ladder stops there. Arithmetic mine, from cited constants; the planner was not executed. See open_questions for the sensitivity band."
+    },
+    {
+      "claim": "No test pins the 17,408 figure.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/tests/plan_fixtures.rs asserts tier, repo, coexist and backend for the 8 GB Air at 42-52, and n_ctx only as `>= 16384` at 69 and `>= 4096` at 132. The in-module tests at crates/hearth-probe/src/plan.rs:329-336 assert tier, quant, coexist and `n_ctx >= TARGET_CTX`. Nothing asserts an exact n_ctx for any Apple fixture; the only exact n_ctx assertion in either file is `p.n_ctx == 65536` for the rtx4080 fixture at plan.rs:343."
+    },
+    {
+      "claim": "An 8 GB Apple Silicon Mac plans Gemma 4 E2B at Q4_K_M with the mind and the voice both resident, on the Metal backend.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/tests/plan_fixtures.rs:42-52 asserts tier 0, repo `unsloth/gemma-4-E2B-it-GGUF`, `p.coexist`, `p.backend == \"metal\"`, and that no warning contains 'one at a time'. crates/hearth-probe/src/plan.rs:329-336 additionally asserts `p.quant == \"Q4_K_M\"`. The model name Gemma 4 E2B is at dictionary.yaml:134."
+    },
+    {
+      "claim": "A 16 GB Apple Silicon Mac plans Gemma 4 12B at a 65,536-token window.",
+      "status": "verified",
+      "evidence": "Derived. machine.rs:293-309 gives the m1-air-16gb fixture 17,179,869,184 bytes of RAM with vram None, so coexist_budget is 11,918,534,247 against the same fixed 5,261,334,937 of reserves plus voice. Tier 3 does not fit: 14,249,047,104 (dictionary.yaml:224) plus its 4096-token floor of 201,326,592 exceeds the budget at plan.rs:306. Tier 2's weights are 6,716,356,800 (dictionary.yaml:204), leaving 5,202,177,447 over a kv rate of 57,344 (dictionary.yaml:207), which is 90,718 raw and clamps to max_ctx 65,536 (dictionary.yaml:206). Model name at dictionary.yaml:200 and quant UD-Q4_K_XL at :203. Corroborated for a different 16 GB machine by plan_fixtures.rs:16-25 and plan.rs:338-344, which pin tier 2 at n_ctx 65536 for the RTX 4080."
+    },
+    {
+      "claim": "The 3.77 GB and 7.14 GB download figures on wiki/installing.md are total_download_bytes as the product renders it.",
+      "status": "verified",
+      "evidence": "Derived. 8 GB Mac: 3,106,738,272 (dictionary.yaml:164) + 945,284,608 (dictionary.yaml:112, selected for macOS by dict.rs:70-72) = 4,052,022,880. 16 GB Mac: 6,716,356,800 + 945,284,608 = 7,661,641,408. crates/hearth-probe/src/lib.rs:26-34 divides by 1,073,741,824 and formats to two decimals with a GB label, giving `3.77 GB` and `7.14 GB`. desktop-client/src/components/setup/SetupFlow.tsx:479 and :545 render that value in the plan card and on the button."
+    },
+    {
+      "claim": "The 4.5 GB and 8.6 GB free-disk figures on wiki/installing.md are disk_required_bytes, which is the download total plus a fifth.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:236-237 computes `disk_required = total + (total / 5)`, and :238-243 is the branch that compares it against free disk and warns. 4,052,022,880 + 810,404,576 = 4,862,427,456, which lib.rs:26-34 renders as `4.53 GB`. 7,661,641,408 + 1,532,328,281 = 9,193,969,689, rendered `8.56 GB`. Those round to the page's 4.5 and 8.6 at wiki/installing.md:48-51, which also states the 'about a fifth again' relationship correctly."
+    },
+    {
+      "claim": "The plan's downloads list carries exactly two entries and total_download_bytes is exactly their sum, so the figure covers the model and the voice and nothing else.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:214-233 builds a literal two-element vec: the tier's chosen build, and d.voice. Line 234 is `downloads.iter().map(|x| x.bytes).sum()` and line 259 assigns it to total_download_bytes."
+    },
+    {
+      "claim": "The inference engine and the Python runtime are fetched outside the planner, which is why they are not in the figure.",
+      "status": "verified",
+      "evidence": "dictionary.yaml:27-54 puts python and llama_server under a `runtime:` key that plan.rs never reads when building downloads. desktop-client/src-tauri/src/provision.rs:1-14 states that three chains start alongside the model download: the bundled backend unpacks, the inference engine fetches, and the Python runtime lands, then a fork to the voice model and the voice environment. The chain line ranges 281-322 and 324-369 are taken from tasks/docs/artifacts/T1.research.json and were not re-read this run."
+    },
+    {
+      "claim": "The installing screen names five provisioning rows, not four.",
+      "status": "verified",
+      "evidence": "desktop-client/src/lib/probe.ts:123-127 lists `The backend`, `Inference engine`, `Python runtime`, `Voice model`, `Voice engine`, with per-row weights at :136-140. wiki/installing.md:108-109 names four things, which is a simplification rather than an error: it omits the bundled backend, which unpacks rather than downloads."
+    },
+    {
+      "claim": "The verbatim refusal message at wiki/install-macos.md:32-34 is the Display string of PlanError::TooSmall, and its first two figures match the `tiny` fixture exactly.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:87-92 formats 'this machine cannot run Hearth. It has {} to work with, which leaves {} after the voice, speech recognition and headroom, and the smallest model is {}.' with human() applied to pool, budget and smallest. The `tiny` fixture at machine.rs:322-331 is 4 GiB with no GPU and unified_memory false, so pool is 4,294,967,296, rendered `4.00 GB`, and sequential_budget is pool minus stt plus headroom, 2,415,919,104, rendered `2.25 GB` (plan.rs:110-121 with lib.rs:26-34)."
+    },
+    {
+      "claim": "The third figure in that message, 'the smallest model is 2.36 GB', is not what the current dictionary produces.",
+      "status": "contradicted",
+      "evidence": "wiki/install-macos.md:34 states 2.36 GB. crates/hearth-probe/src/plan.rs:155 passes `d.smallest().map(|t| t.bytes)`, and crates/hearth-probe/src/dict.rs:245-247 defines smallest() as `self.tiers.iter().min_by_key(|t| t.bytes)`, which returns a Tier and never a Build. Tier 0's `bytes` is 3,106,738,272 (dictionary.yaml:138), which crates/hearth-probe/src/lib.rs:26-34 renders as `2.89 GB`. The 2,536,786,016 bytes that does render as `2.36 GB` is the Q3_K_M fallback at dictionary.yaml:148 and 176, a Build that smallest() cannot reach. crates/hearth-probe/src/dict.rs:11 confirms the shipped dictionary is this file. crates/hearth-probe/tests/plan_fixtures.rs:119-124 asserts only that the message contains 'cannot run Hearth' and 'smallest model is', so no test catches the drift."
+    },
+    {
+      "claim": "The refusal blockquote describes a machine that is not a Mac, and no Apple Silicon Mac reaches that message with those numbers.",
+      "status": "verified",
+      "evidence": "The `tiny` fixture whose numbers the message matches is `os: \"windows\"` with no GPU and unified_memory false (crates/hearth-probe/src/machine.rs:322-331). On a unified-memory machine plan.rs:110-113 adds os_unified_bytes to base, so a 4 GiB Mac would have a sequential_budget of exactly 0 and the message would read '0 MB' rather than '2.25 GB'. wiki/install-macos.md:27-34 presents the message as what a Mac below 8 GB is shown."
+    },
+    {
+      "claim": "The refusal message is one part of a screen that carries two more sentences the blockquote does not show, and it appears after the scan rather than before setup starts.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SetupFlow.tsx:113-121 catches a makePlan failure, sets blockedKind to 'refused' and moves to the blocked step, which is after the scan at :105. The panel at :391-401 renders the title 'Hearth cannot run on this machine.', then the error string, then a paragraph beginning 'This is about memory, not disk space, so freeing things up will not change it.'"
+    },
+    {
+      "claim": "The plan and the install folder are one screen, approved by one button, with the plan above the folder.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SetupFlow.tsx:435-549 is one component. It renders the plan card at :461-483, the 'What it will configure' card at :497-503, the 'Where Hearth installs' label and input at :516-538, and a single button reading `Download {total}` at :540-547. The Step union at :40-49 has one 'found' step covering all of it. wiki/installing.md's order, `## The scan and the plan` at 67 before `## Choosing where it lives` at 90, matches the product; wiki/install-macos.md:63-70 puts the folder before the plan and does not."
+    },
+    {
+      "claim": "The product's install runs through five screens, in the order welcome, scanning, found, installing, voice-test.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/setup/SetupFlow.tsx:40-49 declares the Step union, and the transitions are at :99 (welcome to scanning), :116 (scanning to found), :172 (found to installing), :196 (installing to voice-test) and :344 (voice-test to interview). The module comment at :68-70 calls it 'greet, look at the machine, say what it can run and why, fetch it, verify it'. The 'interview' and 'second-brain' steps at :47-48 are first-run rather than install."
+    },
+    {
+      "claim": "wiki/installing.md's account of the Windows install root default is correct.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:96-99 states `Hearth` on the roomiest fixed drive that is neither removable nor the drive Windows runs from, falling back to `Hearth` in the user profile on a single-drive machine. crates/hearth-probe/src/machine.rs:212-217 tries roomiest_non_system_drive() on Windows first, :218-227 falls back to HOME or USERPROFILE joined with `Hearth` on macOS and Windows, and :236-252 defines roomiest_non_system_drive as the non-removable, non-system-drive mount point with the most available space. wiki/clients/windows.md:155-158 states the same."
+    },
+    {
+      "claim": "The four-tier description at wiki/clients/windows.md:202-205 is accurate.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/dictionary.yaml:131-231 defines exactly four tiers, ids 0 through 3. Tier 0 at :134-144 is Gemma 4 E2B with a note calling it 'Built to run on the device rather than in a datacentre'. Tier 3 at :213-230 is Gemma 4 26B A4B with a note calling it 'A mixture-of-experts model'. Tier 2 at :198-210 is Gemma 4 12B from `unsloth/gemma-4-12B-it-qat-GGUF`, the quantization-aware build, with max_ctx 65,536, and crates/hearth-probe/tests/plan_fixtures.rs:16-25 pins a 16 GB NVIDIA card to it."
+    },
+    {
+      "claim": "Hearth's macOS bundle is not code-signed, which is what makes the right-click-Open step necessary.",
+      "status": "verified",
+      "evidence": "desktop-client/src-tauri/tauri.conf.json has top-level keys $schema, app, build, bundle, identifier, productName and version only: there is no `macOS` block, and the bundle block contains active, targets, resources, icon and android with no signingIdentity. A grep for signingIdentity, codesign, notariz, APPLE_SIGNING, APPLE_CERTIFICATE and TAURI_SIGNING across tauri.conf.json and scripts/ returns nothing. wiki/updates.md:103-108, under `## The decision underneath: signing`, states it in prose and names it as the reason for the first-launch instruction."
+    },
+    {
+      "claim": "No page in the corpus establishes a Windows equivalent of the macOS first-open step.",
+      "status": "unverifiable",
+      "evidence": "Searched wiki/clients/windows.md in full: `## First launch` at 217-229 describes only the three-stage arc and names no step for getting the app open, and `## What the installer gives you` at 150-193 covers the install root and the process tree. Searched the tree for signing configuration and found none for either platform, so what Windows shows on first open is not settled by the repository either. Nothing found states that a step exists or that none does."
+    },
+    {
+      "claim": "wiki/install-macos.md:48-50 is the only numbered procedure in the install cluster.",
+      "status": "contradicted",
+      "evidence": "The dispatch and tasks/docs/tracker.md:197 both state it. wiki/clients/macos.md:97-108, under `## Installing`, is a four-step numbered install procedure whose steps 1 and 2 give the same drag-to-Applications and right-click-Open material, on a page the ratified verdict keeps (tasks/docs/tracker.md:76). The tracker records the same fact against itself at line 129, calling wiki/clients/macos.md:85-102 'a fourth copy of the install procedure' and assigning its removal to T6."
+    },
+    {
+      "claim": "The macOS install-root tree is not orphaned by T16, which is why it is not among the seven passages.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:60-70, under `## What installing gives you`, carries the same fenced tree as wiki/install-macos.md:100-108, and tasks/docs/tracker.md:76 ratifies wiki/clients/macos.md as keep. The Settings > Connection start-and-stop material at wiki/clients/macos.md:87-89 likewise survives, and tasks/docs/tracker.md:202 assigns wiki/install-macos.md:118-126 to T6 rather than to T9."
+    },
+    {
+      "claim": "No inbound link into wiki/installing.md carries a section anchor, so renaming its headings breaks nothing.",
+      "status": "verified",
+      "evidence": "A grep for `installing.md#` across wiki/, tasks/ and README.md returns no match. The eight inbound references are wiki/clients/windows.md:29 and :246, wiki/getting-started.md:7 and :52, wiki/page-types.md:102, wiki/releasing.md:10, wiki/style-guide.md:162 and wiki/_index.md:30, all bare. wiki/getting-started.md:50-52 calls it 'the full walkthrough' and wiki/_index.md:29-32 lists it in the Getting started section; both remain true after the reshape."
+    },
+    {
+      "claim": "wiki/installing.md currently passes the linter with no errors, and the salvage imports warnings if absorbed verbatim.",
+      "status": "verified",
+      "evidence": "python scripts/lint_wiki.py run against this worktree reports 28 pages checked, 0 errors, 198 warnings. With --warnings, wiki/installing.md carries 2 figure-pending (88, 137) and 6 long-paragraph (59, 96, 108, 114, 131, 163). wiki/install-macos.md carries 8 bold-lead and 1 long-section, of which two bold-leads sit inside the T9 salvage: :142 '**Hearth says it is not connected.**' and :150 '**The install ran out of disk partway.**', against BOLD_LEAD_WORDS 25 at scripts/lint_wiki.py:116. scripts/lint_wiki.py:128 sets SECTION_WORDS 200 and :392 warns on an H2 over that with no H3."
+    },
+    {
+      "claim": "The tracker's salvage table gives stale line numbers for the two wiki/clients/windows.md passages.",
+      "status": "contradicted",
+      "evidence": "tasks/docs/tracker.md:204-205 gives 153-161 for the install root tree and 196-202 for the four-tier paragraph. Read this run, wiki/clients/windows.md:153 is prose about provisioning, :155-158 is the install root prose, :160-168 is the fenced tree and :170-173 is the 'nothing lands outside' paragraph, while :196 is blank, :197-200 is the scan paragraph and :202-205 is the four-tier paragraph. The dispatch's ranges, 155-173 and 202-205, are correct against the file at HEAD 698e891."
+    },
+    {
+      "claim": "Every location the dispatch's Known evidence cites resolves to a real file and heading.",
+      "status": "verified",
+      "evidence": "Opened this run and confirmed at the stated lines: wiki/installing.md:4, 27-28, 32, 38, 57, 67, 77-81, 83-86, 88, 90, 104, 106, 120, 125-129, 137, 142, 149, 151-153, 161; wiki/install-macos.md:32-34, 43-53, 76-77, 128-133, 135-155; wiki/clients/windows.md:155-173, 202-205; wiki/page-types.md:96-127; crates/hearth-probe/src/plan.rs:214-234. The one exception is the dispatch's crates/hearth-probe/src/plan.rs:280-283 for the 1024 rounding, which sits at 271-275 in this worktree."
+    }
+  ],
+  "gaps": [
+    "No page in the corpus, and nothing in the tree, states what Windows shows the first time the app is opened. The macOS right-click-Open step has a documented cause (an unsigned bundle) and a documented procedure; the Windows side has neither, and desktop-client/src-tauri/tauri.conf.json carries no signing configuration for either platform, so the question is open on the source as well as in the docs.",
+    "No fixture pins an exact n_ctx for either Apple Silicon machine. crates/hearth-probe/tests/plan_fixtures.rs asserts only inequalities against 16384 and 4096, so the 17,408 and 65,536 figures the corpus prints in five places rest on arithmetic rather than on anything that fails when the dictionary drifts.",
+    "The refusal message's smallest-model figure has no test that would catch it changing: crates/hearth-probe/tests/plan_fixtures.rs:119-124 asserts only that the string contains 'cannot run Hearth' and 'smallest model is'.",
+    "wiki/installing.md has no equivalent of wiki/clients/windows.md's supervised process tree at 175-188 and no pointer to it, so a reader who finishes the install on Windows has nowhere on this page to learn what is now running. Outside T9's scope; recorded because the install-root tree lands here and the process tree is its natural neighbour."
+  ],
+  "skeleton": [],
+  "recommended_type": "how-to",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does a real 8 GB Apple Silicon Mac plan 17,408 tokens, or does its reported memory move the figure? The window is 17,408 only while the machine's reported RAM sits between 8,581,982,713 and 8,594,565,624 bytes: below that it drops to 16,384 and at or above it rises to 18,432. Exactly 8 GiB, 8,589,934,592, is inside that band, about 7.6 MiB above its floor and 4.4 MiB below its ceiling. crates/hearth-probe/src/machine.rs:75 takes the value from sysinfo's total_memory(), an external crate this repository does not vendor, so what a real Mac reports cannot be settled from this tree. The figure is right for the m1-air-8gb fixture; whether it is right for the machine the page describes needs one run.",
+    "What does the author do with the refusal blockquote, given that one of its three figures is wrong? wiki/install-macos.md:34 says 'the smallest model is 2.36 GB' and the current dictionary makes that string print 2.89 GB, because crates/hearth-probe/src/dict.rs:245-247 takes the minimum over tiers by tier.bytes and never reaches the Q3_K_M build the 2.36 GB names. Absorbing it verbatim imports a wrong number into a surviving page; correcting it means altering a passage presented as the product's own words; dropping the figure loses the part of the message that explains the refusal. This stage does not choose. Note also that the blockquote's other two figures belong to a Windows machine with no GPU, and that no Apple Silicon Mac produces this message at all.",
+    "Who owns removing wiki/installing.md's own four references to wiki/install-macos.md? They sit at line 7 (`related`), line 14 (`sources`), lines 29-30 (the prose pointer in the lead) and lines 151-153 (`## Platform notes`, which says the right-click-Open step 'lives in Installing on macOS'). T9 absorbs the content lines 151-153 point at, which makes that paragraph redundant the moment the task lands, but tasks/docs/tracker.md:211-215 lists the inbound set without assigning wiki/installing.md's four to a task, and T16 is the retirement rather than the redirect. If T9 does not take them, the page ships a pointer to a step it now contains.",
+    "Should the merged plan table add the 'Layers on the GPU' row? desktop-client/src/components/setup/SetupFlow.tsx:500 shows it on every plan, so a five-row table is a selection rather than a transcription of the screen. This stage recommends leaving it out, because it carries no reader decision, but a table the page presents as what the plan reads may want to say that it is a selection.",
+    "Does T9 land knowing that wiki/clients/macos.md:97-108 will carry the same right-click-Open steps until T6 runs? tasks/docs/tracker.md:129 assigns that removal to T6 and tasks/docs/tracker.md:225 puts T6 and T9 in the same phase B, so the two are not ordered against each other. Sequencing T6 before T9, or noting the dependency on both rows, would stop the corpus holding three copies of one procedure at any point.",
+    "Should the `### macOS` half of the install-root section point at wiki/clients/macos.md:60-70 rather than repeating the tree? The Windows tree is salvage and has to land here; the macOS tree is not salvage, because it survives on a page that keeps. Writing it here anyway would create a fourth copy of it, and pointing at a platform-overview page from inside a how-to section is a routing choice the author owns."
+  ],
+  "notes": "SIZE. Confirmed at M rather than moved. wiki/installing.md is 167 lines (the tracker's sizing evidence and this dispatch both say 168; wc -l reports 167 with a trailing newline) and carries eight H2 sections, all of which change, plus roughly sixty lines absorbed from two other files and a plan table that gains two rows. That is more than S ('one section rewritten') and less than L: no navigation or learning order moves, because a corpus grep for `installing.md#` returns nothing, so no inbound link carries a section anchor that renaming could break, and wiki/_index.md:30 and wiki/getting-started.md:50-52 both describe the page in terms the reshape leaves true. python scripts/lint_wiki.py reports 0 errors and 8 warnings on the page today, so nothing mechanical forces the edit; the declared type does.\n\nTOOLS. Bash was available. python scripts/lint_wiki.py and python scripts/lint_wiki.py --warnings were both run against this worktree and their output is reflected in claims and in the direction below. scripts/doc_graph.py was not run: this is affected mode, the cluster verdict is already ratified at tasks/docs/tracker.md:74-78, and a similarity score settles nothing this task asks.\n\nWHAT CAME FROM T1 RATHER THAN FROM MY OWN READ. Nothing in claims[] rests on tasks/docs/artifacts/T1.research.json. I re-derived the 17,408-token window, the 3.77 GB and 7.14 GB download totals, the 4.53 GB and 8.56 GB disk figures, and the two-entry downloads vec independently from crates/hearth-probe/src/plan.rs, dictionary.yaml, machine.rs, dict.rs and lib.rs, and I read desktop-client/src/components/setup/SetupFlow.tsx myself. T1 is cited as corroboration only. Two facts I took from T1 without re-reading the cited lines, and they are marked in their evidence: desktop-client/src-tauri/src/provision.rs chains B and C at 281-322 and 324-369 (I read provision.rs:1-14 and confirmed the three-chain description in the module comment, not the implementation line ranges), and desktop-client/src/lib/probe.ts:158-164 as a byte-identical copy of human() (I read probe.ts:120-140 only).\n\nCAUTION ON T1's LINE NUMBERS. T1's citations into crates/hearth-probe/src/plan.rs (279-283 for ctx_for, 308-321 for fit_at, 337-344 for the tier-0 test) and crates/hearth-probe/src/machine.rs (52-57 for memory_pool, 297-314 for the m1-air-8gb fixture, 232-272 and 238-247 for the install root) do not match the files in this worktree at HEAD 698e891. The offsets are consistent, about +8 in the tail of plan.rs and about +20 in machine.rs. git log shows plan.rs unchanged since 211e3fc and the only working-tree modification is tasks/docs/tracker.md, so the source did not move under T1. Its citations into dictionary.yaml and tests/plan_fixtures.rs do match. Use the line numbers in this artifact; they were read from disk this run.\n\nTHE PLAN TABLE, SETTLED. install-macos.md's five-row set is the faithful one and installing.md's three-row set is a subset that drops two rows the product displays. The merged table keeps all five, in install-macos.md's order: Model, Context window, Backend, Mind and voice, Download. Cited to desktop-client/src/components/setup/SetupFlow.tsx:463-480, where the model card renders the tier label, the model name, the repo and file, one row per download entry and a bold Download total, and to :497-503, the 'What it will configure' card, which renders Context window, Backend, Layers on the GPU, CUDA architecture (only when plan.cuda_arch is Some) and Mind and voice. All five documented rows correspond to something on that screen. Two further product rows should stay out of the reader-facing table, and the reason is worth stating rather than leaving to taste: 'Layers on the GPU' is always shown but carries no reader decision, and 'CUDA architecture' never appears on Apple Silicon at all, because plan.cuda_arch derives from gpu.compute_cap (plan.rs:202-206), which machine.rs:286 sets to None for the Apple fixture and plan_fixtures.rs:47 asserts absent. One caution for the author: the screen prints plan.backend raw and the value is the lowercase string 'metal' (machine.rs:288, SetupFlow.tsx:499), while both pages print 'Metal'.\n\nRow values, all derived from source and shown in claims[]. 8 GB Apple Silicon Mac: Gemma 4 E2B Q4_K_M, 17,408 tokens, metal, both resident, 3.77 GB. 16 GB Apple Silicon Mac: Gemma 4 12B UD-Q4_K_XL, 65,536 tokens, metal, both resident, 7.14 GB. wiki/installing.md:83-84's '16 GB machine' sentence is true of both a 16 GB Mac and a 16 GB NVIDIA card, which land on the same tier by different arithmetic.\n\nTHE FOUR-VERSUS-TWO DOWNLOAD QUESTION, SETTLED. The figure covers the two items it sums, and wiki/installing.md:108-111 as it stands after T1 already says so correctly. crates/hearth-probe/src/plan.rs:214-233 builds a literal two-element vec, the model build and the voice, and line 234 sums exactly those into total_download_bytes. The inference engine and the Python runtime come from dictionary.yaml:28-36 and 37-54 and are fetched by desktop-client/src-tauri/src/provision.rs, whose module comment at 1-14 names three chains running alongside the model download. The reshape should not reopen this sentence.\n\nRECOMMENDED SPINE, AND THE SECTION ORDER, WITH REASONS. This is direction for the author, not prose.\n\nThe principle: branch by platform only where the platforms genuinely differ, and write the shared procedure once. Read side by side, the material T9 has diverges in exactly three places: what the machine needs, getting the app open, and where the files land. The scan, the plan, the folder rules, the download with its verification and resume behaviour, the capability checks, the spoken check, updating and troubleshooting are identical prose on both platforms. Branching the whole page would write that bulk twice, which is the maintenance failure the cluster verdict was ratified to end (tasks/docs/tracker.md:139-152).\n\n1. Title and abstract. The abstract at wiki/installing.md:24-25 already states the outcome and can stand. The sentence at 27-28 calling the page 'the narrative version of what happens next' is the one that declares it a walkthrough rather than a how-to, and it is what wiki/page-types.md:96-99 rules out.\n\n2. `## Before you start`, keeping `### macOS` and `### Windows`. Prerequisites only (wiki/page-types.md:111-113). Carries the memory floor, the free-disk figures, and the below-the-floor refusal. This is the one section where the two platforms' requirements genuinely differ, and the page already branches here.\n\n3. `## Open Hearth for the first time on macOS`, or another action title naming the platform. The three numbered steps at wiki/install-macos.md:48-50, with wiki/install-macos.md:52-53 following as a result note rather than becoming a fourth step (wiki/page-types.md:125-126). Placed before the setup sections because it precedes them in the product: the app has to open before SetupFlow runs at all. Scope it in the heading so a Windows reader skips it by title rather than by reading it. Do not add an empty Windows sibling: nothing in the tree or the corpus establishes what Windows shows on first open, and wiki/clients/windows.md:217-229 names no first-open step. T10 adds the sibling when the fact exists.\n\n4. `## Read the plan and start the download`, or another single action title covering that screen. The scan, the five-row plan table, the four-tier ladder paragraph, the install folder, and the Download button. One section rather than two, because desktop-client/src/components/setup/SetupFlow.tsx:444-547 renders the plan card, the 'What it will configure' card, the 'Where Hearth installs' field and the single Download button on one screen. This also settles the merge order: the plan comes before the folder, which is wiki/installing.md's current order and not wiki/install-macos.md:63-70's. Use `### macOS` and `### Windows` H3s inside for the two folder defaults. Keep the plan-screen figure here.\n\n5. `## Let the download finish`, or an action title on rerunning setup. What is fetched, what the plan's figure counts, sha256 verification, and resume after an interruption. The only action is rerunning setup.\n\n6. `## Confirm Hearth works`, from `## Proving it works`. Already an action title. The five capability checks, the spoken line, the honest buttons, the voice-check figure.\n\n7. `## Check what Hearth installed`, with `### Windows` carrying the absorbed tree from wiki/clients/windows.md:155-173 and `### macOS` pointing at wiki/clients/macos.md:60-70 rather than writing a third copy of the macOS tree. Placed after the install because it is what a reader looks at afterward. This is also why the macOS tree is not in the salvage list: it survives T16 on a page that keeps.\n\n8. `## What comes next`. Role unchanged, the handoff to first-run.\n\n9. `## Update an install`, from `## Updating, briefly`, retitled to an action title.\n\n10. `## Uninstall Hearth`. The absorbed uninstall at wiki/install-macos.md:128-133. The `home/` warning is platform-neutral; the Trash step is macOS-specific, and the Windows equivalent is deleting the folder (wiki/clients/windows.md:170-173).\n\n11. `## When something goes wrong`. The absorbed log names and four failure modes, last, because it is reference a reader reaches only on failure.\n\nWhy this is not two guides stapled together: three of eleven sections branch, and each branch is two short H3s rather than a parallel procedure. Sections 4 through 6 and 8 through 11 are written once and carry the bulk of the page.\n\nThe H3s also serve the linter. scripts/lint_wiki.py:392 warns on an H2 over 200 words with no H3, and sections 2, 4 and 11 will all clear 200 words once the salvage lands. Two of the absorbed failure modes are already flagged bold-lead on their current page (wiki/install-macos.md:142 and :150, against BOLD_LEAD_WORDS at scripts/lint_wiki.py:116), so absorbing that section verbatim imports two warnings; a list, or shorter lead paragraphs, avoids them.\n\nWHERE THE REFUSAL MESSAGE GOES. Section 2 teaches it best, which is where wiki/install-macos.md:27-34 puts it, but the author should know it appears after the scan rather than before anything starts: desktop-client/src/components/setup/SetupFlow.tsx:113-121 routes a makePlan failure to the blocked step, and :391-401 renders it under the panel title 'Hearth cannot run on this machine.' followed by a second paragraph saying it is about memory rather than disk. The blockquote is the message text and not the whole screen.\n\nWHAT THE DISPATCH GOT WRONG, AND IT MATTERS TWICE. wiki/install-macos.md:48-50 is not the only numbered procedure in the install cluster. wiki/clients/macos.md:97-108 is a four-step numbered install procedure whose steps 1 and 2 are the same right-click-Open material, on a page the consolidation verdict keeps (tasks/docs/tracker.md:76). The tracker holds both facts and they disagree with each other: its salvage table at line 197 calls the passage 'the only numbered steps in the cluster' while line 129 calls wiki/clients/macos.md:85-102 'a fourth copy of the install procedure' and assigns its removal to T6. So after T9 lands, two surviving pages carry the same three steps until T6 runs. That is not a reason to hold T9, but the author should not be surprised by it and the orchestrator should sequence it.\n\nSTALE LINE NUMBERS IN THE TRACKER. The dispatch's line numbers for the two wiki/clients/windows.md passages (155-173 and 202-205) are correct against the file at HEAD. The tracker's salvage table at tasks/docs/tracker.md:204-205 gives 153-161 and 196-202, which are stale. Its inbound-reference list at 213-215 gives `wiki/installing.md:7,14,27,132`; the current locations are 7, 14, 29-30 and 151-153.\n\nKNOWN EVIDENCE RESOLVED. Every location the dispatch cited resolves and says what the dispatch said it says, with one arithmetic exception recorded as a contradicted claim (the 2.36 GB in the refusal blockquote), one line-number exception (plan.rs's 1024 rounding is at 271-275, not 280-283), and one count off by one (167 lines, not 168)."
+}

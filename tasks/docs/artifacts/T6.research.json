@@ -1,0 +1,237 @@
+{
+  "task_id": "T6",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": [
+        "## Installing",
+        "## What installing gives you",
+        "## Status and limitations"
+      ],
+      "why": "The only page this task's author edits. `## Installing` runs lines 91-108 and carries a four-step numbered procedure (steps at 97, 98, 102, 106) on a page whose frontmatter declares `type: platform-overview` at line 4; that is the defect wiki/page-types.md:243-245 names. Step 4 at line 108 carries the measured RTF of 0.96, which the corpus publishes nowhere else, so it needs a destination in a surviving section. `## What installing gives you` ends at lines 87-89 with a single sentence on Settings > Connection, and doc_graph.py reports install-macos.md's `## Starting and stopping the backend` as overlapping this exact section at 0.39, which is where the salvage from wiki/install-macos.md:118-126 lands. `## Status and limitations` is touched whether or not the author intends it: its bullet at lines 128-129 reads 'first launch needs the right-click-Open step above', and 'above' is step 2 of the section being removed, so the removal orphans that back-reference."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/components/settings/SettingsView.tsx:90,238,271,272,274-286,288,291,297,302-312",
+      "covers": "What the Settings pane actually offers. Line 238 is the section labelled Connection; line 271 is a Row labelled The house inside it; line 272 is the shipped hint, 'The backend on this machine: the mind, the voice, and the ears. Stopping it frees their memory; starting it brings them back without relaunching Hearth.'; lines 274-286 render running with a process count, stopped, or unknown; the controls are Start (288), Stop (291) and Restart (297); lines 302-312 name each failed process and its detail. Line 90 gates the whole row on no server address being set and an install root existing. This settles every behavioural claim in the salvage passage."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/house.rs:669-685",
+      "covers": "What Stop does. stop() takes the House out of state, flushes sessions through the gateway port, sets the stopping flag, kills every managed child and clears them, then drops the kill-on-close job handle which reaps anything missed, llama-server included. The app itself is not exited. That is why stopping frees the memory the model and voice hold while Hearth stays open."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/lib.rs:73-76,83-89,96-98 and desktop-client/src/App.tsx:55-71,96-110",
+      "covers": "The open-and-quit lifecycle. App.tsx starts the house behind a boot overlay when a validated local install is found at launch; lib.rs stops it on the tray Quit item (73-76) and on RunEvent::Exit (96-98). Lines 83-89 are the countercase no macOS page states: a window close hides the window and prevents the close, so the backend keeps running, and Quit lives in the tray."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/publish_wiki.py:29-31,46,69-70",
+      "covers": "That wiki/raw/ genuinely never publishes. EXCLUDE_DIRS is set to raw at line 46 and applied at 69-70 to skip any page whose first path part is in it; the module docstring at 29-31 states the exclusion is deliberate. Corroborated by scripts/lint_wiki.py:31,83-88,293-294. This settles the premise that the RTF number has no other published home."
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/voice/tts_omnivoice.py:43-44,168",
+      "covers": "What RTF means in this product: generation seconds divided by seconds of audio, logged per synthesis at line 168, with the diffusion-step count named as the latency lever. It defines the metric but asserts no Mac measurement; the figures at 43-44 are for a shared 4080."
+    },
+    {
+      "authority": "primary",
+      "ref": "wiki/raw/macos-status.md:1-9,20-23",
+      "covers": "The run record that produced the number. Written 2026-08-07 on an 8 GB M2 Air running macOS 27, it states that synthesis measured RTF 0.961 on a real tool-grounded reply, faster than realtime, on the smallest machine the product supports. It is the only origin the corpus has for the published 0.96, and it never publishes."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/install-macos.md:118-126",
+      "covers": "The passage being copied. `## Starting and stopping the backend` states that Hearth starts its backend when it opens and stops it when it quits, that Settings > Connection shows whether it is running, names anything that failed, and offers Start and Stop, and that stopping frees the memory the model and voice are holding without closing Hearth while starting brings them back without relaunching. Nothing here is deleted by this task."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/page-types.md:214-252",
+      "covers": "The platform-overview shape and its rules. 243-245 puts installation on the install page and names a platform overview that grows an install procedure as how the corpus ended up with two install guides. 246-248 forbids a dated status log. 249-250 moves reference material off the page. 251-252 requires the sections in a fixed order across every client."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/clients/windows.md:48-58,96-99 and wiki/backend/native-runtime.md:64-71",
+      "covers": "The corpus's fullest published treatment of the same controls, written for the other platform. windows.md:96-99 names the pane 'Settings > The house' and lists Start, Stop and Restart, explaining that Restart is start again. windows.md:48-58 states that closing the window minimizes to the tray with the backend still running, that Quit is the explicit stop, and that Quit, Stop and Restart all flush the session first. native-runtime.md:68-71 states the same lifecycle for both platforms, naming the menu bar on macOS."
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:190-216,225,841-878,1195-1216",
+      "covers": "The recorded plan: the salvage table (196-205) assigning both passages to T6, the redirect rule and inbound-reference list (214-216), the phase table putting T6 in B and the redirects in C (225), the T6 row and draft (841-878), and T16's retirement gate (1195-1216)."
+    },
+    {
+      "authority": "primary",
+      "ref": "python scripts/doc_graph.py --json, run in this worktree on 2026-09-04",
+      "covers": "The tool's current reading of this page. It reports clients/macos.md `Installing` as a duplicate of install-macos.md `Opening it the first time` at 0.54, install-macos.md `Starting and stopping the backend` as overlapping clients/macos.md `What installing gives you` at 0.39, and gives clients/macos.md a `unique` entry of Status and limitations."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/clients/macos.md declares type: platform-overview and carries a four-step numbered install procedure under `## Installing`.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:4 for the frontmatter type; `## Installing` at line 91 running to line 108, with numbered steps at lines 97, 98, 102 and 106. Read in full this session."
+    },
+    {
+      "claim": "wiki/page-types.md states that installation lives on the install page and that a platform overview which grows an install procedure has become a second install guide.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md:243-245, read this session: 'Installation lives on the install page, not here. Link to it. A platform overview that grows an install procedure has become a second install guide, which is how the corpus ended up with two.'"
+    },
+    {
+      "claim": "The measured RTF of 0.96 sits inside step 4 of the section being removed.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:106-108. Step 4 ends 'In a real conversation on the 8 GB Air, replies synthesize faster than real time, a measured RTF of 0.96.'"
+    },
+    {
+      "claim": "The corpus publishes the RTF figure nowhere except wiki/clients/macos.md:108.",
+      "status": "verified",
+      "evidence": "A grep of wiki/ for 0.96 returns wiki/clients/macos.md:108 and wiki/raw/macos-status.md:22 only. A case-insensitive grep for RTF, real-time factor and real time factor adds only wiki/raw/macos-status.md:21,124,137 and wiki/raw/research-containers.md:120,122, which discuss different measurements on other engines and machines. Both remaining files are under wiki/raw/."
+    },
+    {
+      "claim": "wiki/raw/ never publishes, so wiki/raw/macos-status.md is genuinely unpublished.",
+      "status": "verified",
+      "evidence": "scripts/publish_wiki.py:46 sets EXCLUDE_DIRS to raw, applied at 69-70 to skip any page whose first path part is in it; the docstring at 29-31 states the exclusion is deliberate. scripts/lint_wiki.py:31 and 83-88 say the same and flag any prose reference into raw/."
+    },
+    {
+      "claim": "The published figure is a rounding of the recorded one, and the two sentences describe the measurement differently.",
+      "status": "verified",
+      "evidence": "wiki/raw/macos-status.md:21-23 records RTF 0.961 'on a real tool-grounded reply'. wiki/clients/macos.md:107-108 publishes 0.96 and describes it as 'In a real conversation'. The machine matches on both: an 8 GB M2 Air running macOS 27 (wiki/raw/macos-status.md:7-9)."
+    },
+    {
+      "claim": "An artifact in the source tree (a fixture, benchmark or test) asserts the 0.961 measurement.",
+      "status": "unverifiable",
+      "evidence": "Searched backend/, crates/, desktop-client/src, desktop-client/src-tauri/src and vendor/ for rtf (case-insensitive) and for 0.96. RTF is computed and logged per synthesis at backend/harness/valar/voice/tts_omnivoice.py:168, and design figures appear at :43-44 for a shared 4080, but nothing in the tree carries the Mac number. The only record is the unpublished note of 2026-08-07."
+    },
+    {
+      "claim": "wiki/install-macos.md `## Starting and stopping the backend` runs lines 118-126 and states that stopping frees the memory the model and voice hold without closing Hearth, and that starting brings them back without relaunching.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md:118-126, read this session. Heading at 118; the memory sentence at 124-126."
+    },
+    {
+      "claim": "Settings > Connection exists in the desktop client, shows whether the backend is running, names what failed, and offers Start and Stop.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/settings/SettingsView.tsx:238 (the section labelled Connection), 271-272 (the Row labelled The house and its hint), 274-286 (running with a process count, stopped, or unknown), 288 (Start), 291 (Stop), 302-312 (each failed process named with its detail)."
+    },
+    {
+      "claim": "Stopping the house frees the memory the model and the voice hold, without closing Hearth.",
+      "status": "verified",
+      "evidence": "desktop-client/src-tauri/src/house.rs:669-685. stop() flushes sessions through the gateway port, sets the stopping flag, kills every managed child and clears them, then drops the job handle which reaps anything missed, llama-server included. The Tauri app is not exited. Restated in the shipped UI hint at SettingsView.tsx:272."
+    },
+    {
+      "claim": "The same pane offers a third control, Restart, which wiki/clients/macos.md and wiki/install-macos.md do not mention.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/settings/SettingsView.tsx:293-297 renders a Restart button beside Start and Stop. Neither wiki/clients/macos.md:87-89 nor wiki/install-macos.md:118-126 names it; a grep of the published wiki for restart finds the control described only at wiki/clients/windows.md:96-99 and wiki/developing.md:129."
+    },
+    {
+      "claim": "The Start and Stop controls only appear when this device has no remote server address set and does have an install root.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/settings/SettingsView.tsx:90 defines localHouse as no trimmed serverAddress and a truthy installRoot, and lines 269 and 302 gate the row and the failure block on it. Neither macOS page states this precondition."
+    },
+    {
+      "claim": "Hearth starts the backend tree when it opens and stops it when it quits.",
+      "status": "verified",
+      "evidence": "desktop-client/src/App.tsx:96-110 starts the house on launch when setup is complete and a probe record exists, via wakeHouse at 55-71; desktop-client/src-tauri/src/lib.rs:73-76 stops it on the tray Quit item and 96-98 stops it on RunEvent::Exit."
+    },
+    {
+      "claim": "Closing the Hearth window stops the backend.",
+      "status": "contradicted",
+      "evidence": "desktop-client/src-tauri/src/lib.rs:83-89 hides the window on CloseRequested and prevents the close, so nothing is stopped; the comment reads 'Close hides; the backend keeps running. Quit lives in the tray.' wiki/clients/windows.md:48-50 and wiki/backend/native-runtime.md:68-71 publish the same behaviour. No page asserts the opposite, but no macOS page states the correct behaviour either, which is why this is also listed as a gap."
+    },
+    {
+      "claim": "No published page other than wiki/install-macos.md carries the macOS Settings > Connection start-and-stop material.",
+      "status": "verified",
+      "evidence": "A grep of wiki/ for 'Settings > Connection' returns only wiki/install-macos.md:123 and :142. A grep for the Start-and-Stop pairing returns wiki/clients/macos.md:89 (the one sentence, which lacks the memory-freeing detail), wiki/install-macos.md:124 and wiki/updates.md:144, where it is a line in a plan rather than documentation of the pane. The behaviour itself is published for Windows at wiki/clients/windows.md:96-99 and for both platforms at wiki/backend/native-runtime.md:68-71."
+    },
+    {
+      "claim": "The corpus names the pane consistently, and the name matches the shipped UI.",
+      "status": "contradicted",
+      "evidence": "wiki/clients/macos.md:88-89 and wiki/install-macos.md:123 say 'Settings > Connection'. wiki/clients/windows.md:96 and wiki/developing.md:129 say 'Settings > The house'. The source has both, nested: SettingsView.tsx:238 is the section labelled Connection and :271 is the row labelled The house inside it, so the full path is Settings > Connection > The house. A separate section labelled Connections, 'what the house is plugged into', exists at SettingsView.tsx:661, so 'Settings > Connection' alone is one letter from a different pane."
+    },
+    {
+      "claim": "wiki/clients/macos.md:128-129 refers back to a step that this task removes.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:128-129 reads 'The app is unsigned, so first launch needs the right-click-Open step above, and there is no automatic updater.' The referent is step 2 at lines 98-101, inside `## Installing`."
+    },
+    {
+      "claim": "The unsigned-app reasoning for why there is no in-app updater is macOS-specific and is not in wiki/installing.md.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:117-120 carries it. wiki/installing.md `## Updating, briefly` runs 161-168 and carries no mention of signing; a grep of wiki/installing.md for unsign, signed by Apple and updater returns only line 151, which points at the right-click-Open step, and line 163, the plain no-updater sentence."
+    },
+    {
+      "claim": "The unsigned-app reasoning appears nowhere else in the corpus.",
+      "status": "contradicted",
+      "evidence": "wiki/updates.md:103-121, `## The decision underneath: signing`, carries it in fuller form: that Hearth is not signed, that this is why the first-launch instruction exists, that an updater replacing an unsigned bundle is a known sore point on macOS, and what signing would cost. wiki/clients/macos.md:117-120 is the shorter statement of the same reasoning and already links to updates.md at line 120."
+    },
+    {
+      "claim": "doc_graph.py reports wiki/clients/macos.md as the only page of the six in the install cluster with no entry in unique.",
+      "status": "contradicted",
+      "evidence": "The tracker records this at tasks/docs/tracker.md:865 and the dispatch repeats it. python scripts/doc_graph.py --json, run in this worktree this session, gives clients/macos.md a unique entry of Status and limitations. The cluster it reports also has five pages, not six: clients/macos.md, clients/windows.md, getting-started.md, install-macos.md, installing.md. The tracker's reading predates the Phase A edits, which completed on this page under T4."
+    },
+    {
+      "claim": "doc_graph.py corroborates both halves of this task.",
+      "status": "verified",
+      "evidence": "The same run reports clients/macos.md `Installing` as a duplicate of install-macos.md `Opening it the first time` at 0.54, which is the section this task removes, and install-macos.md `Starting and stopping the backend` as overlapping clients/macos.md `What installing gives you` at 0.39, which is the section the salvage extends."
+    },
+    {
+      "claim": "wiki/clients/macos.md carries a dated status line that wiki/page-types.md forbids.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:124-125, inside `## Status and limitations`: 'The install guide reflects one real, end-to-end install on an 8 GB M2 Air, verified 2026-08-07.' wiki/page-types.md:246-248 states that a section reading 'as of' a date belongs in a decision record. tasks/docs/tracker.md:687 records T4 declining this sentence and naming it T6's ground, but the T6 task statement does not name it."
+    },
+    {
+      "claim": "wiki/clients/macos.md carries four references to install-macos.md outside the section being removed, and no Phase C task owns them.",
+      "status": "verified",
+      "evidence": "A grep of wiki/clients/macos.md for install-macos returns lines 7 (frontmatter related), 11 (frontmatter sources), 29 (the intro link), 95 (inside `## Installing`, removed by this task) and 132 (the troubleshooting bullet). tasks/docs/tracker.md:225 lists Phase C as T11, T12, T13 and T14, whose targets are _index.md, whats-not-here.md, updates.md and releasing.md; none is this page."
+    },
+    {
+      "claim": "The tracker's inbound-reference list for install-macos.md is complete.",
+      "status": "contradicted",
+      "evidence": "tasks/docs/tracker.md:214-216 lists wiki/_index.md:31, wiki/installing.md:7,14,27,132, wiki/whats-not-here.md:23, wiki/clients/windows.md:10,14,233, wiki/releasing.md:9, wiki/updates.md:8,105 and wiki/clients/macos.md:7,11,29,89,127. A corpus grep this session also returns wiki/first-run.md:192, which the list omits, and the line numbers are pre-Phase-A: on clients/macos.md the references are at 7, 11, 29, 95 and 132, and on installing.md at 7, 14, 30 and 153. This is T16's risk rather than T6's work."
+    },
+    {
+      "claim": "The tracker's T6 draft cites current line numbers.",
+      "status": "stale",
+      "evidence": "The Draft at tasks/docs/tracker.md:863-878 cites `## Installing` at 85-102, the RTF at 102, the Settings sentence at 81-83 and the updater reasoning at 111-114. The file as read this session has them at 91-108, 108, 87-89 and 117-120. The Sizing evidence at tracker.md:854 carries the corrected numbers, as does the dispatch. The salvage table at tracker.md:203 also still cites line 102."
+    },
+    {
+      "claim": "wiki/page-types.md gives the platform-overview shape a consistent section count.",
+      "status": "contradicted",
+      "evidence": "wiki/page-types.md:229-239 numbers six sections (title and abstract, then five named ones), while the rule at 251-252 says 'Keep the five sections in this order across every client'. Reading item 1 as the title makes them agree; the text does not say so. Relevant here only because the author must choose a surviving section for the RTF sentence and the shape names 'The persona surface' at 232-233, which wiki/clients/macos.md does not have. Writing that section is T36 (tasks/docs/tracker.md:1786-1798), not T6."
+    },
+    {
+      "claim": "The linter reports no error on wiki/clients/macos.md and nothing in the sections this task touches.",
+      "status": "verified",
+      "evidence": "python scripts/lint_wiki.py, run this session, returns 28 pages checked, 0 errors, 198 warnings. Running it with --warnings and filtering to this page returns three findings, all bold-lead, at lines 33, 37 and 42, inside `## What your Mac needs`."
+    }
+  ],
+  "gaps": [
+    "No published page states, for a macOS reader, that closing the Hearth window hides it and leaves the backend running, and that Quit in the menu bar is the explicit stop. The corpus publishes this at wiki/clients/windows.md:48-50 and wiki/backend/native-runtime.md:68-71, neither of which a macOS reader is sent to.",
+    "No published page names the Restart control for macOS. It exists at desktop-client/src/components/settings/SettingsView.tsx:293-297 and is described only on the Windows page at wiki/clients/windows.md:96-99.",
+    "No published page gives the full UI path to the controls. The source nests a row labelled The house inside a section labelled Connection, and a second section labelled Connections sits in the same pane, so neither 'Settings > Connection' nor 'Settings > The house' names the control unambiguously.",
+    "No published page states that Stop and Quit file the conversation to the journal before anything is killed. It is in the source at desktop-client/src-tauri/src/house.rs:671-675 and published for Windows at wiki/clients/windows.md:52-58, and it is the reason a reader should prefer Stop over killing the process.",
+    "No published page states the precondition on the controls appearing: a device that joined a house on another machine has no house row at all (SettingsView.tsx:90).",
+    "No artifact in the source tree carries the 0.961 measurement. The corpus's only record is one unpublished note dated 2026-08-07, so a reader-facing performance claim rests on a single run that nothing re-measures.",
+    "No task in Phase C owns the four remaining install-macos.md references on wiki/clients/macos.md, although tasks/docs/tracker.md:214 requires every inbound reference to be redirected before T16 runs."
+  ],
+  "skeleton": [],
+  "recommended_type": "platform-overview",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Which page does the replacement link point at? wiki/clients/macos.md already links to wiki/install-macos.md three times outside the removed section (lines 7, 11 and 29), and that page is retired by T16. Pointing the new link at install-macos.md adds a fifth inbound reference for T16 to redirect; pointing it at wiki/installing.md sends a reader to a page that does not carry the macOS procedure until T9 completes, and T6 and T9 run in the same phase. The orchestrator decides the target; this stage does not.",
+    "Where does the RTF sentence land? Its current home is step 4 of the removed section, where it describes Sulivan speaking his first line. The surviving sections are `## What your Mac needs`, `## What installing gives you`, `## Updating` and `## Status and limitations`. wiki/page-types.md:232-233 makes voice performance persona-surface material, and this page has no persona-surface section; writing one is T36 (tasks/docs/tracker.md:1786-1798), not T6.",
+    "Does T6 repair the back-reference at wiki/clients/macos.md:128-129, 'first launch needs the right-click-Open step above'? Removing `## Installing` orphans it, so the page is left wrong if nothing does. It sits in `## Status and limitations`, which the task statement does not name.",
+    "Does T6 also own the dated provenance at wiki/clients/macos.md:124-125, 'The install guide reflects one real, end-to-end install on an 8 GB M2 Air, verified 2026-08-07'? tasks/docs/tracker.md:687 records T4 declining it and naming it T6's ground, since T6 already reworks this page, but the T6 task statement does not name it. It is also a sentence about the install guide on a page that will no longer contain one, and wiki/page-types.md:246-248 forbids a dated status log.",
+    "How should the copied passage name the controls? wiki/install-macos.md:123 says 'Settings > Connection'; wiki/clients/windows.md:96 says 'Settings > The house'. The source has both nested (SettingsView.tsx:238 and :271), and a differently scoped section labelled Connections sits in the same pane at SettingsView.tsx:661. Copying the install-macos.md wording verbatim carries the less precise of the two names onto the surviving page.",
+    "Does the copied passage carry the Restart control and the close-versus-quit fact, or only what wiki/install-macos.md:118-126 already says? Both are verified in the source and both are already published for Windows, so a macOS reader is the only one without them. Adding them widens T6 past a straight salvage; leaving them out preserves the gap on the page that is meant to survive.",
+    "Who redirects the four remaining install-macos.md references on wiki/clients/macos.md at lines 7, 11, 29 and 132? tasks/docs/tracker.md:214 requires every inbound reference redirected before T16 runs, but Phase C (tracker.md:225) is T11, T12, T13 and T14, none of which targets this page. No row currently owns them.",
+    "The tracker's reassessment trigger for this page rests on a premise the tooling now contradicts. python scripts/doc_graph.py --json, run this session, gives clients/macos.md a unique entry of Status and limitations and reports a five-page cluster, not a six-page one with this page alone lacking unique. The trigger itself still stands and is not settled here: after `## Installing` is removed, is what remains taught by wiki/installing.md and wiki/updates.md? Two facts bear on it and point opposite ways. Against the page: the tool reports `Updating` as a 0.76 duplicate of wiki/installing.md `Updating, briefly`, and `What your Mac needs` as a 0.83 duplicate of wiki/install-macos.md `What you need`, which T9 absorbs into installing.md. For the page: the unsigned-app reasoning at lines 117-120 is genuinely absent from wiki/installing.md:161-168, though wiki/updates.md:103-121 carries it in fuller form. The keep verdict is recorded at tracker.md:76 and this stage does not revisit it.",
+    "Does the 0.96 claim survive scrutiny as published prose? Its only record is wiki/raw/macos-status.md:21-23, which never publishes, states 0.961 rather than 0.96, and describes it as measured 'on a real tool-grounded reply' where the page says 'In a real conversation'. Nothing in the source tree asserts the value, and it is a single run from 2026-08-07. Salvaging the sentence carries all of that forward; the question is whether the corpus wants a performance number it cannot re-derive.",
+    "Does T16 know about wiki/first-run.md:192? The tracker's inbound-reference list at tasks/docs/tracker.md:214-216 omits it, and every line number in that list is pre-Phase-A. Not T6's work, but T6 is the task that shrinks the list, so the correction is cheapest to record now."
+  ],
+  "notes": "Bash was available in this session, so the contract ran in full: python scripts/doc_graph.py --json and python scripts/lint_wiki.py --warnings were both executed read-only in the worktree at D:/Tools/Hearth-docs-wt, and their output is cited above rather than assumed from the tracker. No command that writes, builds, installs or starts a service was run. The only file written is this artifact.\n\nSized S, and the tracker's S is confirmed rather than corrected. One page is edited: wiki/clients/macos.md. `## Installing` at lines 91-108 is removed and replaced by a link, the sentence at lines 87-89 is extended with wiki/install-macos.md:118-126, and the back-reference at lines 128-129 is orphaned by the removal and has to be repaired on the same page. That is one page with several edits, which is the S row exactly. It is not XS: three sections are touched, the RTF sentence needs a destination this stage does not choose, and the link target is unsettled. It is not M: the second constraint on the dispatch holds, wiki/install-macos.md is read as a source and nothing is deleted from it, so no second page is edited. affected_docs therefore carries one entry, and every other page the survey touched is reported through claims, gaps or open questions.\n\nEvery location in Known evidence resolved exactly as given, including the four-step procedure at 91-108, the RTF at 108, the Settings sentence at 87-89, the updater reasoning at 117-120, the troubleshooting bullet at 132-133, wiki/install-macos.md:118-126, and wiki/page-types.md:214-252 with the rule at 243-245. Nothing in Known evidence failed to resolve.\n\nType disagreement, recorded per the contract: the dispatch says Type Fix, tasks/docs/tracker.md:28 and :850 say Restructure. Mode is affected in both readings, so the survey shape is unaffected and skeleton stays empty.\n\nThe orchestrator's two binding constraints were honoured. Nothing is proposed for deletion from wiki/install-macos.md, and the keep verdict on wiki/clients/macos.md at tracker.md:76 is carried as recorded; the doc_graph question appears in open_questions with its trigger restated against the tool's current output, not as a live verdict.\n\nOne process note for the next stage: the tracker Draft at tracker.md:863-878 and the salvage table at tracker.md:203 both still carry pre-Phase-A line numbers. The author should locate each passage by its content, which is the instruction the tracker itself gives on T9 at line 1017."
+}
