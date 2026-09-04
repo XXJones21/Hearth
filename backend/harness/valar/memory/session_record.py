@@ -209,3 +209,66 @@ def mark_synced(session_id: str, slug: str = "") -> None:
         _write_meta(path, meta)
     except Exception as exc:  # noqa: BLE001
         logger.warning("mark_synced failed for %s: %s", session_id, exc)
+
+# ------------------------------------------------------------ ending reason
+# Why a conversation stopped, so a client can tell a house restart from an
+# operator who was finished. Added 2026-09-03 with the house-as-a-service
+# work: the house outlives the client now, but it still stops sometimes, and
+# the conversation should not have to.
+#
+# There is no heartbeat file. append_turn already stamps last_turn_at on
+# every recorded turn, so a record with a RECENT last_turn_at and NO
+# ended_reason is a conversation whose process died: the case a graceful
+# flush never gets to see.
+
+RESUME_WINDOW_S = 1800
+
+
+def close_record(session_id: str, reason: str = "operator") -> None:
+    """Mark why a conversation ended. Never raises."""
+    try:
+        path = _find_dir(session_id)
+        if path is None:
+            return
+        meta = _read_meta(path)
+        if not meta:
+            return
+        meta["ended_reason"] = str(reason)
+        meta["ended_at"] = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
+        _write_meta(path, meta)
+    except Exception as exc:  # noqa: BLE001 - bookkeeping never breaks a stop
+        logger.warning("session record close failed: %s", exc)
+
+
+def last_live(max_age_s: int = RESUME_WINDOW_S) -> dict | None:
+    """The conversation a client should pick up, or None.
+
+    Resumable means the house stopped it, or nothing did (the crash case),
+    and its last turn is inside the window. A conversation the OPERATOR
+    ended stays ended.
+    """
+    # list_records sorts day folders newest first but the entries INSIDE a
+    # day by session id, which is a uuid and therefore arbitrary. Sorting by
+    # last_turn_at is the only way to actually get the newest conversation;
+    # trusting the list order picked a five-hour-old record on 2026-09-03.
+    def _stamp(rec: dict) -> float:
+        try:
+            return time.mktime(
+                time.strptime(str(rec.get("last_turn_at") or ""), "%Y-%m-%dT%H:%M:%S")
+            )
+        except ValueError:
+            return 0.0
+
+    candidates = sorted(list_records(limit=40), key=_stamp, reverse=True)
+    if not candidates:
+        return None
+    rec = candidates[0]
+    reason = str(rec.get("ended_reason") or "")
+    if reason and reason != "house_stop":
+        return None  # the operator ended it; it stays ended
+    when = _stamp(rec)
+    if when <= 0 or time.time() - when > max_age_s:
+        return None
+    if int(rec.get("turns") or 0) < 1:
+        return None
+    return rec

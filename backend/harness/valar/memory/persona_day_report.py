@@ -30,19 +30,67 @@ MAX_REPORT_CHARS = 4000
 KEEP_DAYS = 14
 
 _TASK = (
-    "Below is your own record of {day}: every turn you took, what you were "
-    "asked, which tools you used and on what, and what you answered.\n\n"
-    "Write your report of that day for the house. Two short paragraphs at "
-    "most. Say what you actually did and what came of it. Name the files "
-    "you touched and the personas you asked, by name. Do not pad it, do not "
-    "invent anything that is not in the record below, and do not describe "
-    "the record itself. Write it as yourself, in the first person.\n\n"
+    "Below is your own record of {day}. Read what it can and cannot vouch "
+    "for.\n\n"
+    "ASKED and TOUCHED are facts: what the operator put to you, and the "
+    "tools you actually ran and on what. YOU SAID is your own words, which "
+    "prove nothing. Where a turn says you answered from the house's shared "
+    "record, the answer itself is withheld on purpose: it described "
+    "everyone's day, not yours, and it is not yours to report.\n\n"
+    "Report each thing at the size it actually happened. Reading a file's "
+    "first heading is reading a heading; it is not refining, reviewing or "
+    "documenting that file. If the only trace of something is that you were "
+    "asked about it, then you were asked about it, and that is all.\n\n"
+    "Write your report of {day} for the house. Two short paragraphs at "
+    "most, as yourself, in the first person. Say what YOU did and what came "
+    "of it, in your own voice. Do not list the tools you used; nobody wants "
+    "an inventory of verbs. Do not claim work another persona did. Do not "
+    "invent anything that is not below. If your day was thin, say so "
+    "plainly; a quiet day is a finding, not a gap to fill.\n\n"
     "--- your record of {day} ---\n{digest}"
 )
 
 
+# Tools that read the HOUSE's shared record rather than this persona's own.
+# A turn that ran one of these answered about everyone, so its answer is not
+# evidence of anything this persona did, and labelling it was not enough:
+# Soth reported a whole day of Superset work it never touched, purely from
+# three such answers (2026-09-03).
+_SHARED_READS = frozenset(
+    {
+        "search_journal",
+        "consult_memory",
+        "recall",
+        "project_status",
+        "list_projects",
+        "search_files",
+    }
+)
+
+
+def _read_the_house(entry: dict) -> bool:
+    names = {str(t).split(" ")[0] for t in (entry.get("touched") or [])}
+    return bool(names & _SHARED_READS)
+
+
+def _is_machinery(entry: dict) -> bool:
+    """A turn the report machinery itself made, which is not part of the day.
+
+    The day report's own dispatch and Selene's review dispatch both land in
+    the persona's log like any other turn, so without this a report describes
+    the writing of itself.
+    """
+    origin = str(entry.get("origin") or "")
+    if origin.startswith("routine/day-report"):
+        return True
+    question = str(entry.get("question") or "")
+    return question.startswith("Write the daily review for ") or question.startswith(
+        "Below is your own record of "
+    )
+
+
 def day_digest(root: Path, day: str) -> str:
-    entries = pm.read_log(root, day)
+    entries = [e for e in pm.read_log(root, day) if not _is_machinery(e)]
     if not entries:
         return ""
     sessions = {r["id"]: r for r in pm.read_sessions(root)}
@@ -54,14 +102,21 @@ def day_digest(root: Path, day: str) -> str:
         row = sessions.get(str(e.get("session") or ""), {})
         lines.append(f"{when} [{origin or client}] {row.get('title') or ''}".rstrip())
         if e.get("question"):
-            lines.append(f"  asked: {e['question']}")
+            lines.append(f"  ASKED: {e['question']}")
         touched = e.get("touched") or []
         if touched:
-            lines.append("  touched: " + "; ".join(str(t) for t in touched))
+            lines.append("  TOUCHED: " + "; ".join(str(t) for t in touched))
         if e.get("dispatches"):
-            lines.append("  asked of: " + ", ".join(e["dispatches"]))
+            lines.append("  ASKED OF: " + ", ".join(e["dispatches"]))
+        # An answer is this persona's own words, so it is never evidence.
+        # When the turn read the house's shared record, the answer describes
+        # everyone's day and is REMOVED rather than labelled: labelling was
+        # tried on 2026-09-03 and the personas used it anyway.
         if e.get("answer"):
-            lines.append(f"  answered: {e['answer']}")
+            if _read_the_house(e):
+                lines.append("  (you answered from the house's shared record)")
+            else:
+                lines.append(f"  YOU SAID: {e['answer']}")
     if len(entries) > MAX_ENTRIES:
         lines.append(f"({len(entries) - MAX_ENTRIES} more turns not listed.)")
     return "\n".join(lines)

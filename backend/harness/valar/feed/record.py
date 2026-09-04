@@ -17,6 +17,9 @@ KINDS = frozenset(
     {
         "message",
         "opened",
+        # A room freezing its charter: the goal and the deliverables with
+        # their owners, posted once when forming ends (rooms decision 8).
+        "chartered",
         "joined",
         "left",
         "assigned",

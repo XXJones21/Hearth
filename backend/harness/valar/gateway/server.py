@@ -124,11 +124,12 @@ def create_app(config: ValarConfig) -> FastAPI:
     apps_api.register(app, config)
 
     # --- the household: read and write persona.json -----------------------
-    from valar.gateway import feed_api, personas_api, routines_api
+    from valar.gateway import feed_api, personas_api, rooms_api, routines_api
 
     personas_api.register(app, config)
     routines_api.register(app, config)
     feed_api.register(app, config)
+    rooms_api.register(app, config)
 
     # --- subsystems (built once, shared) ---------------------------------
     personas = PersonaEngine(config.persona_dir, config.default_persona)
@@ -225,8 +226,20 @@ def create_app(config: ValarConfig) -> FastAPI:
             return JSONResponse({"error": "no such session"}, status_code=404)
         return JSONResponse(rec)
 
+    @app.get("/sessions/last")
+    async def sessions_last() -> JSONResponse:
+        """The conversation a client should pick up, or nothing.
+
+        A house restart is not the end of a conversation. This answers with
+        the newest record only when the house stopped it, or nothing did,
+        and it is recent. Anything the operator ended stays ended.
+        """
+        from ..memory.session_record import last_live
+
+        return JSONResponse({"session": last_live()})
+
     @app.post("/sessions/flush")
-    async def sessions_flush() -> JSONResponse:
+    async def sessions_flush(payload: dict | None = None) -> JSONResponse:
         """File every live conversation, now, before something kills us.
 
         The desktop client calls this on its way to stopping the house. Quit
@@ -236,6 +249,10 @@ def create_app(config: ValarConfig) -> FastAPI:
         make no model call at all, so the wait is milliseconds rather than the
         length of a generation.
         """
+        # Why this flush is happening, so the client can tell a house restart
+        # from an operator who was finished. house_stop.ps1 sends house_stop.
+        reason = str((payload or {}).get("reason") or "operator")
+        live_ids = list(_LIVE_SESSIONS.keys())
         flushers = list(_LIVE_SESSIONS.values())
         filed = 0
         for flush in flushers:
@@ -244,8 +261,19 @@ def create_app(config: ValarConfig) -> FastAPI:
                     filed += 1
             except Exception as exc:  # noqa: BLE001 - shutdown must not raise
                 logger.warning("flush failed: %s", exc)
-        logger.info("sessions flushed: %d of %d live", filed, len(flushers))
-        return JSONResponse({"ok": True, "flushed": filed, "live": len(flushers)})
+        try:
+            from ..memory.session_record import close_record
+
+            for sid in live_ids:
+                close_record(sid, reason)
+        except Exception as exc:  # noqa: BLE001 - the flush still happened
+            logger.warning("close_record failed: %s", exc)
+        logger.info(
+            "sessions flushed: %d of %d live (%s)", filed, len(flushers), reason
+        )
+        return JSONResponse(
+            {"ok": True, "flushed": filed, "live": len(flushers), "reason": reason}
+        )
 
     config.assets_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/assets", StaticFiles(directory=str(config.assets_dir)), name="assets")

@@ -261,6 +261,12 @@ class ValarConfig:
 
     persona_dir: Path = field(default_factory=lambda: _persona_dir())
     default_persona: str = field(default_factory=lambda: _env_str("HEARTH_DEFAULT_PERSONA", "Sulivan"))
+    # What to call the person who lives here. Used where a persona or a
+    # surface must NAME them rather than say 'the operator': the private
+    # block's heading, and the author on a room post the operator makes.
+    # Empty falls back to 'operator', which is what every room post said
+    # until 2026-09-03.
+    operator_name: str = field(default_factory=lambda: _env_str("HEARTH_OPERATOR_NAME", ""))
     assets_dir: Path = field(default_factory=lambda: hearth_root() / "harness" / "assets")
 
     brain: BrainConfig = field(default_factory=BrainConfig)

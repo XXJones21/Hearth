@@ -59,6 +59,17 @@ from ..models import resolve as resolve_model
 
 logger = logging.getLogger("valar.voice_loop")
 
+# How many operator turns are running right now. The rooms exchange runner
+# parks between members while this is non-zero, so the operator never queues
+# behind three personas talking to each other (rooms design, section 3).
+# A plain int rather than a semaphore: nothing waits on it, one thing reads it.
+_foreground_turns = 0
+
+
+def foreground_turns() -> int:
+    return _foreground_turns
+
+
 
 def _record_persona_turn(
     persona,
@@ -574,6 +585,8 @@ class VoiceLoop:
         # argument (spec sections 3 and 4).
         from ..memory.acting import acting
 
+        global _foreground_turns
+        _foreground_turns += 1
         try:
             with acting(
                 persona.name,
@@ -611,6 +624,8 @@ class VoiceLoop:
             # emit when the typed one already went out.
             exc._valar_error_emitted = True  # type: ignore[attr-defined]
             raise
+        finally:
+            _foreground_turns -= 1
 
     async def _run_turn_impl(
         self,
@@ -1808,6 +1823,28 @@ class VoiceLoop:
                 )
                 if name == "import_brain":
                     await self._emit_brain_info(emit)
+            # A room the OPERATOR caused is opened on the client's main stage
+            # so they can watch and steer it. Not a card and not gated on
+            # ui_render: it is a navigation event, and a client that does not
+            # know the action ignores it.
+            if name == "create_room" and bool(getattr(result, "ok", True)):
+                slug = str((getattr(result, "data", None) or {}).get("room") or "")
+                if slug:
+                    try:
+                        await emit(
+                            "room_opened",
+                            {
+                                "action": "room_opened",
+                                "room": slug,
+                                "members": list(
+                                    (getattr(result, "data", None) or {}).get("members")
+                                    or []
+                                ),
+                            },
+                        )
+                    except Exception as exc:  # noqa: BLE001 - never breaks the turn
+                        logger.warning("room_opened emit failed: %s", exc)
+
             if not ui_enabled:
                 return
             for op in compose_for_result(name, result):

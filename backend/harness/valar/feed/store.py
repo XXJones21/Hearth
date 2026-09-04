@@ -77,6 +77,33 @@ def read_day(day: str, engram_root=None) -> list[dict]:
             out.append(json.loads(line))
         except json.JSONDecodeError:
             continue  # one bad line never costs the day
+    return _collapse(out)
+
+
+def _collapse(rows: list[dict]) -> list[dict]:
+    """One card per source file, the newest ingest of it winning.
+
+    A file-backed producer is keyed on (path, mtime), so a report that is
+    REGENERATED looks like a second event and the day grew a duplicate card
+    for the same check-in. Collapsing on the first ref fixes that without
+    rewriting anything already appended: two different reports on one day
+    have two different files and both survive, and a room milestone carries
+    no refs at all and is never collapsed. Found live 2026-09-03 after the
+    first report regeneration.
+    """
+    out: list[dict] = []
+    seen: dict[str, int] = {}
+    for row in rows:
+        refs = row.get("refs") or []
+        key = str(refs[0]) if refs else ""
+        if not key:
+            out.append(row)
+            continue
+        if key in seen:
+            out[seen[key]] = row  # the later line wins its slot
+        else:
+            seen[key] = len(out)
+            out.append(row)
     return out
 
 

@@ -1165,3 +1165,239 @@ tools:
             through it automatically.
       required: [card_name, purpose]
 
+  # Rooms: several personas working one goal in the open (2026-09-03, spec
+  # docs/superpowers/specs/2026-09-02-persona-rooms-design.md). Named verbs
+  # over one store, because a generic post(topic=...) is the description
+  # competition that swallowed "make a note for yourself", made worse.
+  - name: create_room
+    description: >-
+      Open a room with other personas to work one goal together, when you
+      need something you cannot get alone. Name who should be in it, say
+      what the goal is, and write an opening message explaining why you
+      opened it and what you are trying to achieve. They read the opening
+      and answer. Use this when a piece of work needs someone else's
+      knowledge, not for a single question you could ask with recall.
+    handler: valar.tools.handlers.rooms:create_room
+    domain: rooms
+    risk: write
+    speak: Let me pull the others in.
+    parameters:
+      type: object
+      properties:
+        name:
+          type: string
+          description: A short name for the room, like "gtm launch".
+        goal:
+          type: string
+          description: What the room is for, in one sentence.
+        members:
+          type: array
+          items:
+            type: string
+          description: The personas to bring in, by name.
+        opening:
+          type: string
+          description: >-
+            Your first message: why you opened it and what you need.
+        deliverables:
+          type: array
+          description: >-
+            What the room will produce, each with an owner. Propose these
+            when you open the room; members amend them once before work
+            starts. A room with no deliverables is a conversation.
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+                description: The deliverable, in one line.
+              owner:
+                type: string
+                description: The persona who owns it.
+            required: [text, owner]
+      required: [name, goal, opening]
+
+  - name: say
+    description: >-
+      Say something in a room you are in. The other members read it and
+      answer. Use this to move the room's goal forward, not to think out
+      loud.
+    handler: valar.tools.handlers.rooms:say
+    domain: rooms
+    risk: write
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+        body:
+          type: string
+          description: What you want to say.
+      required: [room, body]
+
+  - name: read_room
+    description: >-
+      Read what has been said in a room, with its goal and its open tasks.
+      Use before saying something, so you do not repeat what is there.
+    handler: valar.tools.handlers.rooms:read_room
+    domain: rooms
+    risk: read
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+        limit:
+          type: integer
+          description: How many turns to read (default 30).
+      required: [room]
+
+  - name: list_rooms
+    description: >-
+      The rooms that are open, with their goals, members and task counts.
+      Use to find out whether a room for this work already exists before
+      opening another.
+    handler: valar.tools.handlers.rooms:list_rooms
+    domain: rooms
+    risk: read
+    parameters:
+      type: object
+      properties:
+        all:
+          type: boolean
+          description: Include settled rooms.
+      required: []
+
+  - name: join_room
+    description: Join a room you are not in, so you can speak in it.
+    handler: valar.tools.handlers.rooms:join_room
+    domain: rooms
+    risk: write
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+      required: [room]
+
+  - name: leave_room
+    description: Leave a room. You stop being asked to speak in it.
+    handler: valar.tools.handlers.rooms:leave_room
+    domain: rooms
+    risk: write
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+      required: [room]
+
+  - name: assign_task
+    description: >-
+      Give a piece of the room's work to one of its members. They do it in
+      their own context with their own tools and report back into the room.
+      This is the ONLY way work leaves a room, so use it rather than doing
+      someone else's part yourself.
+    handler: valar.tools.handlers.rooms:assign_task
+    domain: rooms
+    risk: write
+    speak: Let me hand that over.
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+        assignee:
+          type: string
+          description: Which persona does it.
+        text:
+          type: string
+          description: What the task is, plainly.
+      required: [room, assignee, text]
+
+  - name: task_done
+    description: >-
+      Report a task in a room as finished, with what came of it. Use when
+      you did the work yourself rather than being dispatched for it.
+    handler: valar.tools.handlers.rooms:task_done
+    domain: rooms
+    risk: write
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+        task:
+          type: string
+          description: The task id, like t1.
+        result:
+          type: string
+          description: What you did and what came of it.
+      required: [room, task]
+
+  - name: close_room
+    description: >-
+      Close a room you opened, with a summary of what came of it. Only
+      works once every task is finished, and only for the persona who
+      opened the room.
+    handler: valar.tools.handlers.rooms:close_room
+    domain: rooms
+    risk: write
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+        summary:
+          type: string
+          description: What the room achieved.
+      required: [room, summary]
+
+  - name: amend_charter
+    description: >-
+      Change a forming room's goal or deliverables before work starts.
+      One amendment per member, and only while the room is forming. Use
+      it when the convener's proposal is wrong, incomplete, or gives you
+      work that belongs to someone else.
+    handler: valar.tools.handlers.rooms:amend_charter
+    domain: rooms
+    risk: write
+    failure_reasons: [bad_input, denied, not_found, unsupported, internal]
+    parameters:
+      type: object
+      properties:
+        room:
+          type: string
+          description: The room's name.
+        goal:
+          type: string
+          description: A replacement goal line. Omit to keep the current one.
+        add:
+          type: array
+          description: Deliverables to add.
+          items:
+            type: object
+            properties:
+              text:
+                type: string
+                description: The deliverable, in one line.
+              owner:
+                type: string
+                description: The persona who owns it.
+            required: [text, owner]
+        drop:
+          type: array
+          description: Deliverable texts to remove, matched exactly.
+          items:
+            type: string
+        why:
+          type: string
+          description: Why the charter should change.
+      required: [room, why]
