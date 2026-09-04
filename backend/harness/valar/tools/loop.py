@@ -39,6 +39,7 @@ import logging
 from typing import Any
 
 from . import ToolRegistry, tools_enabled
+from .salvage import salvage_calls
 
 logger = logging.getLogger("valar.tools.loop")
 
@@ -149,6 +150,21 @@ class ToolCallingLoop:
         for round_idx in range(self.max_rounds):
             response = await brain_tool_call(messages, tools)
             tool_calls = (response or {}).get("tool_calls") or []
+
+            # A call the model WROTE instead of made. Only when the round
+            # carried none of its own, so a real call always wins, and only
+            # for a tool in `tools`, which is this caller's own grant. See
+            # valar/tools/salvage.py for what it refuses and why.
+            if not tool_calls:
+                salvaged, cleaned = salvage_calls(
+                    str((response or {}).get("content") or ""), tools
+                )
+                if salvaged:
+                    tool_calls = salvaged
+                    response = dict(response or {})
+                    response["content"] = cleaned
+                    response["tool_calls"] = salvaged
+
             reasoning = str((response or {}).get("reasoning") or "")
             if reasoning or tool_calls:
                 self.decisions.append({
