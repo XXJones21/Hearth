@@ -236,9 +236,13 @@ pub fn default_install_root() -> PathBuf {
         }
     }
     if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
-        // Visible on macOS, because deleting the folder is the uninstall and
-        // a dotdir hides the thing a person owns. A dotdir elsewhere.
-        if std::env::consts::OS == "macos" {
+        // Visible on macOS and Windows, because deleting the folder is the
+        // uninstall and a dotdir hides the thing a person owns. On Windows
+        // this branch is the single-drive fallback, which is the ordinary
+        // laptop rather than an edge case, so it was the common machine that
+        // got the hidden folder. A dotdir on Linux, where it is the
+        // convention and not a hiding place.
+        if matches!(std::env::consts::OS, "macos" | "windows") {
             return PathBuf::from(home).join("Hearth");
         }
         return PathBuf::from(home).join(".hearth");
