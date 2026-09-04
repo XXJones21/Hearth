@@ -1,0 +1,189 @@
+{
+  "task_id": "T65",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/first-run.md",
+      "sections": ["### Say what you found, and be honest about it"],
+      "why": "Line 192 reads in full: `[Installing on macOS](install-macos.md) quotes the shipped wording.` It is the only occurrence of `install-macos` in this file; the frontmatter at lines 6-11 names `backend/build-pipeline.md` and `_index.md` under `related` and two unpublished research files under `sources`, so no frontmatter entry points at the retiring page. The sentence carries a pointer and a claim. The pointer breaks when wiki/install-macos.md is demoted under T16. The claim also fails on repointing: no page that survives the demote quotes the shipped wording, so the verb `quotes` cannot simply be moved to a new destination."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:84-96",
+      "covers": "The shipped refusal wording itself. `impl Display for PlanError` formats `PlanError::TooSmall` as the single string \"this machine cannot run Hearth. It has {} to work with, which leaves {} after the voice, speech recognition and headroom, and the smallest model is {}.\" (a continued string literal split across lines 89 and 90), filling the three slots with `human(*pool)`, `human(*budget)`, `human(*smallest)` at line 91. This is a template, not a fixed sentence: what ships to a reader is the template plus three machine-dependent figures."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:151-157",
+      "covers": "When the refusal is reached. `PlanError::TooSmall` is returned only after `best_fit` fails against `coexist_budget` (line 129) and then against `sequential_budget` (line 137), with `pool`, `budget: sequential_budget`, and `smallest: d.smallest().map(|t| t.bytes).unwrap_or(0)`. Confirms the refusal comes after the scan and after both fitting attempts."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:105-121",
+      "covers": "The arithmetic the wording names. `base = stt_bytes + headroom_bytes`, plus `os_unified_bytes` when `unified_memory`; `coexist_budget = pool - (base + voice_resident)`; `sequential_budget = pool - base`."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/lib.rs:26-34",
+      "covers": "`human()`, which renders every figure in the message: GiB divisor 1_073_741_824 formatted `{:.2} GB` at or above 1 GiB, `{:.0} MB` below."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/dict.rs:245-247",
+      "covers": "`smallest()` is `self.tiers.iter().min_by_key(|t| t.bytes)`. It returns a `&Tier` and can never return a build inside a tier's `builds` ladder."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:131-224",
+      "covers": "The shipped tier table. Tier-level `bytes` values are 3106738272 (tier 0, line 138), 4977171584 (tier 1, line 185), 6716356800 (line 204) and 14249047104 (line 224). The minimum is tier 0 at 3106738272. crates/hearth-probe/src/dict.rs:11 embeds this file with `include_str!`, so it is the dictionary the binary reads."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:322-331",
+      "covers": "The `tiny` fixture, the only fixture that produces the refusal: `os: windows`, `ram_bytes: 4 GiB`, `gpu: None`, `unified_memory: false`."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/tests/plan_fixtures.rs:118-124",
+      "covers": "The only test of the refusal. It asserts the message contains \"cannot run Hearth\" and \"smallest model is\" and nothing else, so no figure in the message is guarded by a test."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:88, 132-143, 293-297, 346-372",
+      "covers": "What the linter owns for this edit: `dead-link` on an unresolvable relative link (line 372), `raw-link` on any link into `raw/` (lines 293-294 and 361-362), and `raw-in-prose` on a bare `raw/...md` path named in prose without a link (lines 88 and 353-354). All three default to severity `error` (line 137), so all three fail the build."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:211-216, 219-234, 380-386",
+      "covers": "Paragraph measurement. `is_prose` returns False for any line beginning with `[`, so line 192 as written is excluded from paragraph accounting entirely and the 188-191 paragraph is measured alone. `PARAGRAPH_WORDS` is 60 (line 129) and `long-paragraph` is a warning (line 384), not an error."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md:34-45",
+      "covers": "The candidate destination. Under `## Before you start` it describes the refusal in the writer's own words and quotes nothing."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/install-macos.md:27-34",
+      "covers": "The retiring page and the corpus's only verbatim reproduction of the wording, as a blockquote at lines 32-34."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/page-types.md:156-181",
+      "covers": "The decision-record shape and its three rules. Nothing in the shape requires or forbids a pointer sentence after a decision."
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:223, 236-238, 1622-1629",
+      "covers": "The ratified salvage ruling and the demote destination. Line 223 records lines 32-34 landing in wiki/installing.md \"as prose rather than a blockquote, by ruling\"; lines 236-238 record that it carries no figures because one of its three is contradicted by current source; lines 1622-1629 name wiki/first-run.md:192 as a gate-blocking `dead-link` owned by T65 and `wiki/raw/install-macos.md` as the demote target."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/updates.md:34-38",
+      "covers": "Corpus precedent for a page quoting the source tree verbatim in prose and naming the file: \"`provision.rs` states its own contract: *\\\"Idempotent by construction: ...\\\"*\"."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/getting-started.md:24-25",
+      "covers": "Corpus precedent for naming a source-tree file in frontmatter `sources`: `crates/hearth-probe/src/plan.rs` and `crates/hearth-probe/dictionary.yaml`."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/first-run.md:192 reads, in full, `[Installing on macOS](install-macos.md) quotes the shipped wording.`, and it is the only occurrence of `install-macos` in that file.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md:192, read with line numbers. A grep for `install-macos` across wiki/ and tasks/ returns wiki/first-run.md:192 as the sole hit in this file; the frontmatter lines 6-11 name only backend/build-pipeline.md, _index.md, first-time-user.md and hearth-setup-flow.html."
+    },
+    {
+      "claim": "wiki/first-run.md is a decision record and the passage the sentence closes is the decision, at lines 182-191.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md:4 reads `type: decision-record`. Lines 182-186 state the small-machine principle and quote the shipped take-turns phrasing; lines 188-191 state how the refusal is written (leads with what it means, then the arithmetic). wiki/page-types.md:156-181 gives the decision-record shape and its three rules, none of which govern a trailing pointer sentence."
+    },
+    {
+      "claim": "The shipped refusal wording lives in the source tree as a format template with three runtime figures, not as a fixed sentence.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:87-92. The literal is \"this machine cannot run Hearth. It has {} to work with, which leaves {} after the voice, speech recognition and headroom, and the smallest model is {}.\" and the three slots are filled by `human(*pool)`, `human(*budget)`, `human(*smallest)` at line 91. Note the source has no comma before `and headroom`."
+    },
+    {
+      "claim": "wiki/installing.md paraphrases the shipped refusal wording rather than quoting it.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:39-45, under `## Before you start` (line 34), reads in full: \"The refusal comes after the scan, not before setup starts. It names how much memory the machine has to work with, and how much of that is left once the voice, speech recognition, and headroom are held back, measured against the smallest model Hearth could use.\" then \"The reason is memory rather than disk space, so freeing up space does not change it.\" There is no blockquote, no quotation marks, no figure, and no string from crates/hearth-probe/src/plan.rs:89-90. It reports the message in the writer's third-person voice; the source sentence is the product's own first line, \"this machine cannot run Hearth.\" A grep of wiki/ for `cannot run Hearth` returns no hit in wiki/installing.md."
+    },
+    {
+      "claim": "wiki/install-macos.md:32-34 is the corpus's only verbatim reproduction of the shipped wording.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md:32-34 is a blockquote reading \"this machine cannot run Hearth. It has 4.00 GB to work with, which leaves 2.25 GB after the voice, speech recognition and headroom, and the smallest model is 2.36 GB.\" That is the crates/hearth-probe/src/plan.rs:89-90 template word for word, including the absent comma before `and headroom`, with the three slots filled. A grep of wiki/ for `cannot run Hearth` returns exactly two hits: wiki/first-run.md:188 (which is prose about the refusal, not the message) and wiki/install-macos.md:32."
+    },
+    {
+      "claim": "Once wiki/install-macos.md is demoted under T16, no page in wiki/ reproduces the shipped wording verbatim.",
+      "status": "verified",
+      "evidence": "Greps of wiki/ for `cannot run Hearth`, `to work with`, and `smallest model` return: wiki/first-run.md:188-191 (prose about the message), wiki/install-macos.md:32 (the blockquote), wiki/installing.md:40 and 42 (the paraphrase). wiki/clients/macos.md:113-116 describes the decline without any of the wording. tasks/docs/tracker.md:1543 and 1564 record the T16 destination as wiki/raw/install-macos.md, which scripts/lint_wiki.py:31-32 and 42-43 exclude from the wiki and which the publish step strips. So the only verbatim copy leaves the reader-visible corpus and nothing replaces it."
+    },
+    {
+      "claim": "The first two figures in wiki/install-macos.md:32-33, 4.00 GB and 2.25 GB, are what the shipped code produces for the `tiny` fixture.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:326 gives `ram_bytes: 4 * 1024 * 1024 * 1024` = 4,294,967,296, which crates/hearth-probe/src/lib.rs:26-34 renders `4.00 GB`. machine.rs:329 sets `unified_memory: false`, so crates/hearth-probe/src/plan.rs:110-113 makes `base = stt_bytes + headroom_bytes` = 805,306,368 + 1,073,741,824 (crates/hearth-probe/dictionary.yaml:84 and 89) = 1,879,048,192, and plan.rs:121 gives `sequential_budget` = 4,294,967,296 - 1,879,048,192 = 2,415,919,104, which renders `2.25 GB`. Arithmetic derived from the cited constants; I did not execute the binary."
+    },
+    {
+      "claim": "The third figure in that blockquote, \"the smallest model is 2.36 GB\", is what the product prints.",
+      "status": "contradicted",
+      "evidence": "wiki/install-macos.md:34 states 2.36 GB. crates/hearth-probe/src/plan.rs:155 passes `d.smallest().map(|t| t.bytes)`, and crates/hearth-probe/src/dict.rs:245-247 defines `smallest()` as `self.tiers.iter().min_by_key(|t| t.bytes)`, returning a `&Tier`. The tier-level `bytes` values in crates/hearth-probe/dictionary.yaml are 3106738272 (line 138), 4977171584 (line 185), 6716356800 (line 204) and 14249047104 (line 224); the minimum is 3106738272, which crates/hearth-probe/src/lib.rs:26-34 renders `2.89 GB`. The 2536786016 that renders `2.36 GB` appears at dictionary.yaml:148 and 176 as tier 0's Q3_K_M fallback build, nested under `fallback:` and `builds:`, which `smallest()` cannot reach. crates/hearth-probe/src/dict.rs:11 embeds this dictionary with `include_str!`. No test guards the figure: crates/hearth-probe/tests/plan_fixtures.rs:118-124 asserts only the two substrings."
+    },
+    {
+      "claim": "The machine that produces the figures in wiki/install-macos.md:32-34 is a Mac.",
+      "status": "contradicted",
+      "evidence": "The blockquote sits on a page titled \"Installing on macOS\" (wiki/install-macos.md:2, 15), directly under the 8 GB requirement at lines 27-30. The only fixture that reaches `PlanError::TooSmall` is `tiny` (crates/hearth-probe/tests/plan_fixtures.rs:119-120), and crates/hearth-probe/src/machine.rs:322-331 defines `tiny` as `os: windows`, `arch: x86_64`, `gpu: None`, `unified_memory: false`. Its `unified_memory: false` is load-bearing for the 2.25 GB: an Apple Silicon machine would add `os_unified_bytes` at plan.rs:111-113. So the quoted figures come from a simulated Windows machine, and the page presents them as the macOS refusal."
+    },
+    {
+      "claim": "The link at wiki/first-run.md:192 currently resolves, and the corpus currently has zero linter errors.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md exists in the worktree. `python scripts/lint_wiki.py --summary` run from D:/Tools/Hearth-docs-wt reports \"29 pages checked, 0 errors, 196 warnings\" (88 long-paragraph, 62 bold-lead, 24 long-section, 12 reader-drift, 10 figure-pending). The T65 defect is therefore pre-emptive: it becomes a `dead-link` error only when T16 moves the file, per scripts/lint_wiki.py:370-372 and tasks/docs/tracker.md:1623."
+    },
+    {
+      "claim": "The salvage of the verbatim message into wiki/installing.md was ruled to land as prose without figures.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:223 records \"The verbatim message shown to a machine below the floor | 32-34 | wiki/installing.md | T9 | Yes, as prose rather than a blockquote, by ruling\". tasks/docs/tracker.md:236-237 records that the absorbed \"refusal message carries no figures because one of its three is contradicted by current source\". This is the tracker's record of a ruling, and it matches what wiki/installing.md:39-45 actually reads, which I opened."
+    },
+    {
+      "claim": "A repair that links to wiki/raw/install-macos.md, or that names that path in prose without linking it, is a linter error.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:361-362 emits `raw-link` for any relative link target matching `(^|/)raw/`, and lines 293-294 do the same for a `related` entry. Lines 88 and 346-354 emit `raw-in-prose` for a bare `(\\.\\./|wiki/)?raw/[\\w./-]*\\.md` reference on a line that carries no raw link. Both are constructed through `Finding(...)` without a severity argument, so both take the default `severity: str = \"error\"` at line 137, and scripts/lint_wiki.py:21 states errors fail the build."
+    },
+    {
+      "claim": "Rewriting line 192 so that it no longer begins with `[` merges it into the 188-191 paragraph for word counting.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:216 excludes from `is_prose` any stripped line matching `^(#{1,6}\\s|[-*+]\\s|\\d+\\.\\s|\\||>|\\[|!\\[)`, which line 192 matches on `\\[`. Lines 219-234 flush the paragraph buffer at the first non-prose line, so the paragraph starting at 188 is measured over lines 188-191 only: 50 words. `python scripts/lint_wiki.py --warnings` reports no long-paragraph finding at wiki/first-run.md:188 (it reports 54, 60, 75, 196, 202, 208, 293 and 314). `PARAGRAPH_WORDS` is 60 (line 129), so a replacement sentence that does not start with `[` has about ten words of headroom before a `long-paragraph` warning, which is a warning and not an error (line 384)."
+    },
+    {
+      "claim": "Naming crates/hearth-probe/src/plan.rs in wiki prose or in this page's frontmatter `sources` is precedented and not linted against.",
+      "status": "verified",
+      "evidence": "wiki/updates.md:36-38 quotes `provision.rs` verbatim in prose and names the file. wiki/getting-started.md:24-25 lists `crates/hearth-probe/src/plan.rs` and `crates/hearth-probe/dictionary.yaml` under frontmatter `sources`. scripts/lint_wiki.py:282-286 checks `sources` entries only against `ABS_PATH`, never for existence, in contrast with the `related` check at lines 288-297. wiki/first-run.md:9-11 currently lists only `first-time-user.md (unpublished research)` and `hearth-setup-flow.html (unpublished research)`."
+    },
+    {
+      "claim": "Repointing the link to wiki/installing.md without changing the verb would be honest.",
+      "status": "contradicted",
+      "evidence": "The claim requires wiki/installing.md to quote the shipped wording. wiki/installing.md:39-45 describes it in the writer's voice with no quotation and no figure, and a grep of wiki/ for `cannot run Hearth` returns no hit there, while crates/hearth-probe/src/plan.rs:87-92 shows what a quotation would have to contain. A reader following `quotes the shipped wording` to that page would find no wording."
+    }
+  ],
+  "gaps": [
+    "After T16, no page a reader can open reproduces the shipped refusal wording verbatim. wiki/install-macos.md:32-34 is the corpus's only copy and it goes to wiki/raw/, which scripts/lint_wiki.py:31-32 excludes and the publish step strips.",
+    "The corpus carries no figure-free rendering of the message, that is, the crates/hearth-probe/src/plan.rs:89-90 template shown as words with its three slots left unfilled. The T9 ruling (tasks/docs/tracker.md:236-237) removed the figures by removing the quotation, not by publishing the template.",
+    "No canonical source outside the code states the refusal wording: it exists at crates/hearth-probe/src/plan.rs:87-92 and nowhere else in this repository. There is no vendor reference, because Hearth reaches no external service.",
+    "crates/hearth-probe/tests/plan_fixtures.rs:118-124 asserts only that the message contains 'cannot run Hearth' and 'smallest model is', so any figure a page quotes has no test standing behind it."
+  ],
+  "skeleton": [],
+  "recommended_type": "decision-record",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Which of the three repairs does the author take? (A) Repoint to wiki/installing.md with the verb corrected to what that page does. (B) Replace the page pointer with a sentence that names crates/hearth-probe/src/plan.rs as where the wording lives. (C) Remove the pointer sentence and leave the decision at lines 182-191 standing alone. The evidence for and against each is set out in `notes`; this stage does not choose.",
+    "If the author takes option B, may the sentence also reproduce the wording, that is, the crates/hearth-probe/src/plan.rs:89-90 template with its three figure slots left unfilled? Quoting the template rather than an instance would satisfy the section's own argument, which is about phrasing, without importing the contradicted 2.36 GB or any other computed figure onto a decision record. It would also enlarge the edit beyond one sentence, which the dispatch bounds to the pointer sentence at line 192. The orchestrator owns that boundary, not this stage.",
+    "If the author takes option B, does the citation also go into wiki/first-run.md's frontmatter `sources` at lines 9-11, which currently names only two unpublished research files? wiki/getting-started.md:24 sets the precedent and scripts/lint_wiki.py:282-286 never validates the entry, but the dispatch bounds this task to line 192 and a frontmatter edit is outside it.",
+    "wiki/install-macos.md:34 carries a contradicted figure, 2.36 GB where crates/hearth-probe/src/dict.rs:245-247 and crates/hearth-probe/dictionary.yaml:138 produce 2.89 GB, and under T16 that page moves to wiki/raw/ with the wrong figure intact. That is T16's to answer, not T65's, but it bears on T65: it is the reason no surviving page quotes the wording, and it means the demoted file is not a trustworthy archive of the message either."
+  ],
+  "notes": "TOOLING. Bash was available and I used it for reading and searching only (grep, sed -n, wc). I ran `python scripts/lint_wiki.py --summary` and `--warnings` from D:/Tools/Hearth-docs-wt; both are read-only and their output is cited in claims 9 and 12. I ran nothing that writes, builds or starts a service. The only file I wrote is this artifact.\n\nSIZE. Kept at S, matching the dispatch, and not lowered to XS. The size table calls XS a mechanical change such as a dead link, and mechanically this is one dead link on one known line. It is not mechanical: the repair that XS describes, swapping `install-macos.md` for `installing.md` at wiki/first-run.md:192, produces a false sentence, because wiki/installing.md:39-45 describes the refusal and quotes nothing (claim 4) and no surviving page quotes it (claim 6). The author must decide what the sentence asserts, not just where it points, and one of the live options removes the sentence. One page, one line, non-mechanical: S.\n\nMODE AND TYPE. Mode `affected` and Type `Fix` agree. `recommended_type` is `decision-record`, which matches the declared `type:` at wiki/first-run.md:4 and the shape at wiki/page-types.md:156-181; the pointer sentence is not part of that shape either way, so the page type constrains the repair only through the rule at wiki/page-types.md:175-176, that a reader who stops early must still leave with the right answer. The decision at lines 182-191 already satisfies that without the pointer.\n\nWHAT THE SENTENCE IS FOR. tasks/docs/tracker.md:2937-2941 and the T3 record are worth the author's attention here: the sentence was added deliberately, on a section whose whole argument is about wording, because the paragraph above it describes the message's ingredients without showing any of them. The paragraph at 182-186 demonstrates the principle by quoting the take-turns phrasing; the refusal paragraph at 188-191 does not, and the pointer was the substitute. Removing the pointer without replacing what it did returns the section to the state a reviewer already faulted. That is context for the author's choice, not a verdict from this stage.\n\nTHE THREE OPTIONS, WITH EVIDENCE.\n\nOPTION A, repoint to wiki/installing.md and change the verb. For: the destination exists and the link resolves, so the `dead-link` error at scripts/lint_wiki.py:370-372 is cleared; wiki/installing.md is the ratified survivor and the page the salvage landed on (tasks/docs/tracker.md:223); and it carries two facts the first-run paragraph does not, that the refusal comes after the scan rather than before setup starts (wiki/installing.md:39) and that the cause is memory rather than disk space (lines 44-45). The natural anchor is `## Before you start` at wiki/installing.md:34. Against: the verb `quotes` is false there (claim 4), so it has to become something like `describes`, and once it does the sentence sends a reader to a paragraph that restates in three lines what wiki/first-run.md:188-191 has just told them. The reader gains the two extra facts and nothing about wording, which is what the section is arguing about.\n\nOPTION B, name the source rather than a page. For: crates/hearth-probe/src/plan.rs:87-92 is where the wording actually is (claim 3), it is the highest authority available, and it does not move when a page is retired, so the pointer cannot break again. There is corpus precedent for quoting and naming source in prose at wiki/updates.md:36-38 and for citing this exact file in frontmatter at wiki/getting-started.md:24. No linter rule touches it. Against: wiki/first-run.md is a reader-facing record, and a reader who is not looking at the repository cannot follow the pointer to anything. See the second and third open questions for the two boundary calls this option raises.\n\nOPTION C, remove the pointer sentence. For: it is the only option with no residual claim to defend; the decision at lines 182-191 stands complete without it, and nothing in the decision-record shape requires it. Mechanically it is clean: scripts/lint_wiki.py:211-216 already excludes line 192 from paragraph accounting because it begins with `[`, so deleting it changes no measured count and the 188-191 paragraph stays at 50 words. Against: it loses the demonstration the section wants and that a reviewer previously required, and the corpus is then silent on where the wording can be seen at all (gap 1).\n\nMECHANICAL CONSTRAINT ON A AND B. Both replace line 192 with a sentence. If the new sentence still begins with `[`, it stays outside paragraph accounting as today. If it begins with any other character, scripts/lint_wiki.py:219-234 merges it into the 188-191 paragraph, whose measured length is 50 words against a `PARAGRAPH_WORDS` threshold of 60 (line 129). That leaves about ten words before a `long-paragraph` warning, which is a warning and not a build failure (line 384). Blank-separating the new sentence avoids the question entirely.\n\nFORBIDDEN DESTINATION. No repair may link or name wiki/raw/install-macos.md. Both forms are errors: `raw-link` at scripts/lint_wiki.py:361-362 and `raw-in-prose` at lines 88 and 353-354, each constructed at the default severity `error` (line 137).\n\nOUT OF SCOPE, RECORDED. The other inbound references to install-macos.md are owned elsewhere and are not this task's: wiki/_index.md:31 (T11), wiki/whats-not-here.md:23 (T12), wiki/updates.md:8 and 105 (T13), wiki/releasing.md:9 (T14), wiki/getting-started.md:8 (T64), and the three `sources` entries at wiki/clients/macos.md:11, wiki/clients/windows.md:13 and wiki/installing.md:15 (T16 itself). Per tasks/docs/tracker.md:1620-1624 I confirmed each of these locations by grep but opened only the ones bearing on this claim. `affected_docs[]` carries wiki/first-run.md alone because no other page changes under any of the three options.\n\nKNOWN EVIDENCE. Every location the dispatch cited resolved and read as described: wiki/first-run.md:4 is `type: decision-record`, 182-186 and 188-191 are the decision, 192 is the pointer sentence, and it is the file's only `install-macos` match. The dispatch's background on the T9 salvage ruling also resolved, at tasks/docs/tracker.md:223 and 236-237."
+}

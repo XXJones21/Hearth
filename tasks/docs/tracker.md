@@ -8,7 +8,7 @@ updated: 2026-09-04
 
 **Corpus root:** wiki/
 **Date:** 2026-09-03
-**Updated:** 2026-09-04 (Phase B run: T6 through T9, all four Complete)
+**Updated:** 2026-09-04 (Phase C run: T11 through T14, plus T64 and T65)
 
 The install cluster consolidation, the first-run split, and the documentation
 defects the `graph` pass verified against the source tree. The decision record
@@ -30,12 +30,12 @@ written.
 | T8 | Write the reader-facing first-run walkthrough | Add | how-to | M | High | B | Complete | 8 |
 | T9 | Give Installing Hearth a how-to spine and absorb the macOS salvage | Restructure | how-to | M | High | B | Complete | 9 |
 | T10 | Write the Windows install procedure | Add | how-to | L | High | D | Backlog | |
-| T11 | Update the wiki index for the retirement and the new how-to | Fix | landing | S | High | C | Backlog | |
-| T12 | Restate the Windows gap as steps inside Installing Hearth | Fix | landing | S | High | C | Backlog | |
-| T13 | Redirect the Installing on macOS link on Updating an install | Fix | concept | S | High | C | Backlog | |
-| T14 | Drop install-macos.md from the Building a Hearth release frontmatter | Fix | how-to | XS | High | C | Backlog | |
+| T11 | Update the wiki index for the retirement and the new how-to | Fix | landing | S | High | C | Complete | 9 |
+| T12 | Restate the Windows gap as steps inside Installing Hearth | Fix | landing | S | High | C | Complete | 7 |
+| T13 | Redirect the Installing on macOS link on Updating an install | Fix | concept | S | High | C | Complete | 5 |
+| T14 | Drop install-macos.md from the Building a Hearth release frontmatter | Fix | how-to | XS | High | C | Complete | |
 | T15 | Extract the how-to and reference material from What the desktop app is | Restructure | platform-overview | L | High | D | Backlog | |
-| T16 | Retire Installing on macOS once every salvage task is Complete | Consolidate | how-to | S | High | E | Backlog | |
+| T16 | Demote Installing on macOS to wiki/raw/ and repoint its three sources citations | Consolidate | how-to | S | High | E | Backlog | |
 | T17 | Correct the install root and the coexistence claim on Build pipeline | Fix | how-to | S | Medium | A | Backlog | |
 | T18 | Correct the Windows install root on Native runtime | Fix | decision-record | S | Medium | A | Backlog | |
 | T19 | Correct the Hearth home folder path on The second brain | Fix | concept | S | Medium | A | Backlog | |
@@ -83,6 +83,22 @@ written.
 | T61 | Capture the persona-in-use figure for Getting started | Add | concept | XS | High | | Backlog | |
 | T62 | Capture the handover figure for Meeting your persona | Add | how-to | XS | High | | Backlog | |
 | T63 | The persona name length limit is off by one at each end | Fix | (product, not a page) | XS | High | | Backlog | |
+| T64 | Drop install-macos.md from the Getting started frontmatter | Fix | concept | XS | High | C | Complete | |
+| T65 | Redirect the shipped-wording sentence in the First run record | Fix | decision-record | S | High | C | Complete | 4 |
+| T66 | Correct the envs\voice row on the two Windows install-root trees | Fix | (two pages) | S | High | | Backlog | |
+| T67 | Split or retype Updating an install, which is four registers on one page | Restructure | concept | L | High | | Backlog | |
+| T68 | Two backticked-filename links on Updating an install | Fix | concept | XS | High | | Backlog | |
+| T69 | No page states which voice engine runs on which platform | Add | (undecided) | M | High | | Backlog | |
+| T70 | The linter has no index-membership check, so a page can publish with no sidebar entry | Add | (tooling, not a page) | S | High | | Backlog | |
+| T71 | Decide whether a reader-facing page reproduces the shipped refusal wording | Fix | (undecided) | S | High | | Backlog | |
+| T72 | Settle which index section a decision record belongs in | Fix | landing | S | Medium | | Backlog | |
+| T73 | Page types and the publish script disagree about the once-only rule | Fix | reference | XS | High | | Backlog | |
+| T74 | Compress What is not here to routing and retitle its two headings | Restructure | landing | S | High | | Backlog | |
+| T75 | An unverifiable quotation on Updating an install | Fix | concept | S | High | | Backlog | |
+| T76 | Four settled questions still presented as open on Build pipeline | Fix | how-to | S | High | | Backlog | |
+| T77 | State whether an edit bumps last_reviewed | Add | (process, not a page) | XS | High | | Backlog | |
+| T78 | The install-root tree in the First run record marks built directories as planned | Fix | decision-record | S | High | | Backlog | |
+| T79 | No decision record says what would reopen its decisions | Add | decision-record | M | High | | Backlog | |
 
 ## The consolidation verdict
 
@@ -248,10 +264,12 @@ side-by-side requirements written for a reader who has not chosen a platform.
 Revising that page to keep removes the item: the content stays where it is.
 
 Every inbound reference to `install-macos.md` must be redirected before T16
-runs. The full set, from a corpus grep: `wiki/_index.md:31`,
-`wiki/installing.md:7,14,27,132`, `wiki/whats-not-here.md:23`,
-`wiki/clients/windows.md:10,14,233`, `wiki/releasing.md:9`,
-`wiki/updates.md:8,105`, `wiki/clients/macos.md:7,11,29,89,127`.
+runs. The set above was measured before Phase A. Re-measured on 2026-09-04 at
+the start of the Phase C run, ten survive rather than seventeen: Phases A and B
+cleared seven as a side effect of their own edits. The current set, its three
+kinds, and which of them actually block the retirement are tabulated on T16.
+Phase C clears the seven that block; the three `sources` entries are T16's own
+work under the demote decision recorded there.
 
 ## Phases
 
@@ -262,9 +280,9 @@ appears twice in one phase.
 | :-- | :-- | :-- |
 | A | T1, T2, T3, T4, T5 | Correct every verified defect on a page that survives. Nothing here depends on a verdict. |
 | B | T6, T7, T8, T9 | Reshape the survivors and land the salvage. |
-| C | T11, T12, T13, T14 | Redirect every inbound reference and update the registers. |
+| C | T11, T12, T13, T14, T64, T65 | Redirect every inbound reference that blocks the retirement, and update the registers. Six disjoint pages. T64 and T65 were opened on the run itself, when measuring the references found two gate-blocking ones that no row owned. |
 | D | T10, T15 | The blocked Windows procedure, and the Windows page split. |
-| E | T16 | Retire `wiki/install-macos.md`. Opens only when A through C read `Complete`. |
+| E | T16 | Demote `wiki/install-macos.md` to `wiki/raw/` and repoint its three `sources` citations. Its Phase C gate is now clear; see The retirement gate, measured. |
 | F | T26, T27, T29, T30 | The pages the Phase A research stage found that no row owned. Four disjoint targets: `wiki/backend/tool-catalog.md`, `wiki/features/voice.md`, `wiki/clients/windows.md` and `wiki/installing.md`. |
 | G | T28 | `wiki/first-run.md` again, after T3. It is alone in its phase for one reason: T3 owns the same page in Phase A, and a phase never contains a page twice. |
 
@@ -283,6 +301,16 @@ a phase cannot be assigned before the target is settled.
 T25, T31 and T32 carry no phase either. T25 and T31 are product defects, so no
 writer stage runs on them at all. T32 has no settled target path, and a phase
 groups tasks by the page they touch.
+
+T66 through T79 carry no phase. Every one came out of the Phase C stages rather
+than out of a plan, and a phase groups tasks by the page they touch, so none can
+be assigned until its target is settled. Six of them state that plainly: T69,
+T71, T72 and T79 have no settled target page, T66 and T79 each touch more than
+one page and split after Research, and T70, T73 and T77 are tooling or process
+work that no writer stage runs on. Two ordering constraints are already known and
+recorded on the rows themselves: T76 and T17 both edit
+`wiki/backend/build-pipeline.md` and must not share a phase, and T70 must not run
+before T73 settles the exception any index check would have to encode.
 
 Phases F and G were opened by the Phase A run of T2 through T5. Every task in
 them came out of a research stage rather than out of the `graph` pass, which is
@@ -398,6 +426,82 @@ are T47, T48, T49, T50, T61 and T62.
 phase, because the phase added a page and moved content between pages, which is
 where a broken cross-reference or a duplicate basename surfaces. It rendered 29
 pages plus the sidebar and reported nothing.
+
+Updated after the Phase C run of 2026-09-04: T11 through T14, T64 and T65. Run
+twice again, once after the authors and once after the reviewers.
+
+| When | Pages | Errors | Warnings | Figures pending |
+| :-- | :-- | :-- | :-- | :-- |
+| After the six authors | 29 | 0 | 196 | 10 |
+| After the four reviewers | 29 | 0 | 196 | 10 |
+
+Zero errors at both points, which is the gate. This is the first phase in which
+the two passes returned identical numbers, including the per-rule breakdown: 88
+`long-paragraph`, 62 `bold-lead`, 24 `long-section`, 12 `reader-drift` and 10
+`figure-pending`. That is what a phase of frontmatter and single-sentence
+redirects looks like against a linter that measures prose. No new figures were
+requested, so no figure task was opened.
+
+`python scripts/publish_wiki.py --out <temp>` was run once at the end. Exit code
+0, 29 pages plus `_Sidebar` rendered, nothing else printed. The subagent that ran
+it confirms `install-macos.md` is still among the rendered pages, which is
+correct: Phase C clears the references and Phase E does the retirement.
+
+None of the six authors and none of the four reviewers could execute commands.
+Every one of them said so explicitly and none claimed a linter run it had not
+made. Several read `scripts/lint_wiki.py` as a file to establish what it owns so
+that they did not report findings the linter already covers, and two hand-counted
+paragraphs against the 60-word limit and asked that the counts not be read as a
+linter run. All three tooling passes on this phase, both linter runs and the
+publish, were made by a separate subagent with a shell.
+
+### The retirement gate, measured
+
+The gate T16 waits on is that no inbound reference to `wiki/install-macos.md`
+remains that a reader or the linter can follow. Measured three times on
+2026-09-04 with
+`grep -rn 'install-macos' wiki/ --include=*.md`, excluding `wiki/raw/` and the
+page itself:
+
+| When | References | Blocking |
+| :-- | :-- | :-- |
+| Before Phase C | 10 | 7 |
+| After the six authors | 3 | 0 |
+| After the four reviewers | 3 | 0 |
+
+All seven blocking references are gone: the three `related` entries that would
+have published as broken See also links, and the four body links that would have
+been `dead-link` errors. The three that survive are the frontmatter `sources`
+entries at wiki/clients/macos.md:11, wiki/clients/windows.md:13 and
+wiki/installing.md:15. The verifying subagent opened each file and confirmed the
+classification from the frontmatter block rather than inferring it from the line,
+and confirmed that none of the three pages links a reader to the retiring page in
+prose. `scripts/lint_wiki.py:284-286` never resolves a `sources` entry, so none
+of the three fails the gate, and all three are repointed at
+`wiki/raw/install-macos.md` by T16 itself under the demote decision recorded on
+that row.
+
+**T16 is unblocked by Phase C.** Its remaining precondition is the salvage, which
+the Phase B run recorded as landed, plus T15, which does not block it, and the
+two rows Phase C added to its gate list, T64 and T65, both now `Complete`.
+
+Phase C opened sixteen new rows, T64 through T79. Two of those, T64 and T65, were
+gate work the phase itself needed: measuring the inbound references found two
+that block the retirement and that no row owned, which is the argument for
+measuring a gate rather than reading a list of it. The other fourteen came out of
+the research, author and review stages, and eleven of the fourteen are findings a
+reviewer deferred or blocked rather than defects the phase introduced.
+
+One pattern is worth recording. The four Phase C tasks were sized against a
+tracker written before Phases A and B ran, and three of the four premises had
+moved: seven inbound references had already been cleared, all three other
+Windows-guide announcements had been removed, and `### Windows` on
+`wiki/installing.md` had moved from lines 48-56 to 69-89. Nothing was broken by
+this, because each task's research stage re-measured before its author acted and
+one of them corrected the tracker's own stale citation. But the lesson is the one
+integrity rule 2 already states from a different direction: a file read in an
+earlier session is not a read, and that applies to a task row as much as to a
+page.
 
 ## Reconciling the research artifact
 
@@ -1370,7 +1474,7 @@ reader following the journey reaches step one and stops.
 - Type: Add
 - Scope: L
 - Confidence: High
-- Sizing evidence: wiki/installing.md, read in full this run. `### Windows` at lines 48-56 states requirements and then hands off to a platform overview, with no numbered step. wiki/install-macos.md:17-19 states that everything on the macOS page was measured on the machine it describes, and no equivalent Windows record exists in the corpus. Sized L because the page it lands on is the corpus's install spine and the content is net-new rather than moved.
+- Sizing evidence: wiki/installing.md. The original read located `### Windows` at lines 48-56; after T9 that range is inside `### macOS`, and the T12 research stage re-measured on 2026-09-04: the page now carries two `### Windows` sections, requirements and video-memory bands at lines 69-89 and the install-root tree at lines 217-238, and no numbered Windows step anywhere in its 295 lines. The substantive finding holds at the new lines. wiki/install-macos.md:17-19 states that everything on the macOS page was measured on the machine it describes, and no equivalent Windows record exists in the corpus. Sized L because the page it lands on is the corpus's install spine and the content is net-new rather than moved.
 - Sources of truth: (Research fills)
 - Docs: (Research fills)
 - Artifacts:
@@ -1396,31 +1500,92 @@ It is the nav every retirement in this cluster edits.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Fix
 - Scope: S
 - Confidence: High
-- Sizing evidence: wiki/_index.md, read in full this run. Line 31 lists Installing on macOS under `## Getting started`, alongside line 29 Getting started and line 30 Installing Hearth. `## Meeting your persona` at line 34 lists First run at line 41. Line 7 names getting-started.md in the frontmatter `related` list.
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/_index.md, re-read in full on the Phase C run of 2026-09-04. Line 31 lists Installing on macOS under `## Getting started`, alongside line 29 Getting started, line 30 Installing Hearth and line 32 Updating an install. The section prose runs at lines 24-27. `## Meeting your persona` at line 34 has prose at 36-39 and lists First run at 41, Personas at 42, The persona face at 43 and Voice at 44; wiki/meeting-your-persona.md exists on disk and appears nowhere in this file. Line 7 names getting-started.md in the frontmatter `related` list.
+- Sources of truth:
+  - source: scripts/publish_wiki.py:172-195, covers that `sidebar()` builds the left rail only from `## ` headings and `- [text](target)` list items inside wiki/_index.md, so index membership decides whether a published page has a rail entry
+  - source: scripts/publish_wiki.py:46, 63-76, 198-210, covers that `collect()` publishes every wiki/**/*.md outside wiki/raw/ regardless of index membership, so a page missing from the index still publishes
+  - source: scripts/publish_wiki.py:189-194, covers that the rail opens with a hardcoded Home entry and closes with a hardcoded What is not here entry, both outside the section loop
+  - source: scripts/publish_wiki.py:163-166, covers that `render()` suppresses the See also block for _index.md, so this page's own frontmatter `related` list never reaches a reader
+  - source: scripts/lint_wiki.py:256-408, covers the complete set of checks, and establishes that there is no index-membership check and no once-and-only-once check
+  - source: scripts/lint_wiki.py:31-32, 42-46, 443-446, covers that wiki/raw/ is excluded from linting and that 29 pages are the checked set
+  - source: crates/hearth-probe/src/plan.rs:79-91, 155, 165-166, 274-306, covers that the install refusal is computed from a memory budget against the smallest tier, with no literal 8 GB floor constant, which is what the index's machine sentence has to hold against
+  - canonical: wiki/page-types.md:67-94, covers the landing shape: routing only, prose under each heading before its links, human titles as link text, every published page exactly once in exactly one section, and section order as the reading order
+  - canonical: wiki/page-types.md:36-46, 254-266, covers the type-to-reader-verb table, which is how a decision record is distinguished from a how-to
+  - contextual: tasks/docs/tracker.md:208-210, covers the ratified placement of wiki/meeting-your-persona.md as the first entry in the section it takes its name from
+  - contextual: wiki/meeting-your-persona.md:1-29, 102-122, 124-168, 181-193, covers what the new page is: `type: how-to`, the interview, the handover, the second-brain beat, and its closing pointer naming First run as the design record
+  - contextual: wiki/first-run.md:1-34, covers `type: decision-record` at line 4 and an abstract written around a seventeen-screen mockup
+  - contextual: wiki/installing.md:23-32, 47-89, 240-260, covers what the install how-to carries after T9, including a by-hand update procedure
+  - contextual: wiki/getting-started.md:1-31, 95-102, covers `type: concept` after T7 and its own route to Meeting your persona
+  - contextual: wiki/updates.md:1-17, covers `type: concept` and an abstract stating that nothing in it is built yet
+  - contextual: wiki/whats-not-here.md:1-25, covers the corpus's second landing page, reached from wiki/_index.md:95 in prose rather than from a section list
+- Docs:
+  - wiki/_index.md, `## Getting started` (the prose at lines 24-27 and the link at line 31) and `## Meeting your persona` (the prose at lines 36-39 and the link list at lines 41-44)
 - Artifacts:
   - Research: tasks/docs/artifacts/T11.research.json
+  - Author: tasks/docs/artifacts/T11.author.json, wrote wiki/_index.md
+  - Review: tasks/docs/artifacts/T11.review.json, verdict PASS, score 7 to 9
+- Review checklist, and where each entry went:
+  - F1 the page contradicted itself about where a product reader stops reading, F2 the update clause routed a reader to the page that says updating is not built while the working by-hand steps sit elsewhere, F3 a stale `last_reviewed`: all three `done` by the reviewer.
+  - C1 `deferred`, `needs: restructure`, owner orchestrator: whether wiki/first-run.md, a decision record, belongs in the reader-facing `## Meeting your persona` section. No owner existed. Opened as T72. The reviewer adds that the research stage marked the underlying question `unverifiable`, because no page states which page types may sit in which index section, so it needs a rule before it needs an edit.
+  - C2 `deferred`, owner orchestrator: wiki/page-types.md:93 and scripts/publish_wiki.py:189-194 disagree, because the rule says every published page appears exactly once in exactly one section while the publisher hardcodes the What is not here rail entry outside the section loop, so obeying the rule literally yields two rail entries. No owner existed. Opened as T73.
+- Objective gaps recorded by the reviewer, which derived four because neither the page nor the research artifact records any:
+  - "Find the page that answers your question about Hearth" is taught only in part. The reviewer reports 27 of the 28 other published pages reachable, and wiki/install-macos.md unreachable, since it still publishes with no index entry and therefore no rail entry. Owner T16. This is the ratified transient rather than a new task, and it closes when T16 lands.
+  - The other three objectives are taught, all at remember or understand, which the reviewer records as the correct level for a landing page, so there is no wrong-type signal.
+  - The reviewer reports no content on the page serving no objective.
 - Open questions:
-  - None.
+  - "Should the `## Meeting your persona` prose at wiki/_index.md:36-39 be rewritten as a four-part arc that names the second brain, or held at three parts with wiki/meeting-your-persona.md introduced separately? wiki/first-run.md:24-29 makes the second brain the third beat and wiki/meeting-your-persona.md devotes two of its seven sections to it (lines 124 and 146), but wiki/_index.md:53 already lists The second brain under `## Living with a house`, and wiki/page-types.md:93 forbids a page appearing twice."
+  - "Does wiki/first-run.md still belong in the reader-facing `## Meeting your persona` section once the how-to sits above it? It declares `type: decision-record` at line 4 and its abstract at lines 15-17 is written around a seventeen-screen mockup, while wiki/_index.md:84-86 describes `## Looking under the hood` as the engineering record and says a reader who came to use Hearth can stop above that line. Moving it changes the reading order, which the task statement does not ask for, and tasks/docs/tracker.md:208-210 assumes it stays."
+  - "If the `## Getting started` prose at wiki/_index.md:24-27 is restated for three pages, what does it say wiki/updates.md is for? updates.md:15-17 states nothing in it is built yet, while wiki/installing.md:247-260 now carries the by-hand update procedure that the index prose clause \"how an existing install becomes a newer one\" currently sends a reader to updates.md for."
+  - "Is the transient orphan acceptable? Between T11 landing and T16 running, wiki/install-macos.md still publishes (scripts/publish_wiki.py:63-76) with no index entry, no rail entry, and, once T12, T13, T64, T14 and T65 also land, no inbound reference at all except the three `sources` entries the linter never resolves. tasks/docs/tracker.md:271 separates these into Phase C and Phase E deliberately, so the question is whether the two should land in one change rather than whether the ordering is wrong."
+  - "Should wiki/meeting-your-persona.md be added to the index's frontmatter `related` list at wiki/_index.md:6-9? It would change nothing a reader sees, because scripts/publish_wiki.py:163-166 suppresses the See also block on _index.md, but the list is the only other place in the file where the index names a page, and it currently names getting-started.md, developing.md and whats-not-here.md."
+  - Where should a reader who wants a newer build today be sent? The author reported that the index now states honestly that updating in place is not built, and does not route the reader to the by-hand steps, because the landing shape holds each section to one or two sentences and the paragraph had four words of headroom under the 60-word limit. The author reported that the reconciliation belongs on a page this task could not edit. Opened as T67.
+  - Does anything enforce the rule that every published page appears exactly once in exactly one index section? The author reported that scripts/lint_wiki.py has no index-membership check and no once-and-only-once check, and that this is how wiki/meeting-your-persona.md came to publish with no rail entry and produce zero findings. The author reported fixing the one instance rather than the class. Opened as T70.
+  - Was the linter run against this edit? The author reported that its tool set is Read, Grep, Write and Edit with no shell, that it hand-counted both edited paragraphs at 56 and 57 words against a 60-word limit, and that a hand check is not a linter run. See the Phase C verification note.
+- Orchestrator rulings, so the author is not left choosing:
+  - Placement is settled: wiki/meeting-your-persona.md is the first entry in `## Meeting your persona`, ahead of First run. That is what tasks/docs/tracker.md:208-210 ratified, and the corpus agrees independently, since wiki/installing.md and wiki/getting-started.md both route a reader to the how-to rather than to the record.
+  - Hold the section prose to the arc it already describes and introduce the walkthrough inside it. Do not add a link to The second brain: it is listed under `## Living with a house` and wiki/page-types.md:93 forbids a page appearing twice. Naming the second brain as a beat in prose is not a link and is allowed.
+  - wiki/first-run.md stays where it is. Moving a page between sections changes the reading order, which is a restructure and is not what this task is. The question stays open above.
+  - The transient orphan is acceptable and is the design. Phase C and Phase E are separate because integrity rule 9 requires the salvage and the redirects to land before the irreversible step, and a page that publishes unreferenced for one phase is a smaller cost than a retirement that races its own redirects.
+  - Do not touch the frontmatter `related` list. The See also block is suppressed on this page, so the entry would change nothing a reader sees, and this task is about the navigation surface.
+  - Describe wiki/updates.md by what that page currently says it is. The overlap between it and wiki/installing.md's by-hand update procedure is real and is opened as T67 rather than settled inside a prose rewrite here.
 
 ##### Draft
 
 Remove line 31. Line 29 stays, because `wiki/getting-started.md` keeps under the
 revised verdict, and the prose under `## Getting started` at lines 24-27 should
 say what each of the three remaining pages is for now that the set has changed.
+The research stage reports that this prose already names three coverage clauses
+against four links, and that `install-macos.md` is the link it never accounted
+for, so the removal brings the prose and the list into agreement rather than
+forcing a rewrite.
 
-Add `wiki/meeting-your-persona.md` to `## Meeting your persona`, before or after
-First run depending on which a reader wants first. `wiki/page-types.md:82-86`
-requires prose under each heading before its links, and
-`wiki/page-types.md:93-94` requires every published page to appear exactly once
-and the section order to be the reading order.
+Add `wiki/meeting-your-persona.md` to `## Meeting your persona` as the first
+entry. `wiki/page-types.md:82-86` requires prose under each heading before its
+links, and `wiki/page-types.md:93-94` requires every published page to appear
+exactly once and the section order to be the reading order.
+
+This is the only navigation surface: `scripts/publish_wiki.py:172-195` builds
+the sidebar rail from this file alone, which is why a page absent from it
+publishes with no rail entry.
 
 Runs after T7 and T8 so the pages it names exist in their final shape.
+
+Notes from the author, on where the delivered change departed from the direction
+above:
+
+- The author reported rewriting the third `## Getting started` clause rather than
+  leaving the prose alone. The reason given was that the clause was the first half
+  of wiki/updates.md's own abstract with its second half dropped, so it promised a
+  route that page cannot give, and that the direction asked for the page to be
+  described by what it currently says it is.
+- The author reported recasting the second `## Meeting your persona` sentence
+  rather than appending a clause to it. The reason given was that the paragraph
+  already ran 57 words against a 60-word limit, so a fifth role could not be
+  appended without introducing a warning on a page that carries none.
 
 ### T12: Restate the Windows gap as steps inside Installing Hearth
 
@@ -1430,25 +1595,71 @@ is a section, and the page it would mirror will not exist.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Fix
 - Scope: S
 - Confidence: High
-- Sizing evidence: wiki/whats-not-here.md, read in full this run. Lines 23-25 read "**Installing on Windows.** [Installing on macOS](install-macos.md) is the shape it will take. What differs is the numbers and the CUDA voice build. Until it exists, [Hearth on Windows](clients/windows.md) covers what the app does."
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/whats-not-here.md, re-read in full on the Phase C run of 2026-09-04. Lines 23-25 still read "**Installing on Windows.** [Installing on macOS](install-macos.md) is the shape it will take. What differs is the numbers and the CUDA voice build. Until it exists, [Hearth on Windows](clients/windows.md) covers what the app does." The page is `type: landing` at line 4, which is where this task's `Shape` comes from, and it is the target: wiki/installing.md is `type: how-to` and is not this task's page. A corpus grep on the Phase C run returns this as the only surviving Windows-guide announcement in the published wiki.
+- Sources of truth:
+  - source: crates/hearth-probe/dictionary.yaml:91-102, covers which platforms run which voice engine. Line 102 reads `cpp_platforms: [macos, windows]`, and the comment at 95-101 records that Windows measured omnivoice.cpp on CUDA on 2026-08-08 and moved to it, leaving only Linux on the torch engine
+  - source: crates/hearth-probe/src/dict.rs:44-64, covers `Voice::uses_cpp(os)` matching the running OS against `cpp_platforms`
+  - source: desktop-client/src-tauri/src/provision.rs:234-237 and 469-500, covers what an install actually does about the voice: lines 476-479 short-circuit the whole venv, torch and engine chain on a cpp platform, and lines 490-496 reach `torch_index_cuda` only on the non-cpp path
+  - source: scripts/build_omnivoice.sh:10-12 and 51-55, covers that `-DGGML_CUDA=ON` on Windows is a build-machine cmake flag, that the build machine produces the binary and pack_backend.sh ships it, and that nothing is cloned or compiled on a user's machine
+  - source: crates/hearth-probe/dictionary.yaml:37-54, covers the CUDA material a Windows install does fetch: `windows_cuda` at 47-51 lists the llama.cpp b10358 CUDA 12.4 build and the cudart redistributable, which belong to the inference engine rather than to the voice
+  - source: scripts/lint_wiki.py:288-297 and 356-372, covers what the linter owns for this edit: `related` entries must resolve, body links must resolve, and any link matching a raw/ path is an error
+  - source: scripts/lint_wiki.py:211-216 and 380-386, covers that `is_prose` excludes numbered list items, so entry 1 is exempt from the long-paragraph and bold-lead warnings however it is rewritten
+  - canonical: wiki/page-types.md:67-94, covers the landing shape this page keeps, including the rule at 91-92 that a landing page carries no procedures and nothing a reader can act on
+  - contextual: wiki/installing.md:69-89 and 217-238, covers what the corpus currently says about installing on Windows and what its two `### Windows` sections contain
+  - contextual: wiki/clients/windows.md:27-29 and 241-246, covers whether entry 1's fallback pointer still holds: the page routes the install to ../installing.md twice
+- Docs:
+  - wiki/whats-not-here.md, entry 1 under `## Pages that are not written yet` at lines 23-25
 - Artifacts:
   - Research: tasks/docs/artifacts/T12.research.json
+  - Author: tasks/docs/artifacts/T12.author.json, wrote wiki/whats-not-here.md
+  - Review: tasks/docs/artifacts/T12.review.json, verdict NEEDS_WORK, score 6 to 7
+- Review checklist, and where each entry went:
+  - F3 the first section lacked the orienting sentence its type requires, F4 the causal chain in the rewritten entry: both `done` by the reviewer.
+  - F1 `deferred`, `needs: restructure`, no owner existed: the reviewer reports that `## Material that never publishes` spends four of its six sentences teaching a contributor how to cite a raw/ source and what the linter rejects, on a page whose type forbids anything a reader can act on, and that it links wiki/developing.md where that material already lives. Opened as T74.
+  - F2 `deferred`, `needs: restructure`, no owner existed: both H2s are noun headings where the type asks for gerunds, and the abstract needs aligning. Opened as T74 alongside F1, since both are the same page's shape.
+  - The reviewer confirms no entry is `blocked`, so nothing on this page needs a fact research has to establish.
+- Objective gaps recorded by the reviewer, which derived four because neither the page nor the research artifact records any:
+  - Three objectives are taught and sit at remember and understand, which the reviewer records as the levels a landing page takes, so nothing supports a wrong-type finding.
+  - The reviewer reports content serving no objective at lines 40-45, which teaches a contributor at apply level on a page whose type caps it at understand, and which wiki/developing.md already owns. Recorded as F1 and carried to T74 rather than charged twice.
+  - The reviewer separately reports that this page records no objectives at all and recommends giving it some, which is the same finding T55 already owns corpus-wide.
+- Independent verification the reviewer performed, recorded because it is what the task turned on: the reviewer confirmed at source that the removed CUDA voice claim was genuinely false and is genuinely gone, citing crates/hearth-probe/dictionary.yaml:102 and desktop-client/src-tauri/src/provision.rs:476-479, and confirmed that wiki/installing.md:69-89 does already state the Windows requirements the rewritten entry credits it with.
 - Open questions:
-  - None.
+  - "Does the heading `## Pages that are not written yet` at wiki/whats-not-here.md:21, and the abstract at line 14 that also says 'pages', still fit a list whose first item is now a missing section inside an existing page and whose second item is still a missing page? Entry 2 at lines 26-28 genuinely describes a page, so the heading cannot simply be reworded to 'sections'. The author has to choose between a wider heading that covers both, and leaving the heading as it stands and letting entry 1 carry the distinction in its own words."
+  - "Should the rewritten entry state why the Windows steps are missing, given that the reason is a recorded standard rather than an oversight? tasks/docs/tracker.md:1383 blocks T10 because nobody has performed and recorded a Windows install end to end, and wiki/install-macos.md:17-19 is the standard that makes an estimate unpublishable. Naming that reason tells a reader the gap is deliberate, which is what line 17 of this page promises the register is for; not naming it keeps the entry to one screen, which is what wiki/page-types.md:69-70 asks of a landing page."
+  - "What replaces 'the CUDA voice build' in the entry's statement of what differs, if anything does? Source contradicts the current clause: crates/hearth-probe/dictionary.yaml:102 puts Windows on omnivoice.cpp alongside macOS, and desktop-client/src-tauri/src/provision.rs:476-479 skips the torch and CUDA chain entirely on both. The genuine install-time difference in the same area is the inference engine, where crates/hearth-probe/dictionary.yaml:47-51 fetches an accelerator-matched CUDA or Vulkan build against a single Metal tarball at 44-46. Whether a landing entry should name any technical difference at all, rather than simply pointing at the page where the steps will land, is a judgement wiki/page-types.md:91-92 bears on and does not settle."
+  - "Who owns correcting the `envs\\voice\\` row on the Windows install-root trees? wiki/installing.md:226 and wiki/clients/windows.md:165 both describe it as the voice engine's own environment installed at first run, and desktop-client/src-tauri/src/provision.rs:476-479 never creates it on Windows because crates/hearth-probe/dictionary.yaml:102 puts windows in `cpp_platforms`. This is not T12's page and no row in tasks/docs/tracker.md appears to own it; it likely wants a new row against wiki/installing.md and wiki/clients/windows.md."
+  - "Does the tracker's T10 sizing evidence want correcting before T10 runs? tasks/docs/tracker.md:1377 locates `### Windows` at wiki/installing.md lines 48-56, and after T9 that range is inside `### macOS`; the Windows section is now 69-89. The substantive finding, that it carries no numbered step, still holds at the new lines. This stage does not write the tracker."
+  - Where should the corpus state what a Windows install actually differs by at install time? The author reported that dropping the false CUDA voice clause leaves the page naming no difference at all, that the genuine difference is the accelerator-matched inference engine download against the single macOS Metal tarball, and that it wants a home on a page this task could not edit. Opened as T69.
+  - Does any page state which voice engine runs on which platform? The author reported that none does, and that removing the wrong clause corrected this page without stating the true fact anywhere. Opened as T69.
+  - Was the linter run against this edit? The author reported that its tool set is Read, Grep, Write and Edit with no shell, that it could not run the linter and makes no linter claim, and that it checked the rules the edit touches by reading the script instead. See the Phase C verification note.
+- Orchestrator rulings, so the author is not left choosing:
+  - Leave the heading at line 21 and the abstract at line 14 as they stand, and let entry 1 carry the distinction in its own words. Rewriting a landing page's heading to cover two kinds of gap is a restructure, and this is a corrections task; entry 2 is still a page, so the heading is not wrong, only less precise than it was.
+  - State the reason in one clause. Line 17 of this page promises the register exists so a reader knows a gap is known rather than overlooked, and a gap that is deliberate reads differently from one that is neglect. One clause keeps the entry inside the screen the landing shape asks for.
+  - Drop the "CUDA voice build" clause rather than replacing it. It is contradicted by source, so it cannot stay, and the inference-engine difference that would replace it is detail a reader can act on, which wiki/page-types.md:91-92 keeps off a landing page. The entry routes to the page where the steps will land; it does not teach the difference.
+  - The `envs\\voice\\` row is not T12's and is opened as T66 against both pages that carry it.
+  - The T10 sizing evidence is corrected by the orchestrator on this run. The researcher was right to flag it and right not to write it.
 
 ##### Draft
 
 Rewrite entry 1 so the gap is the Windows steps inside
 [Installing Hearth](installing.md), not a separate page, and so it stops naming
-`install-macos.md` as the shape. This is the entry that closes when T10 lands,
-and it is the only place in the corpus that should announce the gap at all:
-T2 and T4 remove the other three announcements.
+`install-macos.md` as the shape. This is the entry that closes when T10 lands.
+
+It is now the only place in the published corpus that announces this gap at all.
+An earlier version of this draft said T2 and T4 would remove the other three
+announcements; they did, in Phases A and B, and a corpus grep on 2026-09-04
+confirms none survives. So the entry carries the whole weight of telling a
+reader the gap is known.
+
+Notes from the author: it reported no departure from the direction. The edit is
+confined to entry 1, and the author reported that the heading at line 21, the
+abstract at line 14, entry 2, the `## Material that never publishes` section and
+the frontmatter are byte-identical to how they were found, as the rulings above
+required.
 
 ### T13: Redirect the Installing on macOS link on Updating an install
 
@@ -1457,23 +1668,64 @@ Both break when that page is retired.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Fix
 - Scope: S
 - Confidence: High
-- Sizing evidence: wiki/updates.md, read at the two matching locations this run. Frontmatter line 4 reads `type: concept` and line 8 lists `install-macos.md` under `related`. Line 105, under `## The decision underneath: signing`, reads "Hearth is not signed. That is why [`install-macos.md`](install-macos.md) tells people to right-click and choose Open on first launch".
-- Sources of truth: (Research fills)
-- Docs: (Research fills)
+- Sizing evidence: wiki/updates.md, lines 1-20 and 95-119 read on the Phase C run of 2026-09-04. Frontmatter line 4 reads `type: concept`, line 8 lists `install-macos.md` under `related` beside backend/build-pipeline.md at 7 and _index.md at 9, and line 11 lists `wiki/raw/macos-status.md` under `sources`, which is a live instance of the raw-provenance convention. Line 105, under `## The decision underneath: signing`, reads "Hearth is not signed. That is why [`install-macos.md`](install-macos.md) tells people to right-click and choose Open on first launch". Lines 110-118 refer twice more to "the install guide" without linking it.
+- Sources of truth:
+  - source: scripts/lint_wiki.py:284-297, covers how the linter treats the two references differently. `sources` entries at 284-286 are tested only against an absolute path and are never resolved to a file; `related` entries at 290-297 are resolved relative to the page's own directory and reported as `dead-related` when the file does not exist
+  - source: scripts/lint_wiki.py:357-372, covers body-link resolution: the target is split on the hash and only the path half is checked, so an anchor is never validated, and a missing file is a `dead-link` error
+  - source: scripts/publish_wiki.py:79-92, 117-135, covers what `related` becomes for a reader: `see_also()` renders a See also block whose link label is the destination page's own frontmatter title, not the filename or anything the author writes
+  - canonical: wiki/installing.md:91-103, covers the salvaged right-click-and-Open procedure and the heading it landed under, `## Open Hearth for the first time on macOS`
+  - canonical: wiki/style-guide.md:160-165, covers the link-text rule: `## Write link text as human titles` names a backticked filename as the wrong form and a human title as the right one
+  - canonical: wiki/page-types.md:138-155, covers the concept shape this page declares at line 4, whose item 5 is links to the how-to pages that act on it
+  - contextual: wiki/install-macos.md:43-53, covers the source passage the salvage came from, for comparison against its destination
+  - contextual: tasks/docs/tracker.md:35, 1457-1480, 1610-1626, covers the task's recorded state and the ownership of wiki/updates.md:8 and :105
+- Docs:
+  - wiki/updates.md, the frontmatter `related` entry at line 8 and the prose link at line 105 under `## The decision underneath: signing`
 - Artifacts:
   - Research: tasks/docs/artifacts/T13.research.json
+  - Author: tasks/docs/artifacts/T13.author.json, wrote wiki/updates.md
+  - Review: tasks/docs/artifacts/T13.review.json, verdict FAIL, score 3 to 5
+- Review checklist, and where each entry went:
+  - F3 the page addressed the reader in the third person, F7 a first-person heading, F5 a British spelling: all three `done` by the reviewer. The reviewer reports F3 mattered most, because the page was the only top-level article in wiki/ that never said "you" and was doing it in the paragraph about the memory an update must not touch.
+  - F1 `deferred`, `needs: restructure`, owner T67. Confirmed that T67 exists; its statement is widened on this run to cover the finding, because the reviewer reports the register mixture is three-way rather than two-way, with `## The order the work should land in` being backlog material in a third register again.
+  - F4 `deferred`, `needs: restructure`, assigned by the reviewer to T67 but flagged as wanting its own row because the fix edits a different page. Opened as T76 against wiki/backend/build-pipeline.md.
+  - F2 `blocked`, `needs: research`, no owner existed. Opened as T75, carrying the reviewer's result as the question research must answer.
+  - F6 `blocked`, owner orchestrator: whether an edit bumps `last_reviewed`. No owner existed. Opened as T77.
+  - The reviewer records dropping a candidate `noun-heading` finding after calibration, because the model concept pages named in wiki/page-types.md all use the same declarative style, so charging it would have invented a rule.
+- Objective gaps recorded by the reviewer, which derived five because neither the page nor the research artifact records any:
+  - "Justify whether Hearth should be signed" is not taught: the reviewer reports the section states cost and consequences and reaches no conclusion. It also reports that an evaluate-level objective implies a decision record rather than a concept page, which is evidence for T67 rather than a separate task.
+  - "Sequence the update work in build order" is taught, and the reviewer records that as the defect rather than the success, because no page type carries a create-level objective and CLAUDE.md puts the backlog in tasks/. Carried to T67.
+  - The reviewer reports `## What this closes elsewhere` as content serving no objective, three of whose four bullets answer questions about other pages. Recorded as F4 and carried to T76.
+  - Three objectives are taught and match the concept type.
+- Independent verification the reviewer performed: it confirmed at source that line 8 now reads `installing.md`, that line 105 links Installing Hearth with the destination's own frontmatter title as link text, that wiki/installing.md:91 carries the salvaged heading with the steps at 96-98, and that a grep finds no `install-macos` occurrence surviving on the page.
 - Open questions:
-  - Only lines 1-11 and 102-108 of wiki/updates.md were read this run. Whether the page carries any other dependency on install-macos.md is for the research stage to establish.
+  - "Does the GitHub wiki lower macOS to macos when it slugs `## Open Hearth for the first time on macOS`? No in-corpus anchor targets a mixed-case heading and this repository generates no slugs, so the exact fragment is the one detail the evidence here cannot settle. An unanchored link to installing.md is correct either way and is the safe fallback if the orchestrator will not accept an unverified fragment."
+  - "Should the two unlinked mentions inside the signing section, at wiki/updates.md:111 and :118, and the two outside it, at :120 and :146, be left as generic prose? They all refer to wiki/installing.md, and the corpus links it by title elsewhere. Leaving them alone is defensible under one link per destination per section; the orchestrator owns whether that is the house rule, because no page in wiki/ states one."
+  - "wiki/updates.md:113 and :153 repeat the same link-text violation as line 105, pointing at backend/build-pipeline.md. They are outside this task's statement, which bounds the work to the install-macos references. Does the orchestrator want a row for them, or should the author fix all three while the page is open?"
+  - Does an edit of this size warrant bumping `last_reviewed`? The author reported that this page still carries 2026-09-03 while wiki/installing.md carries 2026-09-04, and declined to change it. The reviewer independently raised the same question as a blocked checklist entry and reported that the corpus already behaves as though a rule exists while nothing states one. Opened as T77.
+  - Was the linter run against this edit? The author reported that its tool set is Read, Grep, Write and Edit with no shell, that it did not run the linter and does not claim its result, and that everything it asserts about link resolution comes from reading the two files and the linter source. See the Phase C verification note.
+- Orchestrator rulings, so the author is not left choosing:
+  - Link without a fragment. The researcher established that scripts/lint_wiki.py:370-371 never validates an anchor, so a wrong fragment passes the linter and fails only for a reader, and nothing in this repository settles how the destination heading is slugged. An unanchored link to wiki/installing.md is correct either way.
+  - Leave the four unlinked mentions of "the install guide" at lines 111, 118, 120 and 146 as generic prose. This task redirects the two references that break; adding four links a reader did not ask for is not a correction.
+  - Fix the link text at line 105 as part of the swap, because the researcher established that a backticked filename is the form wiki/style-guide.md:162 names as wrong, and the replacement has to take some shape. Leave lines 113 and 153 alone: they point at a different destination and are outside this task's statement. They are opened as T68.
 
 ##### Draft
 
 Point line 105 and the frontmatter entry at `wiki/installing.md`, where the
-right-click-Open step lands under T9. The sentence's claim about signing is not
-in question; only its referent is.
+right-click-Open step lands under T9. The research stage verified that landing at
+source rather than taking it on report: `wiki/installing.md:91` carries
+`## Open Hearth for the first time on macOS`, with the steps at 96-98 matching
+the passage they came from. The sentence's claim about signing is not in
+question; only its referent is.
+
+The frontmatter entry publishes as a See also link labelled from the destination
+page's own `title`, so it will read "Installing Hearth" whatever the entry says.
+
+The prose link takes a human title rather than a backticked filename, per
+`wiki/style-guide.md:160-165`.
 
 ### T14: Drop install-macos.md from the Building a Hearth release frontmatter
 
@@ -1481,17 +1733,18 @@ A single frontmatter entry naming a page that is being retired.
 
 ##### Details
 
-- Agent State: Backlog
+- Agent State: Complete
 - Type: Fix
 - Scope: XS
 - Confidence: High
-- Sizing evidence: wiki/releasing.md:9, which lists `install-macos.md` in the frontmatter `related` list. A corpus grep for `install-macos` returns no other match in this file, so the page's prose does not reference it. The Shape is taken from wiki/page-types.md:103, which names Building a Hearth release as a how-to in the corpus.
+- Sizing evidence: wiki/releasing.md lines 1-20, read on the Phase C run of 2026-09-04. Line 9 lists `install-macos.md` in the frontmatter `related` list, and line 10 already lists `installing.md`, so the change is a removal with no replacement to add. A corpus grep for `install-macos` on the same run returns no other match in this file, so the page's prose does not reference it. Line 4 reads `type: how-to`, which is where the Shape comes from.
 - Sources of truth: (none, XS route runs no research)
 - Docs: (none, XS route runs no research)
 - Artifacts:
-  - Author: tasks/docs/artifacts/T14.author.json
+  - Author: tasks/docs/artifacts/T14.author.json, wrote wiki/releasing.md
 - Open questions:
-  - None.
+  - Does scripts/lint_wiki.py report no `dead-related` finding for wiki/releasing.md after this edit? The author reported that its tool set is Read, Grep, Write and Edit with no shell, that it could not run the linter, and that it verified the removal by reading the file and by grep only. See the Phase C verification note.
+- Author's reported findings, recorded because they bear on T16: a case-sensitive grep of wiki/releasing.md returned line 9 as the only match for `install-macos`, and the author reported that the two `macos-package-handoff` paths in `sources` at lines 16 and 17 name a different file and were left alone. The author reported that the History paragraph's phrase about a staged source named in this page's frontmatter points at those `sources` entries rather than at the removed `related` entry, so the prose stays accurate.
 
 ##### Draft
 
@@ -1534,10 +1787,12 @@ left before moving it twice.
 
 This task does not change the keep verdict for the page and does not block T16.
 
-### T16: Retire Installing on macOS once every salvage task is Complete
+### T16: Demote Installing on macOS to wiki/raw/ and repoint its three sources citations
 
-The fold verdict, executed. This is the one irreversible step in the plan and
-it is held until the salvage has landed.
+The fold verdict, executed. The page moves to `wiki/raw/install-macos.md` and
+the three pages that cite it as provenance are repointed in the same change.
+This is the one irreversible step in the plan and it is held until the salvage
+has landed.
 
 ##### Details
 
@@ -1545,27 +1800,89 @@ it is held until the salvage has landed.
 - Type: Consolidate
 - Scope: S
 - Confidence: High
-- Sizing evidence: wiki/install-macos.md, read in full this run. Six passages live nowhere else and are listed in the salvage table above: lines 32-34, 43-53, 76-77, 118-126, 128-133 and 135-155. A corpus grep for `install-macos` returns inbound references at wiki/_index.md:31, wiki/installing.md:7,14,27,132, wiki/whats-not-here.md:23, wiki/clients/windows.md:10,14,233, wiki/releasing.md:9, wiki/updates.md:8,105 and wiki/clients/macos.md:7,11,29,89,127.
+- Sizing evidence: wiki/install-macos.md, read in full on the run that wrote this row. Six passages live nowhere else and are listed in the salvage table above: lines 32-34, 43-53, 76-77, 118-126, 128-133 and 135-155. The inbound reference list in that sizing evidence is superseded by the Phase C measurement recorded under the Draft below, taken on 2026-09-04.
 - Sources of truth: (Research fills)
 - Docs: (Research fills)
 - Artifacts:
   - Research: tasks/docs/artifacts/T16.research.json
 - Open questions:
-  - Should the page be deleted or demoted to `wiki/raw/`? Demotion is the landing when the call is close, and this page was measured end to end on a real machine on 2026-08-07, which is a provenance worth keeping even after its prose has moved. Demotion also keeps it out of the published wiki, since the publish step strips `raw/` per wiki/whats-not-here.md:36-40.
+  - Does the demoted file need its frontmatter adjusted on the way into `wiki/raw/`? Nothing under `wiki/raw/` is linted, per scripts/lint_wiki.py:31-32 and 42-43, so the question is about what a later reader of the source needs rather than about a rule.
+  - "wiki/install-macos.md:34 carries a contradicted figure, 2.36 GB where crates/hearth-probe/src/dict.rs:245-247 and crates/hearth-probe/dictionary.yaml:138 produce 2.89 GB, and under T16 that page moves to wiki/raw/ with the wrong figure intact." Raised by the T65 research stage. It bears on this task in two ways: the demoted file is the corpus's only verbatim copy of the shipped refusal wording, and if its figures are wrong it is not a trustworthy archive of that message. The T65 stage also reports that the blockquote's figures come from the `tiny` fixture, which crates/hearth-probe/src/machine.rs:322-331 defines as a Windows machine with no GPU and no unified memory, on a page titled Installing on macOS. Decide before the move whether to correct the figure, annotate it, or demote it as found and let the file record what the page said.
+
+##### The demote-or-delete decision, and why
+
+**Decision: demote to `wiki/raw/install-macos.md`, and repoint the three
+`sources` citations at the new path in the same change.** Recorded by the
+orchestrator on the Phase C run of 2026-09-04, which is the stage that owns this
+call under integrity rule 9.
+
+Three published pages cite this page in frontmatter `sources` as where their
+content came from: wiki/clients/macos.md:11, wiki/clients/windows.md:13 and
+wiki/installing.md:15. That claim is true, and the Phase B run made it truer:
+wiki/installing.md absorbed seven salvaged passages from this page under T9 and
+wiki/clients/macos.md two under T6. Deleting the page makes all three citations
+name a file that does not exist, which discards a genuine record of where the
+corpus's install material came from.
+
+The corpus already has the mechanism for exactly this. `wiki/whats-not-here.md`
+lines 32-33 name "staged sources and decommissioned documents" as what `raw/`
+holds, and lines 34-37 state that an article compiled from one names it in
+`sources` and never links to it. The linter enforces that split rather than
+merely allowing it: `scripts/lint_wiki.py` lines 282-286 check a `sources` entry
+only for an absolute machine path and never resolve it, and the comment at lines
+83-88 states that naming a `raw/` document in `sources` "is the convention
+working as designed", while lines 293-294 make a `raw/` value in `related` a
+`raw-link` error and lines 346-362 make a `raw/` path in body prose one. So a
+`sources` entry pointing into `raw/` is the one shape of reference that survives
+the move, and it is the shape all three of these are already in.
+
+Two live precedents in the corpus confirm the pattern rather than inventing it:
+wiki/updates.md:11 cites `wiki/raw/macos-status.md` and wiki/releasing.md:16
+cites `wiki/raw/legacy/macos-package-handoff.md`. Both are pages that left the
+published corpus and kept their provenance. `component-catalog.md` and
+`portability-ledger.md` were handled the same way.
+
+Demotion also costs a reader nothing, because the publish step strips `raw/`, so
+the page stops publishing either way. The difference between demote and delete
+is invisible to every reader and visible only to whoever later asks where the
+install guide's numbers came from. That asymmetry is the whole argument:
+deletion buys nothing and forfeits the one thing this page still holds, which is
+that its figures were measured end to end on a real machine rather than derived.
+
+This decision also answers the open question carried on T2, "What does a
+frontmatter `sources` entry mean once its source page is retired?" It means the
+same thing it meant before, and it is repointed rather than removed. T2's
+orchestrator ruling to leave wiki/clients/windows.md:13 exactly as found was
+correct and is now completed by this task rather than left dangling.
 
 ##### Draft
 
-**Do not open this task until T6, T9, T11, T12, T13 and T14 all read
+**Do not open this task until T6, T9, T11, T12, T13, T14, T64 and T65 all read
 `Complete`.** That is integrity rule 9 and it is the whole reason this task
-exists separately from T9.
+exists separately from T9. T64 and T65 were added on the Phase C run of
+2026-09-04, when measuring the inbound references found two gate-blocking ones
+that no row owned.
+
+The Phase C measurement of 2026-09-04, before that phase ran, found ten inbound
+references rather than the seventeen this row's sizing evidence enumerated.
+Phases A and B cleared seven as a side effect. The surviving ten, by kind:
+
+| Kind | Locations | Blocks T16 | Owner |
+| :-- | :-- | :-- | :-- |
+| `related` entry | wiki/getting-started.md:8, wiki/releasing.md:9, wiki/updates.md:8 | Yes, `dead-related` and a broken See also link | T64, T14, T13 |
+| Body link | wiki/first-run.md:192, wiki/updates.md:105, wiki/whats-not-here.md:23, wiki/_index.md:31 | Yes, `dead-link` | T65, T13, T12, T11 |
+| `sources` entry | wiki/clients/macos.md:11, wiki/clients/windows.md:13, wiki/installing.md:15 | No, never resolved by the linter | T16 itself, per the decision above |
+
+The three `sources` entries are this task's own work and are repointed at
+`wiki/raw/install-macos.md` as part of the move, not before it: the target path
+does not exist until the file is moved, so splitting the repoint into Phase C
+would have written a citation to a file that was not there yet.
 
 Before running it, verify two things rather than assuming them: that every
 passage in the salvage table appears in its destination, and that the corpus
-grep for `install-macos` returns nothing outside this page. A fold that misses
-an inbound reference leaves a dead link on a page that was correct before.
-
-The recommendation is demotion to `wiki/raw/` rather than deletion, subject to
-the open question above.
+grep for `install-macos`, excluding `wiki/raw/` and the page itself, returns
+nothing. A fold that misses an inbound reference leaves a dead link on a page
+that was correct before.
 
 ### T17: Correct the install root and the coexistence claim on Build pipeline
 
@@ -2804,3 +3121,537 @@ code that enforces the rule.
 
 No writer stage. Once the product settles, wiki/meeting-your-persona.md carries
 the sentence that has to match.
+
+### T64: Drop install-macos.md from the Getting started frontmatter
+
+A single frontmatter `related` entry naming a page that is being retired. The
+same defect as T14, on a page the Phase C plan did not own, found by measuring
+the inbound references rather than by reading the earlier list.
+
+##### Details
+
+- Agent State: Complete
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: wiki/getting-started.md lines 1-25, read on the Phase C run of 2026-09-04. Line 8 lists `install-macos.md` in the frontmatter `related` list, and line 7 already lists `installing.md`, so the change is a removal with no replacement to add. A corpus grep for `install-macos` on the same run returns no other match in this file, so the page's prose does not reference it. Line 4 reads `type: concept`, which is where the Shape comes from, and is the retype T7 landed.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Artifacts:
+  - Author: tasks/docs/artifacts/T64.author.json, wrote wiki/getting-started.md
+- Open questions:
+  - Does the `sources` list want an entry for the page whose material this one absorbed? It names eleven sources and not install-macos.md, so this is a question about provenance rather than a dead reference, and it is not what this task fixed.
+  - Does scripts/lint_wiki.py report no `dead-related` finding for wiki/getting-started.md after this edit? The author reported that its tool set is Read, Grep, Write and Edit with no shell, that it could not run the linter, and that it makes no claim of having run it. See the Phase C verification note.
+- Author's reported findings: a grep of the target page returned line 8 as the only match for `install-macos`, and the author reported that the body's unsigned and unnotarized paragraph already links Installing Hearth, so no reader-facing pointer was lost by the removal.
+
+##### Draft
+
+Remove `install-macos.md` from the `related` list at line 8. Do not add a
+replacement: line 7 already carries `installing.md`, which is the page that
+survives the fold. Change nothing else on the page, including the `sources`
+list, the prose, and `last_reviewed`.
+
+This is why the entry has to go rather than merely being repointed:
+`scripts/lint_wiki.py:288-297` resolves every `related` entry the way it
+resolves a body link and reports an unresolvable one as `dead-related`, and the
+publish step renders `related` as a See also section, so after the retirement
+the entry would be a broken link a reader can click.
+
+### T65: Redirect the shipped-wording sentence in the First run record
+
+The record points a reader at Installing on macOS for the verbatim refusal
+message. The link breaks when that page is retired, and the sentence makes a
+claim about the destination that has to hold before the link can simply be
+repointed.
+
+##### Details
+
+- Agent State: Complete
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: wiki/first-run.md lines 180-199, read on the Phase C run of 2026-09-04. Line 192, closing the passage under `### Say what you found, and be honest about it`, reads "[Installing on macOS](install-macos.md) quotes the shipped wording." Lines 188-191 describe how the refusal is written: it leads with what the refusal means, then the arithmetic behind it. A corpus grep for `install-macos` on the same run returns this as the only match in this file, so the frontmatter does not name it. Sized S rather than XS because wiki/installing.md:39-45, the page the salvage landed on, paraphrases the refusal rather than quoting it, so the sentence's own claim may stop being true when the link moves.
+- Sources of truth:
+  - source: crates/hearth-probe/src/plan.rs:84-96, covers the shipped refusal wording itself, which is a format template rather than a fixed sentence: "this machine cannot run Hearth. It has {} to work with, which leaves {} after the voice, speech recognition and headroom, and the smallest model is {}."
+  - source: crates/hearth-probe/src/plan.rs:151-157, covers when the refusal is reached: `PlanError::TooSmall` only after `best_fit` fails against the coexist budget and then against the sequential budget
+  - source: crates/hearth-probe/src/plan.rs:105-121, covers the arithmetic the wording names: base reserves, the coexist budget and the sequential budget
+  - source: crates/hearth-probe/src/lib.rs:26-34, covers `human()`, which renders every figure in the message as GiB under a GB label
+  - source: crates/hearth-probe/src/dict.rs:245-247, covers that `smallest()` is a minimum over tiers and can never return a build inside a tier's ladder
+  - source: crates/hearth-probe/dictionary.yaml:131-224, covers the shipped tier table, whose minimum is tier 0 at 3,106,738,272 bytes
+  - source: crates/hearth-probe/src/machine.rs:322-331, covers the `tiny` fixture, the only one that produces the refusal, which is a Windows machine with no GPU and no unified memory
+  - source: crates/hearth-probe/tests/plan_fixtures.rs:118-124, covers the only test of the refusal, which asserts two substrings and guards no figure in the message
+  - source: scripts/lint_wiki.py:88, 132-143, 293-297, 346-372, covers what the linter owns for this edit: `dead-link`, `raw-link`, and a bare raw/ path named in prose, all three at severity error
+  - source: scripts/lint_wiki.py:211-216, 219-234, 380-386, covers paragraph measurement, and establishes that `is_prose` returns False for any line beginning with `[`, so line 192 as written is excluded from paragraph accounting and the paragraph at 188-191 is measured alone
+  - contextual: wiki/installing.md:34-45, covers the candidate destination, which describes the refusal in the writer's own words and quotes nothing
+  - contextual: wiki/install-macos.md:27-34, covers the retiring page and the corpus's only verbatim reproduction of the wording, as a blockquote at lines 32-34
+  - contextual: wiki/page-types.md:156-181, covers the decision-record shape, which neither requires nor forbids a pointer sentence after a decision
+  - contextual: tasks/docs/tracker.md:223, 236-238, covers the ratified salvage ruling that the message landed as prose rather than as a blockquote and carries no figures
+  - contextual: wiki/updates.md:34-38, covers corpus precedent for a page quoting the source tree verbatim in prose and naming the file
+  - contextual: wiki/getting-started.md:24-25, covers corpus precedent for naming a source-tree file in frontmatter `sources`
+- Docs:
+  - wiki/first-run.md, the pointer sentence at line 192 closing `### Say what you found, and be honest about it`
+- Artifacts:
+  - Research: tasks/docs/artifacts/T65.research.json
+  - Author: tasks/docs/artifacts/T65.author.json, wrote wiki/first-run.md
+  - Review: tasks/docs/artifacts/T65.review.json, verdict FAIL, score 2 to 4
+- Review checklist, and where each entry went:
+  - F2 a same-host detection claim the reviewer could not find in this tree, and F3 an abstract that promised the walkthrough on a decision record: both `done` by the reviewer. On F2 the reviewer reports that the cited file is not in this repository, that tasks/clients/desktop-client/file-capability-scope.md:68-72 records it as an archived Valinor document whose item 4 was never built, and that desktop-client/src/lib/clientProfile.ts:16-21 shows the client still declaring its capabilities unconditionally with no locality test. The page now states the mechanism is intended and unbuilt.
+  - F1 type-mixture: `deferred`, owner T46. Confirmed that T46 exists and covers reconciling beats two and three and linking the walkthrough.
+  - F4 the `voice_id` parameter name: `deferred`, owner T43. Confirmed that T43 exists and was opened for this exact line.
+  - F5 the cache-invalidation claim: `deferred`, owner T28. Confirmed that T28 exists, and that T3's reviewer already deferred the same finding there.
+  - F7 the two citations into wiki/raw/: `deferred`, `needs: research`, owner T35. Confirmed that T35 exists and holds that question corpus-wide.
+  - F6 the install-root tree, which marks four existing directories as planned and omits `home\` in the same section that says uninstalling is one delete: `deferred`, no owner existed. Opened as T78. The reviewer names this as the one action item from its run with no owner.
+  - The reviewer confirms no entry is `blocked`.
+- Objective gaps recorded by the reviewer, which derived six because neither the page nor the research artifact records any:
+  - "Say what would reopen any of these decisions" is not taught. The reviewer recorded it and deliberately did not charge it, reporting that wiki/backend/native-runtime.md and wiki/backend/packaging-options.md share the gap, so it is a corpus ruling rather than this page's defect. Opened as T79 rather than folded into T38, which concerns heading style and does not cover it. The same gap was recorded independently by the T3 reviewer, so this is the second time it has surfaced.
+  - Content serving no objective: beats two and three teach apply-level objectives, which map to a how-to and never to a record, and the `choice_card` and `create_persona` parameter blocks plus `### The direction` are reference and source material. Both carried to T46.
+  - Four of the six objectives are taught.
+- Independent verification the reviewer performed on this task's own change: it confirmed that wiki/installing.md:39-42 describes and quotes nothing, that crates/hearth-probe/src/plan.rs:87-92 holds the wording as a three-slot template, that both halves of the replacement sentence are therefore true, that the sentence still opens with a link so paragraph accounting is unchanged, and that the added `sources` entry is precedented by wiki/getting-started.md:24.
+- Open questions:
+  - "Which of the three repairs does the author take? (A) Repoint to wiki/installing.md with the verb corrected to what that page does. (B) Replace the page pointer with a sentence that names crates/hearth-probe/src/plan.rs as where the wording lives. (C) Remove the pointer sentence and leave the decision at lines 182-191 standing alone. The evidence for and against each is set out in `notes`; this stage does not choose." Answered by the orchestrator ruling below.
+  - "If the author takes option B, may the sentence also reproduce the wording, that is, the crates/hearth-probe/src/plan.rs:89-90 template with its three figure slots left unfilled? Quoting the template rather than an instance would satisfy the section's own argument, which is about phrasing, without importing the contradicted 2.36 GB or any other computed figure onto a decision record. It would also enlarge the edit beyond one sentence, which the dispatch bounds to the pointer sentence at line 192. The orchestrator owns that boundary, not this stage."
+  - "If the author takes option B, does the citation also go into wiki/first-run.md's frontmatter `sources` at lines 9-11, which currently names only two unpublished research files? wiki/getting-started.md:24 sets the precedent and scripts/lint_wiki.py:282-286 never validates the entry, but the dispatch bounds this task to line 192 and a frontmatter edit is outside it."
+  - "wiki/install-macos.md:34 carries a contradicted figure, 2.36 GB where crates/hearth-probe/src/dict.rs:245-247 and crates/hearth-probe/dictionary.yaml:138 produce 2.89 GB, and under T16 that page moves to wiki/raw/ with the wrong figure intact. That is T16's to answer, not T65's, but it bears on T65: it is the reason no surviving page quotes the wording, and it means the demoted file is not a trustworthy archive of the message either." Carried onto T16.
+  - Where can a reader who is not looking at the source tree see the shipped refusal wording itself? The author reported that the corpus's only verbatim copy leaves the published wiki under T16, that wiki/installing.md describes the refusal without quoting it, and that the replacement sentence therefore serves a reader changing the house but not a reader who only has the wiki. Opened as T71.
+  - May a wiki page publish the crates/hearth-probe/src/plan.rs template with its three figure slots left unfilled? The author reported that this is the only identified repair that would close the gap above, and that the dispatch forbade it inside this task's bounds. Opened as T71.
+  - Was the linter run against this edit? The author reported that its tool set is Read, Grep, Write and Edit with no shell, that scripts/lint_wiki.py could not be executed, and that it verified the relevant rules by reading the source instead. See the Phase C verification note.
+- Orchestrator rulings, so the author is not left choosing:
+  - Take option B, and keep a reader-facing pointer inside it. The replacement is one sentence that names crates/hearth-probe/src/plan.rs as where the shipped wording lives and points a reader at wiki/installing.md for what the refusal tells them. Option A alone is rejected because it keeps a pointer whose verb has to be weakened to stay true, and the sentence's whole job is to say where the wording itself is. Option C is rejected because it deletes the routing and leaves the principle at lines 182-191 asserted with nowhere to check it. This page is `type: decision-record` and wiki/_index.md:84-86 places records with the engineering material, so a source citation serves its reader better than a paraphrase does, and wiki/updates.md:34-38 is the corpus precedent for exactly that shape.
+  - Do not reproduce the template. Quoting it would enlarge the edit past the one sentence this task owns and would put a format string on a reader-facing page for no gain the citation does not already give.
+  - Add `crates/hearth-probe/src/plan.rs` to the frontmatter `sources` list. A page that names a source in its prose and not in its frontmatter is inconsistent with the convention the corpus states at wiki/whats-not-here.md:34-37, the entry is never resolved by the linter, and wiki/getting-started.md:24 is the precedent. This is one line and it is a direct consequence of the edit rather than a widening of it.
+  - The contradicted 2.36 GB figure on the retiring page is recorded on T16 and is not T65's to fix.
+
+##### Draft
+
+Do not repoint the link before establishing what the destination says. The
+sentence carries two things: a pointer, and a claim that the pointed-at page
+quotes the shipped wording. Only the pointer is broken by the retirement; the
+claim is what decides whether repointing is honest.
+
+The page is a decision record and the decision stays. The passage at lines
+182-191 is the decision, and this task touches only the pointer sentence that
+follows it. If wiki/installing.md paraphrases rather than quotes, the honest
+repair is to reword the sentence to say what that page actually does, not to
+move the link and leave the verb.
+
+The research stage settled that it does paraphrase, and the orchestrator ruling
+above picks the repair. Note one mechanical constraint the research stage found:
+`scripts/lint_wiki.py:216` excludes any line beginning with `[` from paragraph
+accounting, so line 192 as written is measured alone. A replacement that no
+longer opens with a link joins the paragraph at 188-191 for length purposes, and
+that paragraph is already four lines.
+
+### T66: Correct the envs\voice row on the two Windows install-root trees
+
+Both Windows install-root trees describe a voice environment installed at first
+run. Source says a Windows install never creates one, because Windows moved to
+the shipped omnivoice.cpp engine and skips the whole virtual-environment chain.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: reported by the T12 research stage on 2026-09-04 and recorded from tasks/docs/artifacts/T12.research.json. It cites wiki/installing.md:226 and wiki/clients/windows.md:165 as the two trees, and desktop-client/src-tauri/src/provision.rs:476-479 with crates/hearth-probe/dictionary.yaml:102 as the source that contradicts them. The orchestrator did not open either page at those lines on this run, so the Confidence rests on the research stage's citations rather than on an orchestrator read, and the research stage is the one that opened them.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T66.research.json
+- Open questions:
+  - Is the row wrong on both pages, or does the Windows install create the directory without populating it? The research stage reports that the provisioning chain short-circuits before the environment is built; whether anything else on the install path creates the path is not established.
+  - Does the same row appear on the macOS tree, and is it correct there? crates/hearth-probe/dictionary.yaml:102 puts macOS in `cpp_platforms` too, so the same reasoning may reach a third location.
+
+##### Draft
+
+Two pages carry the same wrong row, so this task splits after Research into one
+Author task per page. Do not touch either tree before the research stage
+establishes what the install actually creates on Windows: the correction is
+either a changed description, a removed row, or nothing at all, and the three
+are not distinguishable from the pages themselves.
+
+### T67: Split or retype Updating an install, which is four registers on one page
+
+The page declares `type: concept` and its first six sections are a good concept
+article. Then the register changes three times: a decision with no decision
+reached, a build order, and bookkeeping for another page. Separately, the index
+sends a reader here to learn how an install becomes a newer one, while the
+working by-hand procedure sits on the install how-to.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Restructure
+- Scope: L
+- Confidence: High
+- Sizing evidence: two stages, both on 2026-09-04. The T13 reviewer charged this as its largest finding, worth 2 of the page's 4.5 open penalty, and reports the mixture is three-way rather than two-way because `## The order the work should land in` is backlog material in a third register again; recorded from tasks/docs/artifacts/T13.review.json. The T11 research stage independently cites wiki/updates.md:15-17 stating that nothing in it is built yet, wiki/installing.md:247-260 carrying the by-hand update procedure landed by T9, and the index prose clause at wiki/_index.md:26-27; recorded from tasks/docs/artifacts/T11.research.json. The orchestrator read wiki/updates.md:1-20 and 95-119 on this run and confirmed the abstract and the signing section. Raised from M to L, and from Fix to Restructure, because the reviewer's finding is a page shape rather than a routing overlap, and because the reviewer reports two objective gaps that follow from it: an evaluate-level objective that implies a decision record, and a create-level objective that no page type carries at all.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T67.research.json
+- Open questions:
+  - Which page owns the update procedure, and which owns the design and the decision behind it? wiki/updates.md declares `type: concept` and wiki/installing.md declares `type: how-to`, which is an argument that the procedure belongs where T9 put it and updates.md keeps the reasoning. That is a verdict, not a reading, and it is what the research stage has to establish.
+  - Does the index prose clause at wiki/_index.md:26-27 point at the right page today? T11 was ruled not to settle this inside a prose rewrite, so whichever way this task lands, the index sentence may need a follow-up.
+  - Is this a consolidation question rather than a correction? If the two pages substantially duplicate, the `Corpus` route decides it rather than a Fix does.
+
+##### Draft
+
+Establish first, correct second. The failure mode here is a corrections task that
+picks one page and edits the other into agreement without asking which one should
+hold the material.
+
+Nothing about this blocks T16 and nothing about it is urgent. It is recorded
+because it is a real overlap introduced by the Phase B salvage, and the T11 run
+was ruled not to absorb it.
+
+### T68: Two backticked-filename links on Updating an install
+
+Two links use a backticked filename as their link text, which the style guide
+names as the wrong form. The same defect on the same page at line 105 is fixed by
+T13; these two point at a different destination and were left outside that task's
+statement.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: reported by the T13 research stage on 2026-09-04 and recorded from tasks/docs/artifacts/T13.research.json, which cites wiki/updates.md:113 and :153 as repeating the link-text violation at line 105, both pointing at backend/build-pipeline.md, and wiki/style-guide.md:160-165 as the rule. The orchestrator read wiki/updates.md:95-119 on this run and confirmed the backticked link at line 113; it did not read line 153.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - Is the link at line 153 the same shape as the one at line 113? The orchestrator read the first and not the second, and the second is recorded from the research stage's report.
+
+##### Draft
+
+Replace the backticked filename with the destination page's human title in both
+places, taking the title from wiki/backend/build-pipeline.md's own frontmatter.
+Change nothing else. Run after T13, which owns the same page.
+
+The linter enforces no part of this rule: the T13 research stage read all 492
+lines of scripts/lint_wiki.py and reports that `MD_LINK` captures only the link
+target. So this defect is invisible to the gate and is fixed because the style
+guide states it, not because anything fails.
+
+### T69: No page states which voice engine runs on which platform
+
+The corpus says nothing about which of the two voice engines a given platform
+runs, and nothing about what a Windows install downloads that a Mac does not.
+T12 removed a sentence that got this wrong; nothing states what is right.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: M
+- Confidence: High
+- Sizing evidence: reported by the T12 author on 2026-09-04 and recorded from tasks/docs/artifacts/T12.author.json, and independently by the T12 research stage. The research stage cites crates/hearth-probe/dictionary.yaml:102 reading `cpp_platforms: [macos, windows]`, desktop-client/src-tauri/src/provision.rs:476-479 short-circuiting the virtual environment and torch chain on those platforms, and crates/hearth-probe/dictionary.yaml:44-54 as the genuine install-time difference, where a Windows install fetches an accelerator-matched CUDA build plus a cudart redistributable against a single Metal tarball. This tracker already records the same absence from the other direction on T2. The orchestrator opened none of these files on this run, so the Confidence rests on two agent stages that did.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T69.research.json
+- Open questions:
+  - Which page owns this? `wiki/backend/voice-engine.md` is the obvious home for which engine runs where, and `wiki/installing.md` is the obvious home for what a reader downloads. That may make this two tasks rather than one, which is what the research stage settles.
+  - Is the difference worth stating to a reader at all, or only to a contributor? A reader on a metered connection cares about the download size; the engine's identity is an implementation fact. The two answers land on different pages.
+
+##### Draft
+
+Do not start on a page. The research stage decides where each half of this
+belongs, and the split follows from its `affected_docs[]`.
+
+Note the shape constraint that produced this row: T12 could not state the fact
+because wiki/whats-not-here.md is a landing page and wiki/page-types.md:91-92
+keeps anything a reader can act on off one. The fact is real and correcting the
+page that carried it wrongly did not place it anywhere.
+
+### T70: The linter has no index-membership check, so a page can publish with no sidebar entry
+
+wiki/page-types.md requires every published page to appear exactly once in
+exactly one section of the index, and nothing enforces it. A page can be
+published, be absent from the index, have no sidebar rail entry, and produce zero
+linter findings. That is exactly what happened to wiki/meeting-your-persona.md
+between the phase that created it and the phase that indexed it.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: S
+- Confidence: High
+- Sizing evidence: reported by the T11 author and independently by the T11 research stage on 2026-09-04, recorded from tasks/docs/artifacts/T11.author.json and tasks/docs/artifacts/T11.research.json. The research stage read scripts/lint_wiki.py:256-408 as the complete set of checks and reports no index-membership check and no once-and-only-once check, and cites scripts/publish_wiki.py:63-76, which publishes every page outside wiki/raw/ regardless of index membership, against scripts/publish_wiki.py:172-195, which builds the rail only from the index. The lived instance is this repository's own: wiki/meeting-your-persona.md published with no rail entry and the linter said nothing.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T70.research.json
+- Open questions:
+  - Is this a linter change, a documentation change, or both? The rule exists and is stated; what is missing is enforcement. A new check in scripts/lint_wiki.py would catch it, and that is code rather than prose.
+  - What severity? An unindexed page is invisible to a reader navigating the wiki, which argues for an error. But a page can legitimately be mid-flight between the phase that writes it and the phase that indexes it, which argues for a warning. See T73, which is the exception that any such check has to encode.
+
+##### Draft
+
+This is tooling work with a documentation consequence, so it needs research
+before anyone decides which. Do not add a check without first settling T73: the
+publish script hardcodes one rail entry outside the section loop, so a naive
+once-and-only-once check would flag wiki/whats-not-here.md, which is correct as
+it stands.
+
+### T71: Decide whether a reader-facing page reproduces the shipped refusal wording
+
+The product's refusal message is the corpus's worked example of writing plainly
+to someone whose machine is too small. Once wiki/install-macos.md is demoted, no
+page a reader can open reproduces it. The decision record now cites the source
+file, which serves a contributor and not a reader.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: reported by the T65 author and established by the T65 research stage on 2026-09-04, recorded from tasks/docs/artifacts/T65.author.json and tasks/docs/artifacts/T65.research.json. The research stage established that crates/hearth-probe/src/plan.rs:87-92 holds the wording as a three-slot format template, that wiki/install-macos.md:32-34 is the corpus's only verbatim copy, and that wiki/installing.md:34-45 describes the refusal and quotes nothing. The T65 reviewer independently confirmed both halves.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T71.research.json
+- Open questions:
+  - May a wiki page publish the template with its three figure slots left unfilled? The T65 author reports this is the only identified repair that closes the gap, because publishing an instance would import figures that source contradicts. The research stage reports that the only verbatim copy in the corpus carries a figure of 2.36 GB where source produces 2.89 GB, which is why an instance cannot simply be copied.
+  - Which page carries it if any does? wiki/installing.md is where the refusal is described, so it is the candidate, but a format string on a reader-facing install page is a judgement rather than an obvious yes.
+  - Is the gap worth closing at all? A reader whose machine is refused sees the message on their own screen. The page's job may be to describe the refusal rather than to reprint it, in which case the answer is no and this row closes with a recorded decision.
+
+##### Draft
+
+The honest outcome here may be "no page carries it", and that is a result rather
+than a failure. What is not acceptable is leaving it undecided, because the
+corpus currently has a decision record arguing for a style of message with no
+reader-facing example of that style anywhere.
+
+### T72: Settle which index section a decision record belongs in
+
+wiki/first-run.md is a decision record listed in a reader-facing index section,
+now beneath a how-to that was extracted from it. The index describes another
+section as the engineering record and tells a reader using Hearth they can stop
+above it. Nothing states a rule, so the question keeps being reopened.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: Medium
+- Sizing evidence: raised as an open question by the T11 research stage and deferred as checklist entry C1 by the T11 reviewer on 2026-09-04, recorded from tasks/docs/artifacts/T11.research.json and tasks/docs/artifacts/T11.review.json. Both cite wiki/first-run.md:4 declaring `type: decision-record` and wiki/_index.md:84-86 describing `## Looking under the hood` as the engineering record with a line a product reader can stop above. The research stage marked the underlying claim `unverifiable`, because wiki/page-types.md governs each page's own shape and states no rule about which types may sit in which index section. Confidence is Medium because the evidence is strong and the answer is a policy the corpus does not yet have.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T72.research.json
+- Open questions:
+  - Is the rule about page type, or about audience? A decision record can be exactly what a reader of a reader-facing section wants, and the index's own division is by audience rather than by type.
+  - If first-run.md moves, does anything else move with it? wiki/backend/ already holds records, so the question may be about a page in the wrong place rather than about a missing rule.
+
+##### Draft
+
+The deliverable is a rule written into wiki/page-types.md, and then whatever
+index edit follows from it. Do not move the page first: the T11 run declined to
+move it precisely because moving a page between index sections changes the
+reading order, and a reading order should change because of a rule rather than
+because of one page.
+
+### T73: Page types and the publish script disagree about the once-only rule
+
+wiki/page-types.md requires every published page to appear exactly once in
+exactly one index section. scripts/publish_wiki.py hardcodes one rail entry
+outside the section loop, so obeying the rule literally for that page produces
+two rail entries. Neither file records the exception.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: XS
+- Confidence: High
+- Sizing evidence: deferred as checklist entry C2 by the T11 reviewer and independently reported by the T11 research stage on 2026-09-04, recorded from tasks/docs/artifacts/T11.review.json and tasks/docs/artifacts/T11.research.json. Both cite wiki/page-types.md:93 for the rule and scripts/publish_wiki.py:189-194 for the hardcoded `[What is not here](whats-not-here)` entry that closes the rail outside the section loop. The lived consequence is that wiki/whats-not-here.md is reached from closing prose at wiki/_index.md:95 rather than from a section list, which is correct and looks like a rule violation.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - Is the fix to record the exception in wiki/page-types.md, or to drop the hardcoded entry from the publish script so the rule holds without one? The second is a code change and changes the rail.
+
+##### Draft
+
+The reviewer calls this a trap for the next author rather than a defect in any
+page, which is the right reading: nothing is wrong today and the next person to
+apply the rule literally will break the rail. One sentence in
+wiki/page-types.md beside the rule is the cheap fix. Blocks nothing, and T70
+should not add an index-membership check before this is settled, because such a
+check has to encode this exception.
+
+### T74: Compress What is not here to routing and retitle its two headings
+
+The register of gaps spends most of one section teaching a contributor how to
+cite a raw/ source and what the linter rejects, on a page whose type forbids
+anything a reader can act on, and links the page where that material already
+lives. Both its headings are nouns where the type asks for gerunds.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Restructure
+- Scope: S
+- Confidence: High
+- Sizing evidence: deferred as checklist entries F1 and F2 by the T12 reviewer on 2026-09-04, recorded from tasks/docs/artifacts/T12.review.json. The reviewer charges F1 at 2 and F2 at 1 of the page's 3 open penalty, cites wiki/page-types.md:91-92 for the rule the section violates twice, and reports that `## Material that never publishes` spends four of its six sentences on contributor material that wiki/developing.md, linked from that same section, already owns. The orchestrator read wiki/whats-not-here.md in full on this run and confirms the section runs lines 30-40 and that lines 34-40 are the contributor material described.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T74.research.json
+- Open questions:
+  - Does the raw/ convention move to wiki/developing.md, or is it already there? The reviewer reports that page already owns it, which would make this a deletion rather than a move. Verify before cutting: nothing is deleted before its new home exists.
+  - What does the `## Pages that are not written yet` heading become, given that entry 1 is now a missing section and entry 2 is a missing page? The reviewer reports the heading cannot simply become "Sections".
+- Reviewer's own estimate, recorded as the reviewer's report rather than as a tracker claim: it reports that clearing F1 would take the page from 7 to 9, and that clearing both would reach the cap.
+
+##### Draft
+
+The verdict that the page keeps `type: landing` is carried forward from the T12
+review and is not reopened here. This is a compression, not a retype.
+
+### T75: An unverifiable quotation on Updating an install
+
+The page quotes a comment about what the install record is read by, and the
+comment is not in this repository. One verified quotation sitting beside one that
+cannot be found is worse than neither, because a reader who checks the second has
+no way to know the first is sound.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: raised as checklist entry F2 by the T13 reviewer on 2026-09-04 at `state: blocked`, `needs: research`, and recorded from tasks/docs/artifacts/T13.review.json. The reviewer reports the quotation at wiki/updates.md:56, reports that a grep of the whole worktree for its distinctive phrase returns only that line and one line of wiki prose at wiki/first-run.md:98, reports that the record is written at desktop-client/src-tauri/src/probe.rs:255-275, and reports that the nearest real comment at probe.rs:148-155 says something else. The reviewer states its live hypothesis is that the comment lives in Valinor, which this repository does not carry.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T75.research.json
+- Open questions:
+  - The question research must answer, in the reviewer's own framing: does the quoted comment exist in any authoritative tree, and which one?
+  - If it exists only in Valinor, may a Hearth page quote it? CLAUDE.md makes Valinor the developer build and Hearth the product, and features land in Valinor first, so a comment may be real and still not be Hearth's to cite.
+
+##### Draft
+
+Routed through Research, because the reviewer stopped precisely where it could
+not settle the fact itself, and reports that it did not soften, delete or
+repoint the sentence because all three would settle a provenance question by
+guess. That restraint is correct and this task exists to end it properly.
+
+The claim the sentence makes is independently supported by wiki/first-run.md:98,
+so one available repair is to keep the claim and drop the quotation marks. That
+is a decision for after the research, not before it.
+
+### T76: Four settled questions still presented as open on Build pipeline
+
+wiki/updates.md carries a section recording that four questions raised on the
+build pipeline page are now answered. The build pipeline page still presents them
+as open, so only a reader who lands on the update page learns otherwise.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: raised as checklist entry F4 by the T13 reviewer on 2026-09-04 at `state: deferred`, `needs: restructure`, and recorded from tasks/docs/artifacts/T13.review.json. The reviewer charges it at 1, reports that three of the four bullets under `## What this closes elsewhere` answer questions about bundling, WSL and the macOS voice engine, cites wiki/style-guide.md:173-180 as the supersession mechanism this defeats, and recommends keeping "Who signs the macOS build?" open in both places. The reviewer assigned it to T67 and then flagged that it wants its own row because the fix edits a different page, which is why it is here.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T76.research.json
+- Open questions:
+  - Are all four genuinely settled, and settled by what? The reviewer reports the update page's account of them; the source that settles each is what research establishes.
+  - Does the material move to wiki/backend/build-pipeline.md, or is it stated in both places? The reviewer recommends moving the answers and leaving one sentence behind.
+- Note: this task edits wiki/backend/build-pipeline.md, which T17 also owns. The two must not run in the same phase.
+
+##### Draft
+
+Two pages are fixed by one change, which is why the reviewer wanted it separated
+from the page it was found on. Do not run it inside T67.
+
+### T77: State whether an edit bumps last_reviewed
+
+Every page carries a `last_reviewed` date, the linter checks that the key is
+present and never that it is current, and no page states whether editing a page
+should move it. The corpus already behaves as though a rule exists.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: XS
+- Confidence: High
+- Sizing evidence: raised by the T13 author and then as checklist entry F6 by the T13 reviewer on 2026-09-04 at `state: blocked`, recorded from tasks/docs/artifacts/T13.author.json and tasks/docs/artifacts/T13.review.json. The reviewer reports that wiki/installing.md:5 moved to 2026-09-04 after being edited that day while wiki/style-guide.md:5, wiki/page-types.md:5 and wiki/developing.md:5, untouched, still read 2026-09-03, so the corpus behaves as though the rule exists. It reports that wiki/developing.md:227-229 requires the key and is silent on maintaining it, and that the linter checks presence rather than freshness. The orchestrator read wiki/updates.md:5 on this run and confirms it still reads 2026-09-03 after being edited on 2026-09-04.
+- Sources of truth: (none, XS route runs no research)
+- Docs: (none, XS route runs no research)
+- Open questions:
+  - Does every edit bump it, or only an edit that re-verifies the page's claims? The key is named `last_reviewed`, not `last_edited`, which argues for the second, and the T13 reviewer notes its own edit was a review in that sense.
+- Reviewer's stated view, recorded as the reviewer's report rather than as a decision: it recommends bumping the date and writing the rule down, and reports that it did not act because applying an unstated rule on one page sets a corpus-wide precedent from one page.
+
+##### Draft
+
+One sentence in wiki/developing.md beside convention 3. The deliverable is the
+rule, not a sweep of the corpus's dates; whether a backfill follows is a separate
+call once the rule exists.
+
+### T78: The install-root tree in the First run record marks built directories as planned
+
+The record's install-root tree annotates four directories that exist as
+"(planned)", and omits `home\` from the same section that says uninstalling is
+one delete of the install root. A reader is told to expect the wrong shape of a
+folder the page tells them they can delete.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Fix
+- Scope: S
+- Confidence: High
+- Sizing evidence: raised as checklist entry F6 by the T65 reviewer on 2026-09-04 at `state: deferred` with no owner, and recorded from tasks/docs/artifacts/T65.review.json. The reviewer names it as the one action item from its run with no owner, and reports the two halves together: four existing directories marked planned, and `home\` omitted in the section headed on the premise that deleting the folder is the uninstall. The orchestrator did not open the tree on this run, so the Confidence rests on the reviewer's read.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T78.research.json
+- Open questions:
+  - Which four directories, and what creates each? The reviewer reports the count and the defect; which rows are wrong is what research establishes against the provisioning source.
+  - Is this the same defect as T60, which adds a `home` row to the Windows install tree on Hearth on Windows? Two pages carrying the same missing row would make one source fix and two page edits. Check before running either.
+
+##### Draft
+
+wiki/first-run.md is a decision record and its decisions stay. This is a tree
+that describes the product, so correcting it is a correction rather than a
+retype, and the dated framing around it is not touched.
+
+Note that T3 and T65 have both already run on this page and T46 owns its
+extraction. Check what each left before editing.
+
+### T79: No decision record says what would reopen its decisions
+
+The decision-record shape asks a record to say what would reopen what it decided.
+Three records do not. Two separate reviewers found the same gap independently, on
+different pages, which makes it a corpus ruling rather than one page's defect.
+
+##### Details
+
+- Agent State: Backlog
+- Type: Add
+- Scope: M
+- Confidence: High
+- Sizing evidence: recorded independently by the T3 reviewer and the T65 reviewer, on 2026-09-04 and in the Phase A run, from tasks/docs/artifacts/T3.review.json and tasks/docs/artifacts/T65.review.json. The T65 reviewer reports the gap on wiki/first-run.md and deliberately did not charge it, because wiki/backend/native-runtime.md and wiki/backend/packaging-options.md share it, so it is a corpus ruling. The T3 reviewer reports the same absence on wiki/first-run.md and names two candidate reopening conditions already in evidence: the retirement of the take-turns branch, and whether a Linux client ships. This is not T38, which concerns whether concept pages take action-title headings.
+- Sources of truth: (Research fills)
+- Docs: (Research fills)
+- Artifacts:
+  - Research: tasks/docs/artifacts/T79.research.json
+- Open questions:
+  - Is the remedy a section on each record, or a rule stated once in wiki/page-types.md and then applied? The shape already asks for it, so the rule exists and what is missing is the content, which argues for three page edits.
+  - Does every decision need a reopening condition, or only the ones whose premises are known to be moving? A record that lists a condition for every decision it ever made becomes a list nobody reads.
+
+##### Draft
+
+Three pages, so this splits after Research into one Author task per page.
+
+The two candidate conditions the T3 reviewer named are a starting point and not
+the answer: a reopening condition has to come from the decision it belongs to.

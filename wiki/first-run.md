@@ -2,24 +2,27 @@
 title: First run
 status: scoped
 type: decision-record
-last_reviewed: 2026-09-03
+last_reviewed: 2026-09-04
 related:
   - backend/build-pipeline.md
   - _index.md
 sources:
   - first-time-user.md (unpublished research)
   - hearth-setup-flow.html (unpublished research)
+  - crates/hearth-probe/src/plan.rs
 ---
 
 # First run
-What happens between someone downloading Hearth and having a companion that
-knows something about them. The visual reference is a
-seventeen-screen mockup built against the real client shell.
+Read the decisions behind Hearth's first run, the three beats it moves through,
+and the rules a live install test forced into the design.
 
 ## Three beats
 
 The whole experience is three movements, in this order, and the order is the
 design.
+
+The visual reference is a seventeen-screen mockup built against the real client
+shell.
 
 1. **Install.** The client is the installer. One download, a hardware scan, a
    model chosen for this machine, and a verification pass that proves it works.
@@ -44,8 +47,13 @@ the hardware and provisions everything to match.
 It also removes a question the draft had to ask. "Is this a client or a host
 machine?" is unanswerable by a stranger and unnecessary to ask: the client
 always installs, then either provisions a backend here or connects to one it
-found. Same-host detection, designed for a different reason in
-`tasks/desktop-client-macOS.md`, is the mechanism.
+found.
+
+Same-host detection is the intended mechanism and it is not built yet. The
+desktop client still declares its capabilities unconditionally, and nothing
+asks whether the house it is talking to runs on this machine. What survives of
+the design is `tasks/clients/desktop-client/file-capability-scope.md`. The
+Valinor document it was scoped in has been archived.
 
 ### A fresh install starts empty, and this is easy to get wrong
 
@@ -189,7 +197,8 @@ Where the machine cannot run Hearth at all, the refusal is written the same
 way. It leads with what that means, then the arithmetic behind it: what the
 machine has to work with, what is left after the voice, speech recognition, and
 headroom, and how big the smallest model is.
-[Installing on macOS](install-macos.md) quotes the shipped wording.
+[Installing Hearth](installing.md) describes what the refusal tells you, and
+the shipped wording itself lives in `crates/hearth-probe/src/plan.rs`.
 
 ### Verification is part of the install
 

@@ -20,8 +20,13 @@ documentation.
 
 ## Pages that are not written yet
 
-1. **Installing on Windows.** [Installing on macOS](install-macos.md) is the shape it will take.
-   What differs is the numbers and the CUDA voice build. Until it exists,
+Each entry names what is missing, why it is missing, and where to read until it
+lands.
+
+1. **Installing on Windows.** The steps will land as a Windows section inside
+   [Installing Hearth](installing.md), which already states the Windows requirements. They are
+   unwritten because nobody has run a Windows install end to end and recorded it: the numbers
+   here come off a real machine rather than an estimate. Until then,
    [Hearth on Windows](clients/windows.md) covers what the app does.
 2. **Pairing.** A short article on connecting a phone to a house, once the phone's code-entry
    screen and the desktop's pairing panel both exist. [Hearth on iOS](clients/ios.md) describes

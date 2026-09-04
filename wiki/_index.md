@@ -2,7 +2,7 @@
 title: Hearth wiki
 status: open
 type: landing
-last_reviewed: 2026-09-03
+last_reviewed: 2026-09-04
 related:
   - getting-started.md
   - developing.md
@@ -24,20 +24,20 @@ nothing outside it; it is pre-alpha, and still rough.
 Start here if you have not installed anything yet. Hearth runs on a Windows
 machine with a capable GPU, or on an Apple Silicon Mac with 8 GB of memory or
 more, and these pages cover whether your machine qualifies, what the install
-does, and how an existing install becomes a newer one.
+does and how you update by hand, and the unbuilt design for updating in place.
 
 - [Getting started](getting-started.md)
 - [Installing Hearth](installing.md)
-- [Installing on macOS](install-macos.md)
 - [Updating an install](updates.md)
 
 ## Meeting your persona
 
 Your first hour is an install that proves itself by speaking to you, an
 interview in which you and Sulivan build a persona together, and a handover to
-the persona you made. These pages cover that arc and the three parts of a
-companion: who they are, how they look back at you, and how they speak.
+the persona you made. These pages walk that arc, record the design behind it,
+and cover who they are, how they look back at you, and how they speak.
 
+- [Meeting your persona](meeting-your-persona.md)
 - [First run](first-run.md)
 - [Personas](features/personas.md)
 - [The persona face](features/persona-face.md)
@@ -82,8 +82,9 @@ rather than by release, and set out how the documentation itself is written.
 ## Looking under the hood
 
 These are the engineering record behind the product pages, written for someone
-changing the house rather than running it. A reader who came to use Hearth can
-stop above this line.
+changing the house rather than running it. The section above, Building and
+changing Hearth, is for that reader too, so if you came to use Hearth, the last
+section you need is Running it on your devices.
 
 - [Native runtime](backend/native-runtime.md)
 - [Build pipeline](backend/build-pipeline.md)

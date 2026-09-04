@@ -1,0 +1,20 @@
+{
+  "task_id": "T14",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/releasing.md",
+      "sections": ["frontmatter: related"]
+    }
+  ],
+  "sections": [],
+  "deviations": [],
+  "unresolved": [
+    {
+      "what": "Confirmation that scripts/lint_wiki.py now reports no dead-related finding for wiki/releasing.md.",
+      "why": "This agent's tool set is Read, Grep, Write, Edit, with no shell tool, so the linter could not be run. The removal was verified by reading the file and by grep only."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

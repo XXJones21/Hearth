@@ -1,0 +1,197 @@
+{
+  "task_id": "T12",
+  "document": "wiki/whats-not-here.md",
+  "score_before": 6,
+  "score_after": 7,
+  "score_delta": 1,
+  "verdict": "NEEDS_WORK",
+  "score_notes": "Baseline: 10 - (F1 2 + F2 1 + F3 0.5 + F4 0.5) = 10 - 4 = 6. After: 10 - (F1 2 + F2 1) = 10 - 3 = 7. Delta +1. Accounted: F3 and F4 in changed[]; F1 and F2 open in remaining[], both deferred as restructure rather than discovered late. Every baseline found[] id sits in exactly one of changed[] or remaining[]. No finding was appended on regrade. Both sums use floor and neither hits the 10-cap rule, since remaining[] is non-empty.",
+  "linter": {
+    "ran": false,
+    "why": "This agent's registered tool set is Read, Grep, Write, Edit. There is no Bash or shell tool in this session, so `python scripts/lint_wiki.py` could not be executed here. No linter run is claimed.",
+    "inherited_result": "The dispatch reports a run made by a subagent with a shell against this worktree: 29 pages checked, 0 errors, 196 warnings, with no errors on this page. tasks/docs/artifacts/T12.research.json:161-163 records the same figures independently.",
+    "ownership_established_first_hand": "scripts/lint_wiki.py was read directly rather than inferred. Lines 356-372 own raw-link, figure-pending and dead-link; 374-378 own reader-drift; 380-386 own long-paragraph and bold-lead. Line 216 excludes numbered list items from is_prose, so entry 1 is exempt from the long-paragraph and bold-lead warnings however it is written. No finding below overlaps any of these."
+  },
+  "dimensions": {
+    "voice": 9,
+    "clarity": 7,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 6,
+    "intent": 9,
+    "structure": 7,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "## Material that never publishes, lines 32-42",
+      "issue": "The section carries contributor conventions on a landing page. Lines 37-39 tell a documentation author to name a source in the frontmatter `sources` field and never link to it, and line 41 states what scripts/lint_wiki.py fails on. wiki/page-types.md:91-92 rules that a landing page carries no procedures and nothing a reader can act on, and 84-86 asks for one or two sentences of prose under a heading before its links. This section runs six sentences, of which two paragraphs are rules a contributor acts on, and then links [Developing on Hearth](developing.md), the page that already owns those conventions. The page's declared `type: landing` is correct and is ratified at wiki/page-types.md:73; the defect is the section, not the frontmatter.",
+      "fix": "Compress to what `raw/` holds and one clause on why it never publishes, then route to developing.md for the convention and the linter rule.",
+      "detraction": 2,
+      "reason": "A reader who came to find out what is missing is held on a routing page by rules that belong to someone writing a page rather than reading one, and the page they need for those rules is linked in the same section.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "Headings at lines 21 and 32, and the abstract at line 14",
+      "issue": "Both H2 headings are noun labels: `## Pages that are not written yet` and `## Material that never publishes`. wiki/page-types.md:82-83 asks a landing page for gerund or action headings grouping related pages, and the corpus model wiki/_index.md uses gerunds in all six of its sections. Compounding it, `Pages` and the abstract's `which pages are still to be written` no longer describe entry 1, which now announces a missing section inside an existing page rather than a missing page. Entry 2 is genuinely a missing page, so neither line can be corrected by substitution.",
+      "fix": "Recast both headings as gerund or action titles that cover a list holding one missing section and one missing page, and align the abstract at line 14 to match.",
+      "detraction": 1,
+      "reason": "A reader scanning for a missing page reads the heading as a promise the first entry does not keep, and the two noun headings scan differently from every other landing section in the corpus.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Pages that are not written yet, line 21 into line 23",
+      "issue": "The numbered list starts immediately under the heading with no prose between them. wiki/page-types.md:85-86 states the landing rule directly: one or two sentences of prose under each heading before its links, and never a bare list under a bare heading. The page's own second section complies, and so does every section of wiki/_index.md, so this section is the outlier on its own page.",
+      "fix": "Add one orienting sentence under the heading saying what the entries carry, before the list.",
+      "detraction": 0.5,
+      "reason": "The reader meets a list with no statement of what it is for. The overview at lines 16-19 covers some of this a level up, which is why the consequence is small rather than absent.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "style",
+      "dimension": "clarity",
+      "location": "Entry 1, lines 25-26",
+      "issue": "The sentence joins the blocker and the publishing standard with a coordinate `and`: 'They are unwritten because nobody has run a Windows install end to end and recorded it, and the numbers here come off a real machine rather than an estimate.' Read literally that offers two reasons the steps are unwritten. The second clause is not a reason; it is the standard that makes the first one blocking, which is the relationship tasks/docs/tracker.md:1386 records.",
+      "fix": "Replace the comma and `and` with a colon, so the second clause explains the first. wiki/style-guide.md:196 sanctions a colon when introducing an explainer.",
+      "detraction": 0.5,
+      "reason": "A reader assembling why the gap is deliberate has to reorder the sentence to get the causal chain the right way round.",
+      "discovered": "baseline"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Compress ## Material that never publishes to what raw/ holds plus one clause on why it never publishes, and route the frontmatter sources convention and the linter rule to developing.md.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Not attempted here. Reshaping a section so a landing page stops carrying contributor conventions is the author's restructure mode, which the reviewer contract puts out of scope. No existing tracker row owns it: T16 owns the install-macos.md retirement and T11 owns the index. Needs a new row against wiki/whats-not-here.md, scoped to ## Material that never publishes and carrying the verdict that the page's type: landing is correct and stays."
+    },
+    {
+      "id": "F2",
+      "action": "Recast both H2 headings as gerund or action titles and align the abstract at line 14, so the section that holds one missing section and one missing page is named accurately.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Not attempted here, on instruction. The dispatch records the heading and abstract wording as deliberately left by the corrections task and directs this stage to record it rather than fix it. Renaming only one of the two headings would break their parallelism, so the whole finding defers together. Wants the same new tracker row as F1, since both are edits to this page's landing shape."
+    },
+    {
+      "id": "F3",
+      "action": "Add one orienting sentence under ## Pages that are not written yet, before the numbered list.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added one sentence under the heading: 'Each entry names what is missing, why it is missing, and where to read until it lands.' Checked true of both entries before writing it. Entry 1 gives the Windows steps, the unrecorded install, and clients/windows.md; entry 2 gives the pairing article, the two screens that do not exist yet, and clients/ios.md. It states the entries' shape rather than repeating the overview at lines 16-19."
+    },
+    {
+      "id": "F4",
+      "action": "Replace the coordinate and in entry 1's second sentence with a colon, so the publishing standard explains the blocker rather than standing beside it.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Replaced ', and' with ':' so the publishing standard now explains the blocker instead of standing beside it as a second reason. The clause itself is untouched, which keeps the dispatch's third settled decision intact: the entry still states in one clause why the steps are missing."
+    }
+  ],
+  "objective_gaps": [
+    {
+      "objective": "identify which articles the wiki has not written yet",
+      "bloom": "remember",
+      "taught": true,
+      "why": "Both entries name the missing work, and after F3 the section states up front what each entry carries. Derived, not recorded: see objectives_note.",
+      "needs": null
+    },
+    {
+      "objective": "identify which material never publishes to this wiki, and why",
+      "bloom": "understand",
+      "taught": true,
+      "why": "Lines 37-42 name the raw/ directory, what it holds, and the reason it never publishes. The objective is met and then exceeded, which is the F1 problem rather than a gap.",
+      "needs": null
+    },
+    {
+      "objective": "find where to read while a gap is still open",
+      "bloom": "remember",
+      "taught": true,
+      "why": "Entry 1 routes to clients/windows.md and entry 2 to clients/ios.md, and both pointers were verified against those pages. clients/windows.md:245-246 states its own scope in the same terms the entry uses.",
+      "needs": null
+    },
+    {
+      "objective": "(no objective) name a raw/ source in frontmatter and keep it out of body links",
+      "bloom": "apply",
+      "taught": true,
+      "why": "Content serving no objective a reader of this page holds. Lines 40-45 teach a documentation contributor a convention at apply level, on a page whose type caps it at understand and whose rules at wiki/page-types.md:91-92 forbid anything a reader can act on. wiki/developing.md owns this convention and is linked at line 45, so it is taught twice. This is the other direction of the gap analysis and it is recorded as F1.",
+      "needs": "restructure"
+    }
+  ],
+  "objectives_note": "The page records no objectives in its frontmatter, and tasks/docs/artifacts/T12.research.json:199 carries `objectives: []`, so none exist anywhere for this page. The four above were derived from what the page plainly sets out to do, so that the gap analysis still happened. The three genuine objectives sit at remember and understand, which is the level wiki/page-types.md gives a landing page, so nothing here supports a wrong-type finding. The fourth is content without an objective rather than an objective without content.",
+  "changed": [
+    {
+      "id": "F3",
+      "summary": "Added one orienting sentence under ## Pages that are not written yet, before the numbered list, clearing the bare-list-under-a-bare-heading violation of wiki/page-types.md:85-86. Verified true of both entries before writing it."
+    },
+    {
+      "id": "F4",
+      "summary": "Replaced the coordinate ', and' in entry 1 with a colon, so the publishing standard now explains the blocker rather than reading as a second, parallel reason the steps are unwritten."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "## Material that never publishes carries contributor conventions on a landing page: the frontmatter `sources` rule at lines 40-42 and the linter rule at line 44, both of which wiki/developing.md already owns and which the section itself links.",
+      "why_unfixed": "Deferred, not declined. Compressing a section is the author's restructure mode, which gotcha 8 of the reviewer contract puts out of scope for this stage. Recorded here with the verdict that the page's type: landing is correct and stays; only the section changes.",
+      "detraction": 2
+    },
+    {
+      "id": "F2",
+      "dimension": "clarity",
+      "issue": "Both H2 headings are noun labels where wiki/page-types.md:82-83 asks a landing page for gerund or action titles, and 'Pages' at line 21 with 'which pages' at line 14 no longer describe entry 1, which announces a missing section inside an existing page.",
+      "why_unfixed": "Deferred on instruction. The dispatch records the wording as deliberately left by the corrections task and directs this stage to record rather than fix it. Renaming one heading and not the other would break their parallelism, so the finding defers whole.",
+      "detraction": 1
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 10 - (F1 2 + F2 1 + F3 0.5 + F4 0.5) = 6. F1 is a 2 because the landing rules at wiki/page-types.md:91-92 are stated flatly and violated twice in one section, and because the page that owns the duplicated convention is linked in that same section. F2 is a 1 because a noun heading where the type asks for a gerund is a scanability defect rather than a blocker, and because the 'pages' imprecision misleads a reader only mildly: entry 1 still tells them exactly where the steps will land. F3 and F4 are 0.5 each, low-consequence shape and sentence-logic nits, and both were fixable in place. After the pass, F3 and F4 are cleared and F1 and F2 remain open by design, giving 10 - 3 = 7. Delta +1. Both grades are absolute readings of the page, so the +1 is a measured difference rather than credit awarded for effort. Two things are deliberately not in this math. Anything scripts/lint_wiki.py owns is out of scope, and I confirmed its ownership by reading it at lines 216, 356-386 rather than inferring it. And the T12 edit under review is itself sound: I re-verified every assertion in entry 1 against source and the tracker and found no stale claim, so the delivered work contributes nothing to the penalty.",
+    "what_worked": "The delivered T12 edit is correct, which is the main thing to report, and I verified it independently rather than accepting the author's account. crates/hearth-probe/dictionary.yaml:102 reads `cpp_platforms: [macos, windows]` and desktop-client/src-tauri/src/provision.rs:476-479 returns before the venv, torch and engine chain with 'engine ships with Hearth', so the removed CUDA voice claim was genuinely false and is genuinely gone. tasks/docs/tracker.md:1394-1396 makes the deliverable a `### Windows` procedure inside wiki/installing.md rather than a separate page, which is what the entry now says. wiki/installing.md:69-89 does already state the Windows requirements, as the entry claims. tasks/docs/tracker.md:1386 and 1391-1392 support the blocker clause. wiki/clients/windows.md:245-246 states its scope in the same terms the entry uses for it. The link to install-macos.md is gone, which is the precondition T16 needed from this page. On top of that, F3 gives the first section the orienting sentence its type requires and its neighbour already had, and F4 straightens the causal chain in the one sentence this task existed to deliver, so a reader now reads the blocker and the standard in the order they actually relate.",
+    "what_holds_score_down": "Two open findings, both structural, both pre-existing and outside the corrections task's scope. F1 is the larger by some distance. ## Material that never publishes spends four of its six sentences teaching a documentation contributor how to cite a raw/ source and what the linter rejects, on a page whose type forbids anything a reader can act on, and then links wiki/developing.md, which is where that material already lives. A reader who came to find out what is missing does not leave within one screen, which is the one thing wiki/page-types.md:69-70 asks of a landing page. F2 is smaller and partly acknowledged already: both headings are noun labels where the corpus model wiki/_index.md uses gerunds in all six of its sections, and 'Pages' now overstates a list holding one missing section and one missing page. Neither was fixed here, and neither should have been by this stage: F1 is a reshape, and F2 the dispatch explicitly reserved. Worth being plain that the page is not in bad shape. It is short, its every factual claim survived checking against source, and its links all resolve and all say something true about their destinations. The 7 is a type-conformance grade, not a trustworthiness one.",
+    "further_improvements": [
+      {
+        "action": "Cut ## Material that never publishes to two sentences: what raw/ holds, and that it never publishes because the publish step strips it. Move the frontmatter `sources` rule and the scripts/lint_wiki.py behaviour into wiki/developing.md if they are not there already, and let the existing link carry the reader to them.",
+        "why": "Clears F1. The section teaches a contributor convention at apply level on a landing page that wiki/page-types.md:91-92 caps at routing, and duplicates a page it links in the same breath. This is the difference between a register a reader scans and one that stops them.",
+        "expected_score_effect": "Clears the F1 detraction of 2, taking the open penalty from 3 to 1 and the score from 7 to 9."
+      },
+      {
+        "action": "Recast both H2s as gerund titles covering a list that holds one missing section and one missing page, and rewrite the abstract at line 14 to match. The heading cannot simply become 'Sections', because entry 2 is genuinely a missing page.",
+        "why": "Clears F2. Restores parallelism with wiki/_index.md, which uses gerunds throughout, and stops the heading and abstract promising a missing page that entry 1 does not describe.",
+        "expected_score_effect": "Clears the F2 detraction of 1. Taken with the item above, the open penalty reaches 0 and the score reaches the 9 cap."
+      },
+      {
+        "action": "Open a tracker row for the `envs\\voice\\` claim at wiki/installing.md:227 and wiki/clients/windows.md:165, which both describe it as the voice engine's own environment installed at first run.",
+        "why": "Not a finding against this page and not counted in its score, but it is a stale-claim on two neighbours and this review is the second artifact to surface it. desktop-client/src-tauri/src/provision.rs:476-479 returns before line 480, the only place that folder is created, whenever the platform is in `cpp_platforms`, and crates/hearth-probe/dictionary.yaml:102 puts windows in that list. So a Windows reader is told to expect a folder their install never creates. tasks/docs/artifacts/T12.research.json raised it too and found no row owning it.",
+        "expected_score_effect": "No effect on this page's score. It protects two pages a reader reaches from this one."
+      },
+      {
+        "action": "Give wiki/whats-not-here.md recorded objectives in its frontmatter, or in the research artifact for whichever task next touches it.",
+        "why": "The page has none anywhere, so the four in objective_gaps[] had to be derived by this stage to do the gap analysis at all. A register page whose objectives are written down is one a later reviewer can check rather than reconstruct.",
+        "expected_score_effect": "No direct effect. It makes the next review's gap analysis verifiable instead of inferred."
+      },
+      {
+        "action": "Correct the T10 sizing evidence at tasks/docs/tracker.md:1377, which locates `### Windows` at wiki/installing.md lines 48-56.",
+        "why": "That range now falls inside `### macOS`, and the Windows section sits at 69-89 after T9 reshaped the page. The substantive claim, that the section carries no numbered step, still holds at the new lines. This entry on wiki/whats-not-here.md closes when T10 lands, so the row that unblocks it should point at the right lines.",
+        "expected_score_effect": "No effect on this page's score. It keeps the task that closes this register entry accurate."
+      }
+    ]
+  }
+}

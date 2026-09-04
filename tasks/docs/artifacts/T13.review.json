@@ -1,0 +1,287 @@
+{
+  "document": "wiki/updates.md",
+  "task_id": "T13",
+  "score_before": 3,
+  "score_after": 5,
+  "score_delta": 2,
+  "verdict": "FAIL",
+  "score_notes": "Baseline: 10 - (F1 2 + F2 1 + F3 1 + F4 1 + F7 1 + F5 0.5 + F6 0.5) = 10 - 7 = 3. After: 10 - (F1 2 + F2 1 + F4 1 + F6 0.5) = 10 - 4.5 = 5.5, floored to 5. Delta +2. Accounted: F3, F5 and F7 in changed[]; F1, F2, F4 and F6 open in remaining[]. Every baseline id appears in exactly one list, and no finding was discovered on regrade.",
+  "tooling_note": "This reviewer's tool set is Read, Grep, Write, Edit. There is no Bash tool in it, so I did not run scripts/lint_wiki.py and I do not claim to have. Linter state is taken from two places I could read: the dispatch (29 pages, 0 errors, 196 warnings, corpus-wide, measured by a subagent with a shell) and tasks/docs/artifacts/T13.research.json, whose author did run it and recorded the per-page result. The only linter findings on wiki/updates.md are warnings: bold-lead at lines 21, 26, 60 and 67, and long-paragraph at line 132. Those five are the linter's and appear nowhere in found[]. In particular, no term-list-as-prose finding is raised for the bolded-lead paragraphs, because the linter already reports them.",
+  "dimensions": {
+    "voice": 8,
+    "clarity": 7,
+    "inclusive_language": 9,
+    "technical_notation": 7,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 4,
+    "intent": 7,
+    "structure": 6,
+    "style": 9
+  },
+  "dimensions_note": "Diagnostics only, scored after the edits. Voice rises because the page now addresses the reader as you and no longer has an unattributed narrator. Type stays low because F1 is untouched and untouchable here. Technical_notation is held at 7 by F2, the quotation that cannot be found in the tree.",
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "§The decision underneath: signing (103-120), §What I would do, in order (138-149), §What this closes elsewhere (151-164)",
+      "issue": "type-mixture. The page declares `type: concept` at line 4. Its first half is a concept page and its second half is not: an undecided decision with its cost and consequences, a five-item prioritized build order, and a log of questions settled on another page. wiki/page-types.md:138-155 gives the concept shape as what the thing is, why it works that way, what it looks like in use, and links out. A prioritized roadmap is in none of those five items, and an open decision with alternatives and costs is decision-record material per wiki/page-types.md:164-171.",
+      "fix": "Not a reviewer edit. Split the page, or retype it, under the task that owns the question. The concept material (§An update is two halves, §Half of it already works, §What is missing, the two layer sections, §Weights that outlive their plan) stays a concept page. The signing question is a decision record, or a tracker row while it is still open, and the build order belongs in tasks/ per CLAUDE.md.",
+      "detraction": 2,
+      "reason": "A reader routed here from wiki/installing.md:258 for the design of updating gets, in the back half, an unattributed recommendation list and bookkeeping about a different page. The page cannot answer either question well while it is answering both.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "technical_notation",
+      "location": "lines 55-57",
+      "issue": "stale-claim. The page presents a direct quotation attributed to the install record's own comment: \"this file is what a support conversation, an upgrade, or the backend provisioner reads.\" That string is not in this repository. A grep for `support conversation` across the whole worktree returns only wiki/updates.md:56 and wiki/first-run.md:98, which is wiki prose rather than a source comment. The record is written at desktop-client/src-tauri/src/probe.rs:255-275, and the nearest real comment is probe.rs:148-155, which says something different.",
+      "fix": "Either quote the comment that exists, or state the fact without quotation marks, or restore the attribution to whichever tree carries it. Which of the three is correct depends on where the quoted comment actually lives.",
+      "detraction": 1,
+      "reason": "A quotation is the strongest claim a page can make, because it invites the reader to go and check it. A reader who checks this one finds nothing, and then has reason to doubt the verbatim provision.rs quotation two paragraphs earlier, which is genuine (provision.rs:13-14).",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "voice",
+      "location": "lines 32, 69, 79, 81, 87, 105",
+      "issue": "The page never addresses the reader as \"you\". It says \"the person's memory and journal\" (32), \"a step a person has to know to take\" (69), \"The person gets a new app\" (79), \"the next time they open it\" (81), \"the person still has to learn\" (87), \"tells people to right-click\" (105). wiki/style-guide.md:46-57 requires reader-facing pages to address the reader as you, and names exactly one exception: engineering-record pages under `backend/`. wiki/updates.md is not under backend/. The linter's READER_DRIFT rule at scripts/lint_wiki.py:109 matches only `the operator` and `the user`, so it does not see any of these.",
+      "fix": "Replace the third-person stand-ins with `you` and `your`. No claim changes.",
+      "detraction": 1,
+      "reason": "The person whose memory and journal are at stake is the reader. Written in the third person, the page reads as a memo about them rather than a page for them, and it is the only top-level wiki page that does this.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§What this closes elsewhere (151-164)",
+      "issue": "status-log. Four questions belonging to backend/build-pipeline.md are answered here, three of them dated (2026-08-06, 2026-08-07), while that page still carries them as open. Three of the four are not about updating at all: whether the client bundles or fetches the backend, how a `.wsl` image updates, and whether the Mac gets the same voice engine on day one.",
+      "fix": "Move each answer onto the page that poses the question, and leave this page a sentence naming what the update design settled there. Cross-page, so not a reviewer edit.",
+      "detraction": 1,
+      "reason": "Two harms, one on each page. A reader of backend/build-pipeline.md sees four open questions that are in fact settled, and only a reader who happens to land here learns otherwise, which is the failure wiki/style-guide.md:173-180 exists to prevent. A reader here spends a screen on bundling, WSL and the voice engine, none of which is what they came for.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "structure",
+      "dimension": "voice",
+      "location": "line 138, `## What I would do, in order`",
+      "issue": "The heading speaks in the first person on a page with no byline, so \"I\" has no referent for a reader. A grep of wiki/ for first-person constructions returns this heading and nothing else outside wiki/raw/ (staged research, where it is correct) and a quoted persona line at features/personas.md:67. It is a research idiom that survived into a canonical page.",
+      "fix": "Rename to a heading that names the content without a narrator. Nothing links to the old anchor: a corpus grep for `what-i-would-do` and for `updates.md#` returns no matches.",
+      "detraction": 1,
+      "reason": "The section is the page's strongest recommendation, and the reader cannot tell whose recommendation it is or how much weight it carries.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "style",
+      "dimension": "grammar_mechanics",
+      "location": "line 124, \"quantisation\"",
+      "issue": "British spelling. wiki/style-guide.md:168-171 requires American forms. The linter's BRITISH pattern at scripts/lint_wiki.py:97-102 is a tight list that does not include this word, so it passes a clean lint run. wiki/installing.md:142 uses \"quantization-aware\" for the same concept.",
+      "fix": "quantisation to quantization.",
+      "detraction": 0.5,
+      "reason": "One page in the corpus spells a shared term two ways, which is the drift the rule exists to stop.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "style",
+      "dimension": "grammar_mechanics",
+      "location": "line 5, `last_reviewed: 2026-09-03`",
+      "issue": "The page was edited and reviewed on 2026-09-04 and still claims 2026-09-03. Its pair, wiki/installing.md:5, reads 2026-09-04. No page states whether `last_reviewed` is bumped on edit: wiki/developing.md:227-229 requires the key and says nothing about maintaining it, and scripts/lint_wiki.py checks its presence rather than its freshness.",
+      "fix": "Decide the convention once, corpus-wide, then apply it. My view is recorded in the checklist result and in detailed_review.",
+      "detraction": 0.5,
+      "reason": "A reader uses the date to judge how much to trust the page. A date that does not move when the page does makes it a decoration.",
+      "discovered": "baseline"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Split or retype the page so the concept material, the open signing decision, and the build order are not one page.",
+      "state": "deferred",
+      "owner": "T67",
+      "needs": "restructure",
+      "result": "Not attempted. Reshaping a page is out of this agent's scope, and tasks/docs/tracker.md:3094-3115 already opens T67, \"Settle what Updating an install is for now that Installing Hearth carries the by-hand procedure\", whose first open question is which page owns the procedure and which owns the design and the decision. This finding is the same question seen from inside the page, and it adds one fact T67 does not yet record: the mixture is three-way rather than two-way, because §What I would do, in order is backlog material in a third register again."
+    },
+    {
+      "id": "F2",
+      "action": "Settle where the quoted install-record comment lives, then fix the attribution at lines 55-57.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "The question research has to answer: does the comment \"this file is what a support conversation, an upgrade, or the backend provisioner reads\" exist in any authoritative tree, and if so which one? It is not in this worktree. I grepped the whole of D:/Tools/Hearth-docs-wt for `support conversation` and got two hits, both markdown: wiki/updates.md:56, the quotation itself, and wiki/first-run.md:98, which is wiki prose. The record is written at desktop-client/src-tauri/src/probe.rs:255-275 and the surrounding doc comment at probe.rs:148-155 says something else. The live candidate is that the comment is in the Valinor tree, which this repository does not carry and which I cannot read. I did not soften the sentence, delete it, or re-point it at probe.rs, because all three would settle by guess a question of provenance that has one true answer."
+    },
+    {
+      "id": "F3",
+      "action": "Address the reader as you at lines 32, 69, 79, 81, 87 and 105.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Six replacements, no claim changed. \"where the person's memory and journal live\" to \"where your memory and journal live\"; \"a step a person has to know to take\" to \"a step you have to know to take\"; \"The person gets a new app\" to \"You get a new app\"; \"the next time they open it\" to \"the next time you open it\"; \"the person still has to learn\" to \"you still have to learn\"; \"tells people to right-click\" to \"tells you to right-click\". The page now addresses the same reader wiki/installing.md does, which matters because the two link to each other."
+    },
+    {
+      "id": "F4",
+      "action": "Move the four settled answers onto backend/build-pipeline.md and leave a pointer here.",
+      "state": "deferred",
+      "owner": "T67",
+      "needs": "restructure",
+      "result": "Not attempted. The fix edits a second page, wiki/backend/build-pipeline.md, which this task's statement does not open, and deleting the answers from here without landing them there would lose them. T67 is the nearest existing owner because it is settling what this page is for; if the orchestrator would rather scope it separately, the row is \"move the four answers in §What this closes elsewhere onto the page that asks the questions\". Note for whoever takes it: one of the four, \"Who signs the macOS build?\", is still open and stays."
+    },
+    {
+      "id": "F7",
+      "action": "Rename `## What I would do, in order` to a heading with no narrator.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Renamed to `## The order the work should land in`. It keeps the recommendation reading, because \"should\" carries it, and it drops an \"I\" no reader can resolve. Safe on anchors: a corpus grep for `what-i-would-do` and for `updates.md#` returns no matches, so nothing pointed at the old slug. Sentence case holds and no word in it is in the linter's PROPER set, so the heading rule at scripts/lint_wiki.py is unaffected. This does not resolve F1, which is about the section existing here at all."
+    },
+    {
+      "id": "F5",
+      "action": "Change quantisation to quantization at line 124.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "One word. The page now matches wiki/installing.md:142, which writes \"quantization-aware\" for the same idea."
+    },
+    {
+      "id": "F6",
+      "action": "Decide whether a redirect edit bumps `last_reviewed`, then apply the decision corpus-wide.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Not acted on, per the dispatch, which asked for a checklist entry rather than a silent edit. My view, for the decision: bump it, and write the rule down. Three pieces of evidence. First, the corpus already behaves as if the rule exists: wiki/installing.md:5 reads 2026-09-04 after T9 edited it today, while wiki/style-guide.md:5, wiki/page-types.md:5 and wiki/developing.md:5, none of which was touched today, all read 2026-09-03. Second, this edit was a review in the sense the key names: the research stage re-verified at source that wiki/installing.md:91 carries the procedure the sentence claims, which is more than a mechanical find-and-replace. Third, the pair now disagrees, and the two pages link to each other, so a reader comparing them sees the older date on the page that changed most recently. What stops me doing it is that nothing states the rule: wiki/developing.md:227-229 requires the key and is silent on maintaining it, and scripts/lint_wiki.py checks presence rather than freshness. Applying it here alone would set a corpus-wide precedent from one page. The decision belongs in wiki/developing.md's writing conventions, and then it applies to every task that touches a page."
+    }
+  ],
+  "objectives_note": "The page has no recorded objectives. tasks/docs/artifacts/T13.research.json carries `objectives: []`, and the frontmatter has no objectives key, which is normal here because scripts/lint_wiki.py:45 does not require one. So the five below are derived from what the page plainly sets out to teach, and the gap analysis is run against them. A concept page should teach at the understand level per the hearth-style mapping.",
+  "objective_gaps": [
+    {
+      "objective": "explain how an installed Hearth becomes a newer one without a reinstall",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§An update is two halves, §Half of it already works and the two layer sections carry it end to end, and the level matches type: concept.",
+      "needs": null
+    },
+    {
+      "objective": "distinguish the part of updating that already works from the part that is missing",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Half of it already works lists five behaviours against the provisioner, and §What is missing names three gaps. This is the page's strongest passage.",
+      "needs": null
+    },
+    {
+      "objective": "explain what the design deliberately does not do, including orphaned weights",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Weights that outlive their plan names the limit and quantifies it, which satisfies the concept rule at wiki/page-types.md:151-152 that a concept page must name its limits.",
+      "needs": null
+    },
+    {
+      "objective": "justify whether Hearth should be signed",
+      "bloom": "evaluate",
+      "taught": false,
+      "why": "§The decision underneath: signing states the cost, the two consequences and what turns on it, and then reaches no conclusion. Line 164 records the question as still open. Two problems follow. The page cannot teach an evaluate objective it has not settled, and an evaluate objective implies a decision record rather than a concept page under the hearth-style Bloom mapping, which is the same defect F1 records from the other direction.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "sequence the update work in the order it should be built",
+      "bloom": "create",
+      "taught": true,
+      "why": "Taught, and that is the problem rather than the merit. §The order the work should land in delivers a five-item build order, which is a create-level objective. No page type in wiki/page-types.md carries one, and CLAUDE.md puts the backlog in tasks/. It is served content that a concept page's reader did not come for.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "(no objective) §What this closes elsewhere",
+      "bloom": "n/a",
+      "taught": true,
+      "why": "Content serving no objective of this page. Three of its four bullets answer questions about bundling, WSL and the macOS voice engine, none of which is updating. It is recorded as F4.",
+      "needs": "restructure"
+    }
+  ],
+  "changed": [
+    {
+      "id": "F3",
+      "summary": "Six third-person stand-ins replaced with you and your at lines 31, 68, 79, 80, 86 and 105. A follow-up grep confirms every surviving they/their on the page has a non-person antecedent: halves, files, versions, weights."
+    },
+    {
+      "id": "F7",
+      "summary": "Heading renamed from `## What I would do, in order` to `## The order the work should land in`. No inbound anchor existed."
+    },
+    {
+      "id": "F5",
+      "summary": "quantisation to quantization at line 124, matching wiki/installing.md:142."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "type-mixture. A concept page carrying an undecided decision record, a build order and a cross-page question log in its back half.",
+      "why_unfixed": "Reshaping a page is outside this agent's scope, and tasks/docs/tracker.md:3094 already opens T67 to settle what this page is for.",
+      "detraction": 2
+    },
+    {
+      "id": "F2",
+      "dimension": "technical_notation",
+      "issue": "stale-claim. The quotation attributed to the install record's comment at lines 55-56 is not in this repository.",
+      "why_unfixed": "Blocked on research. Fixing it needs to know where the comment lives, and every available edit (re-attribute, de-quote, delete) settles that by guess.",
+      "detraction": 1
+    },
+    {
+      "id": "F4",
+      "dimension": "clarity",
+      "issue": "status-log. §What this closes elsewhere answers four of another page's open questions, three of them dated, while that page still shows them open.",
+      "why_unfixed": "The fix edits wiki/backend/build-pipeline.md, which this task does not open, and deleting the answers here without landing them there would lose them.",
+      "detraction": 1
+    },
+    {
+      "id": "F6",
+      "dimension": "grammar_mechanics",
+      "issue": "`last_reviewed: 2026-09-03` on a page edited and reviewed on 2026-09-04.",
+      "why_unfixed": "Left open deliberately, per the dispatch. No page states whether an edit bumps the key, and setting the precedent from one page is a corpus-wide decision the orchestrator owns.",
+      "detraction": 0.5
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 3 = 10 - 7, term by term: F1 type-mixture 2, F2 stale-claim 1, F3 third-person reader 1, F4 status-log 1, F7 first-person heading 1, F5 British spelling 0.5, F6 stale last_reviewed 0.5. After 5 = 10 - 4.5, floored from 5.5: F1 2, F2 1, F4 1, F6 0.5 remain open. Delta +2. Three things this number is not. It is not a verdict on the T13 change, which I checked at source and found correct: wiki/updates.md:8 now reads installing.md, line 105 links [Installing Hearth](installing.md) with the destination's own frontmatter title as link text per wiki/style-guide.md:160-165, wiki/installing.md:91 carries `## Open Hearth for the first time on macOS` with the right-click steps the sentence claims at lines 96-98, and no occurrence of install-macos survives on the page. It is not a linter score: the five warnings the linter reports here, bold-lead at 21, 26, 60 and 67 and long-paragraph at 132, are excluded by rule and cost nothing, which is why no term-list-as-prose finding appears despite the bolded-lead paragraphs being the page's most visible surface defect. And it is not a distance travelled: 5 grades the page as it stands, where nearly two thirds of the open penalty is one structural fact that no sentence-level edit can reach.",
+    "what_worked": "F3 is the change a reader will feel. The page was the only top-level article in wiki/ that never said you, and it was doing it in the one paragraph where it matters most, telling the reader that an update must never touch home/, where the memory and journal live. Whose memory? It now says yours. The same edit closes a seam with wiki/installing.md, which addresses the reader directly and links here at line 258, so a reader crossing between them no longer changes person mid-journey. F7 removes the corpus's only unattributed narrator from a published page: a grep of wiki/ for first-person constructions returns hits under wiki/raw/, where staged research is entitled to them, one quoted persona line, and this heading. A reader now gets a recommendation with a rationale instead of an anonymous opinion, and the five items under it were already impersonal, so nothing else had to move. F5 is small and real: the page spelled a term one way and the install page it links to spelled it the other.",
+    "what_holds_score_down": "F1, worth 2 of the 4.5, is the page. The first six sections are a good concept article: what an update is, why it is 30 MB and not 3.8 GB, what already works with the provisioner quoted verbatim and correctly, what is missing, two designs, and an honest limit. Then the register changes three times. §The decision underneath: signing is a decision record with a cost, two consequences and no decision. §The order the work should land in is a build order, which is tasks/ material by CLAUDE.md. §What this closes elsewhere is bookkeeping for another page. A reader sent here from installing.md for the design gets all three. F4, worth 1, has a second victim: because the four answers live here, wiki/backend/build-pipeline.md still presents settled questions as open, which is exactly the failure wiki/style-guide.md:173-180 exists to prevent, and only a reader who happens to land on this page learns the difference. F2, worth 1, is the quietest and the one I would most want settled: the page quotes the install record's own comment, and that string is nowhere in this tree, while the provision.rs quotation three paragraphs above it is exact. One verified quotation next to one that cannot be found is worse than neither, because a reader who checks the second has no way to know the first is sound. F6, worth 0.5, is the date. Two nits are visible and unscored, named here rather than padded into found[]: line 52 says it is simply not reachable, where the intensifier is doing nothing that wiki/style-guide.md:101 wants kept, and line 130 slips into the past tense, a machine that had 13 GB free, in a paragraph otherwise written in the present.",
+    "further_improvements": [
+      {
+        "action": "Run T67 and split the page: keep the concept material here, move the signing question to a decision record or a tracker row while it stays open, and move the five-item build order to tasks/.",
+        "why": "F1. The page is three registers, and the two that do not belong are the two a reader cannot act on. T67's own first open question is already this question asked from the outside.",
+        "expected_score_effect": "Clears the 2 detraction on F1, the largest single term. Open penalty 4.5 to 2.5, score 5 to 7."
+      },
+      {
+        "action": "Find the install record comment quoted at wiki/updates.md:55-56, or establish that it does not exist, then either quote what is really there or drop the quotation marks and keep the claim, which wiki/first-run.md:98 independently supports.",
+        "why": "F2. A quotation invites the reader to check it, and this one fails the check.",
+        "expected_score_effect": "Clears the 1 detraction on F2. Needs research first; it is not an editing decision."
+      },
+      {
+        "action": "Move the four answers in §What this closes elsewhere onto wiki/backend/build-pipeline.md, beside the questions they close, and leave one sentence here naming what the update design settled there. Keep \"Who signs the macOS build?\" open in both places.",
+        "why": "F4. It fixes two pages at once: this one stops carrying three off-topic answers, and the other stops advertising settled questions as open.",
+        "expected_score_effect": "Clears the 1 detraction on F4."
+      },
+      {
+        "action": "Decide whether a docs task bumps `last_reviewed`, write the rule into wiki/developing.md's writing conventions beside convention 3, then apply it here and anywhere else it is now wrong.",
+        "why": "F6. The corpus already behaves as though the rule exists, since wiki/installing.md:5 moved to 2026-09-04 today and the untouched pages did not, but nothing states it, so every task re-decides it.",
+        "expected_score_effect": "Clears the 0.5 detraction on F6. Open penalty 4.5 to 4.0, which does not move the floored score on its own but is the cheapest of the four."
+      },
+      {
+        "action": "Cut \"simply\" at line 52 and put line 130 in the present tense: a machine that has 13 GB free.",
+        "why": "Two nits found on regrade, below the 0.5 floor individually. Named rather than scored, because inventing findings to look thorough is the failure mode this pipeline is guarding against.",
+        "expected_score_effect": "None. No detraction is attached to either."
+      },
+      {
+        "action": "When layer one ships, add a figure to §Layer one showing the update control in Settings beside Start and Stop.",
+        "why": "The section describes a surface a reader looks at, which is normally a missing-figure finding. It is not one today, because the control does not exist and a capture order for an unbuilt screen cannot be filled. Recorded so the next reviewer does not have to re-derive why the figure is absent.",
+        "expected_score_effect": "None today. It prevents a 1 detraction appearing later."
+      }
+    ]
+  }
+}

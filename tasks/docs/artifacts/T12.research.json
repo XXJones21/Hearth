@@ -1,0 +1,210 @@
+{
+  "task_id": "T12",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/whats-not-here.md",
+      "sections": ["## Pages that are not written yet", "# What is not here (abstract, line 14)"],
+      "why": "Entry 1 at lines 23-25 announces the Windows gap as a page: it links [Installing on macOS](install-macos.md) as the shape the missing work will take, states that what differs is the numbers and the CUDA voice build, and routes a waiting reader to clients/windows.md. Under the ratified verdict at tasks/docs/tracker.md:163-183 the missing work is a Windows section of numbered steps inside wiki/installing.md, and wiki/install-macos.md is demoted to wiki/raw/ by T16, so the page the entry names as the shape will not exist as a published page. The second clause is separately contradicted by source. The heading at line 21 and the abstract at line 14 both say 'pages', which no longer describes entry 1 once the gap is a section, and that is why this is not a single-location edit."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:91-102",
+      "covers": "Which platforms run which voice engine. Line 102 reads `cpp_platforms: [macos, windows]`, and the comment at 95-101 records that Windows measured omnivoice.cpp on CUDA on 2026-08-08 and moved to it, leaving only Linux on the torch engine."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/dict.rs:44-64",
+      "covers": "`Voice::uses_cpp(os)` matching the running OS against `cpp_platforms`, with the doc comment at 44-45 stating that anything else is still on the torch engine."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/provision.rs:234-237 and 469-500",
+      "covers": "What an install actually does about the voice. Line 237 sets `voice_is_cpp` from the dictionary; lines 476-479 short-circuit the whole venv, torch, and engine chain on a cpp platform and report 'engine ships with Hearth'; lines 490-496 reach `torch_index_cuda` only on the non-cpp path and only when the accelerator is `cuda`."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/build_omnivoice.sh:10-12 and 51-55",
+      "covers": "That `-DGGML_CUDA=ON` on Windows is a build-machine cmake flag chosen by `uname -s`, and that lines 10-12 state the build machine produces the binary, pack_backend.sh ships it, nothing is cloned or compiled on a user's machine, and there is no standalone install for anyone to satisfy."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:37-54",
+      "covers": "The CUDA material a Windows install does fetch: `windows_cuda` at 47-51 lists the llama.cpp b10358 CUDA 12.4 build and the cudart redistributable, which belong to the inference engine rather than to the voice."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:288-297 and 356-372",
+      "covers": "What the linter owns for this edit: `related` entries must resolve on disk (dead-related), body markdown links must resolve (dead-link, 370-372), and any link matching `(^|/)raw/` is a raw-link error (361-363). It also owns em dashes, emoji, sentence case, American English, and the reader-is-you warning."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:211-216 and 380-386",
+      "covers": "That `is_prose` excludes numbered list items, so entry 1 is exempt from the long-paragraph and bold-lead warnings no matter how it is rewritten inside the numbered list."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:67-94",
+      "covers": "The landing shape this page must keep: an entry point that routes, a reader who leaves within one screen, prose under each heading before its links, human titles as link text, and the rule at 91-92 that a landing page carries no procedures and nothing a reader can act on."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md:69-89 and 217-238",
+      "covers": "What the corpus currently says about installing on Windows, and what its two `### Windows` sections contain."
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:163-183, 1365-1394, 1429-1455",
+      "covers": "The ratified architecture and its recorded cost, T10's blocked state and its deliverable as a `### Windows` procedure inside wiki/installing.md, and T12's own row, draft, and recorded open questions."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/clients/windows.md:27-29 and 241-246",
+      "covers": "Whether entry 1's fallback pointer still holds: the page routes the install to ../installing.md twice and states at 245-246 that it covers what the app is and does."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/whats-not-here.md declares `type: landing`.",
+      "status": "verified",
+      "evidence": "wiki/whats-not-here.md:4 reads `type: landing`. Frontmatter runs 1-10; `status: open` at 3, `last_reviewed: 2026-09-03` at 5."
+    },
+    {
+      "claim": "Entry 1 under `## Pages that are not written yet` reads as the dispatch quotes it.",
+      "status": "verified",
+      "evidence": "wiki/whats-not-here.md:23-25, verbatim: '1. **Installing on Windows.** [Installing on macOS](install-macos.md) is the shape it will take. / What differs is the numbers and the CUDA voice build. Until it exists, / [Hearth on Windows](clients/windows.md) covers what the app does.' The heading is at line 21 and entry 2 (Pairing) runs 26-28."
+    },
+    {
+      "claim": "wiki/whats-not-here.md carries no dependency on wiki/install-macos.md beyond the prose link at line 23.",
+      "status": "verified",
+      "evidence": "Grep for `install-macos` in wiki/whats-not-here.md returns line 23 only. The frontmatter `related` list at lines 6-8 names `_index.md` and `developing.md`, and line 9 reads `sources: []`. Line 33 mentions 'the macOS status notes' as a description with no path, which is wiki/raw/macos-status.md, a file wiki/install-macos.md:11 names as its own source; the description is not a reference to install-macos.md, and scripts/lint_wiki.py:88 would only have flagged a written `raw/*.md` path."
+    },
+    {
+      "claim": "wiki/installing.md currently contains a `### Windows` section.",
+      "status": "verified",
+      "evidence": "wiki/installing.md contains two. `### Windows` at line 69 sits under `## Before you start` and runs 69-89. `### Windows` at line 217 sits under `## Check what Hearth installed` and runs 217-238."
+    },
+    {
+      "claim": "The `### Windows` section at wiki/installing.md:69-89 contains no numbered step.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:69-89, read line by line. It states that the Windows app installs and runs the backend as native Windows processes (71-72), gives three video-memory bands as a bulleted list (74-80), notes that most machines land on a 16 GB GPU tier (82), states the unpack overhead on free disk (84-86), and closes by routing to clients/windows.md (88-89). No line in the range begins with a digit and a period."
+    },
+    {
+      "claim": "wiki/installing.md contains no numbered Windows procedure anywhere.",
+      "status": "verified",
+      "evidence": "wiki/installing.md read in full, 295 lines. Its numbered lists are at 96-98 (`## Open Hearth for the first time on macOS`, macOS only), 110-120 and 177-179 and 192-195 (platform-neutral: reading the plan, resuming an interrupted download, confirming the voice), 252-254 (`## Update an install`) and 267-270 (`## Uninstall Hearth`, whose step 4 is macOS only). The `### Windows` section at 217-238 is a fenced tree plus prose. So a Windows reader gets requirements, an install-root layout, and the shared middle, and never a Windows-specific procedure."
+    },
+    {
+      "claim": "The tracker's T10 sizing evidence, which locates `### Windows` at wiki/installing.md lines 48-56, still matches the file.",
+      "status": "contradicted",
+      "evidence": "tasks/docs/tracker.md:1377 states '`### Windows` at lines 48-56 states requirements and then hands off to a platform overview, with no numbered step.' wiki/installing.md:48-56 now falls inside `### macOS` (47-67) and reads the Apple Silicon and 8 GB memory requirements. The Windows section moved to 69-89 when T9 reshaped the page. The file is the higher authority. The substantive part of the tracker's claim, that the section has no numbered step, remains true at the new lines."
+    },
+    {
+      "claim": "A Windows install builds or installs a CUDA voice build, so a Windows install guide would differ from the macOS one by it.",
+      "status": "contradicted",
+      "evidence": "wiki/whats-not-here.md:24 states it. Source states the opposite twice. crates/hearth-probe/dictionary.yaml:102 reads `cpp_platforms: [macos, windows]`, so Windows runs omnivoice.cpp, the same C++ engine macOS runs. desktop-client/src-tauri/src/provision.rs:237 computes `voice_is_cpp` from that list, and 476-479 then return early with the message 'engine ships with Hearth', skipping the venv, the torch install, and the engine package entirely; the comment at 471-475 calls this 'roughly 1.3 GiB of environment that stops existing'. A Windows reader therefore performs no voice build and installs no CUDA voice component."
+    },
+    {
+      "claim": "The CUDA torch wheel index in the dictionary is reached on a Windows install.",
+      "status": "contradicted",
+      "evidence": "crates/hearth-probe/dictionary.yaml:67 sets `torch_index_cuda: https://download.pytorch.org/whl/cu130` under `voice_env`. desktop-client/src-tauri/src/provision.rs:492-496 reads it only inside the branch that lines 476-479 have already returned from on a cpp platform, and only when the accelerator is `cuda`. crates/hearth-probe/src/dict.rs:44-45 states directly that anything outside `cpp_platforms` is still on the torch engine. The surviving reader of that index is Linux with a CUDA GPU."
+    },
+    {
+      "claim": "The CUDA flag in the voice engine build is a build-machine concern rather than something a user's install performs.",
+      "status": "verified",
+      "evidence": "scripts/build_omnivoice.sh:51-55 selects the cmake backend flag from `uname -s`, giving `-DGGML_CUDA=ON` on MINGW/MSYS/CYGWIN and `-DGGML_METAL=ON` on Darwin. Lines 10-12 state 'The build machine produces the binary and `pack_backend.sh` ships it, exactly as it already does for hearth-supervisor. Nothing is cloned or compiled on a user's machine, and there is no standalone install for anyone to satisfy.'"
+    },
+    {
+      "claim": "A Windows install fetches nothing CUDA-specific at all.",
+      "status": "contradicted",
+      "evidence": "It fetches CUDA material, but for the inference engine rather than the voice. crates/hearth-probe/dictionary.yaml:47-51, under `runtime.llama_server.windows_cuda`, lists llama-b10358-bin-win-cuda-12.4-x64.zip at 250,727,763 bytes and cudart-llama-bin-win-cuda-12.4-x64.zip at 391,443,627 bytes, against `macos_metal` at 44-46 which is a single 11,040,494-byte tarball. Lines 52-54 give `windows_vulkan` as the alternative. So the true Windows difference in this area is a larger, accelerator-selected inference-engine download, not a voice build."
+    },
+    {
+      "claim": "wiki/installing.md:226 states that `envs\\voice\\` is the voice engine's own environment, installed at first run.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:226, inside the fenced Windows install-root tree at 221-230, reads '  envs\\voice\\             the voice engine's own environment, installed at first run'. wiki/clients/windows.md:165 carries the same row."
+    },
+    {
+      "claim": "A Windows install creates `envs\\voice\\`.",
+      "status": "contradicted",
+      "evidence": "wiki/installing.md:226 and wiki/clients/windows.md:165 both state it. desktop-client/src-tauri/src/provision.rs:476-479 returns before line 480, the only place the code creates `<root>/envs/voice`, whenever `voice_is_cpp` is true, and crates/hearth-probe/dictionary.yaml:102 puts windows in `cpp_platforms`. Source is the higher authority. This is a defect on two pages that are not T12's target and that no tracker row I could find owns; tasks/docs/tracker.md:589 records the adjacent gap, that the corpus 'states nowhere that Windows holds the smaller omnivoice.cpp voice while Linux holds the torch one'."
+    },
+    {
+      "claim": "wiki/install-macos.md still exists as a published page in the corpus.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md is present on disk, 162 lines, frontmatter `status: decided`, `type: how-to`, `last_reviewed: 2026-08-07`. So the link at wiki/whats-not-here.md:23 resolves today and is not currently a lint error."
+    },
+    {
+      "claim": "The ratified consolidation verdict makes wiki/installing.md the single install how-to parameterized by platform and retires wiki/install-macos.md, and the tracker records wiki/whats-not-here.md:23 as wrong in its own right under that verdict.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:97-104 tabulates the five-page cluster with wiki/installing.md keep and wiki/install-macos.md fold. Lines 174-178 name the chosen architecture and list wiki/whats-not-here.md:23 among the four places that describe the rejected per-platform alternative. Lines 179-183 state 'The cost is that `wiki/whats-not-here.md:23` is now wrong in its own right, not merely a duplicate announcement. It describes the missing work as a page mirroring `install-macos.md`, and under this verdict the missing work is a Windows section inside `wiki/installing.md` and `install-macos.md` will not exist. That is T12.' Line 271 assigns the retirement to T16 as Phase E, and line 1564 records the decision as a demote to wiki/raw/install-macos.md."
+    },
+    {
+      "claim": "The Windows procedure itself is tracked separately and is blocked because no one has performed and recorded a Windows install end to end.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:32 lists T10 'Write the Windows install procedure', Type Add, Scope L, Phase D, Agent State Backlog. Lines 1388-1394 read 'Blocked, and recorded as blocked rather than attempted. It does not open until someone runs a Windows install and records what the screens actually do,' and name the deliverable as 'a `### Windows` procedure inside `wiki/installing.md` in the same shape as the macOS one T9 lands, not a separate page.' Line 1383 records the blocker and cites the corpus standard at wiki/install-macos.md:17-19, which reads 'Everything here was measured on the machine it describes... Where a number appears, it came off that machine rather than an estimate.'"
+    },
+    {
+      "claim": "Once wiki/install-macos.md moves to wiki/raw/, the link at wiki/whats-not-here.md:23 becomes a linter error, and repointing it at the raw path would also be an error.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:370-372 resolves every relative body markdown link against the page's own directory and files a `dead-link` error when it does not exist. Lines 361-363 file a `raw-link` error on any link target matching `(^|/)raw/`. Findings of severity error fail the build (docstring, lines 19-22). So T12 removing this link is a precondition of T16, matching tasks/docs/tracker.md:163-169."
+    },
+    {
+      "claim": "A rewritten entry 1 risks tripping the bold-lead or long-paragraph warnings.",
+      "status": "contradicted",
+      "evidence": "scripts/lint_wiki.py:216 excludes any line matching `^(#{1,6}\\s|[-*+]\\s|\\d+\\.\\s|\\||>|\\[|!\\[)` from `is_prose`, and lines 380-386 apply the long-paragraph (60 words) and bold-lead (25 words) warnings only to prose paragraphs. Entry 1 is a numbered list item, so neither rule reaches it. The `## Pages that are not written yet` section is also well under SECTION_WORDS at line 128."
+    },
+    {
+      "claim": "The published wiki currently passes scripts/lint_wiki.py with no errors.",
+      "status": "verified",
+      "evidence": "`python scripts/lint_wiki.py --summary`, run against this worktree on 2026-09-04, reports '29 pages checked, 0 errors, 196 warnings' with 88 long-paragraph, 62 bold-lead, 24 long-section, 12 reader-drift and 10 figure-pending. Reported as baseline state only; the dispatch asked that this stage read the script rather than restate its findings."
+    },
+    {
+      "claim": "wiki/clients/windows.md is still an accurate fallback for a reader waiting on the Windows steps, and no longer announces a Windows install guide of its own.",
+      "status": "verified",
+      "evidence": "Grep for `install-macos` in wiki/clients/windows.md returns line 13 only, a `sources` frontmatter entry that scripts/lint_wiki.py:284-286 never resolves. The page routes the install elsewhere twice: line 29 reads 'For the install itself, see [Installing Hearth](../installing.md)' and line 246 reads 'This page covers what the app is and does; [Installing Hearth](../installing.md) covers the install itself.' So wiki/whats-not-here.md:25's 'covers what the app does' matches the page's own statement of its scope."
+    },
+    {
+      "claim": "wiki/whats-not-here.md is the only surviving place in the published wiki that announces the Windows install gap.",
+      "status": "verified",
+      "evidence": "Grep for `install-macos` across the repository returns, inside wiki/, only: clients/macos.md:11 and clients/windows.md:13 (both `sources` frontmatter), getting-started.md:8, releasing.md:9 and updates.md:8 (all `related` frontmatter), installing.md:15 (`sources`), updates.md:105 and first-run.md:192 (prose links about signing and about the refusal wording), _index.md:31 (a nav entry), and whats-not-here.md:23. None of the others announces an unwritten Windows guide. tasks/docs/tracker.md:1454-1455 records that T2 and T4 removed the other three announcements."
+    },
+    {
+      "claim": "Linking wiki/installing.md from this page would violate the landing rule that every published page appears exactly once in exactly one section.",
+      "status": "contradicted",
+      "evidence": "wiki/page-types.md:93 states the rule, and the corpus reads it as scoped to a single landing page's own section list rather than across landing pages. wiki/whats-not-here.md already links clients/windows.md at line 25 and clients/ios.md at line 27, and wiki/_index.md:63 and :65 list both. wiki/_index.md:95 in turn links whats-not-here.md, so the two are a routing pair by design. The binding landing rule for this edit is wiki/page-types.md:91-92: no procedures, and nothing a reader can act on here."
+    },
+    {
+      "claim": "Entry 1 is still an accurate description of what is missing once the architecture is a section rather than a page.",
+      "status": "contradicted",
+      "evidence": "Three of its four assertions fail. 'Installing on macOS is the shape it will take' is contradicted by tasks/docs/tracker.md:179-183 and 1391-1394, which make the deliverable a section inside wiki/installing.md. 'the CUDA voice build' is contradicted by crates/hearth-probe/dictionary.yaml:102 with desktop-client/src-tauri/src/provision.rs:476-479. 'Until it exists' presumes a page that will not be created. Only 'the numbers' survives, and only partly: wiki/installing.md:74-86 already carries Windows video-memory bands and disk guidance, so the missing numbers are specifically the measured, step-by-step ones that tasks/docs/tracker.md:1383 says nobody has recorded. The fourth assertion, that clients/windows.md covers what the app does, holds."
+    },
+    {
+      "claim": "The change is confined to entry 1, so the page's heading and abstract need no attention.",
+      "status": "contradicted",
+      "evidence": "wiki/whats-not-here.md:21 reads '## Pages that are not written yet' and line 14 reads 'Find out which pages are still to be written and which material never reaches this wiki.' Once entry 1 announces a section inside an existing page rather than a page, both say 'pages' about a list one of whose two items is not one. Entry 2 at lines 26-28 does describe a page ('A short article on connecting a phone to a house'), so the heading is not simply wrong and cannot be corrected by a find and replace. This is the evidence that moves the size above XS."
+    }
+  ],
+  "gaps": [
+    "No page in the corpus states which voice engine runs on which platform. crates/hearth-probe/dictionary.yaml:102 settles it as `cpp_platforms: [macos, windows]`, and tasks/docs/tracker.md:589 already records the same absence from the other direction.",
+    "No page states that a Windows install downloads an accelerator-matched inference engine, nor that the CUDA build plus its cudart redistributable come to roughly 642 MB against 11 MB for the macOS Metal build (crates/hearth-probe/dictionary.yaml:44-54). tasks/docs/tracker.md:491 records this as a known and deliberately deferred gap on T1.",
+    "No measured record of a Windows install exists anywhere in the repository. wiki/install-macos.md:17-19 sets the corpus standard that install numbers come off the machine, and there is no Windows equivalent, which is what blocks T10 and therefore what keeps this register entry open.",
+    "No canonical source outside the repository bears on any of this. Hearth reaches no external service, the install behaviour is settled entirely by desktop-client/src-tauri/src/provision.rs and crates/hearth-probe/dictionary.yaml, and no WebSearch or WebFetch was performed."
+  ],
+  "skeleton": [],
+  "recommended_type": "landing",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does the heading `## Pages that are not written yet` at wiki/whats-not-here.md:21, and the abstract at line 14 that also says 'pages', still fit a list whose first item is now a missing section inside an existing page and whose second item is still a missing page? Entry 2 at lines 26-28 genuinely describes a page, so the heading cannot simply be reworded to 'sections'. The author has to choose between a wider heading that covers both, and leaving the heading as it stands and letting entry 1 carry the distinction in its own words.",
+    "Should the rewritten entry state why the Windows steps are missing, given that the reason is a recorded standard rather than an oversight? tasks/docs/tracker.md:1383 blocks T10 because nobody has performed and recorded a Windows install end to end, and wiki/install-macos.md:17-19 is the standard that makes an estimate unpublishable. Naming that reason tells a reader the gap is deliberate, which is what line 17 of this page promises the register is for; not naming it keeps the entry to one screen, which is what wiki/page-types.md:69-70 asks of a landing page.",
+    "What replaces 'the CUDA voice build' in the entry's statement of what differs, if anything does? Source contradicts the current clause: crates/hearth-probe/dictionary.yaml:102 puts Windows on omnivoice.cpp alongside macOS, and desktop-client/src-tauri/src/provision.rs:476-479 skips the torch and CUDA chain entirely on both. The genuine install-time difference in the same area is the inference engine, where crates/hearth-probe/dictionary.yaml:47-51 fetches an accelerator-matched CUDA or Vulkan build against a single Metal tarball at 44-46. Whether a landing entry should name any technical difference at all, rather than simply pointing at the page where the steps will land, is a judgement wiki/page-types.md:91-92 bears on and does not settle.",
+    "Who owns correcting the `envs\\voice\\` row on the Windows install-root trees? wiki/installing.md:226 and wiki/clients/windows.md:165 both describe it as the voice engine's own environment installed at first run, and desktop-client/src-tauri/src/provision.rs:476-479 never creates it on Windows because crates/hearth-probe/dictionary.yaml:102 puts windows in `cpp_platforms`. This is not T12's page and no row in tasks/docs/tracker.md appears to own it; it likely wants a new row against wiki/installing.md and wiki/clients/windows.md.",
+    "Does the tracker's T10 sizing evidence want correcting before T10 runs? tasks/docs/tracker.md:1377 locates `### Windows` at wiki/installing.md lines 48-56, and after T9 that range is inside `### macOS`; the Windows section is now 69-89. The substantive finding, that it carries no numbered step, still holds at the new lines. This stage does not write the tracker."
+  ],
+  "notes": "Bash was present in this session and was used for every search; scripts/lint_wiki.py was run read-only in --summary form and scripts/doc_graph.py was not run, because this is `affected` mode and the doc graph carries no verdict this task needs. Nothing outside the findings JSON was written. Mode `affected` and Type `Fix` agree, so there is no pairing disagreement to record. The dispatch's Known evidence resolved in full: wiki/whats-not-here.md:4 is `type: landing`, entry 1 is at 23-25 with the quoted text, entry 2 is at 26-28, `## Material that never publishes` runs 30-40, and the grep result holds. The tracker was read at tasks/docs/tracker.md; its T12 row at line 34 reads Agent State Research and its Open questions at line 1447 read 'None', so no tracker question was carried in and all five questions above were opened by this survey. Sized S rather than XS. The dispatch arrived as S and the evidence keeps it there rather than lowering it, for two reasons that are both in the file. First, this is not a mechanical substitution: two of entry 1's four assertions are contradicted, one by a ratified verdict and one by the source tree, so the entry is rewritten on substance rather than repointed. Second, the edit is not confined to one location. wiki/whats-not-here.md:21 and :14 both say 'pages' about a list that will hold one missing section and one missing page, and entry 2 at 26-28 is genuinely a page, so the heading and abstract cannot be fixed by substitution and may or may not be touched. Two or three small edits on one page is S by the table. It does not reach M: no second page changes for this task, and the neighbours that still reference install-macos.md are owned by T11, T13, T14, T64, T65 and T16. On the second dispatch question the answer is clean. wiki/whats-not-here.md has exactly one dependency on wiki/install-macos.md, the prose link at line 23; the `related` list at 6-8 does not name it and `sources` at line 9 is empty. Removing that link is the whole of what T16 needs from this page, and scripts/lint_wiki.py:370-372 is what makes it a gate rather than a nicety. On the first, wiki/installing.md has two `### Windows` sections, at 69-89 and 217-238, and no numbered Windows step anywhere in its 295 lines. Its numbered lists are either macOS-specific (96-98, and step 4 at line 270) or platform-neutral (110-120, 177-179, 192-195, 252-254). So the task's premise holds against the current file: the Windows gap really is a set of steps that does not exist inside a page that does. The CUDA finding is the one the author most needs and the one the page cannot supply. The entry's clause is not merely dated by the fold; it is contradicted by the source tree independently of it. Windows moved to omnivoice.cpp on 2026-08-08 per the comment at crates/hearth-probe/dictionary.yaml:97-101, and desktop-client/src-tauri/src/provision.rs:476-479 makes the consequence explicit at install time by skipping the entire torch chain. A Windows reader neither builds nor installs a CUDA voice. What a Windows install does differ by, in the same neighbourhood, is the inference engine download at crates/hearth-probe/dictionary.yaml:47-51. The entry must keep announcing the gap. wiki/_index.md:94-95 routes a reader here for exactly that, this is the only surviving announcement in the published wiki, and tasks/docs/tracker.md:1453-1455 says this is the entry that closes when T10 lands."
+}

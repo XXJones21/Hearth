@@ -5,7 +5,6 @@ type: concept
 last_reviewed: 2026-09-04
 related:
   - installing.md
-  - install-macos.md
   - meeting-your-persona.md
   - clients/windows.md
   - clients/macos.md

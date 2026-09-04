@@ -6,7 +6,6 @@ last_reviewed: 2026-09-03
 related:
   - _index.md
   - developing.md
-  - install-macos.md
   - installing.md
   - backend/build-pipeline.md
   - backend/native-runtime.md

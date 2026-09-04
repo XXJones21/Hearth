@@ -1,0 +1,45 @@
+{
+  "task_id": "T12",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/whats-not-here.md",
+      "sections": ["## Pages that are not written yet"]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "Deliverable spec: rewrite entry 1 and change nothing else",
+      "why": "No departure. The edit is confined to entry 1 at lines 23-25. The heading at line 21, the abstract at line 14, entry 2, the `## Material that never publishes` section and the frontmatter are byte-identical to how they were found, as the dispatch ruled."
+    },
+    {
+      "from": "hearth-style: run scripts/lint_wiki.py before handing work back",
+      "why": "This agent's tool set is Read, Grep, Write, Edit, with no Bash or shell tool, so the linter could not be run. No linter claim is made for this edit. The rules the linter owns and that this edit touches were checked by reading: both body links are relative and resolve on disk (wiki/installing.md, wiki/clients/windows.md), neither is a raw/ path, there is no em dash and no emoji, spelling is American, and the entry remains a numbered list item that scripts/lint_wiki.py:211-216 excludes from prose accounting."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "What a Windows install actually differs by at install time, namely the accelerator-matched inference engine download against the single macOS Metal tarball (crates/hearth-probe/dictionary.yaml:44-54).",
+      "why": "The dispatch ruled that the dropped 'CUDA voice build' clause is not replaced by a different technical difference, because wiki/page-types.md:91-92 keeps anything a reader can act on off a landing page. The finding is real and the corpus states it nowhere, so the page now names no difference at all. It wants a home on wiki/installing.md, which is not this task's target."
+    },
+    {
+      "what": "That no page in the corpus states which voice engine runs on which platform, with crates/hearth-probe/dictionary.yaml:102 settling it as `cpp_platforms: [macos, windows]`.",
+      "why": "Recorded as a gap in the findings, and tracker line 589 records the same absence from the other direction. Removing the wrong 'CUDA voice build' clause corrects this page without stating the true fact anywhere, so the gap survives this task and belongs on a page that describes the voice engine."
+    },
+    {
+      "what": "The `envs\\voice\\` row on the Windows install-root trees at wiki/installing.md:226 and wiki/clients/windows.md:165, which both describe an environment that desktop-client/src-tauri/src/provision.rs:476-479 never creates on Windows.",
+      "why": "A contradicted claim in the findings against two pages that Target docs does not name, and the findings report no tracker row owning it. It needs its own row rather than an edit from here."
+    },
+    {
+      "what": "Whether the heading `## Pages that are not written yet` at line 21 and the abstract at line 14 should widen now that the first item is a missing section rather than a missing page.",
+      "why": "The dispatch ruled both untouched for this corrections task, and entry 2 is genuinely a missing page, so the heading is less precise rather than wrong. Rewriting a landing page's heading is a restructure this task does not cover, so the imprecision is open."
+    },
+    {
+      "what": "The T10 sizing evidence at tasks/docs/tracker.md:1377, which locates `### Windows` at wiki/installing.md lines 48-56 where the section now runs 69-89.",
+      "why": "Carried forward from the findings. The substantive part, that the section holds no numbered step, still holds at the new lines, but the citation is stale and this stage does not write the tracker."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}
