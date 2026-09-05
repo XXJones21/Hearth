@@ -1,0 +1,219 @@
+{
+  "task_id": "T2",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/clients/windows.md",
+      "sections": [
+        "frontmatter (related, line 10; sources, line 14)",
+        "## What the installer gives you",
+        "## The hardware probe picks your model",
+        "## Status"
+      ],
+      "why": "Line 151 states the install root is `D:\\Hearth` by default, which the planner never produces as a fixed default. Lines 199-202 tell a reader that on a smaller GPU the model and the voice cannot both stay loaded, which is false for the 6 GB and 8 GB cards a reader reads as smaller and is true only inside a narrow band the page does not name. Lines 232-234 announce a Windows install guide mirroring Installing on macOS, and lines 10 and 14 name that page in frontmatter, all three of which break when wiki/install-macos.md is retired under T16."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:224-272",
+      "covers": "the per-platform default install root: default_install_root() and roomiest_non_system_drive()"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:100-159",
+      "covers": "the coexist branch, the take-turns branch, the refusal, and the budget arithmetic they turn on"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:14, 25, 279-321",
+      "covers": "MIN_CTX, TARGET_CTX, ctx_for(), and the fit thresholds in best_fit()/fit_at() that set the smallest budget a plan can be built from"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:69-129",
+      "covers": "the reserves (stt_bytes, headroom_bytes, os_unified_bytes, voice_resident_bytes) and the two voice engines with cpp_platforms"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/dict.rs:62-78",
+      "covers": "uses_cpp() and resident_for(), which decide that Windows holds the ~0.9 GiB cpp voice rather than the 2.2 GiB torch voice"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:131-231",
+      "covers": "the four tiers, their byte sizes, their kv_bytes_per_token, their max_ctx, and tier 0's build ladder"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:274-362",
+      "covers": "the five shipped simulate fixtures and the FIXTURES list"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:323-381",
+      "covers": "the planner unit tests, which pin the 8 GB Air, the RTX 4080, the tiny refusal and the no-GPU fallback"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/lib.rs:26-34",
+      "covers": "human(), which divides by 2^30 and labels the result GB, so every figure the plan screen prints is a GiB wearing a GB label"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/provision.rs:240-243 and 480-483; desktop-client/src-tauri/src/config_gen.rs:25; desktop-client/src-tauri/src/probe.rs:113 and 153; desktop-client/src-tauri/src/house.rs:146; crates/hearth-probe/src/defaults.rs:69",
+      "covers": "the install-root layout: hearth-install.json, models, runtime, envs/voice, config, logs"
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:133-143, 284-297, 372, 455-456",
+      "covers": "that an unresolvable `related` entry and a dead body link are both errors, while a `sources` entry is only checked for an absolute path"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md:96-99",
+      "covers": "the corpus's already-corrected statement of the default install root, landed by T1"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/page-types.md:214-253",
+      "covers": "the platform-overview shape, including the rule against a dated status log"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/whats-not-here.md:21-25",
+      "covers": "the register for pages that are not written yet, which is where the Windows-guide gap belongs"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:24, 393-436, 782-788, 1059-1078",
+      "covers": "the recorded state of T2, the draft it carries, and which rows own the neighbouring defects"
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/clients/windows.md states that the install root is `D:\\Hearth` by default.",
+      "status": "verified",
+      "evidence": "wiki/clients/windows.md, ## What the installer gives you, lines 150-151: \"Everything Hearth installs lands under one folder you choose, called the install root (`D:\\Hearth` by default).\""
+    },
+    {
+      "claim": "Hearth's default install root on Windows is `D:\\Hearth`.",
+      "status": "contradicted",
+      "evidence": "crates/hearth-probe/src/machine.rs:232-237 returns roomiest_non_system_drive().join(\"Hearth\") on Windows, and machine.rs:256-272 defines that as the non-removable fixed drive with the most free space excluding %SystemDrive%. No drive letter is fixed anywhere, so `D:\\Hearth` is one possible output rather than the default. A grep of the tree for `D:\\Hearth` and `D:/Hearth` across .rs, .ts, .tsx, .ps1, .sh and .py returns nothing. The page states it at wiki/clients/windows.md:151."
+    },
+    {
+      "claim": "On a Windows machine with only one drive, the default install root is a visible `Hearth` folder in the user profile rather than a hidden dotdir.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:238-248. roomiest_non_system_drive() returns None on a single-drive machine (comment at machine.rs:253-255), the HOME/USERPROFILE branch at 245-246 returns PathBuf::from(home).join(\"Hearth\") for macos and windows, and the `.hearth` dotdir at line 248 is the Linux-only branch. The comment at 239-244 records that this was changed because the Windows single-drive case is the ordinary laptop rather than an edge case."
+    },
+    {
+      "claim": "The corpus already carries a corrected statement of the Windows default that windows.md can be made consistent with.",
+      "status": "verified",
+      "evidence": "wiki/installing.md, ## Choosing where it lives, lines 96-99: \"The default is `Hearth` in your home directory on macOS. On Windows it is `Hearth` on the roomiest fixed drive that is neither removable nor the drive Windows itself runs from, and `Hearth` in your user profile on a machine with only one drive.\" That matches crates/hearth-probe/src/machine.rs:232-272."
+    },
+    {
+      "claim": "The install-root tree printed at wiki/clients/windows.md:153-161 matches what the installer creates.",
+      "status": "verified",
+      "evidence": "hearth-install.json at desktop-client/src-tauri/src/config_gen.rs:25 and probe.rs:113; models, runtime and logs at probe.rs:153 and provision.rs:240-243; config/hearth.env at house.rs:146; envs/voice at provision.rs:480-483 and crates/hearth-probe/src/defaults.rs:69. Only the parenthetical on line 151 is wrong, so the fenced block itself needs no change."
+    },
+    {
+      "claim": "The dictionary defines four tiers, from a small on-device model up to a mixture-of-experts model for the largest cards.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/dictionary.yaml:131-231. Tier ids 0 (Gemma 4 E2B, Minimum), 1 (Gemma 4 E4B, Small), 2 (Gemma 4 12B, Recommended) and 3 (Gemma 4 26B A4B, Large), and the tier 3 note at dictionary.yaml:228-230 reads \"A mixture-of-experts model\"."
+    },
+    {
+      "claim": "The tier a 16 GB Windows GPU lands on is the Gemma 4 12B quantization-aware build, at a 65,536-token context window, with the model and the voice resident at once.",
+      "status": "verified",
+      "evidence": "The rtx4080 fixture carries vram_bytes of 16376 MiB at crates/hearth-probe/src/machine.rs:287. Tier 2 is Gemma 4 12B from unsloth/gemma-4-12B-it-qat-GGUF with max_ctx 65536 at crates/hearth-probe/dictionary.yaml:198-211. The unit test at crates/hearth-probe/src/plan.rs:346-352 asserts tier == 2, coexist true and n_ctx == 65536, and the test at plan.rs:354-358 asserts the same card does not reach tier 3. Re-derived from plan.rs:110-135: coexist_budget = 17,171,480,576 - 2,845,415,833 = 14,326,064,743, which clears tier 2's 6,716,356,800 plus its 234,881,024 floor and falls short of tier 3's 14,249,047,104 plus its 201,326,592 floor."
+    },
+    {
+      "claim": "A Windows machine with an 8 GB dedicated GPU is told that the model and the voice cannot both stay loaded at the same time.",
+      "status": "contradicted",
+      "evidence": "Derived from the cited constants and branch conditions, which crates/hearth-probe/src/plan.rs:1-5 declares pure of I/O, environment and clock. On Windows the voice is the cpp engine (crates/hearth-probe/dictionary.yaml:102, crates/hearth-probe/src/dict.rs:62-64 and 76-78), resident at 966,367,641 bytes (dictionary.yaml:113). unified_memory is false on Windows (crates/hearth-probe/src/machine.rs:86), so base = stt 805,306,368 + headroom 1,073,741,824 = 1,879,048,192 (plan.rs:110-113 with dictionary.yaml:84 and 89). coexist_budget = 8,589,934,592 - 2,845,415,833 = 5,744,518,759. Tier 1 needs 4,977,171,584 plus a floor of 20,480 * 4,096 = 83,886,080, total 5,061,057,664, and leaves 32,768 tokens of context, so fit_at clears TARGET_CTX at plan.rs:308-320. best_fit therefore returns Some on the coexist budget, the arm at plan.rs:130-136 is taken, coexist is true and no take-turns warning is pushed. The page states the opposite at wiki/clients/windows.md:199-202."
+    },
+    {
+      "claim": "A Windows machine with a 6 GB dedicated GPU is also told the model and the voice cannot both stay loaded.",
+      "status": "contradicted",
+      "evidence": "Same derivation from crates/hearth-probe/src/plan.rs:110-135. coexist_budget = 6,442,450,944 - 2,845,415,833 = 3,597,035,111. Tier 1 does not fit, but tier 0's Q4_K_M build at 3,106,738,272 (crates/hearth-probe/dictionary.yaml:162-165) plus its floor of 12,288 * 4,096 = 50,331,648 does, and leaves 32,768 tokens, clearing TARGET_CTX. coexist is true, against wiki/clients/windows.md:199-202."
+    },
+    {
+      "claim": "There is a Windows GPU size at which the planner does report the take-turns behaviour, so the branch the page describes exists.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:137-150 pushes the reason \"Nothing fits with the voice held in memory, so the mind and the voice will take turns\" and the warning \"Your persona will think and speak one at a time. You will hear a short pause before a reply is spoken.\", and sets coexist false. The Plan field comment at plan.rs:49-51 names coexist as \"the flag the small-machine warning renders from\". It is live code, not dead code."
+    },
+    {
+      "claim": "On Windows the take-turns branch is reached only when the dedicated GPU has between 4,466,165,856 and 5,432,533,497 bytes of VRAM, which confirms the 4.5 to 5.4 GB band recorded in tasks/docs/artifacts/T1.research.json as a decimal-GB figure.",
+      "status": "verified",
+      "evidence": "Derived from source, not from an executed run. The smallest plan the dictionary can produce is tier 0's Q3_K_M build at 2,536,786,016 bytes (crates/hearth-probe/dictionary.yaml:174-177) plus the MIN_CTX floor of 12,288 * 4,096 = 50,331,648 (crates/hearth-probe/src/plan.rs:14, 310 and 314), so 2,587,117,664 bytes of budget. From plan.rs:120-121, sequential_budget = pool - 1,879,048,192 and coexist_budget = pool - 2,845,415,833 for a non-unified Windows machine on the cpp voice. Below 4,466,165,856 bytes even sequential_budget falls short and plan.rs:151-157 returns PlanError::TooSmall. At or above 5,432,533,497 bytes coexist_budget clears the same floor and the coexist arm at plan.rs:130-136 is taken. The take-turns arm at plan.rs:137-150 is therefore reachable only strictly between the two. In decimal GB that is 4.47 to 5.43; in the units crates/hearth-probe/src/lib.rs:26-34 actually prints, which divide by 2^30 and label the result GB, the same band reads 4.16 to 5.06."
+    },
+    {
+      "claim": "No shipped fixture and no unit test exercises the take-turns branch.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:362 lists FIXTURES as rtx4080, m1-air-8gb, m1-air-16gb, no-gpu and tiny. tiny is 4 GiB of RAM with no GPU (machine.rs:346-356), so sequential_budget = 4,294,967,296 - 1,879,048,192 = 2,415,919,104, short of the 2,587,117,664 floor, and the test at plan.rs:360-365 asserts the refusal text \"cannot run Hearth\". The tests at plan.rs:337-344 and 346-352 assert coexist true for m1-air-8gb and rtx4080. no-gpu is Windows with 16 GiB of RAM and no GPU (machine.rs:334-343), so pool = RAM and coexist_budget = 14,334,453,351, which clears tier 2. m1-air-16gb is unified, so base = 4,294,967,296 and coexist_budget = 11,918,534,247, which also clears tier 2. No assertion anywhere in plan.rs:323-381 tests coexist == false. This reproduces the executed-run results the dispatch reported."
+    },
+    {
+      "claim": "wiki/clients/windows.md announces a dedicated Windows install guide mirroring Installing on macOS.",
+      "status": "verified",
+      "evidence": "wiki/clients/windows.md, ## Status, lines 230-234: \"A dedicated Windows install guide, mirroring [Installing on macOS](../install-macos.md), does not exist yet; this page covers what the app is and does until that guide is written.\""
+    },
+    {
+      "claim": "wiki/clients/windows.md carries no dependency on wiki/install-macos.md beyond the prose link at line 233 and the frontmatter entries at lines 10 and 14.",
+      "status": "verified",
+      "evidence": "grep -n for install-macos across wiki/clients/windows.md returns exactly three hits: line 10 under `related`, line 14 under `sources` and line 233 in the ## Status prose. The file is 234 lines long. No other heading, table or link references that page."
+    },
+    {
+      "claim": "Leaving the frontmatter and prose references in place will fail the linter once wiki/install-macos.md is retired.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:290-297 resolves every `related` entry against the filesystem and records a dead-related finding when it does not exist; line 372 records dead-link for a body link. Finding defaults to severity \"error\" at scripts/lint_wiki.py:133-143, and the summary at 455-456 counts those as errors. The `sources` list is checked only for an absolute machine path (scripts/lint_wiki.py:284-286), so line 14 would not trip the linter but would still name a file that no longer exists. Today `python scripts/lint_wiki.py` reports 28 pages checked, 0 errors, 200 warnings."
+    },
+    {
+      "claim": "The paragraph carrying the coexistence sentence is already over the corpus's paragraph length limit, so the correction cannot be a straight substitution.",
+      "status": "verified",
+      "evidence": "`python scripts/lint_wiki.py --warnings` reports wiki/clients/windows.md:195 [long-paragraph] 101 words. That is the paragraph spanning lines 195-202, which contains the sentence at 199-202."
+    },
+    {
+      "claim": "wiki/clients/windows.md states that every download is verified against a published sha256.",
+      "status": "verified",
+      "evidence": "wiki/clients/windows.md, ## The hardware probe picks your model, lines 204-207: \"Every download is verified against a published sha256 after it lands.\" The fenced tree at line 156 also annotates the models folder as \"model weights, sha256-verified\"."
+    },
+    {
+      "claim": "Every file Hearth downloads carries a published sha256.",
+      "status": "contradicted",
+      "evidence": "crates/hearth-probe/dictionary.yaml:117 and :120 give `sha256: null` for both OmniVoice GGUFs, with a FOLLOW-UP at dictionary.yaml:126-128 recording that they are not yet available. dictionary.yaml:25-26 records that the llama.cpp zips have no published sha256 because GitHub releases carry none. crates/hearth-probe/src/plan.rs:223-232 builds the voice download with sha256: None, and the field comment at plan.rs:34-36 states that a mismatch is fatal while absence is only noted. The same defect was corrected on wiki/installing.md under T1; tasks/docs/tracker.md:1059-1078 scopes T23 to wiki/installing.md, so no row currently covers this sentence on wiki/clients/windows.md."
+    },
+    {
+      "claim": "The ## Status section's dated log conflicts with the page's declared type.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md:246-248 states the platform-overview rule: \"No dated status log... A section that reads 'as of 2026-08-06' belongs in a decision record.\" wiki/clients/windows.md:230-232 reads \"the native-runtime decision that replaced an earlier WSL-based plan is final as of 2026-08-06\". The page declares type: platform-overview at frontmatter line 4, and wiki/page-types.md:219 names it as one of the five."
+    },
+    {
+      "claim": "Three other wiki pages state the same wrong Windows install root, and each is owned by a tracker row other than T2.",
+      "status": "verified",
+      "evidence": "grep -rnF 'D:\\Hearth' wiki/ returns wiki/backend/build-pipeline.md:106, wiki/backend/native-runtime.md:79, wiki/first-run.md:112 and wiki/clients/windows.md:151. tasks/docs/tracker.md:44-46 assigns the first three to T17, T18 and T3 respectively. wiki/installing.md no longer matches, which is consistent with T1 being recorded Complete at tasks/docs/tracker.md:23."
+    },
+    {
+      "claim": "Four places in the corpus announce the missing Windows install guide.",
+      "status": "verified",
+      "evidence": "A grep across wiki/, excluding raw/, returns wiki/clients/macos.md:122, wiki/clients/windows.md:232-233, wiki/installing.md:156-159 and wiki/whats-not-here.md:23. tasks/docs/tracker.md:784-788 records that whats-not-here.md is the one register that should keep the announcement and that T2 and T4 remove others."
+    }
+  ],
+  "gaps": [
+    "No source in the tree names which graphics cards ship with VRAM between 4,466,165,856 and 5,432,533,497 bytes, so the corpus cannot say whether the take-turns machine class exists in hardware a reader would own. The band is a property of the planner's arithmetic, not evidence that a card sits inside it.",
+    "No page states the VRAM figure at which the planner switches from a resident voice to take-turns on Windows, and no page states that Windows holds the smaller cpp voice while Linux still holds the torch one, which is the fact the whole band turns on.",
+    "The corpus has no settled unit convention. crates/hearth-probe/src/lib.rs:26-34 divides by 2^30 and labels the result GB, so any figure copied from a plan screen into prose is a GiB wearing a GB label. tasks/docs/tracker.md records this as the still-open T24.",
+    "No tracker row covers the sha256 claim at wiki/clients/windows.md:204-207. T23 is scoped to wiki/installing.md."
+  ],
+  "skeleton": [],
+  "recommended_type": "platform-overview",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does any graphics card Hearth supports actually ship with VRAM inside the take-turns band of roughly 4.47 to 5.43 GB decimal? Nothing in the tree names one, and if none exists the corrected sentence at wiki/clients/windows.md:199-202 should drop the machine-class example rather than restate it with a band, because a page that describes a machine nobody owns is no more useful to a reader than one that describes the wrong machine.",
+    "If the corrected sentence does name a figure, which unit does it use? crates/hearth-probe/src/lib.rs:26-34 prints 4.16 GB where the decimal reading of the same threshold is 4.47 GB, so a reader comparing the page against the plan screen sees two different numbers for one boundary. tasks/docs/tracker.md carries this as T24, unresolved.",
+    "Should T2 also remove the `sources: wiki/install-macos.md` entry at wiki/clients/windows.md:14, or only the `related` entry at line 10 and the prose link at line 233? scripts/lint_wiki.py:284-286 never validates `sources`, and the entry records genuine provenance, so removing it discards a true record while keeping it names a file that will not exist after T16.",
+    "Who owns the uncorrected sha256 claim at wiki/clients/windows.md:204-207? It is the same defect T1 corrected on wiki/installing.md, it is contradicted by crates/hearth-probe/dictionary.yaml:25-26, 117 and 120, and T23 is scoped to a different page. It needs a row, whether that is T2 widened or a new one."
+  ],
+  "notes": "Bash was available and used for search only: grep, awk, sed and the read-only scripts/lint_wiki.py, both the default run and --warnings. Nothing was built, installed or started. I could not run cargo, so every planner result here is derived from the cited constants and branch conditions rather than from an executed run. crates/hearth-probe/src/plan.rs:1-5 declares the function pure of I/O, environment and clock, which is what makes that derivation sound, and all five fixture outcomes the dispatch reported from executed runs reproduce exactly under it.\n\nThe dispatch's three planner questions are now settled at source. The install root is wrong as written, and the correct behaviour is crates/hearth-probe/src/machine.rs:232-272. The take-turns band is confirmed at 4,466,165,856 to 5,432,533,497 bytes, which is exactly T1's hand-derived 4.5 to 5.4 GB read as decimal GB, so T1's arithmetic was right. The coexistence sentence is the harder answer, and it is neither simply correct nor simply wrong: the branch is real and reachable, so the mechanism the sentence describes exists, but the sentence is unbounded prose sitting immediately after a sentence about a 16 GB GPU, and the two GPU sizes a reader would read as smaller, 6 GB and 8 GB, both coexist. The defect is the inference the sentence invites rather than the words themselves, so the fix bounds the claim or drops the example; it does not delete the mechanism.\n\nSized S, confirming the dispatch rather than moving it. Not XS: the change lands in four places on the page, at line 151, in the paragraph at 195-202, in the ## Status sentences at 230-234, and in frontmatter lines 10 and 14, and only the first is a substitution. scripts/lint_wiki.py --warnings already flags wiki/clients/windows.md:195 as a 101-word paragraph, so the coexistence correction has to split the paragraph rather than lengthen it, which is the same move the T1 author reported making at ## Choosing where it lives. Not M: nothing outside this one page changes under T2.\n\nScope held. I opened no finding on crates/hearth-probe/src/plan.rs:245-251, which is T25's. I propose no restructure of the 1135-word ## What the desktop app is section, which scripts/lint_wiki.py flags at wiki/clients/windows.md:28 and which is T15's. I recorded the ## Status section's conflict with wiki/page-types.md:246-248 as a claim, because retiring the announcement touches that section, but I propose no change to the dated sentence itself.\n\nTwo findings reach beyond the dispatch and are handed over rather than acted on. First, wiki/clients/windows.md:204-207 carries the uncorrected sha256 claim that T1 fixed on wiki/installing.md, and no tracker row owns it. Second, the same wrong install root sits at wiki/backend/build-pipeline.md:106, wiki/backend/native-runtime.md:79 and wiki/first-run.md:112, which belong to T17, T18 and T3; I left them out of affected_docs so that T2 does not grow, but the orchestrator should know those four pages move as a set or the corpus contradicts itself again.\n\nKnown evidence was not empty and was not taken as true. Every location the dispatch cited resolved to a real file, a real heading and the stated text, and each was then checked against source. One small refinement: the announcement spans lines 232-234 and the link markup itself sits on line 233, exactly as the dispatch described.\n\nType and Mode agree: Type Fix pairs with Mode affected, so there is no disagreement to record. The page's declared type at frontmatter line 4 is platform-overview, and wiki/page-types.md:219 names it as one of the five, so recommended_type matches the declared type."
+}

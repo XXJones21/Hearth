@@ -1,0 +1,262 @@
+{
+  "task_id": "T11",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/_index.md",
+      "sections": [
+        "## Getting started",
+        "## Meeting your persona"
+      ],
+      "why": "Line 31 lists `- [Installing on macOS](install-macos.md)`, the page T16 demotes to wiki/raw/. The `## Getting started` prose at lines 24-27 names three things the set covers while the section lists four pages, so install-macos.md is already the link the prose does not account for. `## Meeting your persona` lists First run, Personas, The persona face and Voice at lines 41-44, and its prose at lines 36-39 accounts for exactly those four; wiki/meeting-your-persona.md appears nowhere in the file, so the new how-to has no index entry and no sidebar entry."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "scripts/publish_wiki.py:172-195",
+      "covers": "sidebar() builds the left rail only from `## ` headings and `- [text](target)` list items inside wiki/_index.md, so index membership is what decides whether a published page has a rail entry"
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/publish_wiki.py:46, 63-76, 198-210",
+      "covers": "collect() publishes every wiki/**/*.md outside wiki/raw/ regardless of index membership, so a page missing from the index still publishes as a page"
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/publish_wiki.py:189-194",
+      "covers": "the rail opens with a hardcoded Home entry and closes with a hardcoded `[What is not here](whats-not-here)` entry, outside the section loop"
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/publish_wiki.py:163-166",
+      "covers": "render() suppresses the See also block for _index.md, so the index's own frontmatter `related` list never reaches a reader"
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:256-408",
+      "covers": "the complete set of checks: frontmatter keys, type and status vocabulary, absolute `sources` paths, dead and raw `related` entries, one H1 matching the title, sentence case, em dashes and emojis, British spelling, the gateway terminology, raw paths in prose, dead links, pending figures as warnings, reader drift, paragraph and section length. There is no index-membership check and no once-and-only-once check."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:31-32, 42-46, 443-446",
+      "covers": "wiki/raw/ is excluded from linting, and 29 pages are the checked set"
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:79-91, 155, 165-166, 274-306",
+      "covers": "the install refusal is computed from a memory budget against the smallest available tier; there is no literal 8 GB floor constant in the probe"
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:67-94",
+      "covers": "the landing shape: routing only, prose under each heading before its links, human titles as link text, every published page exactly once in exactly one section, and section order as the reading order for someone meeting the product cold"
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:36-46, 254-266",
+      "covers": "the type-to-reader-verb table and what each type teaches, which is how a decision record is distinguished from a how-to"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:208-210",
+      "covers": "the ratified placement: wiki/meeting-your-persona.md takes its name from the `## Meeting your persona` section wiki/_index.md:34 already carries, and becomes the first entry in that section"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:1620-1624",
+      "covers": "the inbound-reference table for install-macos.md: wiki/_index.md:31 is a body link that blocks T16 with a `dead-link` error and is owned by T11; the other blocking references belong to T64, T14, T13, T65 and T12"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:271, 1541-1546, 1610-1614",
+      "covers": "T16 demotes wiki/install-macos.md to wiki/raw/install-macos.md in Phase E, gated on T11 and five other Phase C tasks reading Complete"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:1395-1423",
+      "covers": "the T11 row itself: Agent State Research, Type Fix, Scope S, Phase C, and `Open questions: None.`"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/meeting-your-persona.md:1-29, 102-122, 124-168, 181-193",
+      "covers": "what the new page is: `type: how-to`, `status: scoped`, the interview, the handover, the second-brain beat, and its own closing pointer naming First run as the design record"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/first-run.md:1-34",
+      "covers": "`type: decision-record` at line 4, an abstract written around a seventeen-screen mockup, and the three beats including Give them a memory"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md:23-32, 47-89, 240-260",
+      "covers": "what the install how-to now covers after T9: both platforms, the Apple Silicon and 8 GB floor, the Windows video-memory bands, the handoff to Meeting your persona, and a by-hand update procedure"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/getting-started.md:1-31, 95-102",
+      "covers": "`type: concept` after T7, an abstract about what Hearth is and where to download it, and its own route to Meeting your persona"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/updates.md:1-17",
+      "covers": "`type: concept`, an abstract stating that nothing in it is built yet"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/whats-not-here.md:1-25",
+      "covers": "the corpus's second `type: landing` page, linked from wiki/_index.md:95 in prose rather than from a section list"
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/_index.md declares `type: landing`.",
+      "status": "verified",
+      "evidence": "wiki/_index.md, frontmatter, line 4."
+    },
+    {
+      "claim": "wiki/_index.md:31 lists `- [Installing on macOS](install-macos.md)` under `## Getting started`, and is the only reference to install-macos.md anywhere in the file.",
+      "status": "verified",
+      "evidence": "wiki/_index.md, `## Getting started`, lines 29-32. A repo-wide grep for `install-macos` run 2026-09-04 returns line 31 as the only match in this file; the frontmatter `related` at lines 7-9 lists getting-started.md, developing.md and whats-not-here.md and does not name it."
+    },
+    {
+      "claim": "wiki/meeting-your-persona.md exists on disk and appears nowhere in wiki/_index.md.",
+      "status": "verified",
+      "evidence": "wiki/meeting-your-persona.md, read in full, 193 lines, frontmatter `type: how-to` at line 4. A repo-wide grep for `meeting-your-persona` run 2026-09-04 returns wiki/clients/macos.md:145, wiki/getting-started.md:8, :22 and :102, wiki/installing.md:8 and :245, and the page's own lines, and no match in wiki/_index.md."
+    },
+    {
+      "claim": "scripts/publish_wiki.py builds the wiki sidebar solely from the `## ` headings and `- [text](target)` list items of wiki/_index.md, so a published page absent from the index gets no rail entry.",
+      "status": "verified",
+      "evidence": "scripts/publish_wiki.py, sidebar(), lines 172-195. Line 180 reads _index.md, lines 182-188 collect only `## ` headings and lines starting `- [` that contain `](`, line 192 skips a section with no links, and line 209 writes the result to _Sidebar.md. Nothing else contributes a rail entry."
+    },
+    {
+      "claim": "A page missing from wiki/_index.md still publishes as a GitHub wiki page.",
+      "status": "verified",
+      "evidence": "scripts/publish_wiki.py, collect(), lines 63-76: every wiki/**/*.md whose first path part is not in EXCLUDE_DIRS (`raw`, line 46) is published, with no reference to _index.md. build() at lines 198-210 writes one file per collected page."
+    },
+    {
+      "claim": "wiki/meeting-your-persona.md today publishes with no sidebar entry, reachable only from body links on three other pages.",
+      "status": "verified",
+      "evidence": "It is in the published set by scripts/publish_wiki.py:63-76 and absent from wiki/_index.md, so scripts/publish_wiki.py:182-188 emits no rail entry for it. Its only inbound body links are wiki/installing.md:245, wiki/getting-started.md:102 and wiki/clients/macos.md:145."
+    },
+    {
+      "claim": "scripts/lint_wiki.py does not check that a published page appears in wiki/_index.md, and does not check the once-and-only-once rule.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py, check(), lines 256-408, read in full. The checks are frontmatter keys (263-268), type and status vocabulary (270-280), absolute `sources` paths (282-286), `related` entries resolving and not pointing into raw (288-297), one H1 matching the title (299-313), sentence case (315-321), em dashes, em-dash proxies and emojis (326-336), British spelling and the gateway term (338-344), raw paths in prose (346-354), link resolution and raw links (356-372), reader drift (374-378), paragraph length and bold lead (380-386) and section length (388-406). No rule reads _index.md or compares the page set against it."
+    },
+    {
+      "claim": "The half of wiki/page-types.md:93 that forbids a second appearance currently holds: the index carries 26 list-item link targets and all 26 are distinct.",
+      "status": "verified",
+      "evidence": "Extracted every `^- [` link target from wiki/_index.md on 2026-09-04 and sorted for duplicates; 26 targets, `uniq -d` returns nothing. The set is backend/build-pipeline.md, backend/native-runtime.md, backend/packaging-options.md, backend/tool-catalog.md, backend/voice-engine.md, card-forge.md, clients/android.md, clients/ios.md, clients/macos.md, clients/visionos.md, clients/windows.md, developing.md, features/apps-and-extensions.md, features/house-feed.md, features/persona-face.md, features/personas.md, features/second-brain.md, features/voice.md, first-run.md, getting-started.md, install-macos.md, installing.md, page-types.md, releasing.md, style-guide.md, updates.md."
+    },
+    {
+      "claim": "The half of wiki/page-types.md:93 that requires an appearance currently fails for two pages: wiki/meeting-your-persona.md and wiki/whats-not-here.md.",
+      "status": "verified",
+      "evidence": "The published set is 29 files under wiki/ excluding wiki/raw/ (find run 2026-09-04, matching the `29 pages checked` figure scripts/lint_wiki.py printed on the same run). Subtracting wiki/_index.md itself from the 26 listed targets leaves two unlisted: wiki/meeting-your-persona.md, which appears nowhere in the file, and wiki/whats-not-here.md, which appears at wiki/_index.md:95 as a prose link after the last section rather than as a list item under a heading."
+    },
+    {
+      "claim": "wiki/whats-not-here.md nevertheless has a rail entry, because scripts/publish_wiki.py hardcodes one outside the section loop.",
+      "status": "verified",
+      "evidence": "scripts/publish_wiki.py:194, `out += [\"\", \"[What is not here](whats-not-here)\"]`, appended after the loop over sections at lines 190-193. Adding wiki/whats-not-here.md to a section list in the index would therefore produce two rail entries for it."
+    },
+    {
+      "claim": "The `## Getting started` prose at wiki/_index.md:24-27 names three things the set covers while the section lists four pages, and install-macos.md is the link the prose does not account for.",
+      "status": "verified",
+      "evidence": "wiki/_index.md:26-27 reads \"these pages cover whether your machine qualifies, what the install does, and how an existing install becomes a newer one\". The three clauses map one to one onto the abstracts of the other three links: wiki/getting-started.md:31 (\"whether your machine can run it\"), wiki/installing.md:25-26 (\"Install Hearth on a Mac or a Windows PC\") and wiki/updates.md:15-17 (\"How an installed Hearth becomes a newer Hearth\"). Nothing in lines 24-27 corresponds to a macOS-specific install page."
+    },
+    {
+      "claim": "Removing line 31 makes the `## Getting started` prose and its link list correspond one to one, so the prose becomes correct rather than needing a new clause.",
+      "status": "verified",
+      "evidence": "Follows from the mapping above: three clauses at wiki/_index.md:26-27 against three remaining links at lines 29, 30 and 32."
+    },
+    {
+      "claim": "The machine sentence at wiki/_index.md:24-26 agrees with what wiki/installing.md now states, so restating the surrounding prose does not require changing it.",
+      "status": "verified",
+      "evidence": "wiki/_index.md:24-26 reads \"Hearth runs on a Windows machine with a capable GPU, or on an Apple Silicon Mac with 8 GB of memory or more\". wiki/installing.md:49 states Apple Silicon, M1 or later, with no Intel path; :53-55 states 8 GB is the smallest supported machine and that Hearth declines below it; :74-80 gives three Windows video-memory bands with a decline below roughly 4.5 GB."
+    },
+    {
+      "claim": "The 8 GB figure is a product statement rather than a constant in the source, so it cannot be re-derived from the probe.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs computes the refusal rather than comparing against a fixed floor: PlanError::TooSmall carries `pool`, `budget` and `smallest` (lines 79-91), `smallest` comes from `d.smallest()` at line 155, and the only named floor is `MIN_CTX: u32 = 4096` at line 14, a context-window floor. A grep for an 8 GB constant returns only crates/hearth-probe/src/machine.rs:280, which is a test fixture."
+    },
+    {
+      "claim": "The `## Meeting your persona` prose at wiki/_index.md:36-39 accounts for exactly the four pages the section lists today, so a fifth entry arrives with its role unstated.",
+      "status": "verified",
+      "evidence": "wiki/_index.md:36-39 reads \"Your first hour is an install that proves itself by speaking to you, an interview in which you and Sulivan build a persona together, and a handover to the persona you made. These pages cover that arc and the three parts of a companion: who they are, how they look back at you, and how they speak.\" \"That arc\" is First run at line 41; \"the three parts\" map onto Personas at 42, The persona face at 43 and Voice at 44."
+    },
+    {
+      "claim": "The arc as the index states it omits the second brain, which is the third beat of setup and two of the new page's seven sections.",
+      "status": "verified",
+      "evidence": "wiki/_index.md:36-38 names install, interview and handover and stops. wiki/first-run.md:24-29 names three beats, the third being \"Give them a memory\", and :31-34 argues that beat belongs to the new persona. wiki/meeting-your-persona.md carries `## Set up your second brain` at line 124 and `## Give it one real thing` at line 146. wiki/_index.md:53 already lists The second brain under `## Living with a house`."
+    },
+    {
+      "claim": "The ratified plan places wiki/meeting-your-persona.md as the first entry in `## Meeting your persona`, ahead of First run.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:208-210, under \"Why getting-started.md is revised from fold to keep\": \"The new page takes the name `wiki/meeting-your-persona.md`, matching the `## Meeting your persona` section that `wiki/_index.md:34` already has, and it becomes the first entry in that section.\" This verifies what the plan record states; the tracker is contextual and not itself a source citation."
+    },
+    {
+      "claim": "The corpus independently supports the how-to preceding the record: every reader-facing route into this material now points at the new page, and the new page points back at First run as the record.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md:4 declares `type: decision-record` and its abstract at :15-17 is written around a seventeen-screen mockup. wiki/installing.md:242-245 and wiki/getting-started.md:100-102 both route a reader to Meeting your persona for the interview and the second brain. wiki/meeting-your-persona.md:192-193 reads \"[First run](first-run.md) is the design record behind all three beats of setup, including what is still undecided.\" wiki/page-types.md:94 makes section order the reading order for someone meeting the product cold, and :260-266 separates a how-to (carry out the task) from a decision record (justify the choice)."
+    },
+    {
+      "claim": "wiki/meeting-your-persona.md duplicates no other page's sections: all seven are unique to it.",
+      "status": "verified",
+      "evidence": "`python scripts/doc_graph.py --json`, run 2026-09-04 from the worktree root. Its `unique` map lists all seven of Before you start, Answer the question Sulivan opens with, Work through the rest with him, Meet the persona you made, Give it one real thing, Go to the house and Where to go next under meeting-your-persona.md."
+    },
+    {
+      "claim": "wiki/_index.md:31 is recorded as a gate-blocking body link owned by T11.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:1620-1623. The Body link row names wiki/first-run.md:192, wiki/updates.md:105, wiki/whats-not-here.md:23 and wiki/_index.md:31, marks them \"Yes, `dead-link`\" under Blocks T16, and assigns owners T65, T13, T12 and T11 in that order."
+    },
+    {
+      "claim": "Removing line 31 leaves wiki/install-macos.md published with no index link and no rail entry until T16 runs in a later phase.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md is still in the published set by scripts/publish_wiki.py:63-76 and is one of the 29 pages scripts/lint_wiki.py checked on the 2026-09-04 run. tasks/docs/tracker.md:271 puts T16 in Phase E and T11 in Phase C, and :1610-1611 holds T16 until T6, T9, T11, T12, T13, T14, T64 and T65 all read Complete. Once Phase C completes, the three other blocking body links (T65, T13, T12) and the three `related` entries (T64, T14, T13) are cleared too, so the page has no inbound reference other than the three `sources` entries at wiki/clients/macos.md:11, wiki/clients/windows.md:13 and wiki/installing.md:15, which the linter never resolves (scripts/lint_wiki.py:282-286)."
+    },
+    {
+      "claim": "wiki/_index.md carries no linter finding today, neither error nor warning.",
+      "status": "verified",
+      "evidence": "`python scripts/lint_wiki.py --warnings`, run 2026-09-04 from the worktree root: 29 pages checked, 0 errors, 196 warnings, and no line of the output names _index. The corpus total is 88 long-paragraph, 62 bold-lead, 24 long-section, 12 reader-drift and 10 figure-pending warnings, all on other pages."
+    },
+    {
+      "claim": "No frontmatter change is required on wiki/_index.md, and adding one would change nothing a reader sees.",
+      "status": "verified",
+      "evidence": "The `related` list at wiki/_index.md:7-9 names getting-started.md, developing.md and whats-not-here.md, none of which is install-macos.md, so nothing there goes dead. scripts/publish_wiki.py:163-166 skips the See also block when `src.name == \"_index.md\"`, so the list never renders. scripts/lint_wiki.py:288-297 still resolves each entry, so a bad addition would be a `dead-related` error with no reader-visible benefit."
+    },
+    {
+      "claim": "No page other than wiki/_index.md needs to change for this task.",
+      "status": "verified",
+      "evidence": "The three reader-facing neighbours already link the new page: wiki/installing.md:8 and :245, wiki/getting-started.md:8, :22 and :102, wiki/clients/macos.md:145. Every other reference to install-macos.md is assigned elsewhere by tasks/docs/tracker.md:1622-1624: wiki/getting-started.md to T64 and wiki/releasing.md to T14, both of which landed during this run, wiki/updates.md:8 and :105 to T13, wiki/first-run.md:192 to T65, wiki/whats-not-here.md:23 to T12, and the three `sources` entries to T16. The one remaining walkthrough pointer aimed at the record, wiki/clients/windows.md:229, is assigned by tasks/docs/tracker.md:2426-2431 to T15 or T29 rather than to T45's three unowned pages."
+    },
+    {
+      "claim": "wiki/updates.md, listed under `## Getting started`, is a concept page about a mechanism that does not exist, while wiki/installing.md now carries the update procedure a reader can follow.",
+      "status": "verified",
+      "evidence": "wiki/updates.md:4 declares `type: concept` and :15-17 reads \"How an installed Hearth becomes a newer Hearth without being uninstalled first. Nothing here is built yet; this is the design and the decision that sits under it.\" wiki/installing.md:247-250 carries `## Update an install`, opening \"Hearth does not have an in-app updater yet, so getting a new build today is something you do by hand\", followed by numbered steps."
+    },
+    {
+      "claim": "wiki/first-run.md belongs in the reader-facing `## Meeting your persona` section rather than under `## Looking under the hood`.",
+      "status": "unverifiable",
+      "evidence": "wiki/page-types.md:67-94 governs the landing shape but states no rule about which page types may sit in which section, and wiki/_index.md:84-86 describes `## Looking under the hood` as \"the engineering record behind the product pages\" without naming decision records as its criterion. tasks/docs/tracker.md:208-210 assumes First run stays in the section by placing the new page above it, but that is a plan record rather than a rule. Nothing cited settles it."
+    }
+  ],
+  "gaps": [
+    "Nothing enforces wiki/page-types.md:93. scripts/lint_wiki.py has no index-membership check and no once-and-only-once check, which is why wiki/meeting-your-persona.md published with no rail entry and produced zero findings on the 2026-09-04 run.",
+    "No page states which page types may appear in a reader-facing index section. wiki/page-types.md governs each page's own shape, and wiki/_index.md:84-86 describes `## Looking under the hood` in prose rather than as a rule, so whether a decision record belongs under `## Meeting your persona` has no cited answer.",
+    "No page states what the `## Getting started` set is for now that wiki/installing.md:247-260 carries a working by-hand update procedure and wiki/updates.md:15-17 describes an unbuilt one. The index prose at lines 26-27 assigns updates.md the newer-install clause, and no page reconciles the two."
+  ],
+  "skeleton": [],
+  "recommended_type": "landing",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Should the `## Meeting your persona` prose at wiki/_index.md:36-39 be rewritten as a four-part arc that names the second brain, or held at three parts with wiki/meeting-your-persona.md introduced separately? wiki/first-run.md:24-29 makes the second brain the third beat and wiki/meeting-your-persona.md devotes two of its seven sections to it (lines 124 and 146), but wiki/_index.md:53 already lists The second brain under `## Living with a house`, and wiki/page-types.md:93 forbids a page appearing twice.",
+    "Does wiki/first-run.md still belong in the reader-facing `## Meeting your persona` section once the how-to sits above it? It declares `type: decision-record` at line 4 and its abstract at lines 15-17 is written around a seventeen-screen mockup, while wiki/_index.md:84-86 describes `## Looking under the hood` as the engineering record and says a reader who came to use Hearth can stop above that line. Moving it changes the reading order, which the task statement does not ask for, and tasks/docs/tracker.md:208-210 assumes it stays.",
+    "If the `## Getting started` prose at wiki/_index.md:24-27 is restated for three pages, what does it say wiki/updates.md is for? updates.md:15-17 states nothing in it is built yet, while wiki/installing.md:247-260 now carries the by-hand update procedure that the index prose clause \"how an existing install becomes a newer one\" currently sends a reader to updates.md for.",
+    "Is the transient orphan acceptable? Between T11 landing and T16 running, wiki/install-macos.md still publishes (scripts/publish_wiki.py:63-76) with no index entry, no rail entry, and, once T12, T13, T64, T14 and T65 also land, no inbound reference at all except the three `sources` entries the linter never resolves. tasks/docs/tracker.md:271 separates these into Phase C and Phase E deliberately, so the question is whether the two should land in one change rather than whether the ordering is wrong.",
+    "Should wiki/meeting-your-persona.md be added to the index's frontmatter `related` list at wiki/_index.md:6-9? It would change nothing a reader sees, because scripts/publish_wiki.py:163-166 suppresses the See also block on _index.md, but the list is the only other place in the file where the index names a page, and it currently names getting-started.md, developing.md and whats-not-here.md."
+  ],
+  "notes": "Tooling: Bash was in my tool set, so both read-only scripts ran from the worktree root on 2026-09-04. `python scripts/lint_wiki.py --warnings` reported 29 pages checked, 0 errors, 196 warnings, none of them on wiki/_index.md. `python scripts/doc_graph.py --json` reported all seven of wiki/meeting-your-persona.md's sections as unique to it, and its `planned` list names only backend/tool-catalog.md:66 and features/house-feed.md:45, neither relevant here. Bash was used for reading and searching only; the sole file written is this artifact, and publish_wiki.py was read rather than run because even `--out` writes.\n\nSizing: S, matching the dispatch, and the size is now evidence-backed rather than assumed. One page changes and only one. Not XS, because this is not a single mechanical location: removing line 31 is mechanical, but the prose at lines 24-27 and at lines 36-39 each account for their section's link set exactly as it stands today, so both have to be re-derived. Not M, because no second page needs an edit; every other surviving reference to install-macos.md is assigned to T64, T14, T13, T65, T12 or T16 by tasks/docs/tracker.md:1622-1624, and the three reader-facing neighbours already link wiki/meeting-your-persona.md at wiki/installing.md:245, wiki/getting-started.md:102 and wiki/clients/macos.md:145.\n\nDispatch questions, answered. Where the new page belongs: first in `## Meeting your persona`, ahead of First run. tasks/docs/tracker.md:208-210 rules it, and the corpus supports it independently, since wiki/installing.md:245 and wiki/getting-started.md:102 both route a reader to the how-to while wiki/meeting-your-persona.md:192-193 names First run as the record behind it. What the prose at 36-39 must do: gain a role for the new page, because it currently accounts for exactly the four links the section lists and no more. Whether the prose at 24-27 still describes the set: yes, and better than it does now, because it names three coverage clauses against four links today and removing line 31 makes them correspond one to one; the machine sentence at lines 24-26 stays accurate against wiki/installing.md:49-55 and :74-80. Whether removing line 31 orphans a page: yes, wiki/install-macos.md, deliberately and until T16. Whether the once-and-only-once rule holds: half of it. No page appears twice, and two pages appear zero times, wiki/meeting-your-persona.md and wiki/whats-not-here.md.\n\nGuard rail for the author, from scripts/publish_wiki.py:189-194: the rail hardcodes a `[What is not here](whats-not-here)` entry outside the section loop, so adding wiki/whats-not-here.md to a section list to satisfy wiki/page-types.md:93 would give it two rail entries. Its prose link at wiki/_index.md:95 is the shape that already works.\n\nType and mode: Fix pairs with affected as the contract expects, and no disagreement was found. `recommended_type` is `landing`, matching the declared `type:` at wiki/_index.md:4; the page's sections route and carry no detail a reader can act on, so wiki/page-types.md:89-94 holds for it.\n\nKnown evidence: every location the dispatch cited resolved and read as described. Nothing in it failed to resolve.\n\nTracker: tasks/docs/tracker.md exists and was read. Its T11 row at lines 1395-1423 records `Open questions: None.`, so all five questions returned here originate from this stage or from the dispatch rather than from the tracker.\n\nConcurrency, and what it did to two citations. Two sibling Phase C tasks landed on other pages while this run was in progress: T64 removed `install-macos.md` from wiki/getting-started.md's `related` list and T14 removed it from wiki/releasing.md's, one deleted line each, confirmed by `git diff --stat` at the end of the run. That shifted wiki/getting-started.md's line numbers up by one after line 8. Every citation in this artifact is the post-edit state, re-read after the change: the prose link to the new page is at wiki/getting-started.md:102, its `related` entry at :8 and its `sources` entry at :22. The repo-wide `install-macos` grep quoted in the claims was taken before those two edits, so it still lists wiki/getting-started.md:8 and wiki/releasing.md:9; both are now cleared and neither was ever T11's. Nothing in wiki/_index.md changed during the run."
+}

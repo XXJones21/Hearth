@@ -1,6 +1,7 @@
 ---
 title: Voice
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-08-08
 related:
   - ../backend/voice-engine.md

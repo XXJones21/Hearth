@@ -1,11 +1,10 @@
 ---
 title: Packaging options
-status: draft
+status: closed
+type: decision-record
 last_reviewed: 2026-09-03
 related:
   - native-runtime.md
-  - component-catalog.md
-  - portability-ledger.md
   - ../_index.md
 sources:
   - backend-audit-2026-08-04 (unpublished research)

@@ -1,6 +1,7 @@
 ---
 title: The persona face
-status: draft
+status: scoped
+type: reference
 last_reviewed: 2026-09-03
 related:
   - personas.md
@@ -32,7 +33,7 @@ the director returns, which is why the same motion design ships on
 Windows, macOS, and iOS without re-authoring. The full data model
 (geometry schema, pose channels, the harness cue protocol) lives in the
 face spec, kept as a staged source and named in this page's frontmatter.
-This page is the catalogue of what the face actually **does**.
+This page is the catalog of what the face actually **does**.
 
 ## What a persona brings
 
@@ -43,7 +44,7 @@ ink washes toward the active state's color. Archetypes (`warm_round`,
 `narrow_precise`, `wide_open`) live in `backend/personas/_visual/
 archetypes.json` as complete starting points. Sulivan wears `warm_round`.
 
-## The animation catalogue
+## The animation catalog
 
 All timings in milliseconds. Beat targets are eased with a 140ms time
 constant; a state change restarts its playlist and its blink schedule.

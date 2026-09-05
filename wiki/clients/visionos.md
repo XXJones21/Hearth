@@ -1,6 +1,7 @@
 ---
 title: Hearth on Apple Vision Pro
-status: draft
+status: open
+type: platform-overview
 last_reviewed: 2026-09-03
 related:
   - ios.md

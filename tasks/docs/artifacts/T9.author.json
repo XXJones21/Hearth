@@ -1,0 +1,117 @@
+{
+  "task_id": "T9",
+  "mode": "restructure",
+  "docs_written": [
+    {
+      "path": "wiki/installing.md",
+      "sections": [
+        "frontmatter",
+        "# Installing Hearth",
+        "## Before you start",
+        "### macOS",
+        "### Windows",
+        "## Open Hearth for the first time on macOS",
+        "## Read the plan and start the download",
+        "### What the plan says",
+        "### Where Hearth installs by default",
+        "## Let the download finish",
+        "## Confirm Hearth works",
+        "## Check what Hearth installed",
+        "### Windows",
+        "### macOS",
+        "## What comes next",
+        "## Update an install",
+        "## Uninstall Hearth",
+        "## Work out what went wrong"
+      ]
+    }
+  ],
+  "sections": [
+    { "heading": "# Installing Hearth (title, abstract and lead)", "status": "written" },
+    { "heading": "## Before you start", "status": "written" },
+    { "heading": "### macOS", "status": "written" },
+    { "heading": "### Windows", "status": "written" },
+    { "heading": "## Open Hearth for the first time on macOS", "status": "written" },
+    { "heading": "## Read the plan and start the download", "status": "written" },
+    { "heading": "### What the plan says", "status": "written" },
+    { "heading": "### Where Hearth installs by default", "status": "written" },
+    { "heading": "## Let the download finish", "status": "written" },
+    { "heading": "## Confirm Hearth works", "status": "written" },
+    { "heading": "## Check what Hearth installed", "status": "written" },
+    { "heading": "### Windows", "status": "written" },
+    { "heading": "### macOS", "status": "written" },
+    { "heading": "## What comes next", "status": "written" },
+    { "heading": "## Update an install", "status": "written" },
+    { "heading": "## Uninstall Hearth", "status": "written" },
+    { "heading": "## Work out what went wrong", "status": "written" }
+  ],
+  "deviations": [
+    {
+      "from": "The recommended spine, section 4: 'Use `### macOS` and `### Windows` H3s inside for the two folder defaults.'",
+      "why": "The two defaults are two sentences that share one rule about picking an empty folder, and the section already carries an H3 for the plan. One H3, `### Where Hearth installs by default`, holds both defaults and the shared rule; two one-sentence H3s would have fragmented the section without helping a reader scan it."
+    },
+    {
+      "from": "The recommended spine, section 11: the heading `## When something goes wrong`.",
+      "why": "Retitled to `## Work out what went wrong`. The deliverable spec requires action-title sections one per task, and wiki/page-types.md:59-62 rules out noun labels outside reference. The section's content and its last position are unchanged."
+    },
+    {
+      "from": "Salvage passage 3 as it stands on wiki/install-macos.md:76, which prints the Backend value as `Metal`.",
+      "why": "The findings claim 'The Backend value the screen prints is the lowercase string `metal` on Apple Silicon, not the capitalized `Metal` the pages print' is graded verified, citing crates/hearth-probe/src/machine.rs:288, crates/hearth-probe/src/plan.rs:192 and desktop-client/src/components/setup/SetupFlow.tsx:499, which renders it with no transform. Printing `Metal` would have written a fact the research stage graded against, so the row reads `metal` in code voice."
+    },
+    {
+      "from": "The old `## Platform notes` sentence 'It is the deepest install page Hearth has, measured on a real 8 GB M2 Air.'",
+      "why": "Not carried forward. It describes wiki/install-macos.md as a page rather than describing the product, and that page is being retired. The real-machine provenance survives on this page in the `### macOS` sentence about an 8 GB M2 MacBook Air running the model and the voice at once. Restating that the plan figures were measured on a real machine would also have overstated what the research stage could settle: its open question records that whether a real 8 GB Mac plans 17,408 tokens depends on the exact byte count the machine reports."
+    },
+    {
+      "from": "The old `## Platform notes` sentence 'A dedicated Windows install guide does not exist yet.'",
+      "why": "Not carried forward. This page now carries the Windows install procedure, so the sentence described a corpus state that this task ends. The useful half of that paragraph, the pointer to Hearth on Windows for the supervised process tree and the ports, is preserved under `### Windows` in `## Check what Hearth installed`."
+    },
+    {
+      "from": "Importing wiki/clients/windows.md:207-210, the paragraph on what the plan says when the model and the voice cannot both stay resident.",
+      "why": "Not imported. It is not among the seven authorized salvage passages, and no claim in the findings carries the one-at-a-time behaviour or its wording as a verified fact. The `Mind and voice` row and one sentence naming what that row reports are written instead. The paragraph stays where it is on wiki/clients/windows.md, which this task does not edit."
+    },
+    {
+      "from": "Leaving the frontmatter untouched apart from the ruled-on `related` entry.",
+      "why": "`last_reviewed` moved from 2026-08-09 to 2026-09-04, because the page was rewritten wholesale today against a research artifact, and the sibling page written in this same phase, wiki/meeting-your-persona.md, carries 2026-09-04. `related` lost install-macos.md and gained meeting-your-persona.md, which the dispatch ruled mine. `sources` is untouched."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Whether a real 8 GB Apple Silicon Mac plans a 17,408-token context window, which the page prints in its plan table.",
+      "why": "The findings grade the figure verified against the m1-air-8gb fixture and derive it from cited constants, but the open question records that the window is 17,408 only while the machine's reported RAM sits between 8,581,982,713 and 8,594,565,624 bytes, and that crates/hearth-probe/src/machine.rs:75 takes that value from sysinfo's total_memory(), a crate this repository does not vendor. No fixture pins an exact n_ctx for either Apple machine. One run on a real 8 GB Mac would settle it."
+    },
+    {
+      "what": "What Windows shows the first time the app is opened, and whether it needs a step of its own.",
+      "why": "Graded unverifiable in the findings, and recorded as a corpus gap: wiki/clients/windows.md:217-229 names no first-open step, and desktop-client/src-tauri/tauri.conf.json carries no signing configuration for either platform, so the source does not settle it either. The macOS section is scoped in its heading so a Windows reader skips it by title. No empty Windows sibling heading was added. T10 owns the sibling once the fact exists."
+    },
+    {
+      "what": "Where your memory and journal live on a Windows install, given that `## Uninstall Hearth` tells a reader to copy anything they want to keep out of `home/`.",
+      "why": "The `home/` path comes from the macOS install root tree at wiki/install-macos.md:100-108, and the Windows tree absorbed into `## Check what Hearth installed` lists six entries with no `home\\` among them. Nothing in the findings settles the Windows equivalent, so the warning is written as the source states it and the discrepancy is left visible rather than papered over."
+    },
+    {
+      "what": "How a Windows reader removes the client application itself during an uninstall.",
+      "why": "The absorbed material settles only the product side: wiki/clients/windows.md:170-173 says uninstalling is deleting the folder and that nothing is left in the registry beyond the installer's own entry. No source states the step for the app, so the uninstall list names the Trash step for macOS only and the Windows prose stops at what is verified."
+    },
+    {
+      "what": "The supervised process tree that a Windows reader now has no listing of on this page.",
+      "why": "Recorded as a gap by the research stage. The Windows install root tree lands here as salvage and the process tree is its natural neighbour, but it is outside T9's scope. `## Check what Hearth installed` points at Hearth on Windows for it, which routes the reader without duplicating a fourth copy of the listing."
+    },
+    {
+      "what": "wiki/install-macos.md:34 prints 'the smallest model is 2.36 GB' in a passage presented as the product's own words, and the current dictionary makes that string print 2.89 GB.",
+      "why": "Graded contradicted in the findings, citing crates/hearth-probe/src/dict.rs:245-247 and dictionary.yaml:138. The figure did not come across: the refusal is written here as prose describing what the message tells a reader, with no fixture figures. The wrong figure stays on wiki/install-macos.md until that page is retired, and this task may not edit it."
+    },
+    {
+      "what": "Two surviving pages will carry the same right-click-Open steps until T6 runs.",
+      "why": "The findings grade contradicted the claim that wiki/install-macos.md:48-50 is the only numbered procedure in the cluster: wiki/clients/macos.md:97-108 is a four-step numbered install procedure whose first two steps are the same material, on a page the ratified verdict keeps. tasks/docs/tracker.md:129 assigns its removal to T6, and T6 and T9 sit in the same phase with no ordering between them. Sequencing is the orchestrator's to set."
+    }
+  ],
+  "figures_requested": [
+    {
+      "section": "Open Hearth for the first time on macOS",
+      "path": "images/pending/installing-macos-first-open.png",
+      "alt": "The macOS dialog offering to open an unsigned app",
+      "spec": "CAPTURE: macOS 27, the second Open dialog raised by right-click Open on Hearth.app, the Open button visible and not yet pressed, 1280x800"
+    }
+  ],
+  "extraction_needed": []
+}

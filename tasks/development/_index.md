@@ -1,6 +1,6 @@
 ---
 area: development
-updated: 2026-08-26
+updated: 2026-09-03
 ---
 
 # Development
@@ -16,6 +16,7 @@ A file belongs here when the answer to "who is this for" is "us, for now".
 | File | What it is | Status |
 | --- | --- | --- |
 | [android-appliance.md](android-appliance.md) | The Razr as a dedicated Hearth device: cover screen as the first pocket surface. | open |
+| [documentation-pipeline.md](documentation-pipeline.md) | The second pass on the writer agents and the style guide: six page types, a linter that grades structure, figure placeholders the author writes and someone else captures. | scoped |
 
 ## Why the appliance is not client work
 

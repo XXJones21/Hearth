@@ -1,6 +1,7 @@
 ---
 title: The second brain
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-08-19
 related:
   - ../first-run.md
@@ -122,7 +123,7 @@ memory** shows where memory currently lives and gives you three things to do
 about it: **Open folder**, **Change**, and **Remove**.
 
 Both doors run the same code. `import_brain` and the Settings row call one
-`link_brain`, because the rule they enforce is the product's only defence
+`link_brain`, because the rule they enforce is the product's only defense
 against a house quietly adopting a stranger's notes, and a rule with two
 copies is a rule that drifts. One difference is deliberate:
 

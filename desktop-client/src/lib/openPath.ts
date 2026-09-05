@@ -1,17 +1,16 @@
 import { isTauri } from './clientProfile';
 
-/* Hand a path to the OS file browser.
+/* Present a path the way the host writes it.
  *
- * Valar runs in WSL, so the paths it reports are POSIX (/mnt/d/Tools/...).
- * Windows Explorer cannot open those, so translate the /mnt/<drive> prefix
- * back to a drive letter. A path that is already Windows-shaped passes
- * through untouched. */
+ * The house runs as native processes on both platforms, so the paths it
+ * reports are already host-shaped and this passes them through. It stays as
+ * the one place path presentation is decided, rather than eight call sites
+ * each formatting a path their own way.
+ *
+ * It used to translate a POSIX /mnt/<drive> prefix into a drive letter, from
+ * when the backend ran inside a Linux subsystem. The native-runtime decision
+ * of 2026-08-06 ended that, and the translation went with it. */
 export function toHostPath(path: string): string {
-  const wsl = /^\/mnt\/([a-z])(\/.*)?$/i.exec(path);
-  if (wsl) {
-    const rest = (wsl[2] || '').replace(/\//g, '\\');
-    return `${wsl[1].toUpperCase()}:${rest || '\\'}`;
-  }
   return path;
 }
 

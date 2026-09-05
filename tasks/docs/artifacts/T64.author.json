@@ -1,0 +1,20 @@
+{
+  "task_id": "T64",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/getting-started.md",
+      "sections": ["frontmatter: related"]
+    }
+  ],
+  "sections": [],
+  "deviations": [],
+  "unresolved": [
+    {
+      "what": "Confirmation that wiki/getting-started.md now passes scripts/lint_wiki.py with no dead-related finding.",
+      "why": "My tool set is Read, Grep, Write, and Edit only, with no shell, so I could not run the linter. I did not run it and make no claim that I did."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

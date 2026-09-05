@@ -1,0 +1,297 @@
+{
+  "document": "wiki/features/personas.md",
+  "task_id": "T5",
+  "score_before": 3,
+  "score_after": 7,
+  "score_delta": 4,
+  "verdict": "NEEDS_WORK",
+  "score_notes": "Baseline: 10 - (F1 2 + F2 1 + F3 0.5 + F4 1 + F5 1 + F6 0.5 + F7 0.5) = 10 - 6.5 = 3.5, floor 3. After: 10 - (F1 2 + F4 1) = 10 - 3 = 7. Delta +4. Accounted: F2, F3, F5, F6, F7 in changed[]; F1 and F4 open in remaining[], both baseline, neither labelled a regrade discovery. Nothing was discovered on regrade that met the detraction floor, so found[] gained no entries and every id in it is a baseline id.",
+  "linter": {
+    "ran": false,
+    "why": "This agent's tool set is Read, Grep, Write, Edit. There is no command execution, so `python scripts/lint_wiki.py` could not be run in this session and no run output is claimed. What the linter owns was established by reading scripts/lint_wiki.py directly (BRITISH line 97, the check at 339-340, QUOTES_BANNED_FORMS 120 applied only at 341 and 375, figure-pending warning at 367-368, PARAGRAPH_WORDS 60 and SECTION_WORDS 200 at 128-129). Nothing in found[] is a rule the linter reports. The research artifact records the last actual run: 28 pages, 0 errors, 200 warnings, with five warnings on this page, all long-paragraph or long-section, none of which are reported here."
+  },
+  "dimensions": {
+    "voice": 9,
+    "clarity": 7,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 9,
+    "intent": 6,
+    "structure": 6,
+    "style": 8
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "§Changing a persona later, and the page as a whole",
+      "issue": "The concept shape closes with links to the how-to pages that act on the thing (wiki/page-types.md:145). This page describes the Personas page in three sections and has no how-to to send a reader to, because none exists in the corpus. Removal is the sharpest case: the page says removal sits behind developer mode and, by orchestrator ruling, does not name the two switches, so the route to it is written nowhere in the corpus.",
+      "fix": "Write wiki/clients/persona-page.md, the how-to PersonasView.tsx:28 already names as its design of record, and link it from this page's Voices and Changing sections.",
+      "detraction": 2,
+      "reason": "A reader who accepts the page's invitation to change or remove a persona has no reachable instruction anywhere. This is the same dead-end shape the corpus pass is named after, one step downstream of the one T5 closed.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§Making another one, final paragraph",
+      "issue": "The section that closes the named dead end stops at 'The new persona exists as soon as their folder is written'. It never says who the reader is talking to afterward. Two sections earlier, §Making your first one describes a handover in which the new persona takes the house and greets you first, so a reader can reasonably carry that expectation across and conclude creation failed when nothing happens.",
+      "fix": "Add one sentence stating the verified behaviour: the house does not switch, you keep talking to the persona you asked, and you switch to the new one by name.",
+      "detraction": 1,
+      "reason": "The reader completes the act the page taught and cannot tell whether it worked, or how to reach the person they just made.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§Making another one (Note, line 100); also lines 127 and 136",
+      "issue": "'The Personas page' is used as a known surface at line 100, then twice more in §Voices, briefly, and is only introduced at line 154 in §Changing a persona later.",
+      "fix": "Gloss the surface at first mention and point forward to the section that describes it.",
+      "detraction": 0.5,
+      "reason": "The reader the Note exists for, whose house predates the grant, meets the instruction 'on the Personas page' before the page has said what or where that is.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§Changing a persona later, 'the default persona cannot be removed until you have set another'",
+      "issue": "The sentence promises an action the product may expose nowhere. config.default_persona is read only from HEARTH_DEFAULT_PERSONA (backend/harness/valar/config/settings.py:263), written once into hearth.env at install (desktop-client/src-tauri/src/config_gen.rs:191). A grep of default_persona across the tree finds no API route and no client control that writes it; personas_api.py:356 only reads it to refuse the removal. Settings > Personas > Start with pins which persona a device asks for on connect, which is not the same value, and the page describes that pin two sections earlier, so a reader is likely to mistake one for the other.",
+      "fix": "Cannot be settled from the page. Either the page states that the default is fixed at install, or the absent control is a product defect in the same family as T31 and the page stays silent until it is decided.",
+      "detraction": 1,
+      "reason": "A reader who wants to remove the shipped persona is told to do something first, and there is no evidence any client lets them do it.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§Changing a persona later",
+      "issue": "The section describes a multi-panel surface a reader looks at, who a persona is, how they speak, what they are allowed to do, the prompt, the candidate-voice control, and the developer-mode raw manifest, and carries no figure. wiki/style-guide.md:112-116 requires one.",
+      "fix": "Add a pending figure placeholder with alt text for the reader and a CAPTURE work order in the title.",
+      "detraction": 1,
+      "reason": "The reader is asked to hold a layout in their head from prose, on the one surface the corpus never shows them.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "intent",
+      "dimension": "technical_notation",
+      "location": "§Making your first one, 'The opening line is the same on every install:'",
+      "issue": "The quote that follows is two sentences of a longer shipped string (backend/harness/valar/gateway/first_run.py:47-53) and is presented as the opening line itself, with no signal that it is truncated. The truncation is deliberate and correct, because the next clause spells 'colour' and scripts/lint_wiki.py raises british-spelling at severity error on it, but the framing sentence still overstates what is quoted.",
+      "fix": "Change the framing to say the opening begins with these words.",
+      "detraction": 0.5,
+      "reason": "A reader who compares the page against what Sulivan actually says hears more than the page said was there, which quietly costs the page its authority on quoted product copy.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "style",
+      "dimension": "voice",
+      "location": "§Changing a persona later, first and last paragraphs",
+      "issue": "Three names for two clients inside one section: 'the phone' and 'iPhone' for iOS, against 'Android' and 'the desktop'. In this corpus 'the phone' is also the standing term for the Android device (wiki/clients/android.md:40, 42, 59), so 'The phone and Android write far less' is ambiguous rather than merely inconsistent.",
+      "fix": "Use 'the iPhone' for iOS and 'Android' for Android throughout the section.",
+      "detraction": 0.5,
+      "reason": "An Android reader cannot tell whether the sentence about 'the phone' is about their device.",
+      "discovered": "baseline"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F2",
+      "action": "In §Making another one, state that the house does not switch to the new persona and that the reader switches by name.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added two sentences to the closing paragraph: 'The house does not switch to them. You keep talking to the persona you asked, and switch to the new one by name.' This states intended behaviour verified at voice_loop.py:2004-2077 and creation.py:446 (the switch belongs to the first-run turn alone). It does not describe the T31 defect: the page still says nothing about the tool's return text announcing a handover. Section now 197 words, under the 200-word guide limit; the paragraph is 55 words, under 60."
+    },
+    {
+      "id": "F6",
+      "action": "Reframe the first-run quote as the opening's beginning rather than the whole opening line.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "'The opening line is the same on every install:' became 'The opening is the same on every install, and it begins:'. Net two words, and the paragraph rewrapped. Every quoted word still matches first_run.py:47-53 exactly, and the sentence no longer claims the quote is the whole line. See detailed_review.score_reasoning for the adjudication of the colour/color conflict this truncation exists to avoid."
+    },
+    {
+      "id": "F4",
+      "action": "Settle whether any client can change the default persona, then either state that the default is fixed at install or leave the page silent.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "The question research has to answer: is there any surface on any client that changes config.default_persona, and if there is not, is that a product defect or the design? What I could verify from here: settings.py:263 reads it only from HEARTH_DEFAULT_PERSONA; config_gen.rs:191 writes that key once into hearth.env at install; personas_api.py:356 reads it only to refuse a removal, with the message '<name> is the default persona; set another first.'; and a tree-wide grep of default_persona turns up no writer. I did not edit the sentence. Rewording it to drop 'until you have set another' would have made the page vague enough to be true while leaving the reader in the same dead end, and stating 'the default is fixed at install' would document a probable defect as behaviour, which is the exact error the T31 ruling forbids."
+    },
+    {
+      "id": "F3",
+      "action": "Gloss 'the Personas page' at its first mention in the Note and point forward to the section that describes it.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The Note now reads 'on the Personas page your client carries, described under [Changing a persona later](#changing-a-persona-later)'. The gloss names the surface as something every client has, and the in-page anchor sends the reader to the section that describes it. In-page anchors are already in use on a published page (wiki/developing.md:42), and lint_wiki.py:359 skips link targets beginning with '#'. The two later mentions in §Voices, briefly now follow a defined term."
+    },
+    {
+      "id": "F5",
+      "action": "Add a pending figure placeholder for the Personas page in §Changing a persona later.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Placeholder added after the section's first paragraph, at ../images/pending/personas-changing.png, with reader alt text and a CAPTURE work order naming the client, the state (a persona you made selected, developer mode off), the three sections and the Save and restart button, and the size. The path is relative in the same way the page's other links are, and lint_wiki.py:367-368 treats an images/pending target as a figure-pending warning rather than a dead link, so the corpus stays at zero errors. The image is not claimed to exist: capture belongs to whoever takes screenshots."
+    },
+    {
+      "id": "F1",
+      "action": "Write the missing how-to for the Personas page and link it from this page.",
+      "state": "deferred",
+      "owner": "T32",
+      "needs": "restructure",
+      "result": "Not fixable on this page and not attempted. A concept page must not carry the procedure (wiki/page-types.md:153-154), and the destination it should link to does not exist: desktop-client/src/components/personas/PersonasView.tsx:28 names wiki/clients/persona-page.md as its design of record and that file is absent. This is the one finding that keeps the page from a pass, and it stays open until T32 lands. When it does, three places on this page want the link: the Note in §Making another one, the last paragraph of §Voices, briefly, and §Changing a persona later. The developer-mode gate on Remove, which the orchestrator correctly kept off this page as a procedure, has no other home until then."
+    },
+    {
+      "id": "F7",
+      "action": "Name the iOS client 'the iPhone' consistently in §Changing a persona later.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "'the phone' became 'the iPhone' in both places, so the section now uses one name per client: the desktop client, the iPhone, Android. This removes a real ambiguity rather than a cosmetic one, because 'the phone' is the standing term for the Android device elsewhere in the corpus (wiki/clients/android.md:40, 42, 59)."
+    }
+  ],
+  "objectives_source": "Neither the page frontmatter nor tasks/docs/artifacts/T5.research.json records objectives; the research artifact carries objectives: [] because it ran in affected mode, where the contract leaves that field empty. The six below are derived from what the page plainly sets out to teach, so the gap analysis still happens. They are proposals, not a record, and the orchestrator should either adopt them or replace them.",
+  "objective_gaps": [
+    {
+      "objective": "explain what a persona is made of",
+      "bloom": "understand",
+      "taught": true,
+      "why": "The six parts are a term list under §What a persona is made of, each with a one-line definition, and the non-verbal tags follow it. No gap.",
+      "needs": null
+    },
+    {
+      "objective": "describe how your first persona is made",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Making your first one covers the interview, the scripted opening and farewell, the handover, and the second-brain beat, and links onward to The second brain. No gap.",
+      "needs": null
+    },
+    {
+      "objective": "describe how to make a persona after first run has ended",
+      "bloom": "understand",
+      "taught": true,
+      "why": "This is the reader dead end the corpus pass is named after, and §Making another one closes it: first run expires the moment the first persona is written, so you ask the persona you have, who is born holding create_persona; the grant is one tool wide; nothing needs restarting; and the house does not switch, so you switch by name. The pre-2026-09-03 caveat names two routes for a reader the grant never reached. The action is conversational rather than a UI path, so a concept page can carry it whole without becoming a procedure.",
+      "needs": null
+    },
+    {
+      "objective": "explain where a persona lives on disk and what you own",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Where a persona lives gives the folder, the manifest, the voice sidecar, the once-per-process manifest read and its consequence for hand edits, and the case-insensitive name collision. No gap.",
+      "needs": null
+    },
+    {
+      "objective": "explain how a persona gets a voice and what happens when the design fails",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Voices, briefly states design-once-then-clone, that the clip is replaceable, that a pending design is never picked up, and that a persona with no clip is refused speech rather than given someone else's. Recorded for a second reason: wiki/features/voice.md still carries the permanent-reference claim at line 32 and the pending-pickup claim at lines 38-43, both of which were corrected here. The two concept pages now disagree, and T27 owns closing that.",
+      "needs": null
+    },
+    {
+      "objective": "describe what you can change about a persona later, and what you cannot",
+      "bloom": "understand",
+      "taught": false,
+      "why": "Partially taught. The page states what the Personas page edits, that saving restarts the house while making a persona does not, that removal sits behind developer mode, and that a removal renames rather than deletes. Two holes remain. The route to the removal control is written nowhere in the corpus, because the concept page correctly refuses the procedure and the how-to it should link to does not exist (F1, T32). And the precondition on removing the default persona, 'until you have set another', names an action no client appears to expose (F4).",
+      "needs": "restructure"
+    },
+    {
+      "objective": "change or remove a persona on the Personas page",
+      "bloom": "apply",
+      "taught": false,
+      "why": "An apply-level objective the page raises and cannot serve. Under the Bloom mapping, apply implies a how-to, and wiki/page-types.md:153-154 forbids the steps here. This is not a wrong-type finding against this page: the level belongs to a sibling page that does not exist. desktop-client/src/components/personas/PersonasView.tsx:28 names wiki/clients/persona-page.md as its design of record and the file is absent. Until T32 lands, this objective is taught by no page in the corpus.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "(reverse check) content on the page serving no objective",
+      "bloom": null,
+      "taught": true,
+      "why": "None found. Every section maps to one of the six objectives above: the six parts, first run, making another, on-disk layout, voice, switching and pinning, and changing later. §Voices, briefly is the only candidate for belonging elsewhere, and it earns its place because a designed voice is one of the six parts, it summarises rather than duplicates, and it hands off to Voice and the voice engine at the end.",
+      "needs": null
+    }
+  ],
+  "changed": [
+    {
+      "id": "F2",
+      "summary": "§Making another one now says the house does not switch to the new persona and that you switch to them by name, so the section that closes the named dead end tells the reader what happens after they act."
+    },
+    {
+      "id": "F3",
+      "summary": "The Note in §Making another one glosses the Personas page as the one your client carries and links forward to §Changing a persona later, so the surface is defined at first mention."
+    },
+    {
+      "id": "F5",
+      "summary": "Added a pending figure placeholder for the Personas page in §Changing a persona later, with reader alt text and a CAPTURE work order."
+    },
+    {
+      "id": "F6",
+      "summary": "The first-run quote is now framed as where the opening begins rather than as the whole opening line, so the truncation is no longer silent."
+    },
+    {
+      "id": "F7",
+      "summary": "§Changing a persona later now names the iOS client 'the iPhone' in both places, removing an ambiguity with the corpus's use of 'the phone' for the Android device."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "The concept page describes the Personas page in three sections and has no how-to to send a reader to. The route to the removal control, which the orchestrator correctly kept off this page as a procedure, is written nowhere in the corpus.",
+      "why_unfixed": "Deferred to T32. The fix is a page that does not exist, not an edit to this one, and writing a procedure here would break wiki/page-types.md:153-154.",
+      "detraction": 2
+    },
+    {
+      "id": "F4",
+      "dimension": "clarity",
+      "issue": "'The default persona cannot be removed until you have set another' promises an action no client appears to expose. config.default_persona is read only from HEARTH_DEFAULT_PERSONA (settings.py:263), written once at install (config_gen.rs:191), and no route or control writes it.",
+      "why_unfixed": "Blocked on research. Whether this is a product defect in the T31 family or the intended design decides whether the page states that the default is fixed at install or stays silent. Guessing would either soften the sentence into vagueness or document a probable defect as behaviour.",
+      "detraction": 1
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 10 - (F1 2 + F2 1 + F3 0.5 + F4 1 + F5 1 + F6 0.5 + F7 0.5) = 3.5, floored to 3. After the checklist, open penalty is F1 2 + F4 1 = 3, so 10 - 3 = 7. Delta +4. Read the 3 carefully before acting on it: it is not a verdict on the prose, which is among the best in this corpus, and the author's five corrections all hold up against source. Two thirds of the baseline penalty sat in things whose fix is not on this page at all, F1 at 2 and F4 at 1, and both are still open, which is the whole reason the page cannot pass. The 7 is therefore an accurate reading of the page a reader meets today: it teaches everything it sets out to teach except how to act on the surface it spends three sections describing.\n\nThe colour/color conflict, adjudicated. The author's reading of the linter is right in effect and slightly wrong in detail, and the detail matters. scripts/lint_wiki.py:339-340 runs the BRITISH pattern (line 97, which includes colour\\w*) over every body line outside a fenced block and appends a Finding at the default severity, error (line 137). There is no exemption at that call site for any page. QUOTES_BANNED_FORMS (line 120) is consulted only at line 341 for terminology and line 375 for reader-drift, so it is not that the quote exemption is reserved for the style guide: british-spelling has no quote exemption anywhere, and style-guide.md passes only because line 170 happens to list the American forms. So the conclusion stands. Quoting the shipped sentence whole in prose would take the corpus off zero errors and fail the build.\n\nTwo mechanical escapes exist and both should be refused. strip_code at line 253 removes inline code spans before the check, so `colour` in backticks would pass, and body_lines at 203-205 skips fenced blocks entirely. Setting a spoken word in code voice tells the reader it is an identifier, and putting product dialogue in a fenced block renders it as terminal output. Neither is worth smuggling one word past a rule.\n\nWhich resolution is right: change the product string. OPENING_TEXT at backend/harness/valar/gateway/first_run.py:47-53 is user-facing product copy, spoken on every install, in a product whose own documentation standard is American spelling (wiki/style-guide.md:168-171). One word in one string is the cheapest fix available and the only one that leaves the wiki free to quote the sentence whole and accurately. The alternative, teaching the linter to exempt quoted material, is worse than the problem: it would need a general 'inside double quotes' carve-out that punches a hole in every prose rule the linter enforces, and the product would still be spelling against its own documentation. Scope note: colour is also the required parameter name in tools.yaml:1093-1127 and in creation.py, those are identifiers, they appear in docs in code voice, and strip_code already exempts them. I am not recommending they change. The recommendation is the one spoken string.\n\nUntil that lands, the author's truncation is the correct interim and I kept it. What I fixed was the framing around it (F6): the page claimed the quote was the opening line and it is two sentences of a longer one.\n\nOn the three orchestrator rulings, all three are right and I would not reverse any. Keeping the two developer-mode switches off a concept page follows wiki/page-types.md:153-154 exactly. The pre-2026-09-03 caveat is load-bearing, because the grant reached only persona_template.json and nothing migrates an existing manifest, so without it the page's central new fact is false for every house that predates the change. And refusing to document the T31 handover defect is right for the stated reason. Note that refusing to document the defect is not the same as leaving the reader with the wrong model, which is what F2 fixed: the page now states the intended behaviour, that the house does not switch outside first run, without mentioning the announcement that misleads. If the orchestrator reads that sentence as too close to the ruling, it is one sentence in §Making another one and is cleanly reversible.",
+    "what_worked": "F2 is the one that matters for the journey this pass is named after. §Making another one closed the 'how do I create a persona after first run' dead end, but it stopped at 'the folder is written' and left the reader holding an expectation the previous section had set: in first run, the new persona takes the house and greets you first. A reader who makes a second persona and hears nothing had no way to tell success from failure. The section now ends by telling them who they are talking to and how to reach the person they just made.\n\nF3 repaired a forward reference that hit exactly the wrong reader. 'The Personas page' was first used inside the Note written for someone whose house predates the grant, 54 lines before the page says what that surface is, and that reader is the one most in need of a route. It is now glossed and linked at first mention.\n\nF5 put a figure request against the one surface the corpus never shows anyone. F6 stopped the page overstating a quotation, on the very sentence whose accuracy this run was asked to adjudicate. F7 removed a genuine ambiguity rather than a cosmetic one: 'the phone' is the standing term for the Android device elsewhere in the corpus, so 'The phone and Android write far less' was unreadable for an Android reader.",
+    "what_holds_score_down": "F1, worth 2, is the whole gap between this page and a pass. The page invites the reader to change a persona, re-grant its tools, replace its voice clip and remove it, and there is no page in the corpus that tells them how to do any of it. Removal is the sharpest case: it sits behind two switches, the concept page correctly refuses to name them, and no other page names them either, so the route exists in the product and nowhere in the documentation. The destination is already named in the source, at desktop-client/src/components/personas/PersonasView.tsx:28, as wiki/clients/persona-page.md, and that file does not exist. This is T32.\n\nF4, worth 1, is a sentence that tells a reader to do something first and may point at nothing. Removing the default persona requires setting another, and the default comes only from HEARTH_DEFAULT_PERSONA in hearth.env at install. The risk is sharpened by the page itself: two sections earlier it describes the per-device 'Start with' pin, which a reader will reasonably mistake for the default.\n\nOne thing visible on regrade that did not meet the detraction floor and is recorded rather than scored: the Note in §Making another one opens 'A persona made before 2026-09-03 does not carry this grant. It reached the template...', where 'It' means the grant but sits next to 'a persona' as the nearer noun.\n\nOn three pages deliberately untouched: wiki/backend/tool-catalog.md still states this page's central new fact is impossible (T26), wiki/features/voice.md still carries two of the four claims corrected here (T27), and wiki/first-run.md still treats the no-restart behaviour as unsolved (T28). None were edited and none are scored against this page, but until they land the corpus contradicts itself on the one fact T5 exists to establish.",
+    "further_improvements": [
+      {
+        "action": "Write wiki/clients/persona-page.md, the how-to that PersonasView.tsx:28 already names as its design of record, covering finding the Personas page, editing, re-granting a domain, replacing a voice clip, and the two developer-mode switches that reveal Remove. Then link it from three places on this page: the Note in §Making another one, the last paragraph of §Voices, briefly, and §Changing a persona later.",
+        "why": "The concept shape ends in links to the how-to pages that act on the thing, and this page has none. It is also the only home for the removal route, which the orchestrator correctly kept off a concept page and which is consequently documented nowhere.",
+        "expected_score_effect": "Clears the F1 detraction of 2, taking the open penalty from 3 to 1 and the page from 7 to 9."
+      },
+      {
+        "action": "Settle whether any client can change the default persona. If none can, decide whether that is a product defect in the T31 family or the intended design, then either state on this page that the default is fixed at install or leave the sentence as it stands with a tracker row against the product.",
+        "why": "personas_api.py:356 tells a reader to set another default first, and nothing found in the tree lets them. The reader most likely to hit it is the one trying to clear Sulivan away after making their own persona.",
+        "expected_score_effect": "Clears the F4 detraction of 1. With F1 also cleared, the open penalty reaches 0 and the page can pass."
+      },
+      {
+        "action": "Change colour to color in OPENING_TEXT at backend/harness/valar/gateway/first_run.py:47-53, then restore the full quotation in §Making your first one and drop the 'and it begins' hedge.",
+        "why": "The adjudication above. This is the only resolution that lets the page quote the sentence whole and accurately while the corpus stays at zero lint errors, and it aligns one spoken product string with the documentation standard the same repository publishes.",
+        "expected_score_effect": "No detraction to clear, since F6 is fixed. It retires the underlying conflict rather than working around it, and removes the risk that a future editor 'fixes' the quote back into a build failure."
+      },
+      {
+        "action": "Correct wiki/features/voice.md line 32 and lines 38-43 to match the two voice claims corrected here, under T27, and correct wiki/backend/tool-catalog.md under T26 so it stops stating that create_persona is unreachable.",
+        "why": "Two concept pages now disagree about whether a designed clip is permanent and whether a pending voice design is ever picked up, and a reference page states that the route this page teaches cannot be reached. A reader who checks the page against its neighbours loses confidence in all three.",
+        "expected_score_effect": "No effect on this page's score. It protects the objective this page does teach from being contradicted next door."
+      },
+      {
+        "action": "Reword the opening of the Note in §Making another one so the subject is explicit, for example 'A persona made before 2026-09-03 does not carry this grant, which reached only the template new personas are built from.'",
+        "why": "'It' currently sits next to 'a persona' as the nearer noun while meaning 'this grant'.",
+        "expected_score_effect": "None. Below the detraction floor, recorded so it is not lost."
+      },
+      {
+        "action": "Decide at corpus level whether concept pages use action-title headings. wiki/page-types.md:59-62 requires imperative action titles for every type but reference, while wiki/page-types.md:134 holds this page up as the model concept page and all four concept pages in features/ use gerund or noun headings.",
+        "why": "The guide contradicts itself, and the contradiction is why no noun-heading detraction was charged here. Grading this page against a rule its own guide exemplifies it as satisfying would be grading the guide. Whichever way it is settled, it should be settled once for all four pages rather than page by page.",
+        "expected_score_effect": "None on this page as graded. Left unsettled it will produce inconsistent reviews of the other concept pages."
+      }
+    ]
+  }
+}

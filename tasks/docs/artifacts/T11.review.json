@@ -1,0 +1,212 @@
+{
+  "document": "wiki/_index.md",
+  "task_id": "T11",
+  "score_before": 7,
+  "score_after": 9,
+  "score_delta": 2,
+  "verdict": "PASS, minor nits open",
+  "score_notes": "Baseline: 10 - (F1 1 + F2 1 + F3 0.5) = 7.5, floor 7. After: 10 - (open_penalty 0) = 10, capped at 9 because detailed_review.further_improvements is non-empty. Delta +2. Accounted: F1, F2 and F3 all in changed[]; remaining[] is empty, so open_penalty is 0 and no term is carried. Checklist entries C1 and C2 are handoffs rather than findings, carry no detraction, and are deliberately absent from remaining[] so they cannot distort open_penalty.",
+  "tooling": {
+    "linter_run_by_reviewer": false,
+    "why": "This reviewer's tool set is Read, Grep, Write, Edit. There is no Bash tool, so scripts/lint_wiki.py and scripts/doc_graph.py could not be executed in this run. No linter run is claimed.",
+    "linter_state_used": "Supplied by the dispatch from a subagent run on 2026-09-04 (29 pages checked, 0 errors, 196 warnings, none on wiki/_index.md) and corroborated by tasks/docs/artifacts/T11.research.json claims 19 and 20.",
+    "compensating_reads": [
+      "scripts/lint_wiki.py:109, 116, 128-129 for READER_DRIFT, BOLD_LEAD_WORDS, SECTION_WORDS = 200 and PARAGRAPH_WORDS = 60",
+      "scripts/lint_wiki.py:370-406 for the dead-link, reader-drift, long-paragraph, bold-lead and long-section rules",
+      "scripts/publish_wiki.py:163-166, 172-195 for the sidebar rail and the suppressed See also block",
+      "A wiki-wide frontmatter-title grep to enumerate the 29 published pages and check index membership by hand"
+    ],
+    "budget_check": "Every paragraph this run touched was hand-counted against PARAGRAPH_WORDS = 60. ## Getting started 56 to 58 words. ## Looking under the hood 31 to 49 words. No section approaches SECTION_WORDS = 200. No new warning should appear, but the next run with a shell should confirm it."
+  },
+  "dimensions": {
+    "voice": 9,
+    "clarity": 9,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 10,
+    "intent": 9,
+    "structure": 9,
+    "style": 9
+  },
+  "delivered_change_verified": {
+    "install_macos_link_removed": "Confirmed. wiki/_index.md carries no reference to install-macos.md; the three links under ## Getting started are getting-started.md, installing.md and updates.md.",
+    "meeting_your_persona_added_first": "Confirmed at wiki/_index.md:40, ahead of first-run.md, matching tasks/docs/tracker.md:208-210 as cited by the research artifact.",
+    "once_and_only_once": "Checked by hand rather than taken on report. A frontmatter-title grep returns 29 published pages outside wiki/raw/. The index carries 26 list-item targets, all distinct, plus wiki/whats-not-here.md in closing prose and wiki/_index.md itself, which accounts for 28. The one published page with no index entry is wiki/install-macos.md, the ratified transient orphan held for T16.",
+    "prose_link_correspondence": "## Getting started prose named three coverage clauses against three links, and ## Meeting your persona prose named five roles against five links, so the author's prose adjustment did land. F2 was about which page a clause points at, not about the count."
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "wiki/_index.md:84-86, closing sentence of ## Looking under the hood",
+      "issue": "\"A reader who came to use Hearth can stop above this line\" put the product reader's stopping point at the top of ## Looking under the hood. The section immediately above it, ## Building and changing Hearth at :69-74, opens \"These pages are for a reader who cloned the repository rather than installed the app\". The page contradicted itself about where a product reader stops.",
+      "fix": "Reword the ## Looking under the hood prose so the stopping point names the real boundary: the product reader's last section is ## Running it on your devices, and ## Building and changing Hearth is contributor material too. Keep the paragraph to two sentences and under 60 words.",
+      "detraction": 1,
+      "reason": "This page is the wiki's only navigation surface, and wiki/page-types.md:94 makes the section order the reading order for someone meeting the product cold. A reader who came to use Hearth was invited through five contributor pages (Developing on Hearth, Building a Hearth release, The card forge, Hearth style guide, Page types) before the page told them to stop.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "wiki/_index.md:24-27, prose under ## Getting started",
+      "issue": "The third coverage clause read \"the design behind updating in place, which is not built yet\" and assigned the whole update topic to Updating an install. The procedure a reader can follow today is ## Update an install at wiki/installing.md:247-259, two numbered steps under a page the same prose described only as \"what the install does\". A reader with an install and a new release read this section and concluded there is no way to update.",
+      "fix": "Attach the by-hand update to the install clause so the three clauses still map one to one onto the three links, and keep the paragraph under 60 words.",
+      "detraction": 1,
+      "reason": "The landing page's one job is routing, and it routed a real answerable need to the page that says the answer does not exist. The by-hand procedure was one click away but the prose pointed elsewhere.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "style",
+      "dimension": "grammar_mechanics",
+      "location": "wiki/_index.md:5, frontmatter last_reviewed",
+      "issue": "Read 2026-09-03 while ## Getting started and ## Meeting your persona were both edited on 2026-09-04 and the page was under review again the same day. wiki/installing.md:5 already carries 2026-09-04 after its own edit, so the corpus convention is to bump it.",
+      "fix": "Set last_reviewed to 2026-09-04.",
+      "detraction": 0.5,
+      "reason": "last_reviewed is the only freshness signal a maintainer has for a page, and the linter checks the key rather than the date, so a stale value is invisible to the build.",
+      "discovered": "baseline"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Reword the ## Looking under the hood prose so the product reader's stopping point is after ## Running it on your devices, and ## Building and changing Hearth is named as contributor material too. Two sentences, under 60 words.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Two passes. The first replaced the closing sentence with \"Building and changing Hearth is for that reader too, so if you came to use Hearth you can stop after Running it on your devices.\" On regrade that still read as the act of running Hearth rather than as the section name, so it was completed to \"The section above, Building and changing Hearth, is for that reader too, so if you came to use Hearth, the last section you need is Running it on your devices.\" The word \"section\" now marks both headings as headings. The paragraph stays two sentences and goes from 31 to 49 words by hand count, under PARAGRAPH_WORDS = 60. The ## Building and changing Hearth paragraph was left untouched, so no other budget moved."
+    },
+    {
+      "id": "F2",
+      "action": "Rewrite the third coverage clause under ## Getting started so the by-hand update is attached to Installing Hearth and Updating an install is named as the unbuilt design. Three clauses, three links, under 60 words.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The clause list now reads \"whether your machine qualifies, what the install does and how you update by hand, and the unbuilt design for updating in place\". Three clauses still map one to one onto getting-started.md, installing.md and updates.md, in link order. The paragraph goes from 56 to 58 words by hand count, leaving two words under PARAGRAPH_WORDS = 60. The machine sentence was not touched, so the 8 GB statement the research verified against wiki/installing.md:49-55 still stands as written."
+    },
+    {
+      "id": "F3",
+      "action": "Bump last_reviewed to 2026-09-04.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "wiki/_index.md:5 now reads 2026-09-04, matching the day the page was edited and reviewed, and matching wiki/installing.md:5."
+    },
+    {
+      "id": "C1",
+      "not_a_finding": true,
+      "detraction": 0,
+      "action": "Decide whether wiki/first-run.md, which declares type: decision-record at line 4, belongs in the reader-facing ## Meeting your persona section now that a how-to sits above it and the page tells a product reader their last section is ## Running it on your devices. If it moves, it moves to ## Looking under the hood.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Ruled out of scope by the dispatch: moving a page between sections is a restructure, not a reviewer edit. Recorded here rather than acted on, as the dispatch directs. Note that tasks/docs/artifacts/T11.research.json marks the underlying question \"unverifiable\": no page states which page types may sit in which index section, so this needs a rule before it needs an edit."
+    },
+    {
+      "id": "C2",
+      "not_a_finding": true,
+      "detraction": 0,
+      "action": "Reconcile wiki/page-types.md:93 with scripts/publish_wiki.py:189-194. The rule says every published page appears exactly once in exactly one section; the publisher hardcodes a What is not here rail entry outside the section loop, so obeying the rule literally would give that page two rail entries.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Not a defect in wiki/_index.md, whose closing-prose link at :95-96 is the shape that works. It is a trap for the next author who reads the rule literally, and neither page records the exception. Belongs to whoever owns wiki/page-types.md or the publisher."
+    }
+  ],
+  "objectives_source": "Neither wiki/_index.md's frontmatter nor tasks/docs/artifacts/T11.research.json records objectives; the research artifact's objectives[] is an empty array. The four below were derived by this review from what the page plainly sets out to do, so that the gap analysis still happens. They are stated at Remember and Understand, which wiki/page-types.md:36-43 and the hearth-style Bloom table map to a landing page, matching the declared type: landing. No objective sits at Apply or above, so there is no wrong-type signal.",
+  "objective_gaps": [
+    {
+      "objective": "find the page that answers your question about Hearth",
+      "bloom": "remember",
+      "taught": false,
+      "why": "Partial, and by design. 27 of the 28 other published pages are reachable from this page: 26 as list items under a section, and wiki/whats-not-here.md from the closing prose at :95-96, which also gets a hardcoded rail entry at scripts/publish_wiki.py:194. The exception is wiki/install-macos.md, which scripts/publish_wiki.py:63-76 still publishes and which now has no index entry and therefore no rail entry from scripts/publish_wiki.py:172-195. A reader cannot reach it from the wiki's only navigation surface.",
+      "needs": null,
+      "owner": "T16",
+      "accepted": "Ratified. tasks/docs/tracker.md:271 puts T16 in Phase E, where wiki/install-macos.md is demoted to wiki/raw/. The dispatch names this transient orphan as the design rather than an oversight. Recorded because the gap is real while it lasts, not because the sequencing is wrong."
+    },
+    {
+      "objective": "recognize what Hearth is, and that the model, your memory and your persona's voice stay on your machine",
+      "bloom": "understand",
+      "taught": true,
+      "why": "The abstract at :15 and the overview at :17-20 state it, including the pre-alpha caveat.",
+      "needs": null
+    },
+    {
+      "objective": "decide whether to read on as someone using Hearth or as someone changing it",
+      "bloom": "understand",
+      "taught": true,
+      "why": "Taught only after F1. The page now names the boundary correctly at :84-87: the product reader's last section is ## Running it on your devices, and ## Building and changing Hearth is contributor material. Before the fix the page pointed the product reader at the wrong line and contradicted :71-72.",
+      "needs": null
+    },
+    {
+      "objective": "decide whether your machine can run Hearth at all",
+      "bloom": "understand",
+      "taught": true,
+      "why": "The floor is stated at :24-26 and the reader is routed to Getting started and Installing Hearth for the detail. Routing is the correct depth for a landing page; the page must not teach the bands itself.",
+      "needs": null
+    }
+  ],
+  "content_serving_no_objective": "None. All six sections route and none carries detail a reader can act on, which is what wiki/page-types.md:89-90 requires of a landing page. The one borderline case is the hardware sentence at :24-26, which is detail of the page's own rather than routing; it is accurate against wiki/installing.md:49-55 and it serves the fourth objective, so it is recorded as a further improvement rather than as a finding.",
+  "changed": [
+    {
+      "id": "F1",
+      "summary": "Rewrote the closing sentence of ## Looking under the hood so the product reader's stopping point is the end of ## Running it on your devices, and ## Building and changing Hearth is named as contributor material too."
+    },
+    {
+      "id": "F2",
+      "summary": "Rewrote the third coverage clause under ## Getting started to \"what the install does and how you update by hand, and the unbuilt design for updating in place\", so the by-hand procedure at wiki/installing.md:247-259 is routed to and updates.md is named as design."
+    },
+    {
+      "id": "F3",
+      "summary": "Bumped last_reviewed from 2026-09-03 to 2026-09-04."
+    }
+  ],
+  "remaining": [],
+  "detailed_review": {
+    "score_reasoning": "Baseline 7. The page started at 10 and lost 2.5 across three findings: F1 at 1, a self-contradiction about where a product reader stops reading, which on the wiki's only navigation surface sent that reader through five contributor pages; F2 at 1, a coverage clause that routed an update-seeking reader to the page saying updating is not built while the working by-hand procedure sat on a page the same sentence described as something else; and F3 at 0.5, a last_reviewed date one day behind the edits it covers. 10 - 2.5 = 7.5, floored to 7, which is NEEDS_WORK. After: all three are in changed[] and remaining[] is empty, so open_penalty is 0 and the arithmetic gives 10. The cap in the scoring rules applies because further_improvements is non-empty, so score_after is 9 and the delta is +2. Nothing about the type was wrong at any point: Pass 0 found no wrong-type, type-mixture or missing-spine, because the declared type: landing matches what all six sections do, and every derived objective sits at Remember or Understand, which is the level a landing page should carry.",
+    "what_worked": "F2 is the one that mattered most to a reader with a keyboard in front of them. The index is the only navigation surface the published wiki has, and its ## Getting started prose told a reader that updating in place is not built yet, full stop. That is true of the design and false of the reader's actual question, because wiki/installing.md:247-259 carries two numbered steps that get a new build onto a machine today. The clause now separates the two: what the install does and how you update by hand, then the unbuilt design for updating in place. The three clauses still map one to one onto the three links in link order, which is the property the author restored when the macOS link came out, so the fix did not cost the correspondence it had just gained. F1 removed a contradiction the page was making with itself. It said a reader who came to use Hearth could stop above ## Looking under the hood, while the section directly above opened by saying it is for a reader who cloned the repository. The stopping point now names the real boundary and marks both section names as section names, so the sentence cannot be misread as the act of running Hearth on a device. F3 is small and it is the kind of thing that rots quietly: the freshness date now matches the day the page changed. Separately, the delivered change itself checks out against source rather than against the author's report. The macOS install link is gone, meeting-your-persona.md is first in its section, and a hand enumeration of the 29 published pages against the 26 index targets confirms all 26 are distinct and that the only page with no index entry is the ratified transient orphan.",
+    "what_holds_score_down": "Nothing is open as a finding: remaining[] is empty and open_penalty is 0. The score is 9 rather than 10 because the improvements below are real and naming them honestly is worth more than the tenth point. Two of them are handoffs already recorded as checklist entries C1 and C2, both deferred to the orchestrator. The one that touches a reader directly is the transient orphan: wiki/install-macos.md still publishes and now has no index entry and no rail entry, so between this task and T16 it is a page in the corpus that the corpus cannot reach. That is the ratified design and it is recorded as an objective gap rather than a defect, but it is a gap while it lasts. The rest are pressure rather than damage. Three of the six section paragraphs now run between 49 and 58 words against a 60-word limit, so the next editor to add a clause anywhere in this page will trip a long-paragraph warning rather than have room to work. And the hardware floor at :24-26 is a product fact living on a page whose type says it should carry almost no detail of its own, which makes it a second place for the 8 GB figure to go stale.",
+    "further_improvements": [
+      {
+        "action": "Land T16 so wiki/install-macos.md is demoted to wiki/raw/, closing the window in which a published page has no route from the index or the rail.",
+        "why": "scripts/publish_wiki.py:63-76 publishes it and scripts/publish_wiki.py:172-195 gives it no rail entry, so it is currently unreachable from the wiki's only navigation surface. This is the one open objective gap.",
+        "expected_score_effect": "No effect on this page's score; clears the objective_gaps[] entry against the routing objective."
+      },
+      {
+        "action": "Record the What is not here exception in wiki/page-types.md:93, or drop the hardcoded rail entry at scripts/publish_wiki.py:194 and let the index carry the page in a section like every other page.",
+        "why": "The rule and the publisher disagree. An author who obeys wiki/page-types.md:93 literally will add wiki/whats-not-here.md to a section and produce two rail entries for it, and neither page warns them. Checklist entry C2.",
+        "expected_score_effect": "No effect on this page's score; prevents a future defect on it."
+      },
+      {
+        "action": "Consider trading the hardware sentence at :24-26 for a routing sentence, and let wiki/installing.md:49-55 and :74-80 be the single home of the memory floor and the video-memory bands.",
+        "why": "wiki/page-types.md:89-90 says a landing page carries almost no detail of its own. The 8 GB figure is accurate today, verified against the install page, but it is a product fact in two places, and the landing page is the copy nobody will think to update. Freeing those 23 words would also restore the paragraph headroom this page has lost.",
+        "expected_score_effect": "No detraction open today; forecloses a stale-claim finding at 1 later."
+      },
+      {
+        "action": "When any section paragraph on this page is next edited, rewrite it rather than extend it, and re-count against PARAGRAPH_WORDS = 60.",
+        "why": "## Getting started is at 58 words, ## Meeting your persona at 57, and ## Looking under the hood at 49. Two of the six have fewer than four words of headroom, so the next clause anyone adds produces a long-paragraph warning.",
+        "expected_score_effect": "Prevents a linter warning rather than clearing a detraction."
+      },
+      {
+        "action": "Settle whether wiki/first-run.md, a type: decision-record, belongs in the reader-facing ## Meeting your persona section, and write the answer as a rule in wiki/page-types.md so the question stops being reopened.",
+        "why": "The page now tells a product reader their last section is ## Running it on your devices, which makes ## Meeting your persona reader-facing by construction, and a design record with a seventeen-screen mockup sits third from the top of it. tasks/docs/artifacts/T11.research.json marks this unverifiable because nothing states which types may sit in which section. Checklist entry C1.",
+        "expected_score_effect": "No effect until a rule exists; a rule would make this decidable rather than a matter of taste."
+      },
+      {
+        "action": "Consider naming the memory beat in the ## Meeting your persona arc without linking it, so the arc the index states matches the arc the linked how-to walks.",
+        "why": "The prose at :35-37 states install, interview and handover. wiki/first-run.md:24-29 names a third beat, Give them a memory, and wiki/meeting-your-persona.md gives it two of seven sections at :124 and :146. The second brain must not be linked here, because it is listed under ## Living with a house and wiki/page-types.md:93 forbids a second appearance, but naming a beat is not linking a page. The 57-word paragraph would have to be rewritten rather than extended.",
+        "expected_score_effect": "No detraction open today; a small gain in how well the section prose predicts its destination."
+      },
+      {
+        "action": "On the page that owns it, reconsider the title of wiki/updates.md, which promises Updating an install while describing an updater that does not exist.",
+        "why": "The index now says which page carries the working update and which carries the design, so the reader is routed correctly, but the link text still reads as a procedure. The fix belongs to the owner of wiki/updates.md, not to this page.",
+        "expected_score_effect": "No effect on this page's score."
+      }
+    ]
+  }
+}

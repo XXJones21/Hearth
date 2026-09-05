@@ -1,17 +1,17 @@
 ---
 title: Developing on Hearth
-status: draft
+status: closed
+type: how-to
 last_reviewed: 2026-09-03
 related:
   - _index.md
   - first-run.md
   - backend/build-pipeline.md
-  - backend/component-catalog.md
   - backend/native-runtime.md
 sources:
   - README.md
+  - wiki/raw/component-catalog.md
   - wiki/backend/build-pipeline.md
-  - wiki/backend/component-catalog.md
   - wiki/backend/native-runtime.md
   - wiki/first-run.md
   - wiki/_index.md
@@ -224,13 +224,18 @@ this is the only place that states them.
 1. Markdown only. Relative links only. One H1 per article, matching the
    frontmatter `title`.
 2. Sentence case headings.
-3. Frontmatter carries `title`, `status`, `last_reviewed`, `related`, `sources`.
+3. Frontmatter carries `title`, `status`, `type`, `last_reviewed`, `related`,
+   `sources`. `type` is one of the six in [Page types](page-types.md), and
+   `status` is one of the six values task files use.
 4. Canonical articles never link to raw or unprocessed material. Where an
    article is compiled from staged sources, name them in `sources`.
 5. No em dashes. No emojis.
 
 `scripts/lint_wiki.py` enforces all five. Run it from the repository root
-before you hand anything back; it exits non-zero on any finding.
+before you hand anything back; it exits non-zero on any error.
+
+The conventions are the mechanical floor. For voice, naming, and page shape,
+see the [Hearth style guide](style-guide.md) and [Page types](page-types.md).
 
 ```
 python scripts/lint_wiki.py

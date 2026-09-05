@@ -1,0 +1,536 @@
+{
+  "task_id": "G1",
+  "mode": "graph",
+  "recommended_size": "L",
+  "affected_docs": [
+    {
+      "path": "wiki/getting-started.md",
+      "sections": ["## What you need", "## Three steps to a running house", "## Where to go next", "## Before you start"],
+      "why": "Every one of its four sections is stated by a page that survives: requirements by installing.md lines 35-56, the house-and-window framing by _index.md lines 57-61, the three beats by first-run.md lines 22-30, the routing lists by _index.md lines 29-67, and the pre-alpha caveat by _index.md lines 19-20. What it alone holds is the pre-download step: it is the one page a reader can read before they have an installer."
+    },
+    {
+      "path": "wiki/installing.md",
+      "sections": ["## Before you start", "### macOS", "### Windows", "## The scan and the plan", "## Choosing where it lives", "## Platform notes"],
+      "why": "The only page in the cluster already parameterized by platform, and the page _index.md line 30 routes to. It carries three defects: the abstract at line 24 assumes the reader already has the installer, the 8 GB claim at lines 75-78 contradicts both its own line 40-42 and the planner, and the Windows install root at lines 85-86 is wrong. It also carries no numbered step anywhere, which is the how-to spine page-types.md lines 108-116 requires."
+    },
+    {
+      "path": "wiki/install-macos.md",
+      "sections": ["## What you need", "## Opening it the first time", "## The install itself", "## What ends up on your machine", "## Starting and stopping the backend", "## Uninstalling", "## When something goes wrong", "## What this does not cover yet"],
+      "why": "Duplicates installing.md on requirements, the plan, the download, and the Sulivan check. Four sections are not duplicated anywhere: the unsigned right-click-Open procedure, the verbatim declined-machine message, the macOS uninstall, and the whole troubleshooting section."
+    },
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": ["## What your Mac needs", "## What installing gives you", "## Installing", "## Status and limitations"],
+      "why": "Its ## Installing section at lines 86-102 is a fourth copy of the install procedure, which page-types.md lines 241-244 names as the exact defect that produced two install guides. Its line 122 is one of three published announcements of an unwritten Windows install guide."
+    },
+    {
+      "path": "wiki/clients/windows.md",
+      "sections": ["## What the desktop app is", "## What the installer gives you", "## The hardware probe picks your model", "## First launch", "## Status"],
+      "why": "Two of its sections restate the install narrative, and its line 151 carries the wrong Windows default install root. Its ## What the desktop app is section runs lines 28-143 and is mostly how-to and reference material, not platform overview. Its line 232-234 is the third announcement of the unwritten Windows guide."
+    },
+    {
+      "path": "wiki/first-run.md",
+      "sections": ["## Three beats", "## Beat one: install", "## Beat two: making someone", "## Beat three: the second brain", "## Open questions"],
+      "why": "Declared type: how-to, but the page is a design record: dated decisions, rules learned by getting them wrong, tool schemas, an implementation note about persona cache invalidation, and four unresolved open questions. It is the page getting-started.md lines 56 and 60 and installing.md line 125 send a reader to in order to do first run."
+    },
+    {
+      "path": "wiki/features/personas.md",
+      "sections": ["## Making your first one", "## Switching and multiple personas"],
+      "why": "## Making your first one describes only the first-run interview, which the source makes a one-time event. ## Switching and multiple personas closes by saying a persona settings screen is not covered by what ships today, which the desktop client contradicts."
+    },
+    {
+      "path": "wiki/_index.md",
+      "sections": ["## Getting started", "## Meeting your persona"],
+      "why": "Not in the named cluster, but it is the nav that any retirement in the cluster edits: lines 29-32 list all three install-cluster pages by name."
+    },
+    {
+      "path": "wiki/whats-not-here.md",
+      "sections": ["## Pages that are not written yet"],
+      "why": "Line 23 is the correct and only home for the missing Windows install guide. When that guide lands, this entry is what closes."
+    }
+  ],
+  "sources_of_truth": [
+    { "authority": "source", "ref": "backend/harness/valar/gateway/first_run.py:253-287", "covers": "when the persona interview runs, and why it never runs a second time" },
+    { "authority": "source", "ref": "backend/harness/valar/tools/tools.yaml:1083-1091", "covers": "create_persona and the tool domain it belongs to" },
+    { "authority": "source", "ref": "backend/personas/Sulivan/sulivan.json:59-78", "covers": "which tool domains Sulivan is granted, including personas" },
+    { "authority": "source", "ref": "backend/harness/valar/data/persona_template.json:31-36", "covers": "the tool domains a newly made persona is granted, which exclude personas" },
+    { "authority": "source", "ref": "backend/harness/valar/gateway/personas_api.py:336-375,456-462", "covers": "what the persona settings surface can do: edit and remove, no create" },
+    { "authority": "source", "ref": "desktop-client/src/components/personas/PersonasView.tsx:102,674-685", "covers": "the shipped persona settings screen and its developer-mode Remove control" },
+    { "authority": "source", "ref": "desktop-client/src/App.tsx:232-235", "covers": "that the persona settings screen is a reachable top-level view" },
+    { "authority": "source", "ref": "desktop-client/src/components/stage/PersonaChips.tsx:14-33", "covers": "persona switching as a click on the persona stage" },
+    { "authority": "source", "ref": "desktop-client/src/components/stage/PersonaStage.tsx:59", "covers": "that the persona chips render on the main stage" },
+    { "authority": "source", "ref": "crates/hearth-probe/src/plan.rs:126-149,336-352", "covers": "when the think-and-speak-one-at-a-time warning is emitted, and what an 8 GB Air actually plans" },
+    { "authority": "source", "ref": "crates/hearth-probe/tests/plan_fixtures.rs:36-52", "covers": "the 8 GB M1 Air fixture, asserting coexistence and the absence of that warning" },
+    { "authority": "source", "ref": "crates/hearth-probe/src/machine.rs:232-268", "covers": "the default install root on each platform" },
+    { "authority": "source", "ref": "crates/hearth-probe/dictionary.yaml:131-232", "covers": "the four model tiers, their files, sizes, hashes, and maximum context windows" },
+    { "authority": "source", "ref": "crates/hearth-probe/dictionary.yaml:109-120", "covers": "the voice download size that makes up the rest of the plan total" },
+    { "authority": "source", "ref": "crates/hearth-probe/src/defaults.rs:18-22", "covers": "the five port numbers both client pages list" },
+    { "authority": "source", "ref": "crates/hearth-probe/src/plan.rs:214-237", "covers": "what the plan counts as the download: the model build and the voice, and nothing else" },
+    { "authority": "contextual", "ref": "wiki/page-types.md:215-253", "covers": "the platform overview shape, and its explicit rule that installation does not live on a client page" },
+    { "authority": "contextual", "ref": "wiki/page-types.md:96-127", "covers": "the how-to shape, including the numbered-steps requirement" },
+    { "authority": "contextual", "ref": "wiki/_index.md:22-67", "covers": "the corpus reading order and which pages the nav names" }
+  ],
+  "claims": [
+    {
+      "claim": "The persona interview is a one-time event: once a persona is created, the first-run flow can never be entered again by ordinary use.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py:253-287. active() returns True only when every non-internal persona in the directory carries \"shipped\": true; the module docstring at lines 3-7 states that create_persona writing a new resident makes the next turn's detection fail. The only override is the HEARTH_FORCE_FIRST_RUN debug environment variable at lines 280-281, which the docstring says puts the whole house into interview mode."
+    },
+    {
+      "claim": "A persona can still be created after first run, through the create_persona tool.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/handlers/creation.py:288-340 has no first-run gate: it validates the name, fills a missing description or system prompt from the other, and rejects only a case-insensitive name collision. backend/harness/valar/tools/tools.yaml:1083-1091 registers it in domain personas."
+    },
+    {
+      "claim": "Only Sulivan can create a further persona; a persona made during first run cannot.",
+      "status": "verified",
+      "evidence": "backend/personas/Sulivan/sulivan.json:61-75 grants Sulivan the personas domain. backend/harness/valar/data/persona_template.json:31-36, the template every made persona is expanded from, grants domains weather, timers, search, news, memory, media, and personas is not among them. create_persona is the only tool in the personas domain (single match for \"domain: personas\" in tools.yaml)."
+    },
+    {
+      "claim": "A reader can reach Sulivan again after first run by clicking his chip on the persona stage.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/stage/PersonaChips.tsx:14-33 renders one button per persona and calls onSwitch with the name; desktop-client/src/components/stage/PersonaStage.tsx:59 renders the chips. backend/personas/Sulivan/sulivan.json:6 marks him shipped and the manifest sets neither internal nor desktop_only, so backend/harness/valar/persona/engine.py:80-82 does not hide him from the picker."
+    },
+    {
+      "claim": "No published page tells a reader how to create a second persona.",
+      "status": "verified",
+      "evidence": "wiki/features/personas.md:46-71 describes only the first-run interview, opening \"The first time you open Hearth\". wiki/features/personas.md:104-113 states that switching by name works but names no route to creation. wiki/first-run.md:208-292 describes the interview as beat two of setup. Grep for create_persona across wiki/ excluding raw/ returns no reader-facing instruction."
+    },
+    {
+      "claim": "wiki/features/personas.md is correct that a settings screen for editing or removing a persona is not yet covered by what ships today.",
+      "status": "contradicted",
+      "evidence": "wiki/features/personas.md:110-113 makes the claim. desktop-client/src/components/personas/PersonasView.tsx:102 defines a full persona settings view, reachable as a top-level view at desktop-client/src/App.tsx:232-235; it posts to /personas/apply (backend/harness/valar/gateway/personas_api.py:460-462), and backend/harness/valar/gateway/personas_api.py:336-375 applies per-persona edits and removes a persona by renaming its folder. Remove is gated behind developer mode at PersonasView.tsx:676-684, so the removing half is behind a flag rather than absent."
+    },
+    {
+      "claim": "On an 8 GB machine Hearth warns that the persona will think and speak one at a time.",
+      "status": "contradicted",
+      "evidence": "wiki/installing.md:75-78 and wiki/first-run.md:182-186 both state it. crates/hearth-probe/src/plan.rs:126-149 emits that warning only in the branch where nothing fits with the voice held resident. crates/hearth-probe/src/plan.rs:338-344 asserts an 8 GB Air keeps its Q4_K_M quant and coexists, and crates/hearth-probe/tests/plan_fixtures.rs:36-52 asserts p.coexist and that no warning containing \"one at a time\" is produced, with a comment saying the assertion used to be the opposite and omnivoice.cpp is what changed it. wiki/installing.md:40-42 states the correct version on the same page, so installing.md contradicts itself."
+    },
+    {
+      "claim": "The default install root on Windows is D:\\Hearth.",
+      "status": "contradicted",
+      "evidence": "wiki/installing.md:85-86, wiki/clients/windows.md:151 and wiki/first-run.md:112 all state it. crates/hearth-probe/src/machine.rs:232-247 joins \"Hearth\" to the roomiest non-removable, non-system fixed drive, whichever letter that is, and falls back to %USERPROFILE%\\.hearth, a hidden dotdir, on a single-drive machine. wiki/first-run.md:161-166 states the roomiest-drive rule correctly, so first-run.md contradicts itself, and no published page mentions the .hearth fallback."
+    },
+    {
+      "claim": "The default install root on macOS is a visible folder named Hearth in the home directory.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:238-243, with the comment that it is visible on macOS because deleting the folder is the uninstall and a dotdir hides the thing a person owns."
+    },
+    {
+      "claim": "A 16 GB machine plans Gemma 4 12B at a 65,536-token context window for a 7.14 GB download.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/dictionary.yaml:198-211 gives tier 2 as Gemma 4 12B, file bytes 6716356800, max_ctx 65536; crates/hearth-probe/dictionary.yaml:112 gives the voice download as 945284608 bytes. crates/hearth-probe/src/plan.rs:214-234 sums exactly those two into total_download_bytes: 7661641408 bytes, which is 7.14 GiB. crates/hearth-probe/dictionary.yaml:19 states that with these numbers a 16 GB card plans 65536 tokens."
+    },
+    {
+      "claim": "An 8 GB Mac plans Gemma 4 E2B Q4_K_M for a 3.77 GB download.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/dictionary.yaml:132-139 gives tier 0 as Gemma 4 E2B, file gemma-4-E2B-it-Q4_K_M.gguf at 3106738272 bytes; plus the voice at 945284608 (dictionary.yaml:112) sums to 4052022880 bytes, which is 3.77 GiB. crates/hearth-probe/src/plan.rs:338-341 asserts the 8 GB Air lands on tier 0 at Q4_K_M. Note that the pages write GB where the value is GiB."
+    },
+    {
+      "claim": "An 8 GB Mac gets a 17,408-token context window.",
+      "status": "unverifiable",
+      "evidence": "Stated at wiki/installing.md:72 and wiki/install-macos.md:75. crates/hearth-probe/src/plan.rs:280-283 derives the window from the remaining budget and rounds down to a multiple of 1024, and 17408 is 17 times 1024, so the value is the right shape. No fixture asserts it: crates/hearth-probe/tests/plan_fixtures.rs:82 and crates/hearth-probe/src/plan.rs:343 assert only that it clears the 16384 target. Settling it needs the planner run against the m1-air-8gb fixture, which is outside a read-only pass."
+    },
+    {
+      "claim": "The five local programs and their ports, as listed on both client pages, are correct.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/defaults.rs:18-22 defines PORT_GATEWAY 18700, PORT_LLAMA 18080, PORT_SUPERVISOR_WS 18765, PORT_SUPERVISOR_ASSETS 18766, PORT_TTS 18702; backend/scripts/render_config.py:48-52 writes the same five. wiki/clients/macos.md:72-80 and wiki/clients/windows.md:170-176 both match."
+    },
+    {
+      "claim": "The plan's download figure counts the model weights, the voice, the inference engine, and the Python runtime.",
+      "status": "contradicted",
+      "evidence": "wiki/installing.md:95-97 and wiki/install-macos.md:84-86 both list four things downloading. crates/hearth-probe/src/plan.rs:214-234 builds the downloads vector from exactly two entries, the model build and the voice, and total_download_bytes sums only those. The dictionary comment at crates/hearth-probe/dictionary.yaml:110 says the engine binary ships in the bundle and only weights are fetched. The four things may all be provisioned; only two are in the number the plan shows."
+    },
+    {
+      "claim": "Three published pages announce a Windows install guide that has never been written.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:135-138, wiki/clients/macos.md:122, and wiki/clients/windows.md:232-234. A fourth mention, wiki/whats-not-here.md:23, is the landing page whose declared job is naming unwritten pages, so it is the one correct home rather than a fourth announcement."
+    },
+    {
+      "claim": "wiki/installing.md carries platform subsections under ## Before you start.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:35 (### macOS) and wiki/installing.md:48 (### Windows), both under ## Before you start at line 29."
+    },
+    {
+      "claim": "No published page tells a reader where to obtain the Hearth installer.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:24 opens \"You have the Hearth installer\" and treats it as given. wiki/getting-started.md:49-52 says the client is the installer and links onward without naming a source. wiki/releasing.md:40 names the artifact filename for someone cutting a release, not downloading one. wiki/updates.md:79 says a person gets a new app by downloading a .dmg without saying from where. A case-insensitive grep across wiki/ excluding raw/ for release links, .dmg, and download phrasing returns no reader-facing download location."
+    },
+    {
+      "claim": "wiki/clients/macos.md carries an install procedure that page-types.md forbids on a platform overview.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:86-102 is a four-step numbered install procedure under ## Installing. wiki/page-types.md:241-244 states that installation lives on the install page, not on a platform overview, and that a platform overview which grows an install procedure has become a second install guide, \"which is how the corpus ended up with two\"."
+    },
+    {
+      "claim": "wiki/installing.md meets the how-to spine its declared type requires.",
+      "status": "contradicted",
+      "evidence": "wiki/page-types.md:108-116 requires action-title sections with numbered steps inside them, one action per step, imperative mood. wiki/installing.md contains no numbered list and no imperative step from line 22 to line 147; its sections are narrative descriptions of what the installer does, and its own abstract at line 26-27 calls it \"the narrative version of the install\"."
+    },
+    {
+      "claim": "wiki/first-run.md is a how-to, as its frontmatter declares.",
+      "status": "contradicted",
+      "evidence": "wiki/first-run.md:4 declares type: how-to. The page's content is a design record: dated decisions at lines 52, 87, 105 and 159, rules derived from a bug at lines 62-85, tool parameter schemas at lines 258-286, an unresolved implementation note at lines 288-292, and a four-item ## Open questions section at lines 322-333. wiki/page-types.md:156-181 describes exactly this shape as a decision record, and wiki/page-types.md:150-154 states that a concept or record page containing steps belongs on a how-to page it links to. Its frontmatter sources at lines 10-11 are two unpublished research documents."
+    }
+  ],
+  "gaps": [
+    "No page states where to download Hearth, so the install journey has no first step.",
+    "No page states how to create a persona after first run, and no page states that only Sulivan can.",
+    "No page states that a persona made during first run cannot itself make another persona.",
+    "No Windows install procedure exists anywhere in the corpus; three pages announce it as missing.",
+    "No page describes the shipped persona settings screen (PersonasView), which edits every persona field and removes a persona in developer mode.",
+    "No page states the Windows single-drive fallback install root, %USERPROFILE%\\.hearth, which is a hidden dotdir and sits awkwardly beside the one-folder uninstall story every install page tells.",
+    "No page states what the plan's download figure actually counts. Two pages imply it covers four items; the planner sums two.",
+    "There is no canonical source outside the repository for any of this, and none is needed: Hearth reaches no external service, so every behavioural claim here was settled in the tree."
+  ],
+  "skeleton": [],
+  "recommended_type": null,
+  "objectives": [
+    {
+      "page": "wiki/getting-started.md",
+      "objective": "name the hardware Hearth needs on Windows and on a Mac",
+      "bloom": "remember",
+      "recommended_type": "landing",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/getting-started.md",
+      "objective": "distinguish the desktop house from a phone that is a window onto it",
+      "bloom": "understand",
+      "recommended_type": "landing",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/getting-started.md",
+      "objective": "choose which page to read next for your platform and goal",
+      "bloom": "evaluate",
+      "recommended_type": "landing",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/getting-started.md",
+      "objective": "anticipate the rough edges of a pre-alpha build before installing",
+      "bloom": "understand",
+      "recommended_type": "landing",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/installing.md",
+      "objective": "check your machine against Hearth's floor before you install",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/installing.md",
+      "objective": "read the plan Hearth shows you and approve it",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/installing.md",
+      "objective": "set the install root to a folder with room",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/installing.md",
+      "objective": "confirm the install worked by hearing Sulivan speak",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/installing.md",
+      "objective": "reinstall over an existing install to get a newer build",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/install-macos.md",
+      "objective": "open an unsigned Hearth build on a Mac for the first time",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/install-macos.md",
+      "objective": "verify your Mac clears the Apple Silicon, memory, and disk floor",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/install-macos.md",
+      "objective": "diagnose a house that will not connect, a voice that will not speak, or an install that ran out of disk",
+      "bloom": "analyze",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/install-macos.md",
+      "objective": "locate the log a failing piece of the house writes to",
+      "bloom": "remember",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/install-macos.md",
+      "objective": "uninstall Hearth without losing your memory and journal",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/clients/macos.md",
+      "objective": "describe what Hearth does on a Mac and what it cannot do yet",
+      "bloom": "understand",
+      "recommended_type": "platform-overview",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/macos.md",
+      "objective": "name what your Mac needs before the house will run on it",
+      "bloom": "remember",
+      "recommended_type": "platform-overview",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/macos.md",
+      "objective": "identify the five local programs Hearth runs and the ports they hold",
+      "bloom": "remember",
+      "recommended_type": "reference",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/macos.md",
+      "objective": "explain why macOS has no in-app updater yet",
+      "bloom": "understand",
+      "recommended_type": "platform-overview",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/windows.md",
+      "objective": "describe what the Windows desktop app is and what it supervises",
+      "bloom": "understand",
+      "recommended_type": "platform-overview",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/windows.md",
+      "objective": "identify the supervised process tree, its ports, and the install root layout",
+      "bloom": "remember",
+      "recommended_type": "reference",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/windows.md",
+      "objective": "manage sessions, the memory tree, and file permissions from the desktop surfaces",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/windows.md",
+      "objective": "explain how Hearth picks a model tier for your GPU",
+      "bloom": "understand",
+      "recommended_type": "concept",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/clients/windows.md",
+      "objective": "name what Hearth on Windows cannot do yet",
+      "bloom": "remember",
+      "recommended_type": "platform-overview",
+      "declared_type": "platform-overview"
+    },
+    {
+      "page": "wiki/first-run.md",
+      "objective": "explain the three beats of first run and why their order is the design",
+      "bloom": "understand",
+      "recommended_type": "decision-record",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/first-run.md",
+      "objective": "justify why a fresh install must not adopt a backend it finds already running",
+      "bloom": "evaluate",
+      "recommended_type": "decision-record",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/first-run.md",
+      "objective": "name the constraints on the install root, the install record, and the scan",
+      "bloom": "remember",
+      "recommended_type": "decision-record",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/first-run.md",
+      "objective": "distinguish the interview's three pieces: the direction, the choice card, and the commit tool",
+      "bloom": "understand",
+      "recommended_type": "decision-record",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/first-run.md",
+      "objective": "justify why the second-brain beat belongs to the new persona rather than to Sulivan",
+      "bloom": "evaluate",
+      "recommended_type": "decision-record",
+      "declared_type": "how-to"
+    },
+    {
+      "page": "wiki/features/personas.md",
+      "objective": "explain what a persona is made of",
+      "bloom": "understand",
+      "recommended_type": "concept",
+      "declared_type": "concept"
+    },
+    {
+      "page": "wiki/features/personas.md",
+      "objective": "describe how your first persona is made during first run",
+      "bloom": "understand",
+      "recommended_type": "concept",
+      "declared_type": "concept"
+    },
+    {
+      "page": "wiki/features/personas.md",
+      "objective": "locate a persona's manifest and voice reference on disk",
+      "bloom": "remember",
+      "recommended_type": "reference",
+      "declared_type": "concept"
+    },
+    {
+      "page": "wiki/features/personas.md",
+      "objective": "explain why a persona's voice is designed once and cloned from then on",
+      "bloom": "understand",
+      "recommended_type": "concept",
+      "declared_type": "concept"
+    },
+    {
+      "page": "wiki/features/personas.md",
+      "objective": "switch between the personas living in your house",
+      "bloom": "apply",
+      "recommended_type": "how-to",
+      "declared_type": "concept"
+    }
+  ],
+  "journeys": [
+    {
+      "journey": "make my own persona",
+      "terminal": "build a persona with its own purpose, temperament, voice, and colour, and then build another one later",
+      "path": [
+        "wiki/_index.md",
+        "wiki/getting-started.md",
+        "wiki/installing.md",
+        "wiki/install-macos.md",
+        "wiki/first-run.md",
+        "wiki/features/personas.md"
+      ],
+      "breaks": [
+        {
+          "kind": "broken-prerequisite",
+          "objective": "obtain the Hearth installer",
+          "why": "The journey's first action has no page. wiki/installing.md:24 opens \"You have the Hearth installer\" and treats it as already true; wiki/getting-started.md:49-52 says the client is the installer without naming where it comes from. wiki/releasing.md:40 names the artifact for someone cutting a release, not downloading one. Nothing in the published corpus names a download location."
+        },
+        {
+          "kind": "unreachable-objective",
+          "objective": "install Hearth on Windows",
+          "why": "wiki/installing.md carries no numbered step for either platform, and its ### Windows subsection at lines 48-56 states requirements then hands off to a platform overview. The only complete procedure in the corpus is wiki/install-macos.md. wiki/installing.md:135-138 says the Windows guide does not exist, and wiki/clients/macos.md:122 and wiki/clients/windows.md:232-234 say it again. A Windows reader following the journey reaches step one and stops."
+        },
+        {
+          "kind": "broken-prerequisite",
+          "objective": "read the plan Hearth shows you and approve it",
+          "why": "The pages describe a plan the planner does not produce. wiki/installing.md:75-78 and wiki/first-run.md:182-186 tell an 8 GB reader to expect a warning that the persona will think and speak one at a time; crates/hearth-probe/src/plan.rs:126-149 emits that only when nothing fits with the voice resident, and crates/hearth-probe/tests/plan_fixtures.rs:36-52 asserts an 8 GB Air coexists and gets no such warning. wiki/installing.md:40-42 states the correct version forty lines earlier, so the same page tells the reader both."
+        },
+        {
+          "kind": "broken-prerequisite",
+          "objective": "set the install root to a folder with room",
+          "why": "wiki/installing.md:85-86, wiki/clients/windows.md:151 and wiki/first-run.md:112 all say the Windows default is D:\\Hearth. crates/hearth-probe/src/machine.rs:232-247 joins Hearth to whichever non-removable, non-system fixed drive has the most free space, and falls back to %USERPROFILE%\\.hearth on a single-drive machine. A single-drive Windows reader is shown a hidden dotdir no page mentions, which quietly undercuts the one-folder uninstall story every install page tells."
+        },
+        {
+          "kind": "duplicate-objective",
+          "objective": "read the plan Hearth shows you and approve it",
+          "why": "Five published pages teach it: wiki/installing.md:58-79, wiki/install-macos.md:56-94, wiki/clients/macos.md:86-102, wiki/clients/windows.md:188-207, and wiki/first-run.md:176-186. Two of them print the same plan table with different rows: wiki/install-macos.md:72-78 carries Backend and Mind-and-voice rows that wiki/installing.md:68-73 drops. A reader who reads two of the five gets two different answers about their own machine."
+        },
+        {
+          "kind": "dead-end",
+          "objective": "create a persona after first run has ended",
+          "why": "This is the break the journey's own name points at, and the corpus does not answer it. The route exists in the product: create_persona has no first-run gate (backend/harness/valar/tools/handlers/creation.py:288-340) and lives in the personas tool domain (backend/harness/valar/tools/tools.yaml:1083-1091), which Sulivan holds (backend/personas/Sulivan/sulivan.json:61-75) and which a made persona does not (backend/harness/valar/data/persona_template.json:31-36). So the answer is: switch back to Sulivan on the persona chips and ask him. Every page stops short of it. wiki/features/personas.md:46-71 is headed \"Making your first one\" and opens \"The first time you open Hearth\". wiki/first-run.md:208-292 describes the interview as beat two of setup. wiki/features/personas.md:104-113 says switching works, and then closes the door: \"Beyond that, day-to-day details of managing several personas ... are not yet covered by what ships today.\""
+        },
+        {
+          "kind": "broken-prerequisite",
+          "objective": "understand that the interview will not run twice",
+          "why": "Nothing in the corpus states that the guided interview is one-shot, and the mechanism is not obvious. backend/harness/valar/gateway/first_run.py:253-287 makes first run active only while every non-internal persona is marked shipped, so the moment create_persona writes a resident the interview expires permanently. A reader who assumes they can repeat the flow they were just walked through is wrong, and no page tells them."
+        },
+        {
+          "kind": "dead-end",
+          "objective": "edit or remove a persona you have made",
+          "why": "wiki/features/personas.md:110-113 sends the reader away from a surface that ships. desktop-client/src/components/personas/PersonasView.tsx:102 is a full persona settings view reachable as a top-level view (desktop-client/src/App.tsx:232-235); it posts to /personas/apply (backend/harness/valar/gateway/personas_api.py:460-462), which applies edits and removes personas by renaming the folder (personas_api.py:336-375). Removing is behind developer mode (PersonasView.tsx:676-684); editing is not. The page is wrong about editing and imprecise about removing."
+        }
+      ]
+    }
+  ],
+  "consolidation": [
+    {
+      "cluster": [
+        "wiki/installing.md",
+        "wiki/install-macos.md",
+        "wiki/clients/macos.md",
+        "wiki/clients/windows.md",
+        "wiki/getting-started.md"
+      ],
+      "verdicts": [
+        {
+          "page": "wiki/installing.md",
+          "verdict": "keep",
+          "why": "The survivor, and the only page in the cluster already parameterized by platform: ### macOS at line 35 and ### Windows at line 48 under ## Before you start. It is the page wiki/_index.md:30 routes to and the page wiki/page-types.md:102 names as a how-to in the corpus. Keeping it is conditional on three repairs it needs whether or not anything folds into it: the abstract at line 24 must stop assuming the reader already holds the installer, the 8 GB claim at lines 75-78 must go (it contradicts both line 40-42 and crates/hearth-probe/src/plan.rs:126-149), and the Windows install root at lines 85-86 must match crates/hearth-probe/src/machine.rs:232-247. It also has no numbered step anywhere, which wiki/page-types.md:108-116 requires of its declared type; absorbing install-macos.md's procedure is what fixes that."
+        },
+        {
+          "page": "wiki/install-macos.md",
+          "verdict": "fold",
+          "why": "Its requirements, plan, download, and Sulivan-speaks sections are the same objectives installing.md already teaches, and the two pages print the same plan table with different rows. It is not a delete: four of its sections are taught nowhere else in the corpus, and one of them is the only numbered procedure in the whole cluster. Fold it into installing.md's ### macOS subsection with the salvage intact, then retire the page. wiki/_index.md:31, wiki/whats-not-here.md:23, wiki/updates.md:105, wiki/clients/macos.md:29,89,127 and wiki/clients/windows.md:233 all point at it and would need redirecting."
+        },
+        {
+          "page": "wiki/clients/macos.md",
+          "verdict": "keep",
+          "why": "Four of its five sections are correct platform overview work: what the Mac needs, what installing gives you, updating, and the honest limits. The exception is ## Installing at lines 86-102, a fourth copy of the install procedure that wiki/page-types.md:241-244 explicitly forbids here, naming it as how the corpus ended up with two install guides in the first place. Remove that section, keep a link. Also retire the line 122 announcement of the missing Windows guide: an announcement belongs on wiki/whats-not-here.md:23 and nowhere else."
+        },
+        {
+          "page": "wiki/clients/windows.md",
+          "verdict": "keep",
+          "why": "It is the only page documenting the Windows process tree, the session and memory and file-permission surfaces, and the Windows limits, and none of that is duplicated anywhere. Its overlap with installing.md is confined to ## What the installer gives you (lines 145-186) and ## The hardware probe picks your model (lines 188-207). Trim those to what is Windows-specific, and fix the D:\\Hearth default at line 151. Separately, ## What the desktop app is runs lines 28-143 and is largely how-to and reference material inside a platform overview; that is a split worth its own task rather than part of this consolidation, and it does not change the keep verdict."
+        },
+        {
+          "page": "wiki/getting-started.md",
+          "verdict": "fold",
+          "why": "Every one of its four sections is taught by a page that survives: requirements by installing.md lines 35-56, the house-and-window framing by _index.md lines 57-61 (and clients/ios.md:23, clients/android.md:26), the three steps by first-run.md lines 22-30, the routing by _index.md lines 29-67, and the pre-alpha caveat by _index.md lines 19-20. It teaches no step of its own, and its declared type: how-to disagrees with what it does: it routes, which is a landing page, and _index.md is already that page. It is not a delete: it uniquely holds the reader's position before they have an installer, which installing.md's abstract explicitly rules out for itself. Fold the requirements paragraph into installing.md's ## Before you start, let _index.md keep the routing, and retire the page. wiki/_index.md:7,29 name it."
+        }
+      ],
+      "salvage": [
+        "wiki/install-macos.md ## Opening it the first time (lines 44-54): the unsigned right-click-Open procedure, and the only numbered steps in the cluster. installing.md:130-131 mentions this step exists but does not give it.",
+        "wiki/install-macos.md ## When something goes wrong (lines 135-155): the log filenames and four named failure modes. Nothing else in the published corpus carries them; wiki/clients/macos.md:127 only points at this section.",
+        "wiki/install-macos.md ## Uninstalling (lines 128-133): the macOS uninstall including dragging the app to the Trash and copying home/ out first. installing.md:92 has only the one-line version.",
+        "wiki/install-macos.md lines 32-34: the verbatim message Hearth shows a machine below the floor. No other page quotes it.",
+        "wiki/install-macos.md lines 76-77: the Backend and Mind-and-voice rows of the plan table, which installing.md:68-73 drops. Note that the Mind-and-voice row is the row installing.md:75-78 then contradicts.",
+        "wiki/install-macos.md ## Starting and stopping the backend (lines 118-126): Settings > Connection and its Start and Stop controls, described for macOS. clients/macos.md:81-83 has one sentence of it.",
+        "wiki/clients/macos.md line 102: the measured RTF of 0.96 on the 8 GB Air. Its only other home is wiki/raw/macos-status.md:21-22, which never publishes.",
+        "wiki/getting-started.md lines 36-46: the side-by-side Windows and macOS requirements written for a reader who has not chosen a platform, and the statement that this page is readable before you have anything installed.",
+        "wiki/clients/windows.md lines 153-161: the Windows install root tree. installing.md has no equivalent for Windows, so this must land there before the section is trimmed.",
+        "wiki/clients/windows.md lines 196-202: the four-tier description of the model dictionary. installing.md:74-78 describes only two machine sizes."
+      ]
+    }
+  ],
+  "open_questions": [
+    "Which page in the install cluster survives, and what must be salvaged from each page that does not? Answered: installing.md survives; install-macos.md and getting-started.md fold; both client pages keep with their install sections trimmed. The salvage list is complete above. What remains open is whether the author stage agrees that getting-started.md should retire at all, given it is the front door wiki/_index.md:29 names first.",
+    "Should installing.md and first-run.md both cover installation, or does one hand off to the other? Answered in one direction: installing.md hands off at its ## What comes next, line 121-126, and that seam is correct. The open half is what first-run.md becomes. It is declared how-to and is written as a decision record, so the handoff currently lands a reader in a design document with four unresolved open questions at lines 322-333. Does first-run.md get retyped to decision-record, with a new reader-facing first-run how-to written beside it, or does it get rewritten in place as the how-to it claims to be?",
+    "Can a reader who already finished first run create a second persona, and does any page tell them how? Answered: yes, and no. The route is to switch back to Sulivan and ask him, because he holds the personas tool domain and a made persona does not. No published page states it. What is open is whether that is the intended product route or an accident of the persona template's default grants, which is a product question this pass cannot settle from the tree.",
+    "Should a persona made during first run be able to make another persona? backend/harness/valar/data/persona_template.json:31-36 excludes the personas domain from a made persona's grants, with the comment \"Resident defaults. No dev, no briefs; those are the operator's own surfaces.\" The comment does not say whether excluding persona creation was deliberate or incidental. The documentation cannot describe the route confidently until someone says.",
+    "Is the plan's download figure meant to cover four provisioned items or the two it sums? crates/hearth-probe/src/plan.rs:214-234 sums the model build and the voice only, while wiki/installing.md:95-97 and wiki/install-macos.md:84-86 both describe four things downloading. Either the prose is overstating what the number covers, or the inference engine and Python runtime are fetched by a path outside the planner that this pass did not find.",
+    "What context window does an 8 GB Mac actually plan? Both install pages say 17,408 tokens. The value has the right shape (crates/hearth-probe/src/plan.rs:280-283 rounds to a multiple of 1024) but no fixture asserts it, and confirming it needs the planner run rather than read.",
+    "Does the Windows single-drive fallback to %USERPROFILE%\\.hearth need documenting, or fixing? A hidden dotdir contradicts the reasoning at crates/hearth-probe/src/machine.rs:239-240, which says the folder is visible on macOS precisely because deleting it is the uninstall. That is a product question, not a documentation one, but the documentation cannot state the default correctly until it is answered."
+  ],
+  "notes": "Mode graph, run against the worktree at D:/Tools/Hearth-docs-wt. Every path in this artifact is repo-relative from that worktree root, and every line number was read in this pass.\n\nOne dispatch instruction could not be carried out: this session's tool set has no Bash, so python scripts/doc_graph.py --json and python scripts/lint_wiki.py were not run. The cluster was established by reading all seven scoped pages plus wiki/_index.md, wiki/whats-not-here.md and wiki/page-types.md in full, and by grepping the corpus for the cluster's shared subjects. The caller's reported 5-page cluster is confirmed by reading rather than by score, which is the stronger evidence for these verdicts in any case. What is lost is the linter's own findings, so anything the linter would already report (em dashes, sentence case, dead links, long sections) is absent from this artifact and the next stage should run it.\n\nType and Tracker arrived as Consolidate and none. Consolidate is not in the dispatch contract's Fix-or-Add vocabulary; it pairs correctly with graph mode, and mode governed. No tracker exists yet, so no prior open questions were carried in; the seven in open_questions[] are the three from the dispatch plus four this pass raised.\n\nSized L, not M. The dispatch did not name a size. L is what wiki/page-types.md and the size table together support: the work retires one page, folds a second, removes a section from a third, trims two sections from a fourth, retypes wiki/first-run.md, writes a Windows install guide that does not exist, and edits wiki/_index.md:29-32 and wiki/whats-not-here.md:23. That last pair is what makes it L rather than M: the change alters navigation and reading order, which is the L row's own definition. It is not XL: it is one corpus area, and the client pages, feature pages, and backend pages outside the cluster are untouched.\n\nOn the similarity guard. No verdict here came from a score. wiki/clients/macos.md and wiki/clients/windows.md both keep despite the highest overlap in the cluster, because their objectives are different platforms and their shared spine is the platform overview shape wiki/page-types.md:224-239 prescribes. wiki/getting-started.md folds despite scoring lower, because reading it against installing.md, _index.md and first-run.md showed each of its four sections taught elsewhere. Two pages were considered for delete and neither got it: wiki/install-macos.md fails the guard on four unduplicated sections, and wiki/getting-started.md fails it on one, the pre-installer reader position that installing.md:24 explicitly refuses.\n\nOn evidence. Every behavioural claim in claims[] is cited to a file and line under backend/, crates/, desktop-client/ or scripts/. Where a claim is about what a page says rather than what the product does, the citation is the page. Three claims came back contradicted against source and one against the dictionary's own accounting; the 8 GB one-at-a-time claim is the most consequential, because it appears on two pages and one of those pages states the opposite of itself forty lines earlier."
+}

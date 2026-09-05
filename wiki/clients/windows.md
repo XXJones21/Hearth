@@ -1,12 +1,12 @@
 ---
 title: Hearth on Windows
-status: draft
+status: scoped
+type: platform-overview
 last_reviewed: 2026-08-08
 related:
   - ../backend/native-runtime.md
   - ../first-run.md
   - ../updates.md
-  - ../install-macos.md
 sources:
   - wiki/backend/native-runtime.md
   - wiki/first-run.md
@@ -23,6 +23,10 @@ Hearth is a local-first AI companion: your personas, your voice, and your
 memory run on your own machine, and nothing is sent anywhere. On Windows,
 Hearth ships as one desktop app that installs and runs the whole thing
 itself.
+
+This page covers what that app is, what the installer puts on your disk, how
+Hearth sizes a model to your machine, and how updates work. For the install
+itself, see [Installing Hearth](../installing.md).
 
 ## What the desktop app is
 
@@ -45,12 +49,12 @@ Closing the client window does not stop Hearth. It minimizes to the tray, and
 the backend keeps running, because an always-on companion cannot depend on a
 window staying open. Quit is the explicit stop.
 
-**Quit files the conversation first.** A conversation lives in the gateway's
+**Quit files the conversation first.** A conversation lives in the harness's
 memory and is written to the journal only when the session ends, so stopping
 the backend without warning is how a day of talking disappears. Quit, Stop, and
 Restart all knock on `POST /sessions/flush` and wait for the answer before
 anything is killed. That write makes no model call: it saves the transcript and
-titles it from the first line, because a chatlog nobody summarised is worth
+titles it from the first line, because a chatlog nobody summarized is worth
 immeasurably more than a summary nobody got to write. A session also files
 itself when its socket closes on its own, which covers a crash or a redial.
 
@@ -72,6 +76,8 @@ things in it is refused, because writing four folders into someone's Documents
 is not a small mistake. Remove unplugs the tree without deleting a file of it,
 which leaves the house in the same state it has before anyone answers the
 question: the Journal reports no tree and memory recall returns nothing.
+
+![The On disk pane, with Journal and memory connected](images/pending/windows-ondisk.png "CAPTURE: Settings > On disk, the Journal and memory row with a tree connected, Connect and Remove both visible, 1280x800")
 
 Both actions end the live chat, since a session opened against the old tree
 would file its diary and its continuity note there after the move. The change
@@ -147,14 +153,16 @@ The client is the installer. You download one app, and the first run
 provisions everything else to match your hardware.
 
 Everything Hearth installs lands under one folder you choose, called the
-install root (`D:\Hearth` by default). Inside it:
+install root. By default that is `Hearth` on the roomiest fixed drive that is
+neither removable nor the drive Windows itself runs from, and `Hearth` in your
+user profile on a machine with only one drive. Inside it:
 
 ```
 <root>\
   hearth-install.json     the record: your machine, the plan, what landed
   models\                 model weights, sha256-verified
   runtime\                vendored Python, llama-server, the supervisor, the backend
-  envs\voice\              the voice engine's own environment, installed at first run
+  envs\voice\             the voice engine's own environment, installed at first run
   config\                 generated configuration
   logs\                   one file per supervised process
 ```
@@ -191,14 +199,15 @@ disk) and chooses a model plan sized to what you have. The plan names the
 model, the quantization, the context window, and the download size, and it
 explains its own reasoning before fetching anything.
 
-The dictionary that drives this defines four tiers, from a small model that
-fits an 8 GB GPU up to a mixture-of-experts model for the largest cards. The
+The model dictionary that drives this defines four tiers, from a small
+on-device model up to a mixture-of-experts model for the largest cards. The
 tier most machines land on is a 12B model (Gemma 4 12B, quantization-aware
-training build) on a 16 GB GPU, with a 65,536-token context window and both
-the model and the voice resident in memory at once. On a smaller GPU, Hearth
-says so plainly, for example that the model and the voice cannot both stay
-loaded at the same time, so you know what to expect before you commit to the
-download.
+training build) on a 16 GB GPU, with a 65,536-token context window.
+
+The plan also says whether the model and the voice can both stay resident in
+memory. On that 16 GB GPU they can. When they cannot, the plan says so before
+you download anything: the persona thinks and speaks one at a time, and you
+hear a short pause before a reply is spoken.
 
 Every download is verified against a published sha256 after it lands. A
 mismatch deletes the file and fails loudly rather than being mistaken for an
@@ -208,11 +217,16 @@ rather than starting over.
 ## First launch
 
 The first time you open Hearth, it walks you through three things in order:
-installing (the scan, the plan, the download, and a verification pass that
-proves each piece works, ending with Sulivan speaking a first line out loud
-so you can confirm you heard him), a conversation where Sulivan helps you
-build your own persona, and a first look at the second brain that persona
-keeps for you. See [First run](../first-run.md) for the full walkthrough.
+
+1. **Installing.** The scan, the plan, the download, and a verification pass
+   that proves each piece works. It ends with Sulivan speaking a first line
+   out loud, so you can confirm you heard him.
+2. **Building a persona.** A conversation in which Sulivan helps you make one
+   of your own.
+3. **Meeting the second brain.** A first look at the memory that persona
+   keeps for you.
+
+See [First run](../first-run.md) for the full walkthrough.
 
 ## Updates
 
@@ -228,6 +242,5 @@ that design.
 
 Hearth is pre-alpha. The Windows desktop app runs the native backend
 described above, and the native-runtime decision that replaced an earlier
-WSL-based plan is final as of 2026-08-06. A dedicated Windows install guide,
-mirroring [Installing on macOS](../install-macos.md), does not exist yet;
-this page covers what the app is and does until that guide is written.
+WSL-based plan is final as of 2026-08-06. This page covers what the app is and
+does; [Installing Hearth](../installing.md) covers the install itself.

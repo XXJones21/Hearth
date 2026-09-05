@@ -1,0 +1,108 @@
+{
+  "task_id": "T6",
+  "mode": "restructure",
+  "docs_written": [
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": [
+        "frontmatter: related",
+        "# Hearth on macOS (abstract and lead)",
+        "## What it does today",
+        "## What installing gives you",
+        "## Start and stop the house",
+        "## What it needs",
+        "## Updating",
+        "## What it cannot do yet"
+      ]
+    }
+  ],
+  "sections": [
+    { "heading": "# Hearth on macOS (abstract and lead)", "status": "written" },
+    { "heading": "## What it does today", "status": "written" },
+    { "heading": "## What installing gives you", "status": "written" },
+    { "heading": "## Start and stop the house", "status": "written" },
+    { "heading": "## What it needs", "status": "written" },
+    { "heading": "## Updating", "status": "written" },
+    { "heading": "## What it cannot do yet", "status": "written" }
+  ],
+  "deviations": [
+    {
+      "from": "wiki/page-types.md:232-233, the platform-overview spine section 'The persona surface'",
+      "why": "The finished page has no persona-surface section. The dispatch assigns that section to T36 and states it is not this task's work, so the spine is left with a named gap rather than filled from claims this stage did not verify."
+    },
+    {
+      "from": "wiki/page-types.md:234-236, 'The one procedure that belongs inline'",
+      "why": "The only procedure this page carried was the install, which the dispatch removes to wiki/installing.md. No numbered procedure remains, and inventing one would recreate the second install guide the rule forbids. The slot is filled by the descriptive section `## Start and stop the house`, which is the one thing a macOS reader does on this page, plus a prose link to the install page."
+    },
+    {
+      "from": "The dispatch's placement of the salvage 'at the end of `## What installing gives you`'",
+      "why": "The salvage is at the end of that material but under its own heading, `## Start and stop the house`. Keeping it inside `## What installing gives you` would have made one section of roughly 310 words carrying two subjects, which wiki/style-guide.md ends a section before, and the restructure contract authorizes splitting a section that carries two subjects. Nothing moved further down the page: the new heading sits exactly where the sentence it extends already sat."
+    },
+    {
+      "from": "wiki/page-types.md:227-239, the fixed section list",
+      "why": "Two sections outside the spine survive. `## What installing gives you` carries what the install puts on the disk and the process tree, which no other page holds for macOS; `## Updating` carries the unsigned-app reasoning for why there is no in-app updater, which a verified claim places nowhere in wiki/installing.md. Both sit inside the spine order rather than after the honest-limits section."
+    },
+    {
+      "from": "The dated provenance sentence 'The install guide reflects one real, end-to-end install on an 8 GB M2 Air, verified 2026-08-07'",
+      "why": "Removed from `## What it cannot do yet`, where wiki/page-types.md:246-248 forbids a dated status log, and where its subject (an install guide this page no longer contains) had left the page. Its substance survives as the provenance attached to the measurement it stands behind: 'It is a single measurement, recorded on 2026-08-07 on an 8 GB M2 Air running macOS 27.'"
+    },
+    {
+      "from": "The published wording of the real-time factor, '0.96' measured 'in a real conversation'",
+      "why": "A verified claim records the only source as stating 0.961 on a real tool-grounded reply. The page now publishes 0.961 and names the reply as tool-grounded, which is what the source supports, rather than carrying the rounded figure and the looser description forward."
+    },
+    {
+      "from": "The heading 'What your Mac needs'",
+      "why": "Retitled 'What it needs' to match the same section on wiki/clients/ios.md, wiki/clients/android.md and wiki/clients/visionos.md, which is what wiki/page-types.md:251-252 asks for so a reader who has read one client page can navigate the next. 'Status and limitations' became 'What it cannot do yet' for the same reason."
+    },
+    {
+      "from": "The two non-limit bullets in the honest-limits section",
+      "why": "The pointer to the persona walkthrough and the pointer to troubleshooting are not limits, so they now close the section as links out rather than sitting in the bullet list of things the client cannot do. Both stay in the same section the dispatch named, and both were repointed as directed."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Whether wiki/installing.md carries the macOS install procedure (the disk image, the right-click-Open first launch) and the troubleshooting section for connection errors, silent voice, and interrupted downloads by the time this page publishes.",
+      "why": "Three links on this page now point at wiki/installing.md for material T9 has not landed yet. The dispatch directs the repoint and states T9 lands both in this phase, so the links are correct by the end of the phase and wrong before it. Nothing on this page can verify that T9 completed."
+    },
+    {
+      "what": "That closing the Hearth window on macOS hides it and leaves the backend running, and that Quit in the menu bar is the explicit stop.",
+      "why": "Verified in the source and published for Windows at wiki/clients/windows.md:48-50, but the research stage left it as an open question of whether the salvage should widen to carry it. The dispatch settled only the Restart control, so the fact stays off the page and a macOS reader still has no published answer."
+    },
+    {
+      "what": "That the Start, Stop, and Restart controls appear only when this device has no remote server address set and does have an install root, so a Mac that joined a house on another machine sees no house row at all.",
+      "why": "Verified at desktop-client/src/components/settings/SettingsView.tsx:90, but it is part of the same open question about widening the salvage that the dispatch did not settle. Written into `## Start and stop the house` it would have added a claim beyond the reshape licence."
+    },
+    {
+      "what": "That Stop and Quit file the conversation to the journal before anything is killed, which is the reason to prefer Stop over killing the process.",
+      "why": "In the source at desktop-client/src-tauri/src/house.rs:671-675 and published for Windows at wiki/clients/windows.md:52-58, but it is a research gap rather than a directed salvage, and adding it would widen this task past the reshape."
+    },
+    {
+      "what": "Whether the corpus wants a reader-facing performance number that rests on one run from 2026-08-07 with no artifact in the source tree asserting it.",
+      "why": "The research stage raised this and did not settle it. The dispatch directed the figure to survive, so it survives with its provenance stated. The question of whether the number should be re-measured or retired is still open."
+    },
+    {
+      "what": "The `sources` frontmatter entry naming wiki/install-macos.md, which will name a retired page once T16 runs.",
+      "why": "The dispatch directs it to be left exactly as found, because it is provenance and the linter never resolves a `sources` entry. It is recorded here so T16 knows one reference to that file remains on this page and is deliberate."
+    },
+    {
+      "what": "The persona surface for macOS: how the persona appears in the desktop window, its face and its voice.",
+      "why": "wiki/page-types.md:232-233 requires the section and this page has none. T36 owns writing it, so the spine gap is left open rather than filled here."
+    }
+  ],
+  "figures_requested": [
+    {
+      "section": "Start and stop the house",
+      "path": "wiki/clients/images/pending/macos-house-row.png",
+      "alt": "The house row in Settings > Connection, with Start, Stop, and Restart",
+      "spec": "CAPTURE: Settings > Connection, the row labelled The house, backend running with its process count shown, Start, Stop and Restart all visible, 1280x800"
+    }
+  ],
+  "extraction_needed": [
+    {
+      "section": "What installing gives you",
+      "what": "The install root layout, given as a directory tree, and the five supervised local programs with their ports (18700, 18765, 18766, 18080, 18702).",
+      "wants_type": "reference",
+      "why": "wiki/page-types.md:249-250 moves install trees, process trees and port tables off a platform overview: it describes, it does not catalog. Both stay on the page because no reference page carries them for macOS yet, and wiki/clients/windows.md holds the parallel material for Windows in the same shape, so the extraction is a two-page job rather than this one."
+    }
+  ]
+}

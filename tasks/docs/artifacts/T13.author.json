@@ -1,0 +1,20 @@
+{
+  "task_id": "T13",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/updates.md",
+      "sections": ["frontmatter `related`", "## The decision underneath: signing"]
+    }
+  ],
+  "sections": [],
+  "deviations": [],
+  "unresolved": [
+    {
+      "what": "A linter run confirming wiki/updates.md still reports no `dead-related` and no `dead-link` after the swap.",
+      "why": "My tool set is Read, Grep, Write and Edit, with no Bash, so I could not run `python scripts/lint_wiki.py`. I verified by reading instead: wiki/updates.md sits in wiki/, wiki/installing.md exists in the same directory, and scripts/lint_wiki.py:290-297 resolves a `related` entry against the page's own parent directory. The check is expected to pass and has not been executed."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

@@ -1,10 +1,11 @@
 ---
 title: Updating an install
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-09-03
 related:
   - backend/build-pipeline.md
-  - install-macos.md
+  - installing.md
   - _index.md
 sources:
   - wiki/raw/macos-status.md
@@ -27,8 +28,8 @@ weights** that a release almost never changes. The rest is unpacked from the
 app bundle, so it is derived rather than downloaded.
 
 The whole design follows from that asymmetry. An update should move about
-30 MB, not 3.8 GB, and it should never touch `home/`, where the person's
-memory and journal live.
+30 MB, not 3.8 GB, and it should never touch `home/`, where your memory and
+journal live.
 
 ## Half of it already works
 
@@ -64,7 +65,7 @@ indistinguishable from a matched pair, and there is nothing to detect.
 This is the small piece everything else hangs from, and it is one field.
 
 **A way to replace the app.** Dragging a new `.dmg` over the old app works and
-requires nothing to be built. It is also a step a person has to know to take.
+requires nothing to be built. It is also a step you have to know to take.
 
 **A trigger.** Something has to notice and offer.
 
@@ -75,15 +76,15 @@ provision time. On launch the client compares it with its own. If they differ,
 Settings offers to update, and the button calls the provisioning that already
 exists.
 
-The person gets a new app by downloading a `.dmg` and dragging it over, which
-is the same motion as installing. The backend catches up by itself the next
-time they open it.
+You get a new app by downloading a `.dmg` and dragging it over, which is the
+same motion as installing. The backend catches up by itself the next time you
+open it.
 
 This needs no signing keys, no manifest, no hosting, and no release
 infrastructure. It works with the artifacts already being produced.
 
-**What it does not solve:** the person still has to learn that an update
-exists and go and get it.
+**What it does not solve:** you still have to learn that an update exists and
+go and get it.
 
 ## Layer two: the app replaces itself
 
@@ -101,8 +102,8 @@ does not need to know that a backend exists.
 
 ## The decision underneath: signing
 
-Hearth is not signed. That is why [`install-macos.md`](install-macos.md) tells
-people to right-click and choose Open on first launch, and it is why the
+Hearth is not signed. That is why [Installing Hearth](installing.md) tells you
+to right-click and choose Open on first launch, and it is why the
 updater story has a rough edge: an updater replacing an unsigned bundle is a
 known sore point on macOS.
 
@@ -120,7 +121,7 @@ ceiling, and the guide keeps its right-click paragraph.
 
 ## Weights that outlive their plan
 
-A release that changes the model tier or quantisation makes the update bigger
+A release that changes the model tier or quantization makes the update bigger
 than 30 MB: the provisioner fetches whatever the new plan names.
 
 That part works. What does not is cleanup. The previous GGUF stays where it
@@ -134,7 +135,7 @@ gives an exact answer to "what is now orphaned", without guessing from
 filenames. That comparison is the cleanup story, and it should be built at the
 same time as the first update that can change a model.
 
-## What I would do, in order
+## The order the work should land in
 
 1. **Stamp the app version into the install record.** One field. Nothing else
    is possible without it, and it costs nothing to add now even if the rest

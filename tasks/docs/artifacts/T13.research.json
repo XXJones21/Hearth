@@ -1,0 +1,161 @@
+{
+  "task_id": "T13",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/updates.md",
+      "sections": ["frontmatter `related` (line 8)", "## The decision underneath: signing (lines 103-120)"],
+      "why": "Line 8 lists `install-macos.md` under `related`, between `backend/build-pipeline.md` at line 7 and `_index.md` at line 9. Line 105 reads \"Hearth is not signed. That is why [`install-macos.md`](install-macos.md) tells people to right-click and choose Open on first launch\". Both point at a page under a ratified retirement verdict, and the procedure the sentence attributes to it now lives in wiki/installing.md at lines 91-103. These are the only two occurrences of the string install-macos in this file."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:284-297",
+      "covers": "How the linter treats the two references differently. `sources` entries (lines 284-286) are tested only against ABS_PATH and are never resolved to a file. `related` entries (lines 290-297) are resolved relative to the page's own directory with the fragment stripped, reported as `raw-link` when the value matches a raw/ path and as `dead-related` when the file does not exist."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/lint_wiki.py:357-372",
+      "covers": "Body-link resolution. The target is split on the hash and only the path half is checked for existence, so an anchor is never validated; a missing file is a `dead-link` error and a raw/ target is a `raw-link` error."
+    },
+    {
+      "authority": "source",
+      "ref": "scripts/publish_wiki.py:79-92, 117-135",
+      "covers": "What `related` becomes for a reader. see_also() renders a See also block whose link label is the destination page's own frontmatter title, not the filename or anything the author writes. rewrite_target() keeps the anchor and, when the target is not in the published set, emits a github.com/XXJones21/Hearth/blob/main/ URL instead of a wiki page link."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/installing.md:91-103",
+      "covers": "The salvaged right-click-and-Open procedure and the heading it landed under, `## Open Hearth for the first time on macOS`."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/style-guide.md:160-165",
+      "covers": "The link-text rule. The section `## Write link text as human titles` names a backticked filename as link text as the wrong form and a human title as the right one."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:138-155",
+      "covers": "The concept shape, which updates.md declares at line 4. Shape item 5 is \"Links to the how-to pages that act on it\", and the rules forbid procedures on a concept page."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/install-macos.md:43-53",
+      "covers": "The source passage the salvage came from, `## Opening it the first time`, for comparison against its destination."
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md:35, 1457-1480, 1610-1626",
+      "covers": "The task's recorded state, the T16 retirement plan that makes both references break, and the ownership table assigning wiki/updates.md:8 and :105 to T13."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/updates.md references install-macos.md in exactly two places and nowhere else.",
+      "status": "verified",
+      "evidence": "Full read of wiki/updates.md (164 lines) plus a corpus grep for install-macos excluding wiki/raw/. In this file the only matches are line 8 (`  - install-macos.md`, under `related`) and line 105 (the body link). No other prose or structural dependency on the page exists: a grep for markdown links in wiki/updates.md returns only three, at lines 105, 113 and 153, and 113 and 153 both target backend/build-pipeline.md."
+    },
+    {
+      "claim": "wiki/installing.md carries the right-click-and-Open procedure that line 105 attributes to install-macos.md, under the heading `## Open Hearth for the first time on macOS`.",
+      "status": "verified",
+      "evidence": "wiki/installing.md, heading at line 91, read at lines 91-103. Line 93 reads \"Hearth is not yet signed by Apple, so the first launch needs one extra step.\" The steps are lines 96-98: \"1. Open the disk image and drag Hearth to Applications. 2. Right-click Hearth and choose **Open**. 3. Choose **Open** again in the dialog.\" Lines 100-101 add that macOS remembers the decision. The heading matches the wording the dispatch reported, verified at source rather than taken on report."
+    },
+    {
+      "claim": "The salvaged procedure is materially the same as the one on the page being retired, so the redirect loses nothing.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md `## Opening it the first time` at line 43, steps at lines 48-50, against wiki/installing.md lines 96-98. The three numbered steps are identical in substance and near-identical in wording; installing.md drops the bold on \"Right-click\" and adds a pending figure at line 103."
+    },
+    {
+      "claim": "Both references currently resolve, so the corpus lints clean today and the defect is latent rather than live.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md exists (6162 bytes). `python scripts/lint_wiki.py` reports \"29 pages checked, 0 errors, 196 warnings\". The only findings on wiki/updates.md are warnings: bold-lead at 21, 26, 60 and 67, and long-paragraph at 132. None of them touches line 8 or line 105."
+    },
+    {
+      "claim": "The linter resolves a `related` entry the way it resolves a body link, and never resolves a `sources` entry.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:284-286 checks `sources` entries only against ABS_PATH, emitting `absolute-source`. Lines 290-297 resolve each `related` entry by joining it to the page's parent directory and testing exists(), emitting `dead-related` on a miss and `raw-link` when the value names a raw/ path. The docstring of frontmatter_list at lines 169-176 states the reason: `related` is rendered as a See also section, so an unresolvable entry \"stops being inert metadata and becomes a broken link a reader can click\"."
+    },
+    {
+      "claim": "An anchored link lints clean, because the linter strips the fragment before testing existence and never validates the anchor itself.",
+      "status": "verified",
+      "evidence": "scripts/lint_wiki.py:370-371 resolves the target after splitting it on the hash and tests existence only on the path half. The same split appears for `related` at line 296. Nothing in the file reads the destination's headings."
+    },
+    {
+      "claim": "The See also link label is taken from the destination page's frontmatter title, so the author does not choose the text a reader sees for the `related` entry.",
+      "status": "verified",
+      "evidence": "scripts/publish_wiki.py:117-135, see_also(): the label is titles.get(resolved) with a filename-derived fallback, and its docstring reads \"A See also block, using each destination's own title as the link text.\" wiki/installing.md:2 reads `title: Installing Hearth`, so the entry publishes with that label."
+    },
+    {
+      "claim": "Leaving the `related` entry pointing at install-macos.md after the retirement would produce a reader-visible broken link, not a silently dropped entry.",
+      "status": "verified",
+      "evidence": "scripts/publish_wiki.py:79-92, rewrite_target(): when the resolved path is not in the published pages map, it falls through to BLOB plus the repo-relative path, with BLOB defined at line 44 as https://github.com/XXJones21/Hearth/blob/main/. see_also() at lines 125-134 emits a line for the entry regardless of whether the destination is published. So the entry publishes as a link to a blob URL for a file that no longer exists at that path, and scripts/lint_wiki.py:296-297 flags it as `dead-related` first."
+    },
+    {
+      "claim": "wiki/updates.md:105 violates the style guide's link-text rule, and the rule names this exact form as the wrong one.",
+      "status": "verified",
+      "evidence": "wiki/style-guide.md:160-165, the section `## Write link text as human titles`. Line 162 contrasts a human-title link against a backticked-filename link and names the backticked filename as wrong. wiki/updates.md:105 is the banned form. The same page repeats it at lines 113 and 153 for backend/build-pipeline.md."
+    },
+    {
+      "claim": "The linter does not enforce the link-text rule, so nothing catches this automatically.",
+      "status": "verified",
+      "evidence": "Full read of scripts/lint_wiki.py (492 lines). MD_LINK at line 81 captures only the target group, and every use of it at lines 348-372 examines the target. No rule inspects the link text."
+    },
+    {
+      "claim": "Repointing the `related` entry to installing.md creates no duplicate and makes the pair reciprocal.",
+      "status": "verified",
+      "evidence": "wiki/updates.md:6-9 lists only backend/build-pipeline.md, install-macos.md and _index.md, so installing.md is not already present. wiki/installing.md:6-13 lists updates.md at line 13, so installing.md already points back."
+    },
+    {
+      "claim": "Anchored cross-page links are an established in-use convention in this corpus, and the slug is the heading lowercased with spaces hyphenated and punctuation dropped.",
+      "status": "verified",
+      "evidence": "A corpus grep for .md# excluding wiki/raw/ returns 8 body links across wiki/clients/visionos.md:180 and wiki/meeting-your-persona.md:47, 100, 142, 154, 160, 163, 168. Each destination heading exists and matches the slug: wiki/features/personas.md:76 `## Making another one`, :156 `## Changing a persona later`, wiki/clients/ios.md:91 `## How pairing works`, wiki/features/second-brain.md:38 `## The four folders`, :80 `## Starting a project`, :104 `## Already have a second brain?` linked as #already-have-a-second-brain, :119 `## Changing your mind later`, :173 `## Saying no`. scripts/publish_wiki.py:82-92 keeps the anchor when rewriting the target, and the header at lines 17-19 confirms \"anchors kept\"."
+    },
+    {
+      "claim": "The exact anchor GitHub generates for `## Open Hearth for the first time on macOS` is #open-hearth-for-the-first-time-on-macos.",
+      "status": "unverifiable",
+      "evidence": "The convention is verified against the eight in-corpus anchors above, but none of them targets a heading containing a mixed-case word, so the corpus does not demonstrate that macOS lowers to macos. scripts/publish_wiki.py generates no slugs: it passes the anchor through at lines 86 and 92, and the GitHub wiki does the slugging per its header at line 1. No slug generator exists in this repository. Searched scripts/ and the wiki for a heading-anchor rule and found none."
+    },
+    {
+      "claim": "The frontmatter `sources` entry at wiki/updates.md:11 is outside this task.",
+      "status": "verified",
+      "evidence": "wiki/updates.md:10-11 reads `sources:` then `  - wiki/raw/macos-status.md`, a different file from install-macos.md, and wiki/raw/macos-status.md exists (13749 bytes). scripts/lint_wiki.py:284-286 never resolves a `sources` entry, and RAW_IN_PROSE at line 88 is applied only to body lines, which begin after the frontmatter per lines 259-260. The entry is correct as written and is not linted for resolution."
+    },
+    {
+      "claim": "The page refers to the install guide without linking it in four places, not the two the dispatch named.",
+      "status": "verified",
+      "evidence": "wiki/updates.md:110-111 \"would remove the first-launch instruction from the install guide\"; :118 \"the install guide gets simpler\"; :120 \"the guide keeps its right-click paragraph\"; :146 \"and it changes the install guide either way\", inside `## What I would do, in order` at item 3. The dispatch's range of 110-118 covers two of the four and misses :120 and :146."
+    },
+    {
+      "claim": "All four unlinked mentions refer to the same page as line 105, which after the fold is wiki/installing.md.",
+      "status": "verified",
+      "evidence": "Each mention is defined by the right-click first-launch instruction it describes: :111 \"remove the first-launch instruction from the install guide\", :120 \"the guide keeps its right-click paragraph\". A case-insensitive corpus grep for right-click excluding wiki/raw/ returns wiki/install-macos.md:49, wiki/installing.md:97 and :103, wiki/releasing.md:170, and wiki/updates.md:106 and :120. Of the destinations, only install-macos.md and installing.md carry it as an install step, and install-macos.md is the page being retired. wiki/releasing.md:170 mentions the behaviour as a release-testing note, not as an install instruction."
+    },
+    {
+      "claim": "The page's declared type is `concept` and the shape supports the redirect.",
+      "status": "verified",
+      "evidence": "wiki/updates.md:4 reads `type: concept`, one of the six values in scripts/lint_wiki.py:48-51. wiki/page-types.md:138-155 gives the concept shape, whose item 5 is \"Links to the how-to pages that act on it\" and whose rules include \"No procedures. If steps appear, they belong on a how-to page this one links to.\" wiki/installing.md:4 reads `type: how-to`, so pointing the sentence at it satisfies the shape rather than straining it."
+    },
+    {
+      "claim": "The salvage this task depends on is recorded as landed, and the retirement that makes the references break has not run yet.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:31 shows T9, \"Give Installing Hearth a how-to spine and absorb the macOS salvage\", at Complete. Line 38 shows T16, the demotion of install-macos.md to wiki/raw/, at Backlog. Lines 1622-1623 assign wiki/updates.md:8 and wiki/updates.md:105 to T13 and mark both as blocking T16."
+    }
+  ],
+  "gaps": [
+    "No page or script in the repository states the heading-to-anchor slug rule the GitHub wiki applies. The corpus relies on it in eight links and documents it nowhere, so an author writing a ninth has only the existing examples to copy.",
+    "wiki/style-guide.md:160-165 states the link-text rule and scripts/lint_wiki.py enforces no part of it, so the three violations on wiki/updates.md alone (lines 105, 113, 153) survive a clean lint run."
+  ],
+  "skeleton": [],
+  "recommended_type": "concept",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does the GitHub wiki lower macOS to macos when it slugs `## Open Hearth for the first time on macOS`? No in-corpus anchor targets a mixed-case heading and this repository generates no slugs, so the exact fragment is the one detail the evidence here cannot settle. An unanchored link to installing.md is correct either way and is the safe fallback if the orchestrator will not accept an unverified fragment.",
+    "Should the two unlinked mentions inside the signing section, at wiki/updates.md:111 and :118, and the two outside it, at :120 and :146, be left as generic prose? They all refer to wiki/installing.md, and the corpus links it by title elsewhere. Leaving them alone is defensible under one link per destination per section; the orchestrator owns whether that is the house rule, because no page in wiki/ states one.",
+    "wiki/updates.md:113 and :153 repeat the same link-text violation as line 105, pointing at backend/build-pipeline.md. They are outside this task's statement, which bounds the work to the install-macos references. Does the orchestrator want a row for them, or should the author fix all three while the page is open?"
+  ],
+  "notes": "Bash was in my tool set and I used it. I ran two read-only repository scripts: `python scripts/lint_wiki.py` and `python scripts/lint_wiki.py --warnings`. Both report 29 pages, 0 errors, 196 warnings, so the linter's own findings ARE in this artifact and the corpus is clean today. I did not run scripts/doc_graph.py, which affected mode does not call for. I ran no WebSearch or WebFetch: every question this task raises is settled inside the tree, except the GitHub slug detail recorded as unverifiable, which is genuinely external and which I chose not to resolve from a vendor page because the safe fallback costs the author nothing. One mechanical note: the heredoc write of this artifact failed on quoting and I fell back to the Write tool. No other file was written.\n\nSize S, confirming the dispatch rather than correcting it, on evidence the dispatch did not have. XS was the live alternative and I rejected it: XS wants one known location, and this is two, in structurally different places that the linter and the publisher treat differently (scripts/lint_wiki.py:284-297 versus :357-372). The body edit is also not purely mechanical, because wiki/updates.md:105 carries a second, independent defect the swap has to resolve in the same stroke: its link text is a backticked filename, the exact form wiki/style-guide.md:162 names as wrong, so the replacement has to be a human-title link rather than the same shape with a new filename inside it. Sizing up past S is not warranted: only one page changes, and every other inbound reference to install-macos.md is owned by another row per tasks/docs/tracker.md:1622-1623.\n\nThe dispatch's one factual slip: it reports two unlinked mentions of \"the install guide\" at lines 110-118. There are four, at :111, :118, :120 and :146. The fourth sits in `## What I would do, in order`, outside the signing section the task frames, which is why a reader of the dispatch would miss it.\n\nThe load-bearing verification the dispatch asked for came back clean. The salvage did land: wiki/installing.md:91-103 carries the procedure under `## Open Hearth for the first time on macOS`, and its three steps match wiki/install-macos.md:48-50. The link will point somewhere that actually carries what the sentence claims.\n\nTwo facts the author stage should have and cannot get from the page. First, the `related` entry's visible text is not the author's to write: scripts/publish_wiki.py:117-135 takes the label from the destination's own title, so line 8 publishes as \"Installing Hearth\" whatever the entry says. Second, an anchor lints clean but is never validated (scripts/lint_wiki.py:370-371), so a wrong fragment would pass CI and fail only for a reader.\n\nwiki/updates.md:11 is not part of this task. Its `sources` entry names wiki/raw/macos-status.md, a different file that exists, and scripts/lint_wiki.py:284-286 never resolves a `sources` value. The three `sources` entries that do name install-macos.md are on other pages and belong to T16 per tasks/docs/tracker.md:1624.\n\nType Fix and Mode affected agree, so there is no pairing disagreement to record. Known evidence arrived populated and every location in it resolved; the only correction to it is the mention count above."
+}

@@ -1,0 +1,361 @@
+{
+  "document": "wiki/first-run.md",
+  "task_id": "T3",
+  "linter": "NOT RUN. This run has no command execution; the tool set is Read, Grep, Write, Edit. python scripts/lint_wiki.py and python scripts/lint_wiki.py --warnings were not executed and no claim is made about their output. scripts/lint_wiki.py was read instead, so that its owned rules could be excluded from found[]: frontmatter keys and vocabularies, absolute sources, dead related entries, H1, sentence case, em dashes and the ` -- ` proxy, emojis, the BRITISH word list, `the gateway`, raw/ links and raw/ in prose, dead links, and the warnings reader-drift, long-paragraph, bold-lead, long-section and figure-pending. Nothing in found[] is one of those.",
+  "score_before": 2,
+  "score_after": 5,
+  "score_delta": 3,
+  "verdict": "FAIL",
+  "score_notes": "Baseline: 10 - (F1 2 + F2 1 + F3 1 + F4 1 + F5 1 + F6 0.5 + F7 0.5 + F8 0.5) = 10 - 7.5 = 2.5, floor 2. After: 10 - (F1 2 + F2 1 + F3 1 + F8 0.5 + F9 0.5) = 10 - 5.0 = 5.0, floor 5. Delta +3. Accounted: F4, F5, F6, F7 in changed[]; F1 and F8 deferred to T8 and F2 deferred to T28, all open in remaining[]; F3 blocked on research, open in remaining[]; F9 discovered on regrade, open in remaining[]. Nine baseline-plus-regrade findings, four cleared, five open, and every id sits in exactly one of changed[] or remaining[].",
+  "dimensions": {
+    "voice": 8,
+    "clarity": 7,
+    "inclusive_language": 9,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 4,
+    "intent": 6,
+    "structure": 7,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "whole page; sharpest at \"## Beat two: making someone\" and \"## Beat three: the second brain\"",
+      "issue": "type-mixture. The page declares `type: decision-record` and beat one behaves like one: dated decisions, what was chosen, what it costs, the alternative that lost. Beats two and three do not. \"### The direction\" reproduces the content of a skill document in imperative mood (Come away with, Getting there, Stop, Do not), which is a specification rather than a justification. \"### `choice_card` and dynamic options\" and \"### `create_persona`\" are reference catalog: named parameters with types. Beat three is a numbered conversation script. Four neighbor pages already read the page as a how-to and link to it for \"the full walkthrough\": wiki/installing.md:146, wiki/clients/windows.md:217, wiki/clients/macos.md:129, wiki/developing.md:250. Two spine gaps travel with this and are not charged separately: the page's opening decision (\"## Three beats\") carries no date, where the corpus model at wiki/backend/native-runtime.md:18-20 states its decision and dates it in the abstract; and \"## Open questions\" lists unresolved design rather than what would reopen the decisions already made, which is item 5 of the decision-record shape at wiki/page-types.md:170-172.",
+      "fix": "Restructure, not an edit. Extract the reader-facing walkthrough in beats two and three to a how-to page, move the two tool parameter blocks to reference, and leave first-run.md as the record of why first run is shaped this way, with the top decision dated and a reopening-triggers section.",
+      "detraction": 2,
+      "reason": "A reader arriving from installing.md expecting a walkthrough gets a design record, and a reader arriving for the reasoning has to read past two tool schemas and a conversation script to find it. Neither audience is served on the same screen.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "### `create_persona`, lines 292-298",
+      "issue": "stale-claim. The passage states that adding a persona needs cache invalidation rather than a process exit. The dispatch records this as contradicted by the source tree and owned by tracker row T28.",
+      "fix": "Owned by T28. Correct the claim against the persona engine's actual load path in that task.",
+      "detraction": 1,
+      "reason": "A decision record carrying a claim the source contradicts teaches the wrong constraint to whoever implements the tool.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "line 148 and line 325 (\"See the portability ledger, section 8.\")",
+      "issue": "The page sends the reader to \"the portability ledger\" twice, once with a section number, and the only portability ledger in the repository is wiki/raw/portability-ledger.md. wiki/raw/ is source material that the publish step strips, so a published reader has no document to open and no link to follow. The linter cannot see this: it matches a literal `raw/*.md` path, and here the document is named in plain English with no link at all.",
+      "fix": "Either link a published destination that carries the same facts, or state the fact inline and drop the pointer. Which one depends on whether the portability ledger is ever to be published, which this page cannot settle.",
+      "detraction": 1,
+      "reason": "A reader told to see section 8 of a named document cannot find the document. The instruction is unfollowable, and the same pattern sits on wiki/backend/build-pipeline.md:181 and wiki/backend/packaging-options.md:193, so it is a corpus decision rather than a wording slip.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "### Say what you found, and be honest about it, lines 188-191",
+      "issue": "The re-anchored worked example describes the refusal message instead of showing it, and describes it circularly: \"the refusal is written the same way: it says the machine cannot run Hearth, then what it has to work with ...\". The section's principle is about phrasing, and the paragraph immediately above it demonstrates that by quoting the shipped take-turns sentence. The refusal case gets no phrase at all, only a four-item list of what the message contains. wiki/install-macos.md:32-34 already publishes the shipped wording as a block quote, so the demonstration exists in the corpus and this page does not reach it.",
+      "fix": "Say what the message leads with, which is the part that carries the principle, and point at the published wording rather than restating its contents. Do not copy the figures across: duplicating a computed number onto a second page is how the 8 GB defect this task is fixing came about.",
+      "detraction": 1,
+      "reason": "The author chose to re-anchor rather than delete the example so the principle would be demonstrated rather than asserted. As delivered the example names a case and demonstrates nothing, so the choice is not yet earned.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "style",
+      "dimension": "technical_notation",
+      "location": "line 151 and line 182",
+      "issue": "terminology. Both lines call the LLM \"the brain\". wiki/style-guide.md:33 makes \"the model\" the one name and lists \"the brain\" among the forms to change. It is worse than a naming nit on this page, because \"the second brain\" is a different product concept the page names five times, and one of those uses sits eleven lines above \"## Beat three: the second brain\".",
+      "fix": "Use \"the model\" at both sites. Leave \"the mind\" at lines 201-209: that passage is quoting the plain-language capability names the installer shows a person, and the plain word is the point being made.",
+      "detraction": 1,
+      "reason": "A reader who has met \"the second brain\" as the memory tree reads \"whether the brain and the voice can be resident at the same time\" as a memory question rather than a model question.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "style",
+      "dimension": "clarity",
+      "location": "line 123",
+      "issue": "Link text is a filename: [`backend/native-runtime.md`](backend/native-runtime.md). wiki/style-guide.md:160-166 names this exact anti-pattern and its correction.",
+      "fix": "Use the destination's human title: [Native runtime](backend/native-runtime.md).",
+      "detraction": 0.5,
+      "reason": "The wiki publishes flat, so a reader never sees a directory. A path as link text names a thing that does not exist in their view of the corpus.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "style",
+      "dimension": "grammar_mechanics",
+      "location": "line 179",
+      "issue": "\"itemised\" is British. wiki/style-guide.md:168-171 requires American spelling. The linter's BRITISH pattern is a tight explicit word list and does not contain this word, so it is not a linter finding.",
+      "fix": "itemized.",
+      "detraction": 0.5,
+      "reason": "Mixed spelling across a corpus reads as several authors rather than one product.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F8",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "### The direction, ### `choice_card` and dynamic options, ### `create_persona`",
+      "issue": "noun-heading. wiki/page-types.md:59-65 asks every type except reference for action titles, and these three are bare noun labels. The page also runs three heading grammars at once: assertions (\"The client is the installer\", \"Verification is part of the install\"), one imperative (\"Say what you found, and be honest about it\"), and these noun labels, so the headings are not parallel down the page.",
+      "fix": "Give the three sections action titles when the sections are reshaped, and settle on one heading grammar for the page.",
+      "detraction": 0.5,
+      "reason": "Non-parallel headings slow scanning on a page fifteen headings long.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F9",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "lines 15-17, the abstract",
+      "issue": "The abstract does not carry a decision. It is a sentence fragment naming a topic (\"What happens between someone downloading Hearth and having a companion that knows something about them\") followed by a second sentence about the mockup. wiki/page-types.md:175-176 requires the decision at the top of a decision record, because \"a reader who stops after two sentences must still leave with the right answer\", and here a reader who stops after two sentences leaves knowing only that a seventeen-screen mockup exists. The corpus model does it the other way: wiki/backend/native-runtime.md:18-20 states the decision, the thing it rules out, and the date, all in the abstract. Distinct from F1 in that it survives the restructure: whatever this page becomes, the opening sentence still has to be rewritten.",
+      "fix": "Open with the decision and its date. One sentence, action verb plus object, keeping the mockup reference as the second sentence.",
+      "detraction": 0.5,
+      "reason": "A reader skimming for the decision has to reach \"## Three beats\" before the page tells them anything they can act on, and a reader arriving from installing.md reads the abstract as a promise of a walkthrough.",
+      "discovered": "regrade"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Split the decision record from the specification: extract beats two and three, move the tool parameter blocks to reference, date the top decision, and add what would reopen it.",
+      "state": "deferred",
+      "owner": "T8",
+      "needs": "restructure",
+      "result": "Not attempted. Reshaping a page is out of scope for a reviewer (gotcha 8), and the dispatch names tracker row T8 as owner of the reader-facing walkthrough in beats two and three. T8's scope as given covers the walkthrough; the two tool parameter blocks and the undated top decision are inside the same reshape and should be scheduled with it rather than separately."
+    },
+    {
+      "id": "F2",
+      "action": "Correct the create_persona cache-invalidation claim against the persona engine's load path.",
+      "state": "deferred",
+      "owner": "T28",
+      "needs": null,
+      "result": "Not attempted. The dispatch names this passage as deliberately untouched and owned by tracker row T28. Raised here so the open detraction is visible in the score rather than silently absorbed."
+    },
+    {
+      "id": "F3",
+      "action": "Resolve the two portability ledger pointers so a published reader can follow them.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "Question research has to answer: is wiki/raw/portability-ledger.md to be published, or should canonical pages stop naming it? If it stays unpublished, which published page carries its section 8 (the memory layer's hard-coded per-person paths) and its hardware-constant inventory, so that wiki/first-run.md:148 and :325, wiki/backend/build-pipeline.md:181 and wiki/backend/packaging-options.md:193 can all point at the same place? Warm start: wiki/backend/build-pipeline.md:179-195 already republishes part of the ledger as a table introduced with \"Directly from the portability ledger\", and two of its eight rows are the hardware constants first-run.md:148 means, but nothing published covers the section 8 memory-layer material that first-run.md:325 cites. I did not substitute a destination on my own: three canonical pages cite this document the same way, and repointing one of them alone would make the corpus less consistent rather than more. Deleting the pointer was also rejected, since it would remove the reader's route to the evidence rather than fix it."
+    },
+    {
+      "id": "F4",
+      "action": "Make the refusal example demonstrate the principle: state what the message leads with, and point at the published wording at wiki/install-macos.md:32-34 without copying its figures.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Rewrote the third paragraph of \"### Say what you found, and be honest about it\". The circular restatement (\"the refusal ... says the machine cannot run Hearth\") is gone; the paragraph now names the thing that carries the principle, that the message leads with what the outcome means and only then gives the arithmetic, and sends the reader to [Installing on macOS](install-macos.md), which quotes the shipped sentence in full at lines 32-34. The figures were deliberately not copied across: this task exists because a computed number was duplicated onto a second page and went stale there. Paragraph is 57 words, under the linter's 60-word threshold, and contains no reader-drift phrase; the destination file exists, so the link resolves."
+    },
+    {
+      "id": "F5",
+      "action": "Replace \"the brain\" with \"the model\" at lines 151 and 182, leaving the plain-language capability names at 201-209 alone.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Two edits. \"whether the brain and the voice can be resident at the same time\" and \"Where the brain and the voice cannot both stay resident\" now say \"the model\". \"The mind is loaded and answering\" at line 201 and \"the mind that wrote the words\" at line 208 were left alone on purpose: that passage is showing the plain-language names the installer puts in front of a person, which is the same principle the section above it argues for, so replacing them with the product term would break the example it is making. Every remaining use of \"brain\" on the page now means the second brain."
+    },
+    {
+      "id": "F6",
+      "action": "Change the line 123 link text from a filename to the destination's title.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Now [Native runtime](backend/native-runtime.md). The link text is the destination's own frontmatter title and H1, checked at wiki/backend/native-runtime.md:2 and :17, and it is the form wiki/page-types.md:161 already uses for the same page. Target unchanged, so the link still resolves."
+    },
+    {
+      "id": "F7",
+      "action": "Spell itemised the American way.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "itemised is now itemized. It was the only British form on the page: a pass for the linter's word list plus the -ise and -our families found nothing else."
+    },
+    {
+      "id": "F8",
+      "action": "Give the three noun headings action titles and settle one heading grammar for the page.",
+      "state": "deferred",
+      "owner": "T8",
+      "needs": "restructure",
+      "result": "Not attempted, and the reason is not effort. Two of the three sections are tool parameter catalogs, and wiki/page-types.md:205-207 makes noun headings correct on a reference page, so whether they need action titles at all depends on where F1's restructure lands them. Renaming headings on sections that are about to move is churn. No page in the corpus links to a first-run.md anchor, so a later rename is safe: a grep for first-run.md across wiki/ returns links to the page, never to a heading inside it."
+    }
+  ],
+  "objectives_source": "None recorded anywhere. tasks/docs/artifacts/T3.research.json carries \"objectives\": [] and wiki/first-run.md has no objectives in its frontmatter, so the six below are derived from what the page plainly sets out to teach, at the evaluate level wiki/page-types.md and the hearth-style skill map to a decision record.",
+  "objective_gaps": [
+    {
+      "objective": "justify why first run is three beats in that order, and why the second brain belongs to the persona just made rather than to Sulivan",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "\"## Three beats\" states the order and then gives the reason a persona's first act is to build something rather than to introduce itself. Taught, and not a gap; recorded so the analysis is complete.",
+      "needs": null
+    },
+    {
+      "objective": "justify why a fresh install must not adopt a house that is already listening",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "The 2026-08-05 section gives the failure, the two rules it produced, and the three mechanisms behind them: the setup flag, the 18700 port block, and the install record.",
+      "needs": null
+    },
+    {
+      "objective": "justify why the destination is one install root and why deleting it is the whole uninstall",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "Decision, date, tree, three rules, and the ext4 tension that dissolved under the native runtime. This is the strongest section on the page.",
+      "needs": null
+    },
+    {
+      "objective": "justify why the install scan produces every machine-specific constant rather than only a model choice",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "Stated with the reason (a generated configuration instead of a machine-specific one) and four encoded rules. One weakness: its supporting evidence is \"the portability ledger\", which a published reader cannot open. See F3.",
+      "needs": null
+    },
+    {
+      "objective": "justify why the installer says plainly what it found, including when it refuses the machine",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "Taught, and better taught after F4. The principle now has two demonstrations rather than one: the take-turns sentence quoted inline, and the refusal, whose shipped wording the reader can now reach at wiki/install-macos.md:32-34. Before this pass the refusal case was described in the abstract vocabulary the principle itself argues against.",
+      "needs": null
+    },
+    {
+      "objective": "justify why verification, ending in a human confirming they heard Sulivan, is part of the install",
+      "bloom": "evaluate",
+      "taught": true,
+      "why": "Names the five silent failure modes, the capability checks, and the one check no probe can perform.",
+      "needs": null
+    },
+    {
+      "objective": "describe what happens between downloading Hearth and having a companion that knows something about you",
+      "bloom": "understand",
+      "taught": true,
+      "why": "GAP OF TYPE, not of coverage. This is the objective the abstract actually promises and the objective four neighbor pages link here for: wiki/installing.md:146, wiki/clients/windows.md:217, wiki/clients/macos.md:129 and wiki/developing.md:250 all call it the walkthrough. Understand and apply map to concept and how-to, never to decision-record, so an objective the page teaches well is evidence that the page is mistyped rather than evidence that it is complete. Feeds F1 and F9.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "build the persona-creation conversation: the direction document, the choice_card element, and the create_persona tool call",
+      "bloom": "create",
+      "taught": true,
+      "why": "CONTENT SERVING NO OBJECTIVE OF THIS TYPE. \"### The direction\" reproduces an authored skill document in imperative mood, and the two tool sections are parameter catalogs. This is implementation specification at create level, which belongs on a how-to page and a reference page. It is real material and none of it should be lost; it is on the wrong page. Owned by T8 for the walkthrough half, and the tool blocks need a reference home named.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "run the second-brain conversation as the new persona",
+      "bloom": "apply",
+      "taught": true,
+      "why": "CONTENT SERVING NO OBJECTIVE OF THIS TYPE. \"## Beat three\" is a three-step script with the lines to say. Same disposition as the entry above: correct material, wrong page, owned by T8.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "say what would reopen the decisions this page records",
+      "bloom": "evaluate",
+      "taught": false,
+      "why": "NOT TAUGHT. Item 5 of the decision-record shape at wiki/page-types.md:170-172. \"## Open questions\" is the nearest thing and it is a different list: four design questions never yet settled, not conditions that would reopen the six decisions that were. Nothing on the page says what evidence would put the one-folder rule, the port block, or the no-adopt rule back on the table. Two candidates already exist in the record and are not written down: the take-turns branch at crates/hearth-probe/src/plan.rs:137-150, which crates/hearth-probe/tests/plan_fixtures.rs:40-41 says may never need building, and whether a Linux client ships, which is the one platform whose arithmetic reaches that branch.",
+      "needs": "restructure"
+    }
+  ],
+  "changed": [
+    {
+      "id": "F4",
+      "summary": "Rewrote the refusal example so it demonstrates the principle instead of restating it circularly, and pointed at the shipped wording published at wiki/install-macos.md:32-34 rather than copying its figures onto a second page."
+    },
+    {
+      "id": "F5",
+      "summary": "\"The brain\" is now \"the model\" at both prose sites, so it no longer collides with the second brain. The plain-language capability names at lines 201-209 were deliberately left as they are."
+    },
+    {
+      "id": "F6",
+      "summary": "Link text at line 123 is the destination's human title, [Native runtime], not the filename."
+    },
+    {
+      "id": "F7",
+      "summary": "itemised is now itemized."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "type-mixture. A decision record carrying an implementation specification, a conversation script and two tool parameter catalogs, which four neighbor pages link to as the walkthrough.",
+      "why_unfixed": "Reshaping a page is out of scope for a reviewer, and the dispatch names T8 as owner of the walkthrough material in beats two and three.",
+      "detraction": 2
+    },
+    {
+      "id": "F2",
+      "dimension": "clarity",
+      "issue": "stale-claim at \"### `create_persona`\": adding a persona needs cache invalidation rather than a process exit, which the source tree contradicts.",
+      "why_unfixed": "Deliberately untouched per the dispatch; owned by tracker row T28.",
+      "detraction": 1
+    },
+    {
+      "id": "F3",
+      "dimension": "clarity",
+      "issue": "Two pointers to \"the portability ledger\", which exists only at wiki/raw/portability-ledger.md and is stripped at publish, one of them with a section number.",
+      "why_unfixed": "Blocked on research. The destination a published reader should be sent to is a corpus decision affecting three canonical pages, and this page cannot settle it. Substituting a destination for one page alone, or deleting the pointer, would both make things worse.",
+      "detraction": 1
+    },
+    {
+      "id": "F8",
+      "dimension": "clarity",
+      "issue": "noun-heading: three bare noun headings, and three heading grammars running at once down the page.",
+      "why_unfixed": "Deferred to T8. Two of the three sections are parameter catalogs, where noun headings are correct, so the right heading depends on where the restructure lands them.",
+      "detraction": 0.5
+    },
+    {
+      "id": "F9",
+      "dimension": "clarity",
+      "issue": "The abstract names a topic instead of stating the decision and its date, so a reader who stops after two sentences leaves without an answer.",
+      "why_unfixed": "Discovered on regrade; single run complete. The replacement sentence also depends on what the page becomes under F1's restructure.",
+      "detraction": 0.5
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "One spine applied twice, and the linter was excluded from both sums. score_before = 10 - (F1 2 + F2 1 + F3 1 + F4 1 + F5 1 + F6 0.5 + F7 0.5 + F8 0.5) = 10 - 7.5 = 2.5, floored to 2. The 2 on F1 is the skill's flat detraction for type-mixture; the four 1s are a source-contradicted claim (F2), an unfollowable pointer (F3), an example that demonstrates nothing on a page about phrasing (F4) and a terminology collision with a second meaning live on the same page (F5); the three 0.5s are consistency nits (F6, F7, F8). score_after = 10 - (F1 2 + F2 1 + F3 1 + F8 0.5 + F9 0.5) = 10 - 5.0 = 5.0, floored to 5, so the delta is +3 and the verdict is FAIL. Read the 5 carefully before acting on it: 3.5 of the 5.0 open penalty is structural work the dispatch explicitly assigned elsewhere (F1 and F8 to T8, F2 to T28), and 1.0 is a corpus-wide question about an unpublished document that touches two other canonical pages. The two corrections T3 was dispatched to make are both correct and neither appears in remaining[]. This score grades the page as it stands, which is what the contract asks for; it is not a verdict on the T3 author pass.",
+    "what_worked": "The two T3 corrections landed and I could not fault either. Line 112 now reads \"the install root; the default is computed\", which removes the drive literal without duplicating the 44-word rule the same page already states fifty lines down, and \"the install root\" is the term the prose establishes two lines above and the term wiki/style-guide.md:35 makes canonical. The stale 8 GB example is gone, the dated framing survives at both sites as the settled remedy required, and no machine class is named or implied anywhere in the rewritten passage: the take-turns wording is now a conditional attached to coexistence, not to a size. The author's contested choice, re-anchoring on the refusal case rather than dropping the example, was the right call and is now earned. It was not earned as delivered, which is F4: the paragraph described the message's four ingredients and said \"the refusal ... says the machine cannot run Hearth\", which is circular, and on a section whose entire argument is about wording it showed no wording. The fix names what actually carries the principle, that the message leads with what the outcome means and only then gives the arithmetic, and sends the reader to wiki/install-macos.md:32-34, where the shipped sentence is already published in full. Pointing rather than copying is deliberate: T3 exists because a computed figure was duplicated onto a second page and went stale there, and a decision record is the last page that should hold a number. F5 removed a genuine ambiguity, since \"whether the brain and the voice can be resident at the same time\" sat eleven lines from a heading that uses \"brain\" for something else entirely. F6 and F7 are small and now consistent with the corpus.",
+    "what_holds_score_down": "F1 is most of it. The page is a decision record for its first half and a build specification for its second: \"### The direction\" reproduces an authored skill document in imperative mood, the two tool sections are parameter catalogs, and beat three is a script with the lines to say. The reader-visible symptom is that four other pages link here for \"the full walkthrough\", so a reader arriving from wiki/installing.md:146 is promised a walkthrough and handed a rationale. F9 is the same fault at the top of the page: the abstract names a topic instead of stating a decision, where the corpus model at wiki/backend/native-runtime.md:18-20 gives the decision, the exclusion and the date in three lines. F2 is a claim the source tree contradicts, still on the page and now visible in the score, which is the honest place for it while T28 is open. F3 sends a reader to \"the portability ledger, section 8\" twice; the only such document is wiki/raw/portability-ledger.md, and raw/ never reaches a published reader. The linter cannot catch that one, because the page names the document in English rather than linking a raw/ path, and neither can it catch the same pattern at wiki/backend/build-pipeline.md:181 and wiki/backend/packaging-options.md:193. F8 is minor and waits on the restructure. Also open and not charged: the page still quotes the take-turns warning as live product behavior while crates/hearth-probe/tests/plan_fixtures.rs:40-41 says the orchestration behind it may never need building, and no documented machine class reaches it. That is an engineering question, not a writing defect, so it carries no detraction, but if the branch is retired in code this record should say so rather than outliving it.",
+    "further_improvements": [
+      {
+        "action": "Extract the reader-facing walkthrough in beats two and three to a how-to page, give the choice_card and create_persona parameter blocks a reference home, and leave first-run.md as the record of why first run is shaped this way. Repoint wiki/installing.md:146, wiki/clients/windows.md:217, wiki/clients/macos.md:129 and wiki/developing.md:250 at the new walkthrough.",
+        "why": "The page is two types at once, and the four inbound links prove readers are being sent here for the half that does not belong.",
+        "expected_score_effect": "Clears the 2 on F1, and the 0.5 on F8 falls out with it (open penalty 5.0 to 2.5, score 5 to 7)"
+      },
+      {
+        "action": "Rewrite the abstract to state the decision and its date in one sentence, keeping the seventeen-screen mockup as the second sentence. Model it on wiki/backend/native-runtime.md:18-20.",
+        "why": "A decision record must answer a reader who stops after two sentences, and this one currently tells them a mockup exists.",
+        "expected_score_effect": "Clears the 0.5 on F9"
+      },
+      {
+        "action": "Settle where a published reader goes for the portability ledger, across all three pages that name it, then repoint wiki/first-run.md:148 and :325 with it.",
+        "why": "Two \"see this document\" instructions a reader cannot follow, one of them with a section number, on material that is stripped at publish.",
+        "expected_score_effect": "Clears the 1 on F3, once research answers it"
+      },
+      {
+        "action": "Correct the create_persona cache-invalidation claim under T28.",
+        "why": "The source tree contradicts it, and it is the constraint a reader would implement against.",
+        "expected_score_effect": "Clears the 1 on F2"
+      },
+      {
+        "action": "Add a short section saying what would reopen the decisions this page records, distinct from the existing open questions. Two candidates already exist in the evidence: retirement of the take-turns branch at crates/hearth-probe/src/plan.rs:137-150, and an answer on whether a Linux client ships, which is the one platform whose arithmetic reaches that branch.",
+        "why": "Item 5 of the decision-record shape at wiki/page-types.md:170-172 is absent, and \"## Open questions\" is a list of things never decided rather than conditions that would undo what was.",
+        "expected_score_effect": "No open detraction today, since it is folded into the F1 restructure; it is what stops these decisions being reopened from memory later"
+      },
+      {
+        "action": "Decide, as an engineering question rather than a writing one, whether the take-turns branch still ships, and record the answer here.",
+        "why": "The page quotes its warning string as current product behavior, and no documented machine class reaches it.",
+        "expected_score_effect": "No score effect; prevents a second stale worked example of exactly the kind T3 was opened to fix"
+      },
+      {
+        "action": "Consider whether \"the mind\" at lines 201-209 should stay. I left it because that passage is showing the plain words the installer puts in front of a person, which is the point being made, but wiki/style-guide.md:33 bans the term and wiki/install-macos.md:28 uses it in ordinary prose, so the corpus has not settled whether product-facing vocabulary is an exception.",
+        "why": "Either the style guide gains an exception for quoted product wording, or these uses change. Right now the corpus is inconsistent by accident rather than by decision.",
+        "expected_score_effect": "No score effect on this page; it removes a recurring judgment call from every future pass"
+      }
+    ],
+    "not_findings": "Recorded so a later pass does not re-litigate them. The linter owns and I did not report: reader-drift on \"the user\" (many sites on this page), long paragraphs, long sections, bold-lead blocks, sentence case, em dashes, emojis, its own British word list, dead links and frontmatter. I could not run it in this session and say so at the top of this artifact. Beyond that: no figure was requested, although the page describes the plan screen and the voice-check screen, because wiki/installing.md:88 and :137 already carry pending capture orders for both surfaces, and a second work order for the same screenshot is churn. The line 112 annotation was tested and passed; asking it to restate the computed rule would duplicate a fact that is already on the page and is exactly the failure mode this task was opened to fix. The prose references to tasks/*.md at line 48 are a corpus-wide habit shared with wiki/releasing.md:179 and wiki/backend/tool-catalog.md:118, not a defect of this page. No heading rename was made anywhere, and no page in wiki/ links to a first-run.md anchor, so the restructure is free to rename."
+  }
+}
