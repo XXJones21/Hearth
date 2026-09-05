@@ -16,6 +16,8 @@ sources:
   - backend/harness/valar/memory/engram.py
   - backend/harness/valar/memory/service.py
   - backend/harness/valar/config/settings.py
+  - backend/harness/valar/memory/persona_memory.py
+  - docs/superpowers/specs/2026-09-02-persona-private-memory-design.md (Valinor)
   - wiki/first-run.md
 ---
 
