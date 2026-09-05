@@ -1,0 +1,69 @@
+name: Lint wiki
+
+# The conventions wiki/developing.md publishes, checked before a change lands
+# rather than after. Publishing already runs on every push to main, so without
+# this the first thing to notice a dead link or a missing `type:` was the step
+# that renders the public wiki, which is one merge too late.
+#
+# Errors fail the build. Warnings do not: they are the calibration signal for
+# rules that are true often enough to report and not yet often enough to
+# enforce, and there are a couple of hundred of them by design. See the
+# severity split in scripts/lint_wiki.py.
+#
+# Runs on GitHub's hosted runners on purpose. This repository is public, so a
+# fork can open a pull request, and nothing here should execute on a machine
+# that holds anybody's credentials.
+
+on:
+  pull_request:
+    paths:
+      - "wiki/**"
+      - "scripts/lint_wiki.py"
+      - ".github/workflows/lint-wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the conventions
+        id: lint
+        run: python scripts/lint_wiki.py
+
+      # Everything below runs even when the check failed, because the warning
+      # counts and the figure queue are how a reader of the log finds out what
+      # the page still needs after the errors are fixed.
+      - name: Warnings, for the record
+        if: always()
+        run: python scripts/lint_wiki.py --warnings || true
+
+      - name: Figures waiting for capture
+        if: always()
+        run: python scripts/lint_wiki.py --figures
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Wiki lint"
+            echo
+            echo '```'
+            python scripts/lint_wiki.py --summary || true
+            echo '```'
+            echo
+            echo '```'
+            python scripts/lint_wiki.py --figures
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Render, so a broken cross-reference fails here
+        if: always()
+        run: python scripts/publish_wiki.py --out "${RUNNER_TEMP}/wiki-render"

@@ -91,12 +91,29 @@ backend/personas/*/memory/
 # Working clone scripts/publish_wiki.py makes while rendering the GitHub wiki.
 .wiki-publish/
 
-# Agent configuration. The doc pipeline (orchestrator, researcher, author,
-# reviewer) and its style skill are working tooling for whoever is editing the
-# wiki, not part of the product a stranger installs. scripts/lint_wiki.py is
-# deliberately NOT here: the linter is a guardrail the repository should carry.
+# Agent configuration.
+#
+# The doc pipeline's four agents and its two style skills ARE tracked. They
+# were not, on the reasoning that they are working tooling rather than part of
+# the product a stranger installs. That reasoning stopped holding the moment a
+# workflow ran them: a runner checks out this repository and gets nothing that
+# is ignored, so an ignored pipeline is a pipeline CI cannot execute.
+#
+# It also stopped holding for a reader. The agents name `wiki/style-guide.md`
+# and `wiki/page-types.md` as canonical, and those pages are tracked, so an
+# ignored agent file is half a contract: the rules are public and the thing
+# that applies them is invisible.
+#
+# The exclusion is written as `.claude/*` rather than `.claude/` on purpose.
+# git cannot re-include a path whose parent directory is excluded, so ignoring
+# the contents rather than the directory is what makes the negations below work.
+#
+# Everything else under .claude/ stays local: handoff notes, session state, and
+# any worktrees the harness creates are not tooling anybody else needs.
 CLAUDE.md
-.claude/
+.claude/*
+!.claude/agents/
+!.claude/skills/
 
 # A backstop, not the convention. Reviewer artifacts belong beside the research
 # and author artifacts for their task, under tasks/docs/artifacts/, because the
