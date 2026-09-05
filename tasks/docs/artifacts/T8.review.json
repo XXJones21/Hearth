@@ -1,0 +1,258 @@
+{
+  "document": "wiki/meeting-your-persona.md",
+  "score_before": 6,
+  "score_after": 8,
+  "score_delta": 2,
+  "verdict": "PASS, minor nits open",
+  "score_notes": "Baseline: 10 - (F1 1 + F2 1 + F3 1 + F4 0.5) = 6.5 -> floor 6. After: 10 - (F5 0.5 + F6 1) = 8.5 -> floor 8. Delta +2. Accounted: F1, F2, F3, F4 in changed[]; F5 and F6 both discovered on regrade and open in remaining[]. Every found[] id sits in exactly one of changed[] or remaining[]; baseline_penalty 3.5 covers all four baseline items, open_penalty 1.5 equals the sum of remaining[] exactly.",
+  "linter": "Shell execution was not available in this session, so scripts/lint_wiki.py could not be run. Its rules were established by reading scripts/lint_wiki.py in full and applied to this page by hand: six frontmatter keys present, status `scoped` in STATUSES (line 56), type `how-to` in TYPES (lines 48-51), H1 equal to the frontmatter title and to the filename topic, every heading sentence case (Sulivan is in PROPER at lines 59-70), no em dash, no ` -- ` proxy, no emoji, no British spellings (the page writes color throughout, never colour, which BRITISH at lines 97-102 would flag), no `the gateway`, no reader drift, no raw/ reference, all six `related` entries resolving (features/voice.md and features/persona-face.md both confirmed present), every body link resolving, and the three images/pending targets landing as figure-pending warnings rather than errors (lines 364-368). This page adds no linter error. Nothing owned by the linter appears in found[]. The dispatch's reported corpus state, 29 pages checked, 2 errors, 193 warnings, with both errors on another page, is consistent with that reading.",
+  "dimensions": {
+    "voice": 9,
+    "clarity": 8,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 10,
+    "intent": 8,
+    "structure": 9,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Meet the persona you made, step 3",
+      "issue": "stale-claim. Step 3 read `Say hello.`, which tells the reader to speak first. The product speaks first: once the voice is ready the client sends MEET_KICKOFF silently (desktop-client/src/components/setup/Interview.tsx:28-30 and 118) and the new persona greets the reader unprompted. The **Second brain setup** button in step 4 does not exist until that greeting finishes, because it renders only while `met` is true and `met` is set on speaking_complete after the handoff (Interview.tsx:194-197, 319, 413-424). wiki/features/personas.md:69 already states they greet you first, so the how-to also contradicted its own concept page.",
+      "fix": "Rewrite step 3 as listening and replying rather than initiating, and add a result note that the **Second brain setup** button appears once they have finished speaking.",
+      "detraction": 1,
+      "reason": "The reader is told to act at the one moment the product acts for them, and is not told when the control that leaves this screen appears. A reader who types into a composer that is about to be interrupted, or who looks for a button that is not rendered yet, thinks setup has stalled.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Before you start, third bullet, and ## Work through the rest with him",
+      "issue": "The page pressed finality twice (`It happens once`, `the interview is over for good`) and never stated that the persona itself can be changed afterwards. wiki/features/personas.md:156-162 says a persona you made is not fixed: who they are, how they speak, what they may do, and their prompt are all editable on the Personas page, with a candidate voice audible before committing. Nothing on this page carried that fact or linked to it.",
+      "fix": "Add one result note after the color and name paragraph in ## Work through the rest with him pointing at features/personas.md#changing-a-persona-later.",
+      "detraction": 1,
+      "reason": "The reader makes five irreversible-sounding choices in a few minutes. Believing a voice or color is permanent is what makes someone stall on a question, answer defensively, or reinstall to try again.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Meet the persona you made",
+      "issue": "missing-figure. The section describes a surface the reader looks at, the title changing to `Meet <their name>.` and a pill in the persona's color reading `<their name> is here, listening`, and calls it `the sign the handover is real`. It carried no figure, while the two other screen-describing sections on the page both carried one.",
+      "fix": "Write an images/pending placeholder for the handover screen, with alt text for the reader and a CAPTURE work order in the title.",
+      "detraction": 1,
+      "reason": "The one moment the page asks the reader to recognize visually was the one moment it only described. Text describing a visual confirmation is a description of a picture that would have been faster.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "style",
+      "dimension": "technical_notation",
+      "location": "## Answer the question Sulivan opens with; ## Set up your second brain",
+      "issue": "Shipped screen copy was notated two ways on one page. Fixed titles were quoted (\"Let's make someone.\" and \"A memory of their own.\") while other copy was in code voice (`Meet <their name>.`, `<their name> is here, listening`, `<your project> is the first thing in it`). The quoted form also hid whether the trailing period belongs to the title; it does, in both cases (Interview.tsx:324, SecondBrain.tsx:202).",
+      "fix": "Put the two fixed titles in code voice, matching the rest of the shipped copy on the page.",
+      "detraction": 0.5,
+      "reason": "A reader cannot tell whether the difference in notation means anything, and cannot tell from the quoted form where the screen text ends.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "style",
+      "dimension": "technical_notation",
+      "location": "## Work through the rest with him, the voice vocabulary paragraph",
+      "issue": "The ten accent names run in prose as lowercase proper adjectives and in no code voice: `from american and australian through portuguese and russian`. They are literal vocabulary tokens (backend/harness/valar/data/first_run_direction.md:45-46), which is why they are lowercase in source, but on the page they sit beside `a British accent` two steps earlier, which is capitalized.",
+      "fix": "Either capitalize them as prose adjectives or put them in code voice as the literal attribute values they are, and match the `British accent` mention in step 3 to whichever is chosen.",
+      "detraction": 0.5,
+      "reason": "Lowercase nationality adjectives in running prose read as a typo, and the same page capitalizes one of them a few lines above.",
+      "discovered": "regrade"
+    },
+    {
+      "id": "F6",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "whole page; nearest ## Before you start",
+      "issue": "The page has no answer for a reader who has to stop partway. It states that the interview happens once and is `over for good` the moment the persona is written, but never says what happens if the app is closed mid-interview or mid-second-brain. The source is suggestive and not conclusive: desktop-client/src/components/setup/SetupFlow.tsx:76-79 says only a completed install may mark setup complete and that the next launch comes back here, while the step state itself starts at `welcome` (SetupFlow.tsx:81), so whether a relaunch resumes the interview, restarts setup, or re-runs the install path is not settled by the files read here.",
+      "fix": "State in ## Before you start what an interrupted setup does on the next launch, once the behavior is confirmed against a running house.",
+      "detraction": 1,
+      "reason": "A reader interrupted halfway through a one-shot flow has no idea whether their half-made persona survives. That is the question the page's own emphasis on finality provokes and does not answer.",
+      "discovered": "regrade"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F1",
+      "action": "Rewrite step 3 of ## Meet the persona you made so the persona speaks first, and add a result note that the Second brain setup button appears once their greeting has finished.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Step 3 now reads `Listen to their first words. They speak first, unprompted, as soon as the voice is ready.` and invites a reply rather than requiring one. Step 4 carries the new clause `The button appears once they have finished speaking.`"
+    },
+    {
+      "id": "F3",
+      "action": "Add a result note in ## Work through the rest with him that the persona can be changed afterwards, linking features/personas.md#changing-a-persona-later.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added a 46-word paragraph after the color and name note: the interview runs once, but who they are, how they speak, what they may do and their color are editable afterwards, with a candidate voice audible first. Links features/personas.md#changing-a-persona-later; the heading exists at wiki/features/personas.md:156, so the anchor resolves."
+    },
+    {
+      "id": "F2",
+      "action": "Add a pending figure placeholder for the handover screen in ## Meet the persona you made.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added images/pending/meeting-your-persona-handover.png at the end of the section, with reader alt text and a CAPTURE work order naming the title, the listening pill, the persona color and the Second brain setup button. The page now requests three figures and the capture queue owns all three."
+    },
+    {
+      "id": "F4",
+      "action": "Put the two quoted screen titles in code voice so all shipped copy on the page is notated one way.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "`Let's make someone.` and `A memory of their own.` are now in code voice, matching `Meet <their name>.` and the two pills. The trailing period is now visibly part of each title, which both source lines confirm (Interview.tsx:324, SecondBrain.tsx:202)."
+    },
+    {
+      "id": "F5",
+      "action": "Settle whether the ten accent tokens are prose adjectives (capitalized) or literal values (code voice), and make the `British accent` mention in step 3 agree.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Discovered on the single regrade pass. The contract forbids a second fix cycle, so it is recorded open rather than edited. A one-line fix for whoever next opens the page."
+    },
+    {
+      "id": "F6",
+      "action": "State what an interrupted setup does on the next launch: whether a relaunch resumes the interview, restarts setup, or re-enters the install path, and whether a half-made persona survives.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "Research has to answer: with the app closed part way through the interview or the second-brain beat, what does the next launch of the desktop client show, and is the in-progress persona lost? SetupFlow.tsx:76-79 says an unfinished setup leaves the completed flag false and the next launch comes back to setup, but step state initializes at `welcome` (SetupFlow.tsx:81), so the reader-facing outcome is not settled by the source read here. Do not guess it onto the page."
+    },
+    {
+      "id": "OBJ1",
+      "action": "Record objectives[] for T8. The research artifact left it empty for a net-new page, so nothing downstream can check this page against a stated intent.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "Research has to answer: what are the one to five learning objectives for wiki/meeting-your-persona.md, written as verb plus object at Bloom `apply`? Five were derived here from the page as it stands and are recorded in objective_gaps[], but a derived objective cannot audit the page that produced it."
+    }
+  ],
+  "objective_gaps": [
+    {
+      "objective": "(none recorded anywhere)",
+      "bloom": "n/a",
+      "taught": false,
+      "why": "tasks/docs/artifacts/T8.research.json carries `\"objectives\": []`, and the page frontmatter has no objectives key because the linter's six required keys do not include one and no page in this corpus carries objectives. The five below were derived from the page for this gap analysis, which means the page was graded against its own intent rather than against a stated one.",
+      "needs": "research"
+    },
+    {
+      "objective": "answer Sulivan's opening question and get past the one screen every install shares",
+      "bloom": "apply",
+      "taught": true,
+      "why": "## Answer the question Sulivan opens with carries two numbered steps, the four fixed options with their details, and the tap-versus-type rule. All four options match backend/harness/valar/gateway/first_run.py:55-68 exactly.",
+      "needs": null
+    },
+    {
+      "objective": "choose a temperament, a voice, a color, and a name for your persona",
+      "bloom": "apply",
+      "taught": true,
+      "why": "## Work through the rest with him carries five numbered steps plus the ranges the reader is choosing from: the voice attribute vocabulary and the five swatches the handler accepts. The swatch list correctly follows backend/harness/valar/tools/handlers/creation.py:52-60 (Plum) rather than the schema at tools.yaml:1125-1126 (Heather), which is the T44 defect.",
+      "needs": null
+    },
+    {
+      "objective": "recognize the handover and start talking to the persona you made",
+      "bloom": "apply",
+      "taught": true,
+      "why": "Taught after F1. Before the edit the section told the reader to speak first, which the product does for them, and did not say when the button out of the screen appears. It now names the wait, the greeting, the visual confirmation, and the control, and requests a figure of the screen.",
+      "needs": null
+    },
+    {
+      "objective": "put the first real thing into your second brain, or take one of the other two exits",
+      "bloom": "apply",
+      "taught": true,
+      "why": "## Give it one real thing carries the action as a numbered step and both alternatives under `Alternatively`, with the absolute-path rule and the do-not-assume-a-connection rule from tools.yaml:1049-1054. The reader is also told the door stays open later through Settings.",
+      "needs": null
+    },
+    {
+      "objective": "finish setup and reach the house",
+      "bloom": "apply",
+      "taught": true,
+      "why": "## Go to the house names the control, explains the disabled state, and names the three real events on disk that enable it (first_run.py:148-168). It does not tell a reader what to do if they stop before this point, which is F6.",
+      "needs": "research"
+    },
+    {
+      "objective": "(content serving no objective) ## Where to go next",
+      "bloom": "n/a",
+      "taught": true,
+      "why": "The routing tail teaches nothing and serves the landing shape rather than the how-to shape. Not charged: wiki/page-types.md sanctions it through the corpus model how-to, which carries the same tail at wiki/developing.md:246, and every bullet here is one link plus one clause. Recorded so the next reviewer does not re-raise it.",
+      "needs": null
+    }
+  ],
+  "changed": [
+    { "id": "F1", "summary": "Step 3 of ## Meet the persona you made now says the persona speaks first, unprompted, as soon as the voice is ready, and step 4 says the Second brain setup button appears once they have finished speaking." },
+    { "id": "F3", "summary": "Added a paragraph in ## Work through the rest with him stating that the interview runs once but the persona is editable afterwards, linking features/personas.md#changing-a-persona-later." },
+    { "id": "F2", "summary": "Added a pending figure for the handover screen, images/pending/meeting-your-persona-handover.png, with a CAPTURE work order." },
+    { "id": "F4", "summary": "Put `Let's make someone.` and `A memory of their own.` in code voice, so all shipped screen copy on the page is notated one way." }
+  ],
+  "remaining": [
+    {
+      "id": "F5",
+      "dimension": "technical_notation",
+      "issue": "The ten accent tokens run as lowercase proper adjectives in prose, beside a capitalized `British accent` two steps earlier.",
+      "why_unfixed": "Discovered on regrade; single-run complete.",
+      "detraction": 0.5
+    },
+    {
+      "id": "F6",
+      "dimension": "clarity",
+      "issue": "The page never says what an interrupted setup does on the next launch, on a page whose framing is that the interview happens once and is over for good.",
+      "why_unfixed": "Discovered on regrade, and blocked regardless: the reader-facing behavior is not settled by SetupFlow.tsx:76-81, and guessing it onto the page is the failure this checklist exists to prevent.",
+      "detraction": 1
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "One spine applied twice. Baseline: the page starts at 10 and every baseline finding subtracts. F1 (step 3 tells the reader to speak first when the product speaks first, and step 4's button does not exist yet) 1, F2 (the handover screen is described and not shown, while the page's two other screen sections both carry figures) 1, F3 (the page presses finality and never says the persona is editable afterwards) 1, F4 (shipped screen copy notated two ways) 0.5. Sum 3.5, so score_before = floor(10 - 3.5) = 6, NEEDS_WORK. After: all four were fixed in this run and moved to changed[]. The single regrade pass turned up two new items, F5 (lowercase accent tokens, 0.5) and F6 (no answer for an interrupted setup, 1), both open in remaining[]. Sum 1.5, so score_after = floor(10 - 1.5) = 8, PASS with minor nits open. Delta +2. Two notes for a human reading this number. First, F6 existed at baseline and I did not find it until the regrade; the append-only rule means it counts against the after score and not the before score, which makes the delta smaller than it would otherwise be, not larger. Had I found it at baseline the page would have opened at 5. Second, the cap at 9 for a non-empty remaining[] never bound here, because the detraction math already lands below it. No shell was available, so the linter was read rather than run and the page was checked against its rules by hand; that is stated in the `linter` field rather than reported as a command I did not execute.",
+    "what_worked": "F1 is the fix that matters. The handover is the emotional peak of first run and the one stretch where nothing is asked of the reader, and the page was telling them to act. It now says the persona speaks first, unprompted, as soon as the voice is ready, invites a reply rather than requiring one, and says the Second brain setup button appears once they have finished. That also removes a contradiction with wiki/features/personas.md:69, which already told readers they are greeted first. F3 answers the question the page's own framing provokes: five choices arrive in about four exchanges and the page twice says this happens once, so a reader needs to know, at the moment they are choosing, that the persona is editable afterwards. F2 gives the capture queue the third screen; the page now requests a figure for every surface it asks a reader to recognize. F4 is small but real: the reader can now see that the trailing period belongs to the screen title. Everything else on the page held up under fact-checking, and that is worth saying plainly, because this page was written from source rather than from a stale record. The four opening options, the five swatches, the ten accents, the two-to-four attribute rule, the ninety-second voice wait, both pills, the disabled Go to the house button, the three exits from the second-brain beat, and the case-insensitive name collision all match the tree. The page correctly documents the swatches the handler accepts (Plum) rather than the ones the schema advertises (Heather), which is the T44 defect, and it prints no tool schema, so it does not inherit the `voice_id` error that T43 owns on wiki/first-run.md. On the source disagreement the dispatch asked me to settle: SetupFlow is right and the comment is stale. desktop-client/src/components/setup/SetupFlow.tsx:350 wires the Interview's onDone to setStep('second-brain'), and the SecondBrain screen's own onDone at line 353 is the one that calls onExit(true). The comment at Interview.tsx:414-416 saying the button opens the house describes an earlier cut. The author's resolution was correct, and the code comment is what should change.",
+    "what_holds_score_down": "F6, at 1, is the larger of the two open items and the only one with real reader weight. The page tells you twice that this happens once and never tells you what happens if you have to stop. The source does not settle it either: SetupFlow.tsx:76-79 says an unfinished setup leaves the completed flag false and the next launch comes back to setup, but the step state initializes at `welcome`, so whether the reader lands back in the interview, at the start of setup, or in the install path is a question for a running house rather than for a file. Guessing it onto the page, or softening the finality language until the question stops arising, are both worse than leaving it open, so it is a blocked row rather than an edit. F5, at 0.5, is cosmetic: ten lowercase nationality adjectives in running prose read as a typo next to the capitalized `British accent` a few lines above. Outside the score, two things about this page's situation are worse than anything in its prose. Nothing in the corpus links to it: wiki/installing.md:142-147, wiki/getting-started.md:53-60 and wiki/clients/macos.md:130-131 all still send readers to First run for this walkthrough, and wiki/_index.md carries no entry. Those belong to T9, T7, T6 and T11, and this page cannot fix them. A page nobody can reach is not scored here, because the score grades the document, but it is the single biggest thing standing between this work and a reader.",
+    "further_improvements": [
+      {
+        "action": "Capitalize the ten accent names in the voice vocabulary paragraph, or put them in code voice as literal attribute values, and make the `British accent` mention in step 3 agree.",
+        "why": "F5. Lowercase nationality adjectives in prose read as a typo, and the page capitalizes one of them a few lines earlier.",
+        "expected_score_effect": "Clear the 0.5 F5 detraction (open penalty 1.5 to 1.0)"
+      },
+      {
+        "action": "After confirming the behavior against a running house, add one sentence to ## Before you start saying what an interrupted setup does on the next launch and whether a half-made persona survives.",
+        "why": "F6. The page's own emphasis on finality raises the question and leaves it unanswered, and the answer is not derivable from the client source alone.",
+        "expected_score_effect": "Clear the 1 F6 detraction (open penalty to 0, score 9; a 10 also needs this list empty)"
+      },
+      {
+        "action": "State the name rule exactly: two to twenty-four characters, starting with a letter, and letters, digits, spaces, hyphens and apostrophes thereafter.",
+        "why": "The page says `stay under 24 characters`, which is what the product's own rejection message says (backend/harness/valar/tools/handlers/creation.py:302), so the page is faithful to what a reader would be told. But the regex at creation.py:44 accepts a twenty-fourth character and rejects a one-character name, so both the product copy and the page are off by one at each end. Worth a product row alongside T44 rather than only a documentation edit.",
+        "expected_score_effect": "No score change; accuracy polish below the 0.5 threshold, and a candidate product defect"
+      },
+      {
+        "action": "In ## Set up your second brain, say that the folder chips and the path appear once the house reports the memory, rather than being on screen from the first frame.",
+        "why": "desktop-client/src/components/setup/SecondBrain.tsx:219 renders the whole block only after a brain_info message arrives, so step 2 (`Look at the four folders on screen`) describes a state that is briefly not there. A reader who reaches the screen ahead of the message sees the persona talking about four folders that are not visible yet.",
+        "expected_score_effect": "No score change; removes a small surprise on the last screen of setup"
+      },
+      {
+        "action": "Once T9, T7, T6 and T11 land, check that at least one of them sends the reader here by name rather than to First run, and that the index entry sits before First run under `## Meeting your persona`.",
+        "why": "The page is currently unreachable from every entry point a new reader uses. The research artifact argues the index entry belongs before the record because a reader arriving from the install page wants the procedure, and wiki/page-types.md requires the section order to be the reading order.",
+        "expected_score_effect": "No score change for this page; it is the difference between a walkthrough readers find and one they do not"
+      },
+      {
+        "action": "Open the reconciliation row for wiki/first-run.md: point its beat-two and beat-three sections at this how-to and stop carrying the procedure in a decision record.",
+        "why": "wiki/page-types.md:150-154 says a record page containing steps belongs on a how-to page it links to. That how-to now exists, and the record still holds the steps, so the corpus has two answers to the same question until the row is worked. It also carries the `voice_id` error that T43 owns.",
+        "expected_score_effect": "No score change for this page; removes a competing second answer for the reader"
+      }
+    ]
+  }
+}

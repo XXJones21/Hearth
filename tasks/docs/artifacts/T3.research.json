@@ -1,0 +1,214 @@
+{
+  "task_id": "T3",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/first-run.md",
+      "sections": [
+        "### One folder, and deleting it is the uninstall",
+        "### Say what you found, and be honest about it"
+      ],
+      "why": "Two defect sites, both inside dated 2026-08-06 decisions. Line 112, inside the fenced tree, annotates the root as \"the chosen folder, D:\\Hearth by default\"; crates/hearth-probe/src/machine.rs:232-251 computes the Windows default rather than using any literal drive, and the same page states the computed rule correctly at lines 161-165. Lines 182-186 use an 8 GB machine as the worked example of the be-honest principle: \"On 8 GB the brain and the voice cannot both stay resident.\" crates/hearth-probe/tests/plan_fixtures.rs:36-52 asserts the opposite and asserts that no take-turns warning is emitted for that machine."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:232-251",
+      "covers": "default_install_root(): the per-platform default install root, including the Windows roomiest-non-system-drive branch, the visible Hearth fallback on macOS and Windows, and the .hearth dotdir on Linux."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:256-272",
+      "covers": "roomiest_non_system_drive(): filters removable drives and the SystemDrive, then takes max available_space; None on a single-drive machine, which is what routes the default to the home directory."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:104-159",
+      "covers": "The coexist arithmetic: base reserves, the coexist and sequential budgets, the !coexist branch and the take-turns warning string, and the TooSmall refusal."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:279-321",
+      "covers": "ctx_for, best_fit and fit_at: the TARGET_CTX-then-MIN_CTX search and the weights-plus-floor fit test that sets the minimum viable budget."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml:69-129",
+      "covers": "The measured reserves (voice_resident_bytes, stt_bytes, os_unified_bytes, headroom_bytes), the two voice engines, cpp_platforms [macos, windows], and the cpp resident cost of 966367641 bytes."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/tests/plan_fixtures.rs:35-52",
+      "covers": "The pinned contract that an 8 GB Air coexists, and that no warning containing \"one at a time\" is emitted for it. The comment records that this test used to assert the opposite."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs:337-344",
+      "covers": "The in-crate unit test air_8gb_keeps_its_quant_and_its_voice, asserting coexist on m1-air-8gb with the comment \"the cpp voice fits alongside on 8 GB\"."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs:275-362",
+      "covers": "The five shipped fixtures and the FIXTURES list: rtx4080, m1-air-8gb, m1-air-16gb, no-gpu, tiny."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/page-types.md:156-181",
+      "covers": "The decision-record shape and its three rules, including the rejected-alternative rule at 177-179 and the retired-decision grep rule at 180-181."
+    },
+    {
+      "authority": "canonical",
+      "ref": "wiki/style-guide.md:173-180",
+      "covers": "The supersession mechanism the corpus actually prescribes: a SUPERSEDED banner scoped to a section, or fixing the invalidated content in the same edit."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md:44-46,96-100",
+      "covers": "The already-corrected wording for both defects, landed under T1 (Complete): the computed Windows root, and an 8 GB Mac running the model and the voice at once."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/first-run.md line 112 annotates the install root as \"the chosen folder, D:\\Hearth by default\".",
+      "status": "verified",
+      "evidence": "wiki/first-run.md, \"### One folder, and deleting it is the uninstall\" (heading at line 104, dated at line 106), fenced block lines 111-120, annotation at line 112."
+    },
+    {
+      "claim": "The Windows default install root is D:\\Hearth.",
+      "status": "contradicted",
+      "evidence": "crates/hearth-probe/src/machine.rs:232-251 returns roomiest_non_system_drive().join(\"Hearth\") on Windows, and machine.rs:256-272 computes that drive at runtime by free space. No drive letter appears anywhere in the function. D:\\Hearth is only the result on a machine where D: happens to be the roomiest non-system fixed drive. Contradicted by wiki/first-run.md:161-165 as well, which states the computed rule."
+    },
+    {
+      "claim": "On Windows the default is Hearth on the roomiest fixed drive that is neither removable nor the system drive, with the home directory only as a single-drive fallback.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:233-237 (Windows branch), 256-272 (filter !is_removable at 263, exclude SystemDrive at 264-269, max_by_key available_space at 270), and 238-247 (HOME/USERPROFILE fallback). Stated correctly already at wiki/first-run.md:161-165 and at wiki/installing.md:96-98."
+    },
+    {
+      "claim": "The hidden .hearth dotdir survives on Linux only.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:245-248: macos and windows return home.join(\"Hearth\"), every other OS returns home.join(\".hearth\"). Nuance the author should not overstate: machine.rs:250 also returns a bare PathBuf::from(\".hearth\") on any platform when neither HOME nor USERPROFILE is set, so the dotdir is Linux-only for the home-directory branch, not absolutely."
+    },
+    {
+      "claim": "wiki/first-run.md:161-165 states the install-root default rule correctly.",
+      "status": "verified",
+      "evidence": "Compared word for word against crates/hearth-probe/src/machine.rs:232-272. \"Hearth\\models on the roomiest fixed drive that is not the system one\" matches default_model_dir() at machine.rs:224-226 joined to the Windows branch at 233-237; \"the home directory only as a single-drive fallback\" matches 238-247 and the None-on-single-drive note at 253-256."
+    },
+    {
+      "claim": "wiki/first-run.md:182-186 states that on 8 GB the brain and the voice cannot both stay resident.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md, \"### Say what you found, and be honest about it\" (heading line 176), lines 182-186."
+    },
+    {
+      "claim": "On 8 GB the brain and the voice cannot both stay resident.",
+      "status": "stale",
+      "evidence": "True when the decision was dated 2026-08-06 and false now. crates/hearth-probe/tests/plan_fixtures.rs:37-41 records the change in terms: \"This used to assert the opposite. The 8 GB Air could not hold both while the voice was the torch build at 2.2 GiB ... omnivoice.cpp holds ~900 MB, which is the whole difference.\" The superseding authorities are dated after the decision: crates/hearth-probe/dictionary.yaml:70-72 re-derives the reserves 2026-08-07 \"after the old figures declared coexistence impossible on a machine that turned out to manage it\", and dictionary.yaml:96-102 moves Windows to the C++ engine 2026-08-08. Both sources named."
+    },
+    {
+      "claim": "An 8 GB Apple Silicon Air plans coexist: true and emits no take-turns warning.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/tests/plan_fixtures.rs:42-51, which asserts p.coexist and asserts !p.warnings.iter().any(|w| w.contains(\"one at a time\")) with the message \"nothing takes turns any more, so nobody should be warned that it does\". Also crates/hearth-probe/src/plan.rs:338-344. Independently reproduced from the cited constants: pool 8 GiB, unified base 4294967296, cpp voice 966367641, giving a coexist budget of 3328599655, which holds the Q4_K_M build at 3106738272 and yields n_ctx 17408. That 17,408 figure is the number wiki/clients/macos.md:97 already publishes, which validates the arithmetic model against a published output."
+    },
+    {
+      "claim": "No shipped fixture reaches the !coexist branch; the tiny fixture is refused outright.",
+      "status": "verified",
+      "evidence": "The fixture list is crates/hearth-probe/src/machine.rs:362. coexist is asserted true for rtx4080 (plan_fixtures.rs:21, plan.rs:350), m1-air-8gb (plan_fixtures.rs:45, plan.rs:342) and m1-air-16gb (plan_fixtures.rs:107). no-gpu is 16 GiB of RAM and reproduces as coexist from the cited constants; plan_fixtures.rs:111-116 asserts only backend and warnings for it. tiny is refused: plan_fixtures.rs:118-120 and plan.rs:360-365 assert the error text contains \"cannot run Hearth\". This confirms the executed-planner results supplied in the dispatch."
+    },
+    {
+      "claim": "The !coexist branch exists in plan.rs but nothing exercises it.",
+      "status": "verified",
+      "evidence": "The branch is crates/hearth-probe/src/plan.rs:137-150. crates/hearth-probe/tests/plan_fixtures.rs:40-41 states it directly: \"the machine coexists, and the take-turns orchestration that coexist: false promised may never need building for this class.\" No test in either file asserts coexist == false."
+    },
+    {
+      "claim": "The phrase the page quotes, \"your persona will think and speak one at a time\", is the product's own shipped wording.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:144-148 pushes the warning \"Your persona will think and speak one at a time. You will hear a short pause before a reply is spoken.\" The page's quoted phrasing is accurate to the source string; it is the 8 GB attribution around it that is stale, not the quotation."
+    },
+    {
+      "claim": "On the C++ voice platforms (macOS and Windows) the take-turns branch is reachable only by a memory pool between about 4.16 and 5.06 GiB on a discrete or CPU machine, and between about 6.41 and 7.31 GiB on a unified-memory machine.",
+      "status": "verified",
+      "evidence": "Derived from cited source constants, with every input named: reserves stt_bytes 805306368, headroom_bytes 1073741824, os_unified_bytes 2415919104 and the cpp resident_bytes 966367641 at crates/hearth-probe/dictionary.yaml:79-113; cpp_platforms [macos, windows] at dictionary.yaml:102 with dict.rs:76-78 selecting the reserve; the budgets at plan.rs:110-121; and the minimum viable budget of 2587117664 bytes from the smallest build (tier 0 Q3_K_M, 2536786016, dictionary.yaml:174-177) plus the MIN_CTX floor kv_bytes_per_token 12288 * 4096 (dictionary.yaml:141, plan.rs:14, plan.rs:310-314). The window width equals the voice reserve exactly, by construction of plan.rs:120-121. The same arithmetic reproduces the fixture verdicts and the published 17,408-token figure at wiki/clients/macos.md:97, which is why it is reported as verified rather than estimated. It also independently reproduces the \"roughly 4.5 to 5.4 GB of VRAM\" figure already recorded at tasks/docs/tracker.md:346 (4466165856 to 5432533497 bytes is 4.47 to 5.43 GB decimal)."
+    },
+    {
+      "claim": "A 4 GiB machine is refused and a 6 GiB machine coexists on macOS and Windows, so the take-turns window falls strictly between the two.",
+      "status": "verified",
+      "evidence": "Computed from the constants cited on the preceding claim. Windows 4 GiB GPU: sequential budget 2415919104, below the 2587117664 minimum, so plan.rs:151-157 returns TooSmall. Windows 6 GiB GPU: coexist budget 3597035111, above the minimum, so plan.rs:129-136 takes the coexist branch. Unified 8 GiB: coexist, as the test asserts. Unified 4 GiB: refused."
+    },
+    {
+      "claim": "Some supported, shipping Hearth machine class reaches the take-turns path and could be named on the page as the replacement example.",
+      "status": "unverifiable",
+      "evidence": "Nothing citable settles it, and the evidence points against it. The only class the arithmetic puts inside the window is a Linux machine with a pool of roughly 4.16 to 6.36 GiB, because Linux is absent from cpp_platforms (crates/hearth-probe/dictionary.yaml:102) and keeps the 2362232012-byte torch reserve (dictionary.yaml:79, dict.rs:76-78); a 6 GiB Linux GPU computes to coexist budget 2201170740 against a 2587117664 minimum, so it takes turns. But no page in wiki/ documents a Linux desktop client: wiki/getting-started.md:37-40 names only Apple Silicon and Windows GPUs, there is no Linux install page, and wiki/features/voice.md:88-89 describes Linux only as still running the older Python engine. Further, dictionary.yaml:100-101 marks the Linux figure as unvalidated: \"Linux keeps torch until someone runs the same measurement there.\" So the one nameable class rests on a constant the source itself flags as unmeasured, on a platform the corpus does not document as shipping. Recorded as unverifiable rather than contradicted, per the instruction that the replacement example must not assert a machine class the corpus cannot support."
+    },
+    {
+      "claim": "wiki/page-types.md:179 states that a reader must never be able to read a superseded statement as current guidance.",
+      "status": "contradicted",
+      "evidence": "Line 179 is the tail of the bullet spanning wiki/page-types.md:177-179, which reads in full: \"A rejected alternative is described in the past tense and clearly marked as rejected, in the same screen as its description. A reader must never be able to read a rejected approach as current guidance.\" The subject is a rejected alternative, not a superseded statement. The dispatch and tasks/docs/tracker.md:459-460 paraphrase it with \"superseded\" substituted for \"rejected\". The distinction decides this task, because neither T3 defect is a rejected alternative."
+    },
+    {
+      "claim": "The page-type reference prescribes a struck-through supersession note for a superseded statement inside a dated decision.",
+      "status": "contradicted",
+      "evidence": "wiki/page-types.md:156-181 contains no strikethrough instruction and no supersession instruction of any kind; its three decision-record rules are decision-at-top (175-176), rejected-alternative marking (177-179) and grep-on-retirement (180-181). A corpus-wide grep for strikethrough markup and for \"supersede\" across wiki/page-types.md and wiki/style-guide.md returns only wiki/style-guide.md:173-177, which prescribes a SUPERSEDED banner or an in-place fix, never a strikethrough."
+    },
+    {
+      "claim": "The remedy the corpus prescribes for content a later decision invalidates is either an in-place fix in the same edit or a SUPERSEDED banner scoped to the section.",
+      "status": "verified",
+      "evidence": "wiki/style-guide.md:175-177: \"A SUPERSEDED banner covers the section it opens, not the page. If a decision invalidates content further down, either fix that content in the same edit or give it its own banner.\" The in-place fix is the first-named option and the two are offered as alternatives, so the remedy is a choice the author makes rather than a mandated banner."
+    },
+    {
+      "claim": "Neither T3 defect retires a decision or describes a rejected alternative, so the decision-record supersession rules are not triggered and the dated framing can stand.",
+      "status": "verified",
+      "evidence": "Both decisions were read in full. The 2026-08-06 decision at wiki/first-run.md:104-152 is that the destination is the install root and deleting it is the uninstall; that decision is unaffected, and only the illustrative annotation at line 112 disagrees with the rule the same page states at 161-165. The 2026-08-06 principle at wiki/first-run.md:176-186 is that a small machine is told so plainly and in the user's language rather than in VRAM terms; that principle is unaffected, and crates/hearth-probe/src/plan.rs:144-148 shows the product still ships exactly that plain-language warning, so the principle is still implemented. Only the worked example attached to it is stale. Under wiki/style-guide.md:176 this is the \"fix that content in the same edit\" case."
+    },
+    {
+      "claim": "The corpus contains no SUPERSEDED banner in use.",
+      "status": "verified",
+      "evidence": "A grep for SUPERSEDED across wiki/ returns exactly one hit, wiki/style-guide.md:175, which is the definition of the mechanism rather than a use of it. There is therefore no worked example in the corpus for an author to copy."
+    },
+    {
+      "claim": "wiki/first-run.md already carries an in-prose supersession note for retired content inside the same decision.",
+      "status": "verified",
+      "evidence": "wiki/first-run.md:122-124: \"An earlier draft of this section imported a WSL distro under <root>\\wsl; that is superseded.\" This is the page's own established pattern for genuinely retired content: one sentence of prose inside the dated decision, no banner and no strikethrough, with the dated framing left intact."
+    },
+    {
+      "claim": "The corpus already states both corrected facts elsewhere, so first-run.md contradicts its neighbors as well as itself.",
+      "status": "verified",
+      "evidence": "wiki/installing.md:96-98 states the computed Windows root, and wiki/installing.md:44-46 states \"an 8 GB M2 MacBook Air runs the model and the voice at once and speaks\". wiki/clients/macos.md:37-39 states the same coexistence fact. All three landed or were confirmed under T1, which tasks/docs/tracker.md:23 records as Complete."
+    },
+    {
+      "claim": "The same two defects appear on other pages, which are owned by other tracker rows rather than by T3.",
+      "status": "verified",
+      "evidence": "The corpus grep that wiki/page-types.md:180-181 requires found: the coexistence defect at wiki/backend/build-pipeline.md:158 (\"On 8 GB they cannot\"), owned by T17 per tasks/docs/tracker.md:36; the install-root literal at wiki/clients/windows.md:151, owned by T2 per tracker.md:24 and tracker.md:406; the install-root literal at wiki/backend/native-runtime.md:79, owned by T18 per tracker.md:37; and the home-folder path at wiki/features/second-brain.md:64, owned by T19 per tracker.md:38. None of these belongs to T3."
+    },
+    {
+      "claim": "The paragraph at wiki/first-run.md:182-186 already trips two linter warnings independent of the defect.",
+      "status": "verified",
+      "evidence": "python scripts/lint_wiki.py --warnings, run this pass, reports \"wiki/first-run.md:182: [reader-drift] the user\" and \"wiki/first-run.md:182: [long-paragraph] 62 words\". The rewrite that replaces the stale example can clear both at the same time. Line 112 draws no linter finding."
+    },
+    {
+      "claim": "The refusal path is the one small-machine case the source still supports, and it carries its own plain-language message.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:87-92 formats PlanError::TooSmall as \"this machine cannot run Hearth. It has {} to work with, which leaves {} after the voice, speech recognition and headroom, and the smallest model is {}.\" Reached at plan.rs:151-157 when nothing fits even the sequential budget. Offered as a verified fact the author may draw on, not as drafted prose."
+    }
+  ],
+  "gaps": [
+    "No page and no source names a supported machine class that reaches the take-turns path. The !coexist branch at crates/hearth-probe/src/plan.rs:137-150 is live code with no fixture, no test and no documented machine behind it.",
+    "The Linux voice reserve is explicitly unmeasured. crates/hearth-probe/dictionary.yaml:100-101 says \"Linux keeps torch until someone runs the same measurement there\", so the only machine class the arithmetic puts in the take-turns window rests on a constant the source flags as provisional.",
+    "The corpus does not state whether Hearth ships a Linux desktop client. wiki/getting-started.md:37-40 names only macOS and Windows, and no page rules Linux in or out, yet crates/hearth-probe/src/machine.rs:248 and dictionary.yaml:102 both branch on it.",
+    "wiki/style-guide.md:175 defines a SUPERSEDED banner that no page in the corpus uses, so there is no worked example of its markup or placement for an author who chooses that option.",
+    "The doc comments at crates/hearth-probe/src/machine.rs:218-223 and 228-231 still describe the WSL distro and its unregister step as part of the install root, which wiki/first-run.md:122-124 and wiki/backend/native-runtime.md record as superseded. This is stale source comment rather than a documentation defect, and no tracker row owns it."
+  ],
+  "skeleton": [],
+  "recommended_type": "decision-record",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does Hearth ship a supported Linux desktop client? This is the one platform whose arithmetic reaches the take-turns branch, and nothing in wiki/ states whether it ships. Until it is answered, no Linux machine may be named as the replacement example.",
+    "Should the be-honest passage at wiki/first-run.md:182-186 state the principle with no worked example at all, or re-anchor it on the refusal case at crates/hearth-probe/src/plan.rs:87-92, which is the only small-machine case the source still supports? Both are source-defensible and the choice is the author's; research declines to draft it.",
+    "Is the take-turns branch at crates/hearth-probe/src/plan.rs:137-150 still intended to ship, given crates/hearth-probe/tests/plan_fixtures.rs:40-41 says the orchestration it promises \"may never need building for this class\"? If it is being retired in code, the decision record should record that rather than merely dropping the example, and that is an engineering question this pass cannot settle.",
+    "Do the stale WSL doc comments at crates/hearth-probe/src/machine.rs:218-223 and 228-231 want a tracker row? They contradict wiki/backend/native-runtime.md and wiki/first-run.md:122-124, and no existing row owns them. Out of scope for T3, which is documentation-only.",
+    "tasks/docs/tracker.md:459-460 cites wiki/page-types.md:179 as requiring that \"a reader must never be able to read a superseded statement as current guidance\". Line 179 in fact concerns a rejected approach, and the supersession rule lives at wiki/style-guide.md:173-177. Should the tracker row be corrected so the author is not sent to the wrong constraint?"
+  ],
+  "notes": "Sized S, holding the dispatch size rather than moving it, and the evidence is wiki/first-run.md read in full this pass. It is one page with two sites and they are not the same kind of work. Line 112 alone is XS: a mechanical annotation fix inside a fenced block, with the correct wording already available on the same page at 161-165 and in the corpus at wiki/installing.md:96-98. Lines 182-186 are what hold the task at S: the worked example cannot be substituted, because the survey found no supported machine class to substitute in, so the passage needs rewriting to carry the principle without the stale example. python scripts/lint_wiki.py --warnings additionally flags line 182 for reader-drift and as a 62-word paragraph, so the same rewrite has two independent reasons to touch that paragraph. Neither site is XS in combination and neither reaches M, since no second page is in scope.\n\nOn the remedy, which the dispatch asked to be settled so the author does not choose blind: an in-place correction, with no banner and no strikethrough. Three pieces of evidence converge. wiki/style-guide.md:175-177 offers exactly two options and names fixing the content in the same edit first. wiki/page-types.md:177-179, which the tracker cites as :179, governs a rejected alternative and neither defect is one: the one-folder decision and the be-honest principle both stand, and crates/hearth-probe/src/plan.rs:144-148 shows the plain-language warning the principle demands is still the shipped string. wiki/page-types.md:180-181 governs a retired decision, and no decision is being retired here either. So the dated 2026-08-06 framing is preserved at both sites, which answers the dispatch's fifth question directly. Where the page has genuinely retired something it already shows the house pattern at wiki/first-run.md:122-124: one prose sentence inside the dated decision.\n\nOn the 8 GB question, the dispatch asked that the supplied planner runs be confirmed at source rather than trusted, and they confirm. Every fixture verdict is pinned by an assertion I read: coexist for rtx4080, m1-air-8gb and m1-air-16gb, and a refusal for tiny. crates/hearth-probe/tests/plan_fixtures.rs:37-41 also explains the change in its own words, which is why the claim is filed stale rather than contradicted: it was true under the 2.2 GiB torch voice and the 2026-08-06 decision predates both the reserve re-derivation of 2026-08-07 and the Windows move to the C++ engine of 2026-08-08.\n\nOn naming the replacement machine, the answer is that none can be named. Working from the cited constants, the take-turns window is exactly as wide as the voice reserve, which puts it at roughly 4.16 to 5.06 GiB of pool on macOS and Windows: above a 4 GiB machine, which is refused outright, and below a 6 GiB machine, which coexists. Only Linux, which keeps the larger torch reserve, has a window wide enough to contain an ordinary machine, and a 6 GiB Linux GPU does take turns. But the corpus documents no Linux client and dictionary.yaml:100-101 marks the Linux figure unmeasured, so publishing it would assert exactly the machine class the dispatch warned against. I treated the arithmetic as verified rather than estimated only because the same model reproduces two independent published outputs: the 17,408-token figure at wiki/clients/macos.md:97, and the 4.5-to-5.4 GB range already recorded at tasks/docs/tracker.md:346 by an earlier pass.\n\nScope was held to the one page. The corpus grep that wiki/page-types.md:180-181 requires did find the same two defects at wiki/backend/build-pipeline.md:158, wiki/clients/windows.md:151, wiki/backend/native-runtime.md:79 and wiki/features/second-brain.md:64, and I checked each against the tracker: all four are owned by T17, T2, T18 and T19 respectively. They are reported so the orchestrator does not double-assign them, and they are deliberately kept out of affected_docs. The reader-facing walkthrough extraction named as T8 was not considered.\n\nTooling: Bash was available and used for all searching. python scripts/lint_wiki.py --warnings was run read-only and its first-run.md findings are included. scripts/doc_graph.py was not run, since this is affected mode on a single page and the graph artifact tasks/docs/artifacts/G1.research.json already exists from the G1 pass. Nothing was built, installed or started; in particular the planner was not executed, so every budget figure here is arithmetic over cited constants and is labelled as such. Known evidence was non-empty and every location in it resolved exactly as given, including the frontmatter type at line 4, the heading at 104, the date at 106, the annotation at 112, the introduction at 159 and the passages at 161-165 and 182-186."
+}

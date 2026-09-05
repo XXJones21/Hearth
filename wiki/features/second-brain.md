@@ -1,6 +1,7 @@
 ---
 title: The second brain
-status: draft
+status: open
+type: concept
 last_reviewed: 2026-08-19
 related:
   - ../first-run.md
@@ -15,6 +16,8 @@ sources:
   - backend/harness/valar/memory/engram.py
   - backend/harness/valar/memory/service.py
   - backend/harness/valar/config/settings.py
+  - backend/harness/valar/memory/persona_memory.py
+  - docs/superpowers/specs/2026-09-02-persona-private-memory-design.md (Valinor)
   - wiki/first-run.md
 ---
 
@@ -122,7 +125,7 @@ memory** shows where memory currently lives and gives you three things to do
 about it: **Open folder**, **Change**, and **Remove**.
 
 Both doors run the same code. `import_brain` and the Settings row call one
-`link_brain`, because the rule they enforce is the product's only defence
+`link_brain`, because the rule they enforce is the product's only defense
 against a house quietly adopting a stranger's notes, and a rule with two
 copies is a rule that drifts. One difference is deliberate:
 
@@ -235,5 +238,4 @@ and an archive. That layer is the persona's, private by rule (another persona
 may ask it, never read its files), and it reaches the second brain only through
 the day report each persona files and the reviews Selene writes from those
 reports. The second brain stays yours; the persona's memory stays the
-persona's. The design lives in the Valinor repository as
-`docs/superpowers/specs/2026-09-02-persona-private-memory-design.md`.
+persona's. The design was settled in a September 2026 spec.

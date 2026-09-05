@@ -1,0 +1,303 @@
+{
+  "document": "wiki/getting-started.md",
+  "score_before": 6,
+  "score_after": 8,
+  "score_delta": 2,
+  "verdict": "PASS, minor nits open",
+  "score_notes": "Baseline: 10 - (F1 1 + F2 1 + F3 1 + F4 1) = 6. After: 10 - (F3 1 + F5 0.5 + F6 0.5) = 8. Delta +2. Accounted: F1, F2, F4 in changed[]; F3 open in remaining[], blocked on research; F5 and F6 discovered on regrade and open in remaining[]. Every baseline id appears in exactly one of changed[] or remaining[]; open_penalty 2.0 is the exact sum of the three remaining[] detractions.",
+  "linter": {
+    "run": false,
+    "why": "This session has Read, Grep, Write and Edit only. No shell tool, so python scripts/lint_wiki.py could not be executed. I read scripts/lint_wiki.py in full instead and hand-checked the page, before and after editing, against every rule it implements. The dispatch supplied the run made after the authors finished: 29 pages checked, 2 errors, 193 warnings, both errors on wiki/clients/macos.md and neither on this page. No finding below is one the linter owns.",
+    "hand_check_after_edits": "Frontmatter carries all six required keys; type concept is in TYPES and status closed is in STATUSES; one H1, `Getting started`, matching the frontmatter title and the filename; every heading sentence case; every related entry and every relative body link resolves; no raw/ reference; no em dash, no ` -- ` proxy, no emoji; American spelling throughout (color, notarized); no `the gateway`; no `the user` or `the operator`; longest prose paragraph 45 words against a 60-word warning threshold; longest section, Download the build that exists today, about 146 prose words against a 200-word threshold. One new warning is expected and is by design: scripts/lint_wiki.py:364-368 records `figure-pending` as a warning for the images/pending/ placeholder added under Live with your persona, because a requested figure is a work order rather than a dead link. A real run should still confirm the corpus stays at its two pre-existing errors.",
+    "owned_by_linter_and_therefore_not_reported": [
+      "em dashes and -- proxies",
+      "emojis",
+      "sentence case headings",
+      "American spelling",
+      "terminology (the gateway)",
+      "dead links, raw/ links, dead related entries",
+      "frontmatter keys and the type/status vocabularies",
+      "reader drift (the user, the operator)",
+      "bold-lead paragraphs",
+      "paragraphs over 60 words, sections over 200 words"
+    ]
+  },
+  "source_verification": {
+    "note": "The dispatch named three claims to check hardest. Each was checked against source read in this session, not against the author's or researcher's report of it.",
+    "release_and_artifacts": "Correct as stated. The page links the floating index https://github.com/XXJones21/Hearth/releases and names v0.1.0-alpha, dated 2026-08-22, as what is published there today. wiki/releasing.md:208 records `0.1.0 alpha, published 2026-08-22, shipped Windows, macOS and Android`, and wiki/releasing.md:199-204 records that artifacts and a SHA256SUMS.txt go to the GitHub release. The artifact list on the page matches the table at wiki/releasing.md:37-42 exactly: `.exe` and `.msi` for Windows, `.dmg` for Apple Silicon macOS, `.apk` for Android, and no iOS or visionOS asset, which wiki/releasing.md:44-45 states is still outstanding. I have no network tool, so I could not refetch the release itself; the corpus corroboration is what I can establish by reading, and it agrees with the research artifact on every point.",
+    "signing_and_the_macos_caveat": "Honest and correctly placed. `Only the Android build is signed` matches wiki/releasing.md:47, and `neither signed nor notarized` matches the macOS row at wiki/releasing.md:40. The page's onward pointer is also right: the extra first-open step lives at wiki/installing.md:76-88 under `Open Hearth for the first time on macOS`, which is the page the sentence links, so the reader is not sent somewhere the step is missing.",
+    "windows_three_bands": "Stated correctly, and the correction the task exists to make is sound. The mechanism is confirmed at crates/hearth-probe/src/plan.rs:128-158: the coexist arm at 128-136, the take-turns arm at 137-150 whose warning is `Your persona will think and speak one at a time`, and PlanError::TooSmall at 151-157 as the only refusal. I recomputed both boundaries from the constants rather than accepting them. Windows is not unified (machine.rs:82), so base is stt_bytes 805306368 plus headroom_bytes 1073741824 = 1879048192 (dictionary.yaml:84, 89). Windows is in cpp_platforms (dictionary.yaml:102), so the voice holds 966367641 (dictionary.yaml:113). The smallest thing that can fit is tier 0's Q3_K_M at 2536786016 (dictionary.yaml:176) plus the MIN_CTX floor of 12288 x 4096 = 50331648, which fit_at at plan.rs:300-313 requires, so 2587117664. Refusal therefore begins below 1879048192 + 2587117664 = 4466165856 bytes, and both model and voice stay resident from 1879048192 + 966367641 + 2587117664 = 5432533497 bytes upward. Those are 4.47 GB and 5.43 GB in decimal gigabytes, which is what the page's `roughly 4.5 GB` and `roughly 5.4 GB` state. The old 8 GB video-memory floor was wrong by nearly a factor of two and is gone.",
+    "windows_unit_caveat": "One qualification, recorded as a further improvement rather than a finding because no real card falls in the disputed window. crates/hearth-probe/src/lib.rs:24-35 prints GiB under a `GB` label, with the comment that GiB `is what a user comparing against their spec sheet expects`. In those units the same two boundaries read 4.16 GB and 5.06 GB, so the page's figures sit about eight percent above the numbers the product itself will show a refused reader. Checked against real card sizes: a 4 GB card (4.29e9 bytes) is refused, a 5 GB card (5.37e9) takes turns, and a 6 GB card (6.44e9) holds both, which is exactly what the page's bands predict. Nobody is misled today; the units still disagree.",
+    "sibling_page_agreement": "wiki/clients/windows.md:207-210 states the same mechanism in the same words, `the persona thinks and speaks one at a time, and you hear a short pause before a reply is spoken`, and names no video-memory figure of its own, so the two pages agree and neither contradicts the other.",
+    "macos_half": "Unmoved and correct. crates/hearth-probe/tests/plan_fixtures.rs:35-52 pins the m1-air-8gb fixture to tier 0 with `p.coexist` true and an explicit assertion that no warning contains `one at a time`, which is what the page's `an 8 GB M2 MacBook Air runs a persona and its voice at the same time` says. wiki/installing.md:50-52 says the same in the same register.",
+    "persona_link": "Correct. The page points at wiki/meeting-your-persona.md, the reader-facing walkthrough, and does not link wiki/first-run.md anywhere in the body. first-run.md remains in the frontmatter sources list, which is provenance rather than a reader-facing link."
+  },
+  "dimensions": {
+    "voice": 9,
+    "clarity": 8,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 10,
+    "intent": 8,
+    "structure": 9,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "the page as a whole; the gap sat between §Make a persona of your own and §Expect rough edges",
+      "issue": "missing-spine. The concept shape's fourth item at wiki/page-types.md:144 is \"What it looks like in use, with a concrete example.\" The page never showed Hearth in use. §Make a persona of your own described the setup interview and handed off to another page; nothing showed what a reader would see or hear after setup, and the page carried no figure at all.",
+      "fix": "Add one short section between §Make a persona of your own and §Expect rough edges showing use concretely, every sentence sourced from the corpus, plus a pending-figure placeholder for the surface it describes.",
+      "detraction": 1,
+      "reason": "This is the corpus's only page for a reader who does not yet have an installer, so it is the page that has to make them able to picture the thing before they spend a multi-gigabyte download on it. Graded medium rather than high because the shape item was partly served: the interview paragraph gave a reader something, and the missing piece was the concrete example and the picture rather than the whole section.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§Understand what Hearth is",
+      "issue": "The section that has to define the product for a stranger said \"Hearth is a companion of your own design, and it lives on your machine.\" That is the corpus's definition of a persona, not of Hearth: wiki/features/personas.md:24 reads \"A persona is a companion of your own design, living on your machine.\" Nowhere did the page say Hearth is an AI companion you talk to that answers out loud. wiki/clients/windows.md:22-23 carries the definition the corpus actually uses.",
+      "fix": "Rewrite the opening paragraph so the first sentence says what Hearth is, then keep the persona sentence as the thing you make inside it.",
+      "detraction": 1,
+      "reason": "A reader arriving cold finished the page's defining section without learning that Hearth is an AI you talk with and that it speaks. The page also conflated the product with one of its parts, which is the naming fault wiki/style-guide.md:24-44 exists to stop.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§Check that your machine can run it",
+      "issue": "The abstract promises the reader will find out \"whether your machine can run it\", and the Windows half answers only for a machine with a dedicated GPU: \"On Windows, video memory decides the answer.\" crates/hearth-probe/src/machine.rs:49-51 returns total system RAM as the pool when no GPU reports VRAM, and machine.rs:55-57 resolves the backend to `cpu`, so Hearth plans and installs on a Windows laptop with integrated graphics rather than declining. The page says nothing to that reader beyond the unquantified \"a capable GPU\", and no page in wiki/ states whether that configuration is supported.",
+      "fix": "State what a Windows machine with no dedicated GPU gets, once someone has settled whether it is a supported configuration.",
+      "detraction": 1,
+      "reason": "Integrated graphics is the commonest Windows configuration there is. Such a reader either self-excludes on a hedge or downloads on the strength of the three bands, measures video memory they do not have, and cannot tell which band they are in.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§Download the build that exists today",
+      "issue": "The download section listed the Android `.apk` beside the Windows and macOS installers as though the four artifacts are alternatives. The `.apk` is a client only: wiki/clients/android.md:26-28 states the app runs no persona, no model and no inference of its own. The page stated that relationship two sections earlier, under §Picture the house and its windows, and not where the reader is choosing a file.",
+      "fix": "Add one sentence to the download section saying the `.apk` needs a desktop install to pair with.",
+      "detraction": 1,
+      "reason": "The concept shape's second rule at wiki/page-types.md:151-152 is to name the limits. A phone reader who acted on this section downloaded the one artifact that does nothing on its own, and found out only after installing it.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§Understand what Hearth is and §Make a persona of your own",
+      "issue": "Two sections tell the reader the same thing about Sulivan. The opening says you meet Sulivan first, the persona that ships with Hearth, and make one of your own from there; §Make a persona of your own then opens \"Sulivan is the one resident when you first open Hearth, and he interviews you to help build a persona of your own\". The second sentence restates the first and adds only the word interviews.",
+      "fix": "Cut the restatement from §Make a persona of your own and open it on what the interview actually asks of you, which is the fact the opening does not carry.",
+      "detraction": 0.5,
+      "reason": "A reader who has read the first screen reads the same sentence again 60 lines later, which costs them trust in the rest of the page rather than time.",
+      "discovered": "regrade"
+    },
+    {
+      "id": "F6",
+      "pass": "style",
+      "dimension": "voice",
+      "location": "§Make a persona of your own, second paragraph",
+      "issue": "The page calls a persona `it` in one section and `they` in the next: \"The persona you make then sets up its memory\" sits directly above \"You talk and they answer out loud\". The corpus standard is the personal pronoun, used throughout wiki/meeting-your-persona.md and wiki/features/personas.md:33-44.",
+      "fix": "Change `sets up its memory` to `sets up their memory` and `so it has something to remember` to `so they have something to remember`.",
+      "detraction": 0.5,
+      "reason": "wiki/features/personas.md:25 states the product's whole premise as \"you do not configure a chatbot, you make someone\". Calling that someone `it` on the page that introduces them argues the opposite, one line before a section that calls them `they`.",
+      "discovered": "regrade"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F2",
+      "action": "Rewrite the §Understand what Hearth is paragraph so it defines Hearth before it defines a persona, using the corpus's own definition at wiki/clients/windows.md:22-23 and wiki/features/personas.md:24, 39-44.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Two short paragraphs replace one. The first now says what Hearth is: an AI companion that lives on your own machine, that you talk to, that answers out loud in a voice you designed, and that keeps what you tell it. The second keeps the persona material and names Sulivan as the persona that ships with Hearth, which wiki/features/personas.md:52 states. No new link, no change to the section heading."
+    },
+    {
+      "id": "F3",
+      "action": "State what §Check that your machine can run it should tell a reader whose Windows machine has no dedicated GPU.",
+      "state": "blocked",
+      "owner": "orchestrator",
+      "needs": "research",
+      "result": "Research has to answer: is a Windows machine with no dedicated GPU a supported configuration, and what should this page tell a reader with integrated graphics? Source settles the mechanism and not the product position. crates/hearth-probe/src/machine.rs:49-51 returns total system RAM as the pool when no GPU reports VRAM, and machine.rs:55-57 resolves the backend to `cpu`, so a 16 GB integrated-graphics laptop clears the refusal floor and is planned a tier 1 or larger model on the processor rather than being declined. Nothing in wiki/ says whether that install is usable: wiki/clients/windows.md:180 assumes CUDA or Vulkan, and wiki/installing.md:71-74 says only that a smaller GPU gets a smaller plan. I did not write a sentence, because the two honest options (name it as unsupported, or name what it does and how slow it is) are a product call and a measurement nobody in this pipeline has made, and hedging the existing sentence would leave the reader exactly where they are while hiding the gap."
+    },
+    {
+      "id": "F4",
+      "action": "Say in §Download the build that exists today that the Android `.apk` needs a desktop install to pair with.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "One three-sentence paragraph added after the artifact list: the `.apk` is a window rather than a house, it runs no persona and no model of its own, it needs a desktop install on your network to pair with, and Windows or macOS is the build to start with. Wording reuses the house-and-windows metaphor the page already sets up two sections earlier, and the capability claim is wiki/clients/android.md:26-28."
+    },
+    {
+      "id": "F1",
+      "action": "Add the concept shape's fourth item: one short section showing Hearth in use, with a concrete example and a pending-figure placeholder, between §Make a persona of your own and §Expect rough edges.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added §Live with your persona, 57 words in two paragraphs, plus a pending-figure placeholder for the house window. Every claim is corpus-sourced: the sphere, the chosen color and the four state colors idle, listening, thinking and speaking are wiki/features/personas.md:42-44; answering out loud in the designed voice is wiki/features/personas.md:39-41 with wiki/clients/android.md:44-46; the four folders on your own disk, readable in any text editor and deletable at any time, are wiki/meeting-your-persona.md:119-132. No new outbound link, so the routing the reshape deliberately dropped is not rebuilt. wiki/features/personas.md and wiki/clients/android.md added to frontmatter sources for provenance."
+    },
+    {
+      "id": "F5",
+      "action": "Cut the Sulivan restatement from the opening of §Make a persona of your own.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Discovered during the single regrade, after the fix cycle closed. It is a two-sentence edit for whoever next opens the page, and it is open in remaining[] so the score carries it."
+    },
+    {
+      "id": "F6",
+      "action": "Change the two `it` references to a persona in §Make a persona of your own to the personal pronoun the rest of the corpus uses.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Discovered during the single regrade, after the fix cycle closed. The clash is visible because the new §Live with your persona uses `they` directly below it. Two words, and it is open in remaining[] so the score carries it."
+    }
+  ],
+  "objective_gaps": [
+    {
+      "objective": "none recorded anywhere",
+      "bloom": "n/a",
+      "taught": false,
+      "why": "The page's frontmatter carries no objectives, and tasks/docs/artifacts/T7.research.json carries `objectives: []`. Nothing downstream can check this page against what it set out to teach, so I derived five objectives from what the page plainly teaches and graded against those. Recording them on the page or in the task artifact is the fix.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "explain what Hearth is and that it runs on your own machine",
+      "bloom": "understand",
+      "taught": true,
+      "why": "Taught after F2. §Understand what Hearth is now names the product before it names a persona, and §Picture the house and its windows carries the local-only claim and its reason.",
+      "needs": null
+    },
+    {
+      "objective": "distinguish the desktop house from the phone windows",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Picture the house and its windows states it, and §Download the build that exists today now repeats the consequence where the reader acts on it (F4).",
+      "needs": null
+    },
+    {
+      "objective": "decide whether your machine can run Hearth",
+      "bloom": "understand",
+      "taught": false,
+      "why": "Taught for an Apple Silicon Mac and for a Windows machine with a dedicated GPU, and not taught for a Windows machine with integrated graphics, which is the commonest Windows configuration. This is F3, and it is the one gap on the page that needs a fact nobody has verified.",
+      "needs": "research"
+    },
+    {
+      "objective": "name where to get Hearth today and which artifacts exist",
+      "bloom": "remember",
+      "taught": true,
+      "why": "§Download the build that exists today names the releases index, the published version and its date, all five assets, the signing position, and the absence of an iOS or visionOS build. This is the objective no page in the corpus taught before this task.",
+      "needs": null
+    },
+    {
+      "objective": "describe what a persona is, what setup asks of you, and what living with one looks like",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Make a persona of your own and the new §Live with your persona teach it together. Before F1 the second half was absent: the page described the interview and never showed use.",
+      "needs": null
+    },
+    {
+      "objective": "describe what pre-alpha means for you",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Expect rough edges states it in the present tense and in capability terms rather than as a dated changelog. Thin but honest: it names unfinished screens, uneven platforms, and breakage.",
+      "needs": null
+    },
+    {
+      "objective": "content serving no objective",
+      "bloom": "n/a",
+      "taught": true,
+      "why": "None found. Every section maps to one of the five derived objectives, and no section teaches material that belongs on another page. The two sections dropped in the reshape were the routing, which wiki/_index.md owns under wiki/page-types.md:93, and the numbered list, which the concept shape forbids at wiki/page-types.md:153-154.",
+      "needs": null
+    }
+  ],
+  "changed": [
+    {
+      "id": "F1",
+      "summary": "Added §Live with your persona between §Make a persona of your own and §Expect rough edges: the persona answering out loud in the designed voice, the sphere in the chosen color moving through idle, listening, thinking and speaking, and the memory as four plain folders on your own disk that any text editor opens. Added a pending-figure placeholder for the house window with a full capture instruction."
+    },
+    {
+      "id": "F2",
+      "summary": "Rewrote the opening of §Understand what Hearth is so the first sentence defines Hearth as an AI companion that lives on your own machine, that you talk to, that answers out loud, and that keeps what you tell it. The persona material follows as the second paragraph, with Sulivan named as the persona that ships with Hearth."
+    },
+    {
+      "id": "F4",
+      "summary": "Added one paragraph to §Download the build that exists today saying the `.apk` is a window rather than a house, runs no persona and no model of its own, needs a desktop install on your network to pair with, and that Windows or macOS is the build to start with."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F3",
+      "dimension": "clarity",
+      "issue": "The page answers `can my machine run it` only for an Apple Silicon Mac and a Windows machine with a dedicated GPU. A reader with integrated graphics gets no answer, and the three video-memory bands do not apply to them.",
+      "why_unfixed": "Blocked on research. The fix needs a fact the page does not carry and I cannot verify: whether a Windows machine with no dedicated GPU is a supported configuration. Source gives the mechanism (machine.rs:49-51 falls back to system RAM, machine.rs:55-57 resolves the backend to `cpu`) and no page in wiki/ gives the product position, so writing a sentence would be a guess and softening the existing one would hide the gap.",
+      "detraction": 1
+    },
+    {
+      "id": "F5",
+      "dimension": "clarity",
+      "issue": "§Make a persona of your own opens by restating what §Understand what Hearth is already said about Sulivan.",
+      "why_unfixed": "Discovered on regrade; the single fix cycle was complete.",
+      "detraction": 0.5
+    },
+    {
+      "id": "F6",
+      "dimension": "voice",
+      "issue": "A persona is `it` in §Make a persona of your own and `they` in §Live with your persona, one line apart.",
+      "why_unfixed": "Discovered on regrade; the single fix cycle was complete.",
+      "detraction": 0.5
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 10 - (F1 1 + F2 1 + F3 1 + F4 1) = 6, NEEDS_WORK. Four findings, each medium: the concept shape's fourth item thin to the point of absence (F1), a defining section that defined the wrong noun (F2), an unanswerable hardware question for the commonest Windows configuration (F3), and an artifact list that offered a phone reader the one file that does nothing alone (F4). F1 is graded 1 rather than the vocabulary's default 2 for missing-spine because severity follows reader consequence: the shape item was partly served by the interview paragraph, and what was missing was the concrete example and the figure rather than the whole section. After the run, 10 - (F3 1 + F5 0.5 + F6 0.5) = 8, PASS with minor nits open. F3 is the only substantial thing still open and it is open honestly: it needs a product fact nobody in this pipeline has established. F5 and F6 are half-point consistency items found during the single regrade. The cap at 9 for a non-empty remaining[] does not bind, because the arithmetic already lands at 8.",
+    "what_worked": "F2 fixed the most expensive sentence on the page. This is the corpus's only entry point for a reader who does not have an installer, and its defining section defined a persona rather than the product, in the exact words wiki/features/personas.md:24 uses for a persona. A stranger now learns in one sentence that Hearth is an AI companion on their own machine that they talk to and that answers out loud. F1 gave the page the thing the concept shape asks for and the page had none of: something concrete to picture. §Live with your persona is 57 words and every clause traces to a page in the corpus, and it carries the page's first figure request, so the front door will eventually show the product rather than only describe it. F4 closed a small trap: the artifact list read as four equivalent choices, and a phone reader who took the `.apk` would have installed a window with no house behind it. Separately, the two claims this task exists to make both check out against source. The download statement matches wiki/releasing.md:37-42 and :208 artifact for artifact and to the day, the unsigned macOS caveat matches wiki/releasing.md:40 and lands the reader on wiki/installing.md:76-88 where the extra step actually lives, and the three Windows bands recompute exactly from crates/hearth-probe: refusal below 4466165856 bytes and both resident above 5432533497, which is the `roughly 4.5 GB` and `roughly 5.4 GB` the page states. The old 8 GB video-memory floor was wrong by nearly a factor of two, and wiki/clients/windows.md:207-210 states the same mechanism in the same words, so the sibling pages agree.",
+    "what_holds_score_down": "F3 is the real one. The abstract promises the reader will find out whether their machine can run Hearth, and for a Windows laptop with integrated graphics the page does not answer. Worse, the three bands invite that reader to measure video memory they do not have, while crates/hearth-probe/src/machine.rs:49-51 quietly plans against their system RAM instead and machine.rs:55-57 puts the model on the processor. Nothing in wiki/ says whether that install is supported or usable, so the honest move was to block rather than to write a sentence. F5 and F6 are small and visible: the page tells the reader twice that Sulivan interviews them, and it calls a persona `it` one line above a section that calls them `they`, which argues against the product's own claim that you make someone rather than configure something. Beyond the findings, two things sit just under the bar. The band figures are decimal gigabytes while crates/hearth-probe/src/lib.rs:24-35 prints GiB under a `GB` label, on the stated grounds that GiB is what a reader comparing against a spec sheet expects, so the page's numbers run about eight percent above the ones the product will show a refused reader. And the version-and-date sentence in the download section goes stale silently at the next release, which the author already recorded as unresolved.",
+    "further_improvements": [
+      {
+        "action": "Settle whether a Windows machine with no dedicated GPU is supported, then say so in §Check that your machine can run it. Source shows Hearth plans against system RAM and runs on the processor rather than declining, so the choice is between naming it unsupported and naming what it does.",
+        "why": "F3. The page promises to answer whether a reader's machine can run Hearth and does not answer for the commonest Windows configuration.",
+        "expected_score_effect": "Clear the 1 F3 detraction, taking the open penalty from 2.0 to 1.0 and the score from 8 to 9."
+      },
+      {
+        "action": "Cut the Sulivan restatement at the top of §Make a persona of your own and open the section on what the interview asks of you instead.",
+        "why": "F5. The reader is told the same thing twice, 60 lines apart.",
+        "expected_score_effect": "Clear the 0.5 F5 detraction."
+      },
+      {
+        "action": "Change `sets up its memory` and `so it has something to remember` in §Make a persona of your own to the personal pronoun used everywhere else in the corpus.",
+        "why": "F6. The page calls a persona `it` directly above a section that calls them `they`, and wiki/features/personas.md:25 says the whole point is that you make someone.",
+        "expected_score_effect": "Clear the 0.5 F6 detraction. With F3 and F5 also cleared, the open penalty reaches 0 and the score reaches the 9 cap."
+      },
+      {
+        "action": "State the Windows bands in the unit a reader can check. Either give the figures the product prints, 4.16 GB and 5.06 GB, or name card sizes: a 4 GB card is declined, a 5 GB card takes turns, and a 6 GB card and up holds both. I verified all three against the byte thresholds and did not make the change, because the three-band wording was an orchestrator's editorial call and no real card falls in the window where the two unit conventions disagree.",
+        "why": "crates/hearth-probe/src/lib.rs:24-35 prints GiB under a `GB` label precisely because that is what a spec sheet says, so a refused reader will see numbers about eight percent below the page's.",
+        "expected_score_effect": "No open detraction to clear. It removes a latent contradiction between the page and the product's own output."
+      },
+      {
+        "action": "Give the version-and-date sentence in §Download the build that exists today a maintenance owner, or reword it so it does not name a version at all.",
+        "why": "The author recorded this as unresolved: the link is floating and survives, but `Published there today is v0.1.0-alpha, from 2026-08-22` becomes false the moment a second release is cut, and nothing in the pipeline watches for that.",
+        "expected_score_effect": "No open detraction to clear. It prevents a stale-claim finding on a future review of this page."
+      },
+      {
+        "action": "Record the page's learning objectives, in the frontmatter or in the task artifact. Five are derivable from what it teaches and they are listed in objective_gaps[] here.",
+        "why": "The page carries none and tasks/docs/artifacts/T7.research.json carries `objectives: []`, so no later stage can check the page against what it set out to teach without re-deriving them.",
+        "expected_score_effect": "No open detraction to clear. It makes the next review of this page cheaper and repeatable."
+      },
+      {
+        "action": "Capture the figure this run requested, `wiki/images/pending/getting-started-persona-in-use.png`. The capture instruction is in the placeholder title.",
+        "why": "The page is the front door for someone deciding whether to install, and it currently shows them nothing.",
+        "expected_score_effect": "No open detraction to clear. `python scripts/lint_wiki.py --figures` will list it until it lands."
+      }
+    ]
+  }
+}

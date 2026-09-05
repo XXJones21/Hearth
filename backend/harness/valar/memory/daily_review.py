@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -306,6 +307,21 @@ async def daily_review_loop() -> None:
             except Exception:  # noqa: BLE001 - unconfigured memory: idle tick
                 root = None
             if root is not None and routines.daily_review_enabled(root):
+                # The house feed's ingest is cheap, idempotent and independent
+                # of whether a day is pending, so it runs every tick rather
+                # than only when a review does (house feed design, section 3).
+                # repo_root comes from HEARTH_HOME because the run reports live
+                # in the Valinor checkout, not beside this file.
+                try:
+                    from ..feed import ingest as feed_ingest
+
+                    await asyncio.to_thread(
+                        feed_ingest.run_pass,
+                        root,
+                        Path(os.environ.get("HEARTH_HOME") or "."),
+                    )
+                except Exception as exc:  # noqa: BLE001 - the review outlives it
+                    logger.warning("feed ingest failed: %s", exc)
                 # Dev work enters the inbox before the day is judged: harvest
                 # yesterday first (a day of only commits is otherwise not
                 # pending at all), then each pending day again for replay

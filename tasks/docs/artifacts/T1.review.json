@@ -1,0 +1,204 @@
+{
+  "document": "wiki/installing.md",
+  "score_before": 1,
+  "score_after": 6,
+  "score_delta": 5,
+  "verdict": "NEEDS_WORK",
+  "score_notes": "Baseline: 10 - (F1 2 + F2 1 + F3 2 + F4 1 + F5 1 + F6 1 + F7 0.5 + F8 0.5) = 10 - 9 = 1. After: 10 - (F1 2 + F3 2) = 10 - 4 = 6. Delta +5. Accounted: F2, F4, F5, F6, F7, F8 in changed[]; F1 and F3 in remaining[]. No finding was appended at regrade. F1 carries the same 2 in both sums and is therefore delta-neutral: it is the page's how-to shape defect, owned by tracker task T9, and it is not scored against T1's corrections.",
+  "linter": {
+    "ran": false,
+    "why": "This session's tool set is Read, Grep, Write and Edit, with no command execution. `python scripts/lint_wiki.py` and `python scripts/lint_wiki.py --warnings` could not be run.",
+    "substitute": "scripts/lint_wiki.py was read in full and its rules were hand-simulated against wiki/installing.md so that nothing it owns is reported in found[].",
+    "hand_simulated_result": "No errors expected on this page, before or after the edits. Frontmatter carries all six required keys; `type: how-to` and `status: scoped` are in vocabulary; the single H1 `Installing Hearth` matches the frontmatter title; every `related` entry and every body link resolves (install-macos.md, first-run.md, clients/windows.md, clients/macos.md, backend/native-runtime.md, updates.md all exist); no em dash, no ` -- ` proxy, no emoji, no British spelling, no `the gateway`, no `the user` or `the operator`, no raw/ reference. Warnings before the edits: long-paragraph on the ### macOS paragraph (about 130 words), the ### Windows paragraph (about 85 words), and both ## The download paragraphs (about 64 and 62 words). Those are the linter's and were not reported as findings. After the edits the ### macOS wall is four short paragraphs, which removes that warning as a side effect of the F8 fix rather than as linter work; the other three warnings are untouched. Two new figure-pending warnings are expected, at lines 88 and 137, which the linter documents as work orders rather than defects.",
+    "verify": "Someone with a shell should run `python scripts/lint_wiki.py` and confirm 0 errors before this page is signed off."
+  },
+  "dimensions": {
+    "voice": 9,
+    "clarity": 7,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 4,
+    "intent": 6,
+    "structure": 8,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "whole page, every H2",
+      "issue": "missing-spine. The page declares `type: how-to`, and wiki/page-types.md:108-116 gives that type action-title sections and numbered steps inside each. This page has neither: every heading is a noun or gerund label (`The scan and the plan`, `The download`, `Proving it works`, `Platform notes`) and there is not one ordered list on the page. It is a narrative account of what the installer does, in a shape a reader cannot follow along with.",
+      "fix": "Owned by tracker task T9, which reshapes the page and absorbs a numbered procedure from another page. Not this run's edit: gotcha 8 forbids restructuring in review.",
+      "detraction": 2,
+      "reason": "A reader holding the installer cannot tell what to do first, or when the page expects them to act rather than read. The type is right (wiki/page-types.md:101 names this page as a how-to in the corpus, and tasks/docs/artifacts/T1.research.json confirms it); the shape it promises is absent.",
+      "discovered": "baseline",
+      "owner": "T9",
+      "note": "Recorded so Pass 0 is honest, and carried at the same weight in both sums so it is delta-neutral. It is not scored against T1's corrections."
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "the paragraph under the H1",
+      "issue": "no-abstract. wiki/page-types.md:53-58 asks every type for a one-sentence abstract under the title stating what the reader gets. The page instead opened with three sentences about itself: `You have the Hearth installer. This page walks through what happens next` and `It is the narrative version of the install`.",
+      "fix": "Lead with one sentence naming the outcome, then keep the existing sentences as the overview paragraph beneath it.",
+      "detraction": 1,
+      "reason": "A reader landing from search read a description of the article instead of a statement of what installing gets them, and could not tell in one line whether this was the page for their platform.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## Before you start, ### Windows",
+      "issue": "unfollowable, by a missing prerequisite. The macOS subsection states a chip requirement, a memory floor with a stated refusal below it, free-disk figures and a verified OS version. The Windows subsection states none of the four: it describes the scan and then points at Hearth on Windows `for what the installed app looks like once it is running`, which is a post-install page and carries no requirements section either (wiki/clients/windows.md has no `What it needs` heading).",
+      "fix": "State the Windows floor in the same four terms the macOS subsection uses. The numbers are not in this document set: they have to come from crates/hearth-probe/dictionary.yaml and the refusal branch at crates/hearth-probe/src/plan.rs:151-157, and must not be guessed.",
+      "detraction": 2,
+      "reason": "Half the audience cannot answer the only question `Before you start` exists to answer. It is sharper two sections later: `Choosing where it lives` tells a Windows reader to point the install `anywhere with room`, and after the F8 fix the page now sizes that room for a Mac reader and still not for them.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## The scan and the plan",
+      "issue": "missing-figure. The section describes the plan screen, the one surface the reader looks at and approves before anything downloads, and reproduces its contents as a markdown table. No figure, and none pending.",
+      "fix": "Add an images/pending placeholder with a capture instruction for the plan card.",
+      "detraction": 1,
+      "reason": "The reader was being asked to recognize and approve a screen they had never seen. A table of its values is a description of a picture that would have been faster.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Proving it works",
+      "issue": "missing-figure. The section describes the final screen of setup, including its two controls: `The buttons are honest ones: say whether you heard him or not`. No figure, and none pending.",
+      "fix": "Add an images/pending placeholder with a capture instruction for the final verification screen and its two buttons.",
+      "detraction": 1,
+      "reason": "This is the screen where the reader has to make a judgement call and press one of two buttons, and the page described the controls in prose rather than showing them.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "style",
+      "dimension": "voice",
+      "location": "### macOS, ## Proving it works (three uses)",
+      "issue": "Terminology. The page called the LLM `the mind` three times while calling it `the model` everywhere else (the plan table row, `the model weights`, `a considerably larger model`). wiki/style-guide.md:33 names `the mind` as one of the forms to replace with `the model`. The linter does not check this: its terminology regex covers only `the gateway`, so this is a reviewer finding and not linter work.",
+      "fix": "Use `the model` in all three places.",
+      "detraction": 1,
+      "reason": "One concept under two names on one page. A reader who had just read a table row headed `Model` could not tell whether `the mind is loaded and answering` was the same thing or a second component.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Proving it works, the opening sentence",
+      "issue": "Five named capability checks were run together in one comma sequence: `the mind is loaded and answering, the voice is ready, hearing is ready, skills are available, and the second brain exists`. wiki/style-guide.md:60-67 asks for a list when a section names several things, each with a short definition.",
+      "fix": "Break the five checks into a bullet list, term in bold then the state.",
+      "detraction": 0.5,
+      "reason": "This is the checklist a reader uses to confirm their install. In a comma run they cannot match what the screen shows against what the page says, one item at a time.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F8",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "### macOS free disk, against the plan table in ## The scan and the plan",
+      "issue": "The page printed two different sizes for the same 8 GB Mac and never reconciled them: `roughly 4.5 GB` of free disk under Before you start, and a `3.77 GB` download in the plan table. Both figures are correct (they are disk_required_bytes and total_download_bytes, established at length in tasks/docs/artifacts/T1.research.json), and the page gave the reader no way to see that.",
+      "fix": "Name the relationship in the free-disk sentence: each figure is the download plus about a fifth again to unpack into. Source: disk_required = total + total/5 at crates/hearth-probe/src/plan.rs:236-237, recorded in T1.research.json. Change no figure.",
+      "detraction": 0.5,
+      "reason": "A reader clearing space, or choosing which drive to install to, could not tell which of the two numbers sized their disk, and 3.77 GB is the one that looks like the answer.",
+      "discovered": "baseline"
+    }
+  ],
+  "changed": [
+    {
+      "id": "F2",
+      "summary": "Added a one-sentence abstract under the H1 stating the outcome (`Install Hearth on a Mac or a Windows PC, from the scan that sizes your model plan to the moment Sulivan speaks his first line out loud`), and trimmed the following paragraph so it no longer restates the same arc. The link to Installing on macOS is unchanged."
+    },
+    {
+      "id": "F4",
+      "summary": "Added a pending figure for the plan screen at the end of ## The scan and the plan, with a capture instruction naming the machine, the moment (at approval) and the rows to show."
+    },
+    {
+      "id": "F5",
+      "summary": "Added a pending figure for the final setup screen in ## Proving it works, with a capture instruction requiring both answer buttons visible and neither pressed."
+    },
+    {
+      "id": "F6",
+      "summary": "Replaced all three uses of `the mind` with `the model`, matching wiki/style-guide.md:33 and the page's own plan table row. Checked against the product first: `Mind and voice` is a UI row label at desktop-client/src/components/setup/SetupFlow.tsx:505, and the page quotes no UI label here, so no chrome was misrepresented."
+    },
+    {
+      "id": "F7",
+      "summary": "Turned the five capability checks into a bullet list (The model, The voice, Hearing, Skills, The second brain), keeping each state exactly as the prose stated it."
+    },
+    {
+      "id": "F8",
+      "summary": "Added one sentence to the free-disk paragraph naming why it exceeds the plan's download figure, and split the ### macOS wall into four short paragraphs so the added sentence did not extend it. No figure changed: 4.5 GB, 8.6 GB, 3.77 GB, 7.14 GB, 17,408 and 65,536 are all exactly as found."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "missing-spine. A page declared `type: how-to` with no action-title headings and no numbered steps.",
+      "why_unfixed": "Owned by tracker task T9, which reshapes this page and absorbs a numbered procedure from another page. Gotcha 8 forbids a reviewer restructuring a page; the correct handling is to record it with the shape it should have. Carried at the same weight in score_before and score_after, so it costs T1's corrections nothing.",
+      "detraction": 2
+    },
+    {
+      "id": "F3",
+      "dimension": "clarity",
+      "issue": "unfollowable. ### Windows states no chip, memory, disk or OS requirement, and the page it forwards to carries none either.",
+      "why_unfixed": "The missing numbers are not in this document set and are not in wiki/clients/windows.md. Supplying them means reading crates/hearth-probe/dictionary.yaml and the refusal branch at crates/hearth-probe/src/plan.rs:151-157, which is research and authoring rather than review, and guessing them would be worse than the gap. Needs a tracker row.",
+      "detraction": 2
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 10 - (F1 2 + F2 1 + F3 2 + F4 1 + F5 1 + F6 1 + F7 0.5 + F8 0.5) = 1, so the page graded FAIL on the absolute spine before this run. Two of those terms are 2-point structural defects: F1, the how-to page with no procedure in it, and F3, a prerequisites section that answers its own question for Mac readers and not for Windows readers. The remaining 5 points were spread across a missing abstract (F2 1), two described screens with no figure (F4 and F5, 1 each), the LLM carrying two names on one page (F6 1), a five-item verification checklist written as a comma run (F7 0.5) and two unreconciled sizes for the same machine (F8 0.5). After the fix, open penalty is F1 2 + F3 2 = 4, so 10 - 4 = 6 and the verdict is NEEDS_WORK. Delta is +5, and none of it comes from F1: that finding sits at 2 in both sums by design, because it is T9's work and grading it against T1's corrections would be dishonest in the other direction. The score is low for a page that reads well, and that is the spine working as specified: an absolute grade of the document as it stands, where one open 2-point defect is worth more than every sentence-level improvement combined. The linter could not be run in this session; its rules were hand-simulated from source instead and nothing it owns was scored, so the four long-paragraph warnings on this page cost the score nothing.",
+    "what_worked": "The page now opens the way every type in wiki/page-types.md is supposed to: one sentence under the title that states what the reader gets, naming both platforms, before the overview paragraph (F2). The two screens a reader has to recognize, the plan card they approve and the final screen where they answer whether they heard Sulivan, now carry pending figures with capture instructions specific enough to shoot from (F4, F5). The LLM has one name on the page instead of two, which matters most in the verification section where a reader is matching the page against a screen (F6). That same verification section is now five checkable bullets instead of a five-clause sentence, which is the difference between reading it and using it (F7). And the two sizes the page prints for the same 8 GB Mac, 4.5 GB free disk and a 3.77 GB download, are reconciled in one clause traced to crates/hearth-probe/src/plan.rs:236-237, so a reader sizing a drive knows which number is theirs (F8). All six protected figures survived untouched, which was the point: 3.77 GB, 7.14 GB, 4.5 GB, 8.6 GB, 17,408 and 65,536 are the planner's byte counts under the product's own renderer, and the page agrees with the installer's screen. As a side effect of F8 the 130-word macOS wall became four short paragraphs, which is a linter warning cleared without a linter finding being filed.",
+    "what_holds_score_down": "Both open items are 2-point structural findings, and neither is a sentence problem. F1: the page declares `type: how-to` and contains no numbered steps and no action-title headings, so a reader with the installer running has narrative where they need a procedure. That is T9's, and this review is forbidden from reshaping a page. F2 through F8 were all cheaper to fix precisely because the shape question was left alone. F3: `Before you start` gives a Mac reader four requirements and a Windows reader none, and forwards them to a page that describes the app after it is installed. That gap got slightly more visible after this run, not less, because the free-disk sentence now sizes the install for a Mac and still says nothing to the Windows reader who was told to point it `anywhere with room`. Nothing new was found at regrade. Two items too small to score are named below so they are not lost: the source line at wiki/installing.md:116 is wrapped past the corpus width, and `last_reviewed` still reads 2026-08-09 after two edit passes.",
+    "further_improvements": [
+      {
+        "action": "T9: give the page the how-to spine. Action-title H2s, and numbered steps inside each section, with the absorbed procedure landing where the narrative currently describes the scan, the plan, the install root and the download.",
+        "why": "F1. The page is correctly typed as a how-to (wiki/page-types.md:101 names it as one) and does not have the shape that type promises.",
+        "expected_score_effect": "Clear the 2 F1 detraction (open penalty 4 to 2)"
+      },
+      {
+        "action": "State the Windows floor in ### Windows, in the same four terms the macOS subsection uses: chip or GPU requirement, memory floor with the refusal below it, free disk, and the OS version the install has been verified on. Take the numbers from crates/hearth-probe/dictionary.yaml and the refusal branch at crates/hearth-probe/src/plan.rs:151-157. Do not publish the hand-derived 4.5 to 5.4 GB VRAM band from T1.research.json without an executed planner run behind it.",
+        "why": "F3. Half the audience cannot answer the question the section exists to answer, and the page it forwards to carries no requirements section either.",
+        "expected_score_effect": "Clear the 2 F3 detraction (open penalty 2 to 0, score to 8 or 9)"
+      },
+      {
+        "action": "Name which downloaded artifacts carry no published sha256: both OmniVoice GGUFs (crates/hearth-probe/dictionary.yaml:117 and 120, with the FOLLOW-UP note at 126-128) and the llama.cpp archives (dictionary.yaml:44-54).",
+        "why": "T1's hash correction is true and complete for its purpose, but it now tells a reader that some files are unverified without telling them which. The author recorded this as unresolved in tasks/docs/artifacts/T1.author.json. It is new content rather than a correction, so it needs its own tracker row.",
+        "expected_score_effect": "No open detraction to clear; prevents a future finding on a hedge the page cannot currently resolve"
+      },
+      {
+        "action": "Decide whether the corpus states the provisioning bytes the plan figure omits, about 35 MB on macOS and about 657 MB on Windows with CUDA, plus the voice environment's pip installs, which have no recorded size at all.",
+        "why": "tasks/docs/artifacts/T1.research.json records this as a corpus-wide gap. The page now tells a reader on a metered connection that the figure is incomplete without saying by how much.",
+        "expected_score_effect": "No open detraction to clear; closes a gap the research artifact names"
+      },
+      {
+        "action": "Record the unit convention as a decision somewhere canonical: the product renders bytes divided by 2^30 under a GB label (crates/hearth-probe/src/lib.rs:24-35), and the corpus follows it.",
+        "why": "Nothing in wiki/style-guide.md or wiki/page-types.md states a rule, so the next reader to check 3.77 GB against a decimal calculator refiles the defect T1 was dispatched to fix and did not need to. This page carries four of the affected figures and wiki/clients/macos.md and wiki/install-macos.md carry the same four.",
+        "expected_score_effect": "No open detraction to clear; prevents a recurring false finding against correct figures"
+      },
+      {
+        "action": "Rewrap wiki/installing.md:116 to the corpus width. It currently reads `mistaken for an already-complete file on retry. If the download is interrupted, for a lost`, well past the wrap the rest of the file uses.",
+        "why": "Source hygiene left by an earlier edit. Invisible to a reader, so it is deliberately not scored, but it makes the next diff on this paragraph noisier than it needs to be.",
+        "expected_score_effect": "None; not a reader-visible defect and not scored"
+      },
+      {
+        "action": "Bump `last_reviewed` from 2026-08-09 when T9 closes, not before.",
+        "why": "The page has taken two edit passes since that date and the field is what a later task uses to decide whether to trust it. Bumping it now would date a page that is still mid-pipeline with its shape defect open.",
+        "expected_score_effect": "None; not scored, flagged for whoever closes T9"
+      }
+    ]
+  }
+}

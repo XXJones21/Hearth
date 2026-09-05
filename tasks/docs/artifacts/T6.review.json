@@ -1,0 +1,309 @@
+{
+  "document": "wiki/clients/macos.md",
+  "task_id": "T6",
+  "score_before": 6,
+  "score_after": 9,
+  "score_delta": 3,
+  "verdict": "PASS, minor nits open",
+  "score_notes": "Baseline: 10 - (F1 1 + F2 2 + F3 0.5 + F4 0.5) = 10 - 4 = 6. After: 10 - (F5 0.5) = 9.5, floored to 9. Delta +3. Accounted: F1, F2, F3, F4 in changed[]; F5 discovered on regrade and open in remaining[]. The 9 is also the cap, because remaining[] and further_improvements are both non-empty. L1, S1 and S2 carry no detraction and are absent from both sums: L1 is dispatch-directed linter work rather than a reviewer finding, and S1 and S2 are shape gaps the orchestrator ruled out of this task.",
+  "tooling": "scripts/lint_wiki.py and scripts/doc_graph.py were NOT run in this session: this reviewer has Read, Grep, Write and Edit only, and no shell. Three things were established by reading instead. First, the two errors named in the dispatch (wiki/clients/macos.md:87 and :98, [british-spelling] labelled) were confirmed in the file and fixed, and a grep of the page for labelled and the other British forms now returns nothing. Second, scripts/lint_wiki.py:97-102 shows the rule matches labell\\w+, so labeled passes. Third, the two edits that add text were checked against the linter's error-level rules by reading them: scripts/lint_wiki.py:359 skips link targets beginning with #, so the new [Updating](#updating) anchor cannot report dead-link, and scripts/lint_wiki.py:128-129 and :382-395 make long-paragraph and long-section warnings rather than errors. Someone with a shell should still re-run the linter before the gate.",
+  "dimensions": {
+    "voice": 9,
+    "clarity": 9,
+    "inclusive_language": 10,
+    "technical_notation": 9,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 8,
+    "intent": 9,
+    "structure": 8,
+    "style": 9
+  },
+  "verifications": [
+    {
+      "what": "The real-time factor, as published against its only source.",
+      "result": "matches",
+      "detail": "wiki/clients/macos.md:80-83 publishes 'one real tool-grounded reply synthesized at a real-time factor of 0.961, faster than real time. It is a single measurement, recorded on 2026-08-07 on an 8 GB M2 Air running macOS 27.' wiki/raw/macos-status.md:21-23 states 'Synthesis measured RTF 0.961 on a real tool-grounded reply: faster than realtime, on the smallest machine the product supports', dated 2026-08-07 at :3 on an 8 GB M2 Air running macOS 27.0 at :7-9. Every element of the published sentence resolves: the figure, the kind of reply, the date, the machine, the OS. The author's deviation from the previously published '0.96 in a real conversation' is the correct call, and the page no longer publishes a number its source does not carry."
+    },
+    {
+      "what": "The three links to wiki/installing.md, and whether the target now keeps each promise.",
+      "result": "all three kept",
+      "detail": "wiki/clients/macos.md:26 promises the step-by-step install: kept by wiki/installing.md sections at :44-64 (macOS requirements), :76-88 (first launch), :90-107 (the plan) and :148-164 (the download). :85-86 promises the full walkthrough including the plan Hearth shows before downloading: kept by wiki/installing.md:90-107 and the plan table at :109-131. :139-140 promises the extra first-launch step for an unsigned app: kept by wiki/installing.md:76-88, the right-click Open procedure. :146-148 promises a troubleshooting section covering connection errors, silent voice and interrupted downloads: kept by wiki/installing.md:258-279, whose four named failures include 'Hearth says it is not connected', 'He answers but does not speak' and 'The install ran out of disk partway'. The sibling task landed both bodies of material; none of these links is a forward reference any more. wiki/installing.md:218-221 also points back here for the macOS install root, so the two pages divide the subject rather than duplicating it."
+    },
+    {
+      "what": "The close-versus-quit fact added under F1.",
+      "result": "verified in the corpus",
+      "detail": "wiki/backend/native-runtime.md:68-71 states 'Closing the client window minimizes to the tray (menu bar on macOS) and the backend keeps running; Quit is the explicit stop.' wiki/clients/windows.md:48-50 publishes the same for Windows. Nothing was invented, and native-runtime.md is already in this page's related list."
+    }
+  ],
+  "found": [
+    {
+      "id": "F1",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§Start and stop the house, first paragraph",
+      "issue": "The page stated that Hearth 'starts that tree when it opens and stops it when it quits, so this is usually not something you need to think about', and never said that on macOS closing the window is not quitting. wiki/backend/native-runtime.md:68-71 carries the verified behavior: closing the window minimizes to the menu bar on macOS and the house keeps running; Quit is the explicit stop.",
+      "fix": "Add one sentence to the opening paragraph naming close-hides-and-keeps-running and Quit as the explicit stop, matching wiki/backend/native-runtime.md:68-71 and wiki/clients/windows.md:48-50.",
+      "detraction": 1,
+      "reason": "A reader on the 8 GB machine this page documents as the floor closes the window to free the memory the model and the voice hold, and frees nothing. The page's own reassurance that lifecycle is not something you need to think about is what makes the omission mislead.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "§What installing gives you, the paragraph after the directory tree",
+      "issue": "Two claims were wrong against the page they send readers to. 'Nothing installs outside that folder' contradicts wiki/installing.md:144-146, which excepts the client application itself and its webview profile. 'Deleting the folder is the uninstall' contradicts the uninstall at wiki/installing.md:243-252, which also quits Hearth and drags it to the Trash, and which opens with an Important callout warning that deleting the install root destroys your memory and journal.",
+      "fix": "State the exception, and replace the one-line uninstall claim with what the uninstall actually does, the data-loss consequence, and a link to the procedure that carries the warning.",
+      "detraction": 2,
+      "reason": "Data loss. The page's own directory tree labels home/ as where your memory and journal live, then told the reader four lines later that deleting that folder is the uninstall, with no warning and no pointer to the procedure that has one.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "§What it cannot do yet, second bullet",
+      "issue": "'There is no automatic updater. A new build means downloading the app again and reinstalling into the same folder.' restated §Updating, two sections above, almost word for word. The honest-limits section carried no limit the page had not already stated.",
+      "fix": "Cut the bullet to the limit itself and link the section that carries the procedure.",
+      "detraction": 0.5,
+      "reason": "A limits list that repeats the page verbatim teaches a scanning reader nothing, and it makes the section look longer than it is.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "structure",
+      "dimension": "technical_notation",
+      "location": "frontmatter, last_reviewed",
+      "issue": "last_reviewed was 2026-08-08 on a page whose body was rewritten in this phase. The corpus convention is to bump it with the edit: wiki/installing.md carries 2026-09-04 after the sibling task landed on it, wiki/clients/ios.md and wiki/style-guide.md carry 2026-09-03.",
+      "fix": "Set last_reviewed to 2026-09-04.",
+      "detraction": 0.5,
+      "reason": "A reader, and the next reviewer, use this field to judge how current a page is. A rewritten page advertising a month-old review date understates its own freshness and misdirects the next audit.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "style",
+      "dimension": "voice",
+      "location": "§What installing gives you first line, and the figure title in §Start and stop the house",
+      "issue": "The page names the local server 'the house' in a heading, in the row name, and throughout the prose, then calls the same thing 'backend' twice: 'there is no separate backend to download' at the top of §What installing gives you, and 'backend running with its process count shown' inside the figure's CAPTURE spec. wiki/style-guide.md:29-40 makes 'the house' the one name and lists 'the backend as a separate thing' as the form to change.",
+      "fix": "Say 'no separate server to download' and 'the house running with its process count shown'. Do not touch the alt text, which is correct as it stands.",
+      "detraction": 0.5,
+      "reason": "A reader meeting both words on one page has to work out whether the house and the backend are two things. They are one thing, and this page is where the reader learns its name.",
+      "discovered": "regrade"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "L1",
+      "action": "Replace both instances of 'labelled' with 'labeled' in wiki/clients/macos.md, at line 87 in the prose of §Start and stop the house and at line 98 inside the figure placeholder's CAPTURE spec. Dispatch-directed linter work, not a scored reviewer finding.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Both replaced. The prose now reads 'find the row labeled The house'; the CAPTURE spec now reads 'the row labeled The house'. A grep of the page for labelled, behaviour, colour, organis and recognis returns nothing. scripts/lint_wiki.py:97-102 matches labell\\w+, so the American form passes. The linter itself was not re-run, because this session has no shell."
+    },
+    {
+      "id": "F2",
+      "action": "Correct the uninstall and containment claims in §What installing gives you against wiki/installing.md:144-146 and :243-252, and link the uninstall procedure that carries the data-loss warning.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The containment sentence now names its exceptions, Hearth in Applications and its webview profile, matching wiki/installing.md:144-146. 'Deleting the folder is the uninstall' became a short paragraph stating what the uninstall does (quit, delete the folder, drag Hearth to the Trash, from wiki/installing.md:249-252), the data-loss consequence in the reader's own terms, and a link to the full procedure. Left as prose rather than an Important callout: wiki/installing.md:245-247 already carries the callout on the procedure itself, and a second one here would say the same thing twice."
+    },
+    {
+      "id": "F1",
+      "action": "State in §Start and stop the house that closing the window on macOS leaves the house running and that Quit is the explicit stop, per wiki/backend/native-runtime.md:68-71.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Two sentences added to the opening paragraph: closing the window hides Hearth in the menu bar and the house keeps running, and Quit is the explicit stop. Verified against wiki/backend/native-runtime.md:68-71, which names the menu bar for macOS, and wiki/clients/windows.md:48-50. No invented claim: this is a corpus fact a macOS reader had no page to read it on. The related fact that Quit, Stop and Restart flush the session to the journal before anything is killed (wiki/clients/windows.md:52-58) was left out and stays open as R3 below."
+    },
+    {
+      "id": "F3",
+      "action": "Trim the duplicated updater procedure out of the §What it cannot do yet bullet.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "The bullet now states the limit and links the section that carries the procedure: 'Every new build is installed by hand, under [Updating](#updating).' An in-page anchor rather than a bare 'above', which is the form already published at wiki/developing.md:42 and wiki/features/personas.md:103, and which does not recreate the orphaned back-reference this task removed. scripts/lint_wiki.py:359 skips # targets, so it cannot report dead-link."
+    },
+    {
+      "id": "F4",
+      "action": "Bump last_reviewed to 2026-09-04.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "last_reviewed is now 2026-09-04, the date of this reshape and review, matching wiki/installing.md after the sibling task landed on it."
+    },
+    {
+      "id": "F5",
+      "action": "Name the local server 'the house' in the two places the page still calls it the backend: the opening line of §What installing gives you and the figure's CAPTURE spec.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Discovered on regrade, and this run edits once. Left open in remaining[] rather than folded into the fix cycle. It is a two-string edit that any later pass on this page can take."
+    },
+    {
+      "id": "S1",
+      "action": "Write the persona surface section the platform-overview shape requires at wiki/page-types.md:232-233. Not charged against the page: the orchestrator ruled it out of T6 and T36 owns it.",
+      "state": "deferred",
+      "owner": "T36",
+      "needs": "restructure",
+      "result": "Deferred to T36 by the orchestrator's ruling and not scored. Recorded so T36 inherits two facts already on this page that belong in that section once it exists: the cloned voice in §What it does today, and the measured real-time factor of 0.961 now sitting at the end of §What installing gives you, which wiki/page-types.md:232-233 makes persona-surface material."
+    },
+    {
+      "id": "S2",
+      "action": "Extract the install-root tree and the five-process port list from §What installing gives you to a reference page covering both macOS and Windows, per wiki/page-types.md:249-250. Recorded by the author as extraction_needed; a two-page job with no destination page yet.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Deferred, not scored, and still true of the page after this review. No reference page carries the macOS install tree or the port list, and wiki/installing.md:218-221 deliberately points readers here for the macOS layout, so the material cannot move until a destination exists. Reviewer's reading: the section now carries three subjects (what lands on disk, what runs while Hearth is open, and how fast the voice is), which wiki/style-guide.md:104-110 already calls two sections. The F2 fix added about 50 words to it, so it is longer than it was. Opening this needs a task that owns wiki/clients/windows.md as well."
+    },
+    {
+      "id": "R3",
+      "action": "Decide whether §Start and stop the house carries the two remaining verified facts the author left in unresolved[]: that Quit, Stop and Restart file the conversation to the journal before anything is killed (desktop-client/src-tauri/src/house.rs:671-675, published for Windows at wiki/clients/windows.md:52-58), and that the house row appears only on a Mac running its own house (desktop-client/src/components/settings/SettingsView.tsx:90).",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": null,
+      "result": "Not re-raised as a finding, because the author recorded both and the dispatch settled only the Restart control. Recorded here because the first is the reason a reader should prefer Stop to killing the process, and macOS is the only platform whose page does not say it. Both are one sentence each and both are already verified in the research artifact."
+    }
+  ],
+  "objective_gaps": [
+    {
+      "objective": "No objectives are recorded anywhere. tasks/docs/artifacts/T6.research.json carries objectives: [] and the page frontmatter has no objectives key, so the five below are derived from what the page plainly sets out to teach.",
+      "bloom": "n/a",
+      "taught": null,
+      "why": "Recorded so the gap analysis is auditable rather than invented after the fact.",
+      "needs": null
+    },
+    {
+      "objective": "describe what Hearth on macOS does on your own Mac",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§What it does today states the capability in the present tense: a persona you meet first, a conversation, memory, a cloned voice, and nothing leaving the machine. It is the thinnest section on the page at about 55 words, where wiki/clients/ios.md gives the same objective a turn-by-turn account, but it does teach the objective.",
+      "needs": null
+    },
+    {
+      "objective": "identify what a Mac needs to run Hearth",
+      "bloom": "remember",
+      "taught": true,
+      "why": "§What it needs gives four requirements as a term list, each with the consequence of missing it. It agrees with wiki/installing.md:44-64 on every figure.",
+      "needs": null
+    },
+    {
+      "objective": "describe what installing puts on the Mac, and what runs while Hearth is open",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§What installing gives you carries the install root layout, what is downloaded, the uninstall, and the five supervised programs with their ports. Taught, but by cataloging rather than describing, which is the S2 extraction.",
+      "needs": null
+    },
+    {
+      "objective": "start and stop the house from Settings",
+      "bloom": "apply",
+      "taught": true,
+      "why": "Taught, with one caveat about level. §Start and stop the house names the exact path, the row, the ambiguity with the Connections section next to it, the three controls and what each does, and it now states the close-versus-quit behavior. It teaches this as description rather than as an ordered procedure, so an apply-level objective is being served in an understand-level shape. wiki/page-types.md:234-236 gives a platform overview one inline procedure and this page has none, which the orchestrator ruled out of scope for T6. This is the natural candidate if that slot is ever filled.",
+      "needs": null
+    },
+    {
+      "objective": "explain how updating works on macOS today, and why there is no in-app updater",
+      "bloom": "understand",
+      "taught": true,
+      "why": "§Updating gives both the current by-hand method and the signing reason underneath it, and links wiki/updates.md for the full design. A verified research claim places the signing reasoning nowhere in wiki/installing.md, so this section is not duplicated material.",
+      "needs": null
+    },
+    {
+      "objective": "describe how the persona appears on macOS: the window, the face, the voice",
+      "bloom": "understand",
+      "taught": false,
+      "why": "The platform-overview shape requires this section at wiki/page-types.md:232-233 and the page has none. The page never says what Hearth looks like on a Mac, and the reader's only glimpse of the persona surface is 'speaks back in a cloned voice'. T36 owns writing it, and the orchestrator ruled it out of this task, so it is not charged.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "Content serving no objective: the install-root directory tree and the five-program port list.",
+      "bloom": "remember",
+      "taught": true,
+      "why": "Both are reference material on a page that wiki/page-types.md:249-250 says describes rather than catalogs. They are correct and they are published nowhere else for macOS, so they stay until a reference page exists. Tracked as S2.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "Content serving no objective: the measured real-time factor of 0.961.",
+      "bloom": "understand",
+      "taught": true,
+      "why": "It sits at the end of §What installing gives you, hanging off a bullet about the voice engine, where a reader looking for voice performance will not think to look. wiki/page-types.md:232-233 makes it persona-surface material, so it moves when T36 writes that section. It is also the page's only claim that rests on a single unpublished run, tracked in further_improvements.",
+      "needs": "restructure"
+    }
+  ],
+  "changed": [
+    {
+      "id": "L1",
+      "summary": "Both British 'labelled' spellings replaced with 'labeled', in the §Start and stop the house prose and in the figure's CAPTURE spec. These are the two errors the dispatch named, and they are dispatch-directed linter work rather than a scored reviewer finding."
+    },
+    {
+      "id": "F2",
+      "summary": "§What installing gives you now names the two things that live outside the install root (Hearth itself and its webview profile) and replaces 'Deleting the folder is the uninstall' with what the uninstall actually does, the warning that memory and journal go with the folder, and a link to the procedure in Installing Hearth."
+    },
+    {
+      "id": "F1",
+      "summary": "§Start and stop the house now states that closing the window is not quitting: Hearth hides in the menu bar and the house keeps running, and Quit is the explicit stop."
+    },
+    {
+      "id": "F3",
+      "summary": "The updater bullet in §What it cannot do yet no longer repeats §Updating; it states the limit and links that section by anchor."
+    },
+    {
+      "id": "F4",
+      "summary": "last_reviewed bumped from 2026-08-08 to 2026-09-04."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F5",
+      "dimension": "voice",
+      "issue": "The page calls the local server 'the house' throughout and 'backend' twice: the opening line of §What installing gives you and the figure's CAPTURE spec.",
+      "why_unfixed": "Discovered on regrade; single-run complete.",
+      "detraction": 0.5
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline 10 - (F1 1 + F2 2 + F3 0.5 + F4 0.5) = 6. F2 takes 2 because its reader consequence is data loss: the page's own directory tree names home/ as where memory and journal live, and four lines later told the reader that deleting that folder is the uninstall, with no warning, while the page it links to opens its uninstall with an Important callout saying exactly that this destroys your memory. F1 takes 1 because the page reassured a reader that lifecycle is not something to think about while omitting the one macOS-specific fact that makes the reassurance wrong, and the cost lands on the 8 GB machine this page documents as the floor. F3 and F4 take 0.5 each: verbatim self-repetition in the limits list, and a review date a month older than the body. After the checklist, remaining is F5 alone at 0.5, so 10 - 0.5 = 9.5, floored to 9. The cap would also have held the score at 9, because remaining[] and further_improvements are both non-empty. Delta +3. Three things carry no detraction by ruling rather than by judgment, and the score would be lower if they did: the absent persona surface section (S1, T36), the absent inline procedure, and the sources entry naming a page T16 retires. The two linter errors carry no detraction either, because the linter owns them; they were fixed because the dispatch directed it and because the corpus gate for this phase is zero errors.",
+    "what_worked": "The reshape itself is sound and this review did not have to argue with it. The install procedure is gone, the page reads as one type rather than two, the salvaged passages landed where a reader would look for them, and the orphaned 'the right-click-Open step above' is repaired. On top of that: F2 turned the most dangerous sentence on the page into an accurate one, and a reader who acts on §What installing gives you now keeps their journal. F1 closes the gap that made §Start and stop the house quietly wrong for the platform it is written for, using wording already published at wiki/backend/native-runtime.md:68-71 rather than a new claim. F3 gives the limits section something to say. F4 makes the page's own metadata tell the truth about when it was last looked at. L1 clears both hard linter errors, which were the whole gap between this corpus and a zero-error gate. Two verifications the dispatch asked for both came back clean. The real-time factor matches its source exactly, figure, machine, date and the phrase 'tool-grounded reply', and the author was right to publish 0.961 rather than carry the rounded 0.96 and the looser 'in a real conversation' forward. All four promises made by the three links to wiki/installing.md are now kept by that page: the macOS requirements, the right-click-Open first launch, the plan screen, and a troubleshooting section whose named failures are connection, silent voice and an interrupted download. The two pages now divide the subject rather than duplicating it, since wiki/installing.md:218-221 points back here for the macOS install root.",
+    "what_holds_score_down": "One open finding, F5, at 0.5: the page teaches the reader that the local server is called 'the house' and then calls it the backend twice, once in the first line of §What installing gives you and once inside the figure's CAPTURE spec. Beyond the score, three structural things are open and none of them is this page's fault. The persona surface section the platform-overview shape requires is absent, so the page never says what Hearth looks like on a Mac, and T36 owns it. §What installing gives you now carries three subjects (what lands on disk, what runs while Hearth is open, and how fast the voice is) and about 330 words, which wiki/style-guide.md:104-110 already counts as two sections; the F2 fix made it slightly longer. Extracting the tree and the port list needs a reference page that does not exist and a task that owns the Windows page as well. And the page's one performance claim rests on a single run recorded in a file that never publishes.",
+    "further_improvements": [
+      {
+        "action": "Say 'no separate server to download' in the first line of §What installing gives you, and 'the house running with its process count shown' in the figure's CAPTURE spec. Leave the alt text as it is.",
+        "why": "F5. One page should not give the local server two names, least of all the page where a reader learns the name.",
+        "expected_score_effect": "Clears the 0.5 F5 detraction, taking the open penalty to 0."
+      },
+      {
+        "action": "Add one sentence to §Start and stop the house saying that Quit, Stop and Restart file the conversation to the journal before anything is killed, and that this is why Stop is better than killing the process.",
+        "why": "Checklist R3. Verified at desktop-client/src-tauri/src/house.rs:671-675 and published for Windows at wiki/clients/windows.md:52-58. macOS is the only platform whose reader cannot read it, and it is the reason to use the controls this section describes.",
+        "expected_score_effect": "No detraction open today; it forecloses a future finding on a section that otherwise tells a reader what the buttons do but not why to use them."
+      },
+      {
+        "action": "Re-measure the voice on an 8 GB Apple Silicon Mac at the shipped decode-step count, or reconcile the three figures in wiki/raw/macos-status.md before the next publish.",
+        "why": "The page's claim that the build 'stays ahead of the conversation' is supported by that note's own summary at :21-23 and :244, so it is not a stale claim today. But the same note records 1.16x at the eight steps that shipped (:141) and 1.73x alone to 1.79x together in the coexist test (:150), both slower than real time, and nothing in the source tree asserts the 0.961. The page is honest that it is a single measurement; the corpus still has one reader-facing performance number that nobody can re-derive.",
+        "expected_score_effect": "None today. It removes the risk that this becomes a stale-claim finding at 1 the first time someone measures it again."
+      },
+      {
+        "action": "Give §What it does today the substance the other client pages give it: what the app is on a Mac, what a turn actually looks like, and what the window shows. Fold in the persona surface when T36 writes it, and move the real-time factor there from §What installing gives you.",
+        "why": "S1. At about 55 words it is the thinnest section on the page, and a reader deciding whether to use Hearth on their Mac learns only that a persona named Sulivan talks back. wiki/clients/ios.md:33-61 is the worked example. The measured real-time factor is persona-surface material by wiki/page-types.md:232-233 and currently hangs off a bullet about ports.",
+        "expected_score_effect": "None today, since the orchestrator ruled the missing section out of T6. It would clear a 2-point missing-spine finding on any review that does not carry that ruling."
+      },
+      {
+        "action": "Open a task that owns both wiki/clients/macos.md and wiki/clients/windows.md and moves the install-root tree and the port list to one reference page for both platforms.",
+        "why": "S2. wiki/page-types.md:249-250 keeps install trees, process trees and port tables off a platform overview. Both are correct and both are published nowhere else, so neither can move until a destination page exists, and the Windows page holds the parallel material in the same shape.",
+        "expected_score_effect": "None today. It would shorten a three-subject section back to one and remove the standing shape deviation."
+      },
+      {
+        "action": "Decide whether §Start and stop the house states its precondition: the row appears only on a Mac that runs its own house, per desktop-client/src/components/settings/SettingsView.tsx:90.",
+        "why": "Checklist R3, second half, recorded by the author. A Mac pointed at a house on another machine has no house row, and this section tells that reader to go find one. The counter-argument is that the whole page assumes a local install, which is why this is a decision rather than an edit.",
+        "expected_score_effect": "None today. Left unstated it is a small unfollowable risk for one class of reader."
+      },
+      {
+        "action": "Either drop the 'This page covers' sentence in the lead or extend it, and check it against the sections that exist.",
+        "why": "It promises four things (what the client does, what installing puts on disk, what the Mac needs, how updates work) and the page has six sections; starting and stopping the house, which is the one thing a reader does on this page, is not in the list. No other client page carries a contents sentence.",
+        "expected_score_effect": "None. A lead that undersells the page costs a scanning reader the section they came for."
+      }
+    ]
+  }
+}

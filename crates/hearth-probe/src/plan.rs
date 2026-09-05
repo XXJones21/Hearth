@@ -242,14 +242,6 @@ pub fn plan(m: &Machine, d: &Dictionary) -> Result<Plan, PlanError> {
         ));
     }
 
-    if m.os == "windows" && m.wsl_present == Some(false) {
-        warnings.push(
-            "The Windows Subsystem for Linux is not installed yet. Hearth will offer to install \
-             it, which needs a restart."
-                .into(),
-        );
-    }
-
     Ok(Plan {
         tier: tier.id,
         label: tier.label.clone(),

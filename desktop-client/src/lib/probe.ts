@@ -23,7 +23,6 @@ export type Machine = {
   free_disk_bytes: number;
   gpu: Gpu | null;
   unified_memory: boolean;
-  wsl_present: boolean | null;
   simulated?: string;
 };
 

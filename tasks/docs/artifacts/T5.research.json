@@ -1,0 +1,357 @@
+{
+  "task_id": "T5",
+  "mode": "affected",
+  "recommended_size": "M",
+  "affected_docs": [
+    {
+      "path": "wiki/features/personas.md",
+      "sections": [
+        "## Switching and multiple personas",
+        "## Making your first one",
+        "## Where a persona lives",
+        "## Voices, briefly"
+      ],
+      "why": "Lines 111-113 state that day-to-day details of managing several personas, such as a settings screen for editing or removing one, are not yet covered by what ships today; a Personas page ships in all three clients and edits, removes, previews and re-grants. Lines 46-71 describe only the first-run interview and open at line 48 with 'The first time you open Hearth', so the page never states how a reader makes a persona after first run has ended. Three further claims on the page are contradicted by the same source tree: lines 83-86 (the engine reads the manifest off disk when it loads or switches), lines 95-96 (the designed clip is a permanent reference), and lines 96-100 (a pending voice design is picked up the first time the voice service is available)."
+    },
+    {
+      "path": "wiki/backend/tool-catalog.md",
+      "sections": [
+        "## The inventory",
+        "## What the audit found"
+      ],
+      "why": "Line 75 lists create_persona in a `projects` domain and lines 91-102 argue that the `projects` domain is granted to nobody, which states that create_persona cannot be reached in ordinary conversation. tools.yaml:1091 puts create_persona in the `personas` domain, no tool in tools.yaml carries a `projects` domain, and sulivan.json:72 grants `personas`. If T5 states on Personas that a reader can ask their persona to make another, this page states the opposite. Lines 92-93 also misreport Sulivan's grants, and line 51 misreports the catalog size."
+    },
+    {
+      "path": "wiki/features/voice.md",
+      "sections": [
+        "## How a persona gets a voice"
+      ],
+      "why": "Lines 38-43 carry the same pending-voice claim as personas.md lines 96-100: 'The design is recorded and completed the next time the voice engine can run it.' Nothing in the tree reads the pending_design flag, so if the sentence on Personas is corrected this one must be corrected with it or the two concept pages disagree. Line 32 also states the clip becomes 'the persona's permanent reference', the same overreach as personas.md line 95."
+    },
+    {
+      "path": "wiki/first-run.md",
+      "sections": [
+        "### `create_persona`"
+      ],
+      "why": "Lines 287-292 state as an unsolved problem that 'Adding a persona needs cache invalidation, not a process exit'. creation.py lines 9-11 record that a new persona needs no invalidation, because discovery re-reads the directory and load() caches only names it has seen. If Personas states that making a second persona takes effect without restarting the house, this passage contradicts it. Note the overlap: T3 already owns this page for the install root and the 8 GB example, and this defect is in a different section."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/data/persona_template.json",
+      "covers": "the tool domains a persona made by create_persona is born with; line 33 lists personas among them and the comment at line 32 records why"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/tools/tools.yaml",
+      "covers": "create_persona's domain, its parameters and its required fields (lines 1083-1127), and the full domain vocabulary (13 domains across 48 tool entries, none named projects)"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/tools/__init__.py",
+      "covers": "how a persona's tool_grants select the tools it is offered (lines 132-184) and the HEARTH_TOOLS_ENABLED master switch (lines 42-48)"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/tools/handlers/creation.py",
+      "covers": "what create_persona writes, the name and colour rules, the voice design attempt, the memory seed, and the note that a new persona needs no cache invalidation"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/gateway/first_run.py",
+      "covers": "when first run is active and when it expires permanently (lines 253-287), the interview and brain-beat grants (lines 37, 114-118), the scripted opening (lines 47-53) and the scripted farewell (lines 80-87)"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/gateway/voice_loop.py",
+      "covers": "which grants apply on a turn (lines 1516-1533), the first-run handover that switches to the new persona (lines 2004-2077), and the fact that persona_created is read nowhere else"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/gateway/personas_api.py",
+      "covers": "the persona page's server surface: GET /personas/surface, POST /personas/apply (edits, domain re-grants and removal), POST /personas/speak, and the restart that makes an edit real"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/harness/valar/persona/engine.py",
+      "covers": "persona discovery and the picker's exclusions (lines 60-85), the load cache (lines 92-130), and switching (lines 150-162)"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/components/personas/PersonasView.tsx",
+      "covers": "the desktop Personas page: its six sections, the ungated domain editor, the ungated Save and restart, and the developer-mode gate on Remove and Discard"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/components/settings/SettingsView.tsx",
+      "covers": "the Developer mode switch at lines 651-656 and the Personas section at lines 408-420 that pins which persona a device asks for on connect"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/components/stage/PersonaStage.tsx",
+      "covers": "how the Personas page is reached (the ungated Personas icon at lines 69-71) and that the whole stage is hidden below the lg breakpoint (line 37)"
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/hooks/useHearthWebSocket.ts",
+      "covers": "when the desktop client refreshes the persona list: on client_info_ack (line 119) and after persona_switched (line 179), and nowhere else"
+    },
+    {
+      "authority": "source",
+      "ref": "backend/personas/Sulivan/sulivan.json",
+      "covers": "the shipped persona's grants, including personas at line 72, and the absence of the briefs domain the tool catalog still reports"
+    },
+    {
+      "authority": "source",
+      "ref": "apple-client/Hearth/Core/Sources/HearthCore/Models/PersonaSurface.swift",
+      "covers": "which persona fields the iPhone can edit, and why the rest are locked (lines 5-18)"
+    },
+    {
+      "authority": "source",
+      "ref": "android-client/app/src/main/java/com/hearth/app/ui/surfaces/PersonaScreen.kt",
+      "covers": "the one field Android writes back, the system prompt (lines 305-306)"
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/page-types.md",
+      "covers": "the concept page shape and its rule against procedures (lines 129-154)"
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md",
+      "covers": "the recorded T5 state, its sizing evidence, its one carried open question, and the note at lines 273-279 that reverses the older Sulivan-only account"
+    }
+  ],
+  "claims": [
+    {
+      "claim": "A persona made by create_persona is granted the personas tool domain, which is the domain create_persona itself sits in.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/data/persona_template.json line 33 lists \"personas\" in tool_grants.domains, and the comment at line 32 states it is there 'so a resident can make another resident'. backend/harness/valar/tools/tools.yaml line 1083 declares the tool and line 1091 sets `domain: personas`. backend/harness/valar/tools/__init__.py lines 165-170 offer a tool when its domain is in the persona's granted domains."
+    },
+    {
+      "claim": "create_persona is the only tool in the personas domain, so the grant enables creating a persona and nothing else.",
+      "status": "verified",
+      "evidence": "grep of `^    domain:` across backend/harness/valar/tools/tools.yaml returns one occurrence of `personas`, at line 1091, against 48 `- name:` entries and 13 distinct domains."
+    },
+    {
+      "claim": "The grant reached the template on the current branch, and it changed only the template.",
+      "status": "verified",
+      "evidence": "git show 4ca4807 (fix(personas): a persona you made can make another persona, 2026-09-03) touches one file, backend/harness/valar/data/persona_template.json, adding \"personas\" to tool_grants.domains and extending the comment. No other file is in the diff."
+    },
+    {
+      "claim": "The older account, in which the only route to a second persona was switching back to Sulivan, is superseded and must not be written.",
+      "status": "verified",
+      "evidence": "Superseded by backend/harness/valar/data/persona_template.json line 33 and the comment at line 32, which names that route and states nothing intended it. Sulivan still holds the domain (backend/personas/Sulivan/sulivan.json line 72), so switching back to him remains a route, but it is no longer the only one."
+    },
+    {
+      "claim": "create_persona has no first-run gate: it is available in ordinary conversation to any persona whose grants include the personas domain.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/voice_loop.py lines 1516-1533 return first_run.INTERVIEW_GRANTS while first run is active, first_run.BRAIN_GRANTS during the second-brain beat, and otherwise the persona's own tool_grants from its manifest. Lines 1628-1639 build the turn's registry from those grants. Nothing in backend/harness/valar/tools/handlers/creation.py tests for first run."
+    },
+    {
+      "claim": "First run expires permanently the moment the first persona is written, so the guided interview cannot be the route to a second persona.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/first_run.py lines 253-268 (_all_personas_shipped) return False as soon as one non-internal persona lacks \"shipped\": true, and lines 271-287 (active) are that check. The module docstring at lines 4-7 states it directly: 'The moment create_persona writes a new resident, the next turn's detection fails and everything here expires on its own.'"
+    },
+    {
+      "claim": "The reader triggers creation by asking the persona they already have; the persona composes the six fields from the conversation and calls create_persona once.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/tools.yaml lines 1084-1089 are the tool description the persona reads: 'Create a new persona from what the conversation taught you. Call this ONCE, only when you could describe this person to someone else: their purpose, their temperament, how they should sound, their colour. You write the system prompt IN THEIR VOICE, not yours.' Lines 1093-1127 are the parameters; the required set is name, description, system_prompt, temperament, colour, with voice_design optional."
+    },
+    {
+      "claim": "Creating a persona outside first run differs from the first-run interview: there is no structured schema, no scripted opening, and no interview direction.",
+      "status": "verified",
+      "evidence": "The first-run path is a separate turn handler: backend/harness/valar/gateway/voice_loop.py lines 1986-2011 run a structured reply against first_run.INTERVIEW_SCHEMA and call create_persona from the reply's commit object rather than through the tool registry. first_run.py lines 37, 42-68, 195-237 and 239-250 supply the narrowed grants, the scripted opener and card, the schema, and the direction file, and all of them are reached only while active() is True. An ordinary turn takes the tool-loop path at voice_loop.py lines 1628-1639."
+    },
+    {
+      "claim": "Creating a persona needs no restart of the house.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/handlers/creation.py lines 9-11: 'The engine needs no invalidation for a NEW persona: discovery re-reads the directory and load() only caches names it has seen.' Confirmed in backend/harness/valar/persona/engine.py lines 69-85, where list_personas iterates the directory on every call, and lines 92-94, where load() consults the cache by name only."
+    },
+    {
+      "claim": "Nothing hands the house over to a persona made outside first run: the automatic switch belongs to the first-run interview alone.",
+      "status": "verified",
+      "evidence": "create_persona returns data={\"persona_created\": dir_name} at backend/harness/valar/tools/handlers/creation.py line 446. grep for persona_created across backend/, desktop-client/, apple-client/ and android-client/ returns exactly two hits: that write, and the read at backend/harness/valar/gateway/voice_loop.py line 2014, which is inside the structured first-run turn. The switch and the persona_switched emit at lines 2052-2077 are guarded by that same path's `committed` flag. The ordinary tool loop does not inspect a tool result's data for it."
+    },
+    {
+      "claim": "The tool's own return text tells the persona a handover is coming, which outside first run does not happen.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/handlers/creation.py lines 439-446 return content ending 'Stop speaking as yourself after this turn: the house will hand over, and {name} speaks next.' That text is returned on every call, including from the ordinary tool loop, where nothing performs the handover (see the preceding claim). This is a product defect, not a documentation defect."
+    },
+    {
+      "claim": "A persona made outside first run does not appear in the desktop client's switch chips until the client asks for the persona list again, which it does on connect and after a persona switch.",
+      "status": "verified",
+      "evidence": "desktop-client/src/hooks/useHearthWebSocket.ts sends {action: 'list_personas'} at line 119 (on client_info_ack) and at line 179 (on persona_switched); grep for list_personas across desktop-client/src returns only those two send sites. The chips render from that store list (desktop-client/src/components/stage/PersonaChips.tsx lines 8-33). The Personas page itself refetches on open (desktop-client/src/components/personas/PersonasView.tsx lines 112-113), so the new persona is visible there immediately."
+    },
+    {
+      "claim": "The personas domain grant applies only to personas made after commit 4ca4807; a persona made before it carries the older six domains in its own manifest and nothing migrates it.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/handlers/creation.py lines 341-346 read the template and lines 404-407 write the expanded manifest once, at creation. backend/harness/valar/persona/engine.py line 100 reads that file as written and line 120 hands it through as the persona's config; there is no migration step. git show 4ca4807 changes the template only. The pre-change domain list was [\"weather\", \"timers\", \"search\", \"news\", \"memory\", \"media\"]."
+    },
+    {
+      "claim": "A reader whose persona predates the change has two routes that work today: switch to Sulivan, who holds the domain, or grant the personas domain on the Personas page.",
+      "status": "verified",
+      "evidence": "backend/personas/Sulivan/sulivan.json line 72 lists personas among his 13 domains. The Personas page's 'What they may do' section is an ungated toggle over every domain the catalog declares (desktop-client/src/components/personas/PersonasView.tsx lines 537-562), the offered list comes from tools.yaml (backend/harness/valar/gateway/personas_api.py lines 207-218, which includes personas), and the write path sets tool_grants.domains on the persona file (personas_api.py lines 299-306) before restarting the house (lines 380-387)."
+    },
+    {
+      "claim": "The persona settings screen ships, is reachable by an ordinary reader, and is not developer-gated as a whole.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/personas_api.py lines 455-462 register GET /personas/surface and POST /personas/apply, and server.py line 129 registers the module. desktop-client/src/App.tsx lines 232-235 mount PersonasView, reached by the Personas icon in the stage nav at desktop-client/src/components/stage/PersonaStage.tsx lines 69-71, which carries no gate. The Save and restart button at PersonasView.tsx lines 716-723 sits outside every dev branch."
+    },
+    {
+      "claim": "Editing a persona is ungated; removing one sits behind developer mode, and behind two switches rather than one.",
+      "status": "verified",
+      "evidence": "The 'Remove {person.name}' button is rendered only when the page's `dev` state is true (desktop-client/src/components/personas/PersonasView.tsx lines 676-685), and the switch that sets `dev` is itself rendered only when loadSettings().developerMode is true (lines 241-263). That setting is the Developer mode row in Settings (desktop-client/src/components/settings/SettingsView.tsx lines 651-656) and it defaults to false (desktop-client/src/lib/settings.ts line 54). The file's own header states the rule at lines 25-27: 'Developer mode swaps the panel for the raw file, and carries the two destructive actions (Discard, Remove) so neither is reachable while someone is only looking.' Every editing section, including Who they are, How they are, Voice, Presence, What they may do and How they think, is outside that branch."
+    },
+    {
+      "claim": "Removing a persona renames its folder rather than deleting it, and the default persona cannot be removed.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/personas_api.py lines 356-357 refuse a removal when the key matches config.default_persona, with the message '<name> is the default persona; set another first.' Lines 358-375 rename the folder to <key>.removed-<epoch> with the comment 'Rename rather than delete. A persona is hours of writing, and the journal entries that mention them stay either way.' config.default_persona defaults to Sulivan (backend/harness/valar/config/settings.py line 263)."
+    },
+    {
+      "claim": "The full set of persona-management surfaces that ship today is: switching, pinning who greets a device, editing, hearing a voice before committing, re-granting tools, viewing the raw file, and removing.",
+      "status": "verified",
+      "evidence": "Switching: the chips at desktop-client/src/components/stage/PersonaChips.tsx lines 14-33, served by the switch_persona action at backend/harness/valar/gateway/server.py lines 827-838, plus the open_channel path at lines 1016-1046. Pinning: Settings > Personas > 'Start with' at desktop-client/src/components/settings/SettingsView.tsx lines 408-420, sent on connect at desktop-client/src/hooks/useHearthWebSocket.ts lines 153-160. Editing, re-granting, the raw file and removal: desktop-client/src/components/personas/PersonasView.tsx sections at lines 298-300, 312, 329, 344, 455, 533, 537, 584 and the Remove button at 676-685. Hearing a voice: POST /personas/speak at backend/harness/valar/gateway/personas_api.py lines 464-539, driven by the Hear it flow at PersonasView.tsx lines 146-193."
+    },
+    {
+      "claim": "Saving an edit restarts the house; that is what makes the edit take effect.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/gateway/personas_api.py lines 27-29 state the pattern, and lines 380-387 spawn a thread that calls os._exit(0) after a write so the supervisor restarts the process. The client says so too: 'Saving restarts the house to apply it.' at desktop-client/src/components/personas/PersonasView.tsx line 699."
+    },
+    {
+      "claim": "The persona page is not desktop-only, but the phone and tablet clients write far less: the iPhone edits the system prompt and the state colours, and Android edits the system prompt alone. Neither can remove a persona.",
+      "status": "verified",
+      "evidence": "apple-client/Hearth/Core/Sources/HearthCore/Models/PersonaSurface.swift lines 5-15: 'Read-only mirror of GET /personas/surface, plus the ONE write this client makes: POST /personas/apply. Two fields are editable on the phone -- the system prompt and the colours by state.' android-client/app/src/main/java/com/hearth/app/ui/surfaces/PersonaScreen.kt lines 305-306 build the edit object with system_prompt only. android-client/core/src/main/java/com/hearth/core/surfaces/Surfaces.kt lines 526-532 post an edits map and never a remove list."
+    },
+    {
+      "claim": "The Personas page and the switch chips are both hidden when the desktop window is narrower than the lg breakpoint.",
+      "status": "verified",
+      "evidence": "desktop-client/src/components/stage/PersonaStage.tsx line 37 carries `max-lg:hidden` on the aside that holds both the PersonaChips (line 59) and the section nav containing the Personas icon (lines 62-78)."
+    },
+    {
+      "claim": "wiki/features/personas.md lines 111-113 state that a settings screen for editing or removing a persona is not yet covered by what ships today.",
+      "status": "verified",
+      "evidence": "wiki/features/personas.md lines 111-113, under '## Switching and multiple personas': 'Beyond that, day-to-day details of managing several personas, such as a settings screen for editing or removing one, are not yet covered by what ships today.'"
+    },
+    {
+      "claim": "The claim at wiki/features/personas.md lines 111-113 is false as written.",
+      "status": "contradicted",
+      "evidence": "Contradicted by backend/harness/valar/gateway/personas_api.py lines 455-462 (the surface, apply and speak routes) and desktop-client/src/components/personas/PersonasView.tsx (the page, its six editing sections at lines 312-671, and the Remove button at lines 676-685). The page under review is the claim's only support and cannot prove itself."
+    },
+    {
+      "claim": "wiki/features/personas.md never states how a reader makes a persona after first run has ended.",
+      "status": "verified",
+      "evidence": "wiki/features/personas.md lines 46-71 are the whole of '## Making your first one'; line 48 opens 'The first time you open Hearth' and the section closes at line 71 on the second-brain beat. The only other route the page names is switching, at lines 106-111. Read in full this run; no other section mentions creating a persona."
+    },
+    {
+      "claim": "wiki/features/personas.md lines 83-86 state that the persona engine reads a manifest directly off disk when it loads or switches to that persona.",
+      "status": "contradicted",
+      "evidence": "The page states it at lines 83-86. backend/harness/valar/persona/engine.py lines 92-94 return a cached Persona when the name has been seen, and line 123 populates that cache; the manifest is read once per process per persona, not on every load or switch. backend/harness/valar/gateway/personas_api.py lines 27-29 state the consequence: 'persona.json is read once at process start, so a restart is what makes an edit real.' As written the page implies an edit would take effect on the next switch, which it does not."
+    },
+    {
+      "claim": "wiki/features/personas.md lines 95-96 state that the designed clip becomes the persona's permanent reference.",
+      "status": "contradicted",
+      "evidence": "The page states it at lines 95-96, and wiki/features/voice.md line 32 repeats it. backend/harness/valar/gateway/personas_api.py lines 262-268 replace voice.reference_audio with any wav already in the persona's folder, and the Replace control that drives it is in the ungated Voice section at desktop-client/src/components/personas/PersonasView.tsx lines 362-390. The rest of the sentence, that later speech is cloned from the reference rather than redesigned, is correct."
+    },
+    {
+      "claim": "wiki/features/personas.md lines 96-100 state that a persona whose voice could not be designed has that design picked up the first time the voice service is available.",
+      "status": "contradicted",
+      "evidence": "The page states it at lines 96-100 and wiki/features/voice.md lines 41-42 repeat it. Nothing implements it: grep for pending_design across backend/ and desktop-client/src returns one hit, the write at backend/harness/valar/tools/handlers/creation.py line 398. _design_voice is called from exactly one place, creation.py line 382, inside create_persona. voice.reference_audio is written at creation.py lines 394 and 397 and at backend/harness/valar/gateway/personas_api.py line 265, which is the manual Replace. There is no retry, no startup sweep, and no scheduled pass."
+    },
+    {
+      "claim": "wiki/features/personas.md lines 96-100 correctly state that a persona with no clip does not borrow another persona's voice.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/voice/tts_service.py lines 145-157 make the no-clip case explicit: 'clear the voice and let the engine refuse. Better a turn that fails loudly than a house that quietly puts words in the wrong mouth', and the else branch calls sync_persona_voice(None, None). backend/harness/valar/voice/tts_omnivoice.py lines 85-86 return immediately on a None reference, leaving no clone prompt to speak with."
+    },
+    {
+      "claim": "wiki/features/personas.md lines 56-61 quote the first-run opening line as it ships.",
+      "status": "contradicted",
+      "evidence": "The page quotes 'their purpose, their temperament, their voice, and their color are all yours to choose'. backend/harness/valar/gateway/first_run.py lines 47-53 spell it 'colour'. The substance matches word for word otherwise, and the page's truncation of the quote before 'I will ask a few questions as we go' is fair. Only the one word differs, and the page presents the sentence as product copy spoken the same on every install."
+    },
+    {
+      "claim": "The rest of wiki/features/personas.md verifies correct against the source tree.",
+      "status": "verified",
+      "evidence": "Six parts at lines 29-40 against tools.yaml lines 1093-1127 and persona_template.json; the colour ramp driving sphere, particles and the four state colours at lines 38-40 against creation.py lines 118-135; the non-verbal tags at lines 42-44 against creation.py lines 68-76; Sulivan as the persona who ships and interviews at line 48 against settings.py line 263 and first_run.py lines 271-287; the farewell at lines 63-66 against first_run.py lines 80-87; the handover and the new persona greeting first at lines 65-66 against voice_loop.py lines 2052-2077; the second-brain beat at lines 68-71 against first_run.py lines 110-141; the folder, manifest and voice sidecar layout at lines 75-80 against creation.py lines 330-331, 383-393 and 404 and engine.py lines 87-89; a folder with no manifest not being a persona at lines 85-86 against engine.py line 74; the case-insensitive name collision at lines 88-89 against creation.py lines 332-339; and the picker's exclusion of internal and desktop-only personas at lines 109-111 against engine.py lines 60-85."
+    },
+    {
+      "claim": "wiki/backend/tool-catalog.md line 75 places create_persona in a projects domain.",
+      "status": "contradicted",
+      "evidence": "The page states it at line 75. backend/harness/valar/tools/tools.yaml line 1091 sets `domain: personas`. No tool in tools.yaml carries `domain: projects`: the 13 distinct domains are files, memory, timers, brain, workshop, desktop, search, media, dev, calendar, weather, personas and news."
+    },
+    {
+      "claim": "wiki/backend/tool-catalog.md lines 91-102 state that the projects domain is granted to nobody and that the eight tools behind it are unreachable in ordinary conversation.",
+      "status": "contradicted",
+      "evidence": "The page states it at lines 91-102, calling it 'the single most consequential finding on this page'. The domain no longer exists in backend/harness/valar/tools/tools.yaml, and the tools it named have been split as the page itself proposed: choice_card, compose_view, list_cards and forge_card are `workshop` (tools.yaml lines 1005, 960, 942, 1138), start_project, import_brain and complete_brain_setup are `brain` (lines 1033, 1056, 1075), and create_persona is `personas` (line 1091). backend/personas/Sulivan/sulivan.json lines 61-75 grant workshop, brain and personas."
+    },
+    {
+      "claim": "wiki/backend/tool-catalog.md lines 92-93 and 104-106 report Sulivan's grants as nine domains including briefs.",
+      "status": "contradicted",
+      "evidence": "The page states it at lines 92-93 and builds a second finding on it at lines 104-106. backend/personas/Sulivan/sulivan.json lines 61-75 list 13 domains: weather, timers, search, news, memory, media, dev, files, workshop, brain, personas, desktop, calendar. briefs is not among them, so the 'unknown domain(s) ignored' log the page describes no longer fires for Sulivan."
+    },
+    {
+      "claim": "wiki/backend/tool-catalog.md line 51 states the catalog holds 31 entries, 27 of them enabled.",
+      "status": "contradicted",
+      "evidence": "The page states it at line 51, dated 2026-08-15. backend/harness/valar/tools/tools.yaml holds 48 `- name:` entries, two of which carry `enabled: false` (lines 67 and 567), so 46 are enabled."
+    },
+    {
+      "claim": "wiki/first-run.md lines 287-292 state that adding a persona still needs cache invalidation rather than a process exit.",
+      "status": "contradicted",
+      "evidence": "The page states it as a problem to solve at lines 287-292. backend/harness/valar/tools/handlers/creation.py lines 9-11 record the resolution: 'The engine needs no invalidation for a NEW persona: discovery re-reads the directory and load() only caches names it has seen. The os._exit restart in the apply route is the EDIT path's problem, not this one's.' Confirmed against engine.py lines 69-85 and 92-94."
+    },
+    {
+      "claim": "A reviewed date on this corpus is not evidence that a page matches source.",
+      "status": "verified",
+      "evidence": "wiki/features/personas.md line 5 carries last_reviewed: 2026-09-03 and holds four claims contradicted by source (lines 83-86, 95-96, 96-100, 111-113). wiki/backend/tool-catalog.md line 5 carries the same date and names backend/harness/valar/tools/tools.yaml and backend/personas/Sulivan/sulivan.json in its own sources at lines 11 and 18, while contradicting both at lines 51, 75, 91-102 and 104-106."
+    },
+    {
+      "claim": "The tool layer is off by default in the library and turned on by the installer, so the creation route works on an installed house.",
+      "status": "verified",
+      "evidence": "backend/harness/valar/tools/__init__.py lines 42-48 return False when HEARTH_TOOLS_ENABLED is unset. desktop-client/src-tauri/src/config_gen.rs line 189 writes HEARTH_TOOLS_ENABLED=1 into the generated environment, and backend/scripts/render_config.py line 128 does the same. The first-run interview does not depend on it, because that path calls create_persona directly (voice_loop.py lines 2006-2011) rather than through the registry."
+    },
+    {
+      "claim": "Personas is correctly typed as a concept page.",
+      "status": "verified",
+      "evidence": "wiki/features/personas.md line 4 declares type: concept. wiki/page-types.md lines 129-137 name Personas as a concept page in the corpus, and lines 138-154 give the shape and the rule 'No procedures. If steps appear, they belong on a how-to page this one links to.' The creation route therefore has to be stated rather than numbered."
+    },
+    {
+      "claim": "The wiki linter reports no errors on the corpus and no errors on Personas.",
+      "status": "verified",
+      "evidence": "python scripts/lint_wiki.py reports '28 pages checked, 0 errors, 200 warnings'. Run with --warnings, wiki/features/personas.md carries five: long-paragraph at lines 48, 56, 93 and 106, and long-section at line 46 ('256 words under \"Making your first one\" with no H3')."
+    },
+    {
+      "claim": "The desktop client tells a reader that a persona with no clip borrows the house voice.",
+      "status": "contradicted",
+      "evidence": "desktop-client/src/components/personas/PersonasView.tsx line 357 renders 'No clip yet, so they borrow the house voice.' backend/harness/valar/voice/tts_service.py lines 145-157 do the opposite: the no-clip case clears the voice and lets the engine refuse. This is a client label disagreeing with the server, not a wiki defect, and it is recorded so the author does not take the client's wording as the product's behaviour."
+    },
+    {
+      "claim": "The colour swatch names create_persona advertises match the ones it accepts.",
+      "status": "contradicted",
+      "evidence": "backend/harness/valar/tools/tools.yaml line 1124 offers 'Ember, Tide, Fern, Heather, Clay' to the persona composing the call. backend/harness/valar/tools/handlers/creation.py lines 52-60 accept ember, tide, fern, plum and clay; the comment at lines 56-57 records that heather was renamed to plum because 'a live run named the persona after the swatch the person tapped'. A reader who says Heather gets Ember and a note (creation.py lines 94-100). A product defect, recorded rather than fixed."
+    }
+  ],
+  "gaps": [
+    "No page in the corpus documents the Personas page itself. desktop-client/src/components/personas/PersonasView.tsx line 28 names wiki/clients/persona-page.md as its design of record and that file does not exist; find wiki -name '*persona*' returns only features/personas.md, features/persona-face.md and three raw/ specs. wiki/features/persona-face.md line 117 refers to 'Personas > Animations' as though the page were described somewhere, and it is not.",
+    "No page states how a reader makes a persona after first run has ended. That is the gap T5 exists to close.",
+    "No page states that a persona made before commit 4ca4807 cannot make another, or names the two routes that work for such a reader.",
+    "No page states that removing a persona is behind developer mode, or that removal renames rather than deletes.",
+    "No page states that an edit on the Personas page restarts the house while making a persona does not.",
+    "No canonical or primary source outside the repository bears on any claim here. Hearth reaches no external service, so the source tree is the only authority and no external reference was sought."
+  ],
+  "skeleton": [],
+  "recommended_type": "concept",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does T5 own the corrections on wiki/backend/tool-catalog.md, wiki/features/voice.md and wiki/first-run.md, or do those need their own tracker rows? The tracker states at line 220 that task targets do not overlap, and T3 already owns wiki/first-run.md for a different defect in a different section. Each of the three contradicts what T5 will state on Personas, so none can simply be left.",
+    "Should Personas state that a persona made before this change cannot make another, or is that a release-note concern rather than a concept-page concern? The fact is verified either way (persona_template.json is expanded once at creation and nothing migrates an existing manifest), and the reader it affects is anyone whose house predates 2026-09-03.",
+    "Should Personas name the two developer-mode switches that gate Remove, or say only that removal is behind developer mode? Naming both is accurate (Settings > Developer > Developer mode, then the switch that appears on the Personas page itself) and may be more procedure than a concept page should carry under wiki/page-types.md lines 153-154.",
+    "create_persona tells the persona 'Stop speaking as yourself after this turn: the house will hand over, and {name} speaks next' (creation.py lines 439-446), but outside first run nothing switches, because persona_created is read only by the first-run turn (voice_loop.py line 2014). A reader may hear their persona announce a handover that does not happen. Is the fix the tool's return text or the missing handover, and should Personas describe today's behaviour in the meantime?",
+    "A persona made outside first run does not reach the switch chips until the desktop client reconnects, because list_personas is sent only on client_info_ack and after persona_switched (useHearthWebSocket.ts lines 119 and 179). Is that intended, and does the page need to tell a reader to expect it?",
+    "tools.yaml line 1124 offers the swatch name Heather, which creation.py lines 52-60 no longer accept; a reader who chooses it silently gets Ember. Product defect or stale tool description?",
+    "desktop-client/src/components/personas/PersonasView.tsx line 357 tells a reader that a persona with no clip borrows the house voice, while backend/harness/valar/voice/tts_service.py lines 145-157 clear the voice and let the engine refuse. Which is the intended behaviour, and which of the two should change?",
+    "wiki/backend/tool-catalog.md is stale well beyond the create_persona row: the entry count at line 51, the domain column across lines 71-78, the audit at lines 91-102 and the briefs finding at lines 104-106 all disagree with tools.yaml and sulivan.json as they stand. Its last_reviewed is 2026-09-03. Does that page need a rebuild rather than a correction?"
+  ],
+  "notes": "Sized M rather than the dispatched S, and the reason is the survey rather than the page. wiki/features/personas.md on its own is an S: one section rewritten (## Switching and multiple personas, lines 104-113) plus an addition stating the creation route, most naturally beside ## Making your first one at lines 46-71. What moves it to M is that the staleness sweep the dispatch asked for found three further contradicted claims on that same page (lines 83-86, 95-96, 96-100) and three more pages the correction cannot leave standing: wiki/backend/tool-catalog.md line 75 and lines 91-102, which state create_persona is unreachable; wiki/features/voice.md lines 32 and 38-43, which carry the same permanent-reference and pending-pickup claims; and wiki/first-run.md lines 287-292, which still treats the no-restart behaviour as an unsolved problem. Named candidate pages, which is the M evidence bar.\n\nType and Mode agree: Fix pairs with affected, so skeleton, objectives, journeys and consolidation are all empty as the contract requires.\n\nThe dispatch's central fact is confirmed at source and is stronger than the tracker recorded. persona_template.json line 33 grants the personas domain, and tools.yaml line 1091 shows that domain contains exactly one tool, create_persona, so the grant enables creating a persona and nothing else: not editing, not removing, not switching. git show 4ca4807 confirms the change is template-only, which is what makes the pre-change caveat real.\n\nThe older Sulivan-only route is superseded and must not be written, but it is not false: sulivan.json line 72 grants personas, so switching back to him still works. It is simply no longer the only route, and for a reader whose persona predates the change it is one of the two that do work.\n\nOn the first carried open question, the earlier research pass was right and I can now name the surfaces. Editing is ungated on the desktop Personas page, reached by an unlabelled-but-titled Personas icon in the stage nav. Removing needs Developer mode on in Settings and then a second switch on the page itself, and even then it renames rather than deletes and refuses the default persona. iPhone edits two fields and Android edits one; neither can remove. The whole stage, chips and nav alike, is hidden below the lg breakpoint on desktop.\n\nOn the last open question, the reviewed date is worth nothing on this corpus and the evidence is not confined to Personas. wiki/backend/tool-catalog.md carries today's date, names tools.yaml and sulivan.json in its own sources field, and contradicts both in four places. I have reported that page's wider staleness as an open question rather than expanding affected_docs into a page rebuild T5 was not dispatched for.\n\nAll tools in my contract were available. Bash ran, so scripts/lint_wiki.py is in the record (28 pages, 0 errors, 200 warnings; five warnings on Personas, all long-paragraph or long-section). scripts/doc_graph.py was not run: it belongs to graph mode and this is an affected pass. No external source was searched or fetched, because every claim here is settled by the repository and Hearth reaches no external service.\n\nKnown evidence resolved in full. Every location the dispatch cited exists and reads as described, with one refinement: the sentence the dispatch gives as lines 111-113 begins mid-line at line 111, after the picker sentence that ends there.\n\nThe only file written is tasks/docs/artifacts/T5.research.json."
+}

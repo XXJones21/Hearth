@@ -1,0 +1,88 @@
+{
+  "task_id": "T7",
+  "mode": "restructure",
+  "docs_written": [
+    {
+      "path": "wiki/getting-started.md",
+      "sections": [
+        "frontmatter",
+        "# Getting started",
+        "## Understand what Hearth is",
+        "## Picture the house and its windows",
+        "## Check that your machine can run it",
+        "## Download the build that exists today",
+        "## Make a persona of your own",
+        "## Expect rough edges"
+      ]
+    }
+  ],
+  "sections": [
+    { "heading": "# Getting started (title and abstract)", "status": "written" },
+    { "heading": "## Understand what Hearth is", "status": "written" },
+    { "heading": "## Picture the house and its windows", "status": "written" },
+    { "heading": "## Check that your machine can run it", "status": "written" },
+    { "heading": "## Download the build that exists today", "status": "written" },
+    { "heading": "## Make a persona of your own", "status": "written" },
+    { "heading": "## Expect rough edges", "status": "written" },
+    { "heading": "## Three steps to a running house", "status": "skipped" },
+    { "heading": "## Where to go next", "status": "skipped" }
+  ],
+  "deviations": [
+    {
+      "from": "the author contract's stop rule for a dispatch Page type that disagrees with the page's own type: frontmatter",
+      "why": "The page declared type: how-to and the dispatch named concept. I proceeded rather than stopping, because the disagreement is the task itself rather than an ambiguity: the dispatch states the page is mistyped on its own terms, the findings carry recommended_type concept, and a verified claim records that the page's only numbered list routes to other pages instead of instructing. Reported here so the reviewer can see the choice was made deliberately."
+    },
+    {
+      "from": "## Three steps to a running house",
+      "why": "Dropped on the dispatch's direction. The concept shape at wiki/page-types.md:153-154 forbids procedures, and a verified claim records that the list routed rather than instructed. Its facts are retained elsewhere on the page: the client scanning hardware and planning a model now sits under ## Check that your machine can run it, and the Sulivan interview and the second brain now sit under ## Make a persona of your own. The two routings to wiki/first-run.md are replaced by one pointer to wiki/meeting-your-persona.md."
+    },
+    {
+      "from": "## Where to go next",
+      "why": "Dropped on the dispatch's direction. A verified claim locates all seven of its links already in wiki/_index.md, and wiki/page-types.md:93 makes routing the index's job. No fact was carried by the section beyond the links themselves."
+    },
+    {
+      "from": "concept shape item 5 at wiki/page-types.md:145, links to the how-to pages that act on it",
+      "why": "Written inline, one link per section (Installing Hearth, Meeting your persona, Developing on Hearth), rather than as a closing links section. A links section here would rebuild the routing the same reshape just dropped."
+    },
+    {
+      "from": "the heading ## What you need",
+      "why": "Re-headed to ## Check that your machine can run it, so the page carries action titles as wiki/page-types.md:59-62 requires. The section's content is retained and the dispatch's instruction to keep it was read as keeping the content, not the noun heading. Its long-paragraph warning is cleared: the one 80-word paragraph is now four short ones and a three-item list."
+    },
+    {
+      "from": "the findings artifact as the sole fact supply for the Windows hardware bands",
+      "why": "The three bands do not trace to a claims[] entry with status verified. The band boundaries are carried in the evidence of the claims[] entry whose status is contradicted (that entry contradicts the page's old 8 GB VRAM sentence) and in open_questions item 3, which asks an owner to choose which number to publish. The dispatch made that editorial call and named the three-band form. I confirmed the three branches directly in source this session: crates/hearth-probe/src/plan.rs:128-157 has the coexist arm, the take-turns arm carrying the one-at-a-time warning, and PlanError::TooSmall as the only refusal, and crates/hearth-probe/dictionary.yaml:84, 89, 102, 113 and 176 carry the constants the boundaries are computed from. No specific graphics card is named, per the dispatch."
+    },
+    {
+      "from": "the frontmatter related list",
+      "why": "Pruned from ten entries to six. features/personas.md, features/second-brain.md, features/voice.md, features/apps-and-extensions.md and clients/ios.md went with the routing section that carried them, and first-run.md was replaced by meeting-your-persona.md because the persona and second-brain pointer now aims there. install-macos.md was added, since the page now sends a reader toward an unsigned macOS artifact. All six remaining entries resolve to real files."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Whether v0.1.0-alpha is still the newest Hearth release when this page publishes.",
+      "why": "The findings carry this at status unverifiable: a single fetch of the rendered listing showed one release, which is not proof that no newer one exists or will exist. The page links the floating releases index rather than the pinned tag URL and says v0.1.0-alpha is what is published there today, so a later release does not make the link dead, but the version and date sentence will need re-checking at the next release."
+    },
+    {
+      "what": "Neither wiki/clients/ios.md nor wiki/clients/visionos.md tells a reader that no iOS or visionOS build can be obtained today.",
+      "why": "Recorded as a gap in the findings and raised again in open_questions item 6. Both pages are outside Target docs, so this page states the limit for itself and the two client pages are left as they are."
+    },
+    {
+      "what": "wiki/_index.md:24-27 introduces the Getting started group without saying that this page is now where the corpus states how to obtain Hearth.",
+      "why": "Open question 5 in the findings assigns that prose to T11. wiki/_index.md is outside Target docs and the dispatch forbids editing it, so T11's dispatch needs to be told the download statement now lives on this page."
+    },
+    {
+      "what": "wiki/backend/build-pipeline.md:158 still states that on 8 GB the model and the voice cannot coexist, which the planner contradicts.",
+      "why": "Recorded as contradicted in tasks/docs/artifacts/T1.research.json and repeated in this task's open_questions item 4 as still unowned. The page is outside Target docs."
+    },
+    {
+      "what": "tasks/docs/tracker.md cites wiki/installing.md:24 for the sentence You have the Hearth installer, at both :909 and :1097. The sentence is at wiki/installing.md:27.",
+      "why": "A findings entry marked contradicted. The tracker is not a documentation page and is not mine to write; the reasoning built on the sentence is unaffected."
+    },
+    {
+      "what": "python scripts/lint_wiki.py was not run against the reshaped page.",
+      "why": "This session has no shell tool, so I checked the page against scripts/lint_wiki.py by reading the script instead: frontmatter keys present, type concept accepted by TYPES at lines 48-51, status closed accepted, one H1 matching the frontmatter title, sentence-case headings, every related entry and every relative body link resolving to a real file, no em dash or -- proxy, no emoji, American spellings, no paragraph over 60 words, and no section over 200 words. A run of the linter should still confirm the corpus stays at 0 errors."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

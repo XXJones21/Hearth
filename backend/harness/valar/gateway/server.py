@@ -124,10 +124,11 @@ def create_app(config: ValarConfig) -> FastAPI:
     apps_api.register(app, config)
 
     # --- the household: read and write persona.json -----------------------
-    from valar.gateway import personas_api, routines_api
+    from valar.gateway import feed_api, personas_api, routines_api
 
     personas_api.register(app, config)
     routines_api.register(app, config)
+    feed_api.register(app, config)
 
     # --- subsystems (built once, shared) ---------------------------------
     personas = PersonaEngine(config.persona_dir, config.default_persona)

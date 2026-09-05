@@ -1,0 +1,58 @@
+{
+  "task_id": "T1",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/installing.md",
+      "sections": [
+        "## The scan and the plan",
+        "## Choosing where it lives",
+        "## The download"
+      ]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "Deliverable spec item 3, which offered two ways to reconcile the download sentence with the download figure",
+      "why": "Chose the second option: kept all four items and made explicit that the plan's figure covers the model and the voice. Narrowing the sentence to two items would have removed true information a reader on a metered connection needs, namely that the engine and the interpreter also download. The correction is one added sentence rather than a rewrite. Traces to the verified claims that downloads[] carries exactly two entries whose sum is total_download_bytes (crates/hearth-probe/src/plan.rs:214-234) and that the engine and the interpreter are fetched outside the planner (desktop-client/src-tauri/src/provision.rs chains B and C)."
+    },
+    {
+      "from": "Deliverable spec item 1, which described the replacement as restating that the plan explains its own reasoning in plain sentences including anything it had to trade away",
+      "why": "The page already states exactly that two sentences earlier, at the paragraph introducing the plan table. Repeating it would have said the same thing twice, so the replacement keeps only the half that was not already on the page: that where a machine is small, Hearth says so in your language rather than in specs. No fact was dropped."
+    },
+    {
+      "from": "The smallest possible edit at ## Choosing where it lives",
+      "why": "The corrected Windows sentence is longer than the one it replaces, which would have pushed that paragraph well past the style guide's paragraph length. Split the existing paragraph in two at the sentence being corrected. No wording outside the corrected sentence changed, and no section moved."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Which machines actually take turns between the model and the voice, and at what memory. The page now states the general behavior and names no machine class.",
+      "why": "The research artifact derives the !coexist branch at roughly 4.5 to 5.4 GB of dedicated VRAM by hand from crates/hearth-probe/src/plan.rs:110-159 and dictionary.yaml rather than from an executed planner run, and no fixture exercises it. The deliverable spec forbids publishing that band or any specific machine class, so the page states neither."
+    },
+    {
+      "what": "wiki/clients/macos.md:51-54 and wiki/install-macos.md:84-86 carry the same four-things sentence beside the same under-counting plan figure, and need the same choice applied by their own tasks (T4 and T16).",
+      "why": "Out of scope: Target docs names only wiki/installing.md. This task chose to keep all four items and name what the plan figure counts; a different choice on those pages would leave the corpus inconsistent."
+    },
+    {
+      "what": "How many bytes the inference engine and the Python runtime add on top of the plan's download figure.",
+      "why": "The research artifact records the amounts, but the deliverable spec rules them out as new content rather than a correction, and the voice environment's pip installs have no recorded size at all (crates/hearth-probe/dictionary.yaml:59-67). The page now tells a reader the figure is incomplete without telling them by how much."
+    },
+    {
+      "what": "Which downloaded artifacts carry no published sha256, namely the two OmniVoice GGUFs (dictionary.yaml:117, 120, with the FOLLOW-UP note at 126-128) and the llama.cpp archives (dictionary.yaml:44-54).",
+      "why": "The deliverable spec asked for a one-sentence correction and not a catalog of which artifact carries which hash, so the page now claims only what holds and does not name the exceptions. A reader who wants to know what is unverified cannot learn it from this page."
+    },
+    {
+      "what": "Whether the corpus keeps the product's unit convention, GiB printed under a GB label, or restates its figures in decimal GB.",
+      "why": "Carried as an open question in the research artifact. Nothing in wiki/style-guide.md or wiki/page-types.md states a rule, and no source settles it. The four figures on this page were left exactly as found, per the deliverable spec."
+    },
+    {
+      "what": "The linter was not run. python scripts/lint_wiki.py could not be executed in this session.",
+      "why": "This session's tool set is Read, Grep, Write and Edit only, with no command execution. The five mechanical conventions in wiki/developing.md were checked by reading instead: the edits add no em dash, no emoji, no heading, no link and no frontmatter change, and the wiki/style-guide.md terminology table was applied to every sentence added. Someone with a shell should run the linter and confirm 0 errors before this page is signed off."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": [],
+  "notes": "Four correction sites, all inside wiki/installing.md. (1) ## The scan and the plan: the take-turns passage that attributed the planner's !coexist warning to an 8 GB machine is gone; the general statement that Hearth speaks in your language where a machine is small survives. Lines 39-42 under ### macOS were not touched. (2) ## Choosing where it lives: the Windows default install root now describes the roomiest non-removable, non-system fixed drive with the user-profile fallback, and names no drive letter. This correction traces to the evidence field of the contradicted claim on wiki/installing.md:85-86 and to the affected_docs entry for this page, both citing crates/hearth-probe/src/machine.rs:232-272; the findings carry no separately listed verified claim stating the Windows default in the positive, and the deliverable spec states the same behavior. (3) ## The download: the four-item sentence stands, followed by one sentence naming what the plan figure counts. (4) ## The download: the hash sentence now claims verification only for files that carry a published hash; the rest of that paragraph is unchanged. Not changed, deliberately: the four size figures at lines 42-44, 72 and 75, the 17,408 and 65,536 token windows, the plan table, the ### macOS section, and the page's how-to shape defect, which belongs to T9."
+}

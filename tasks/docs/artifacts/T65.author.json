@@ -1,0 +1,31 @@
+{
+  "task_id": "T65",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/first-run.md",
+      "sections": [
+        "### Say what you found, and be honest about it",
+        "frontmatter `sources`"
+      ]
+    }
+  ],
+  "sections": [],
+  "deviations": [],
+  "unresolved": [
+    {
+      "what": "Where a reader who is not looking at the source tree can see the shipped refusal wording itself.",
+      "why": "Findings gap 1: wiki/install-macos.md:32-34 is the corpus's only verbatim copy and it leaves the published wiki under T16, and claim 4 establishes that wiki/installing.md:39-45 describes the refusal without quoting it. The replacement sentence names crates/hearth-probe/src/plan.rs as where the wording lives, which serves a reader changing the house but not a reader who only has the wiki. No verified claim supplies a reader-facing destination that carries the wording, so the page states none."
+    },
+    {
+      "what": "Whether the crates/hearth-probe/src/plan.rs:89-90 template may be published on a wiki page with its three figure slots left unfilled.",
+      "why": "Findings open question 2 leaves it to the orchestrator, and this dispatch bounded the task to one sentence and explicitly forbade reproducing the wording. Publishing the figure-free template is the only repair identified that would close the gap above, and it remains unmade."
+    },
+    {
+      "what": "A linter run over the edited page.",
+      "why": "This agent's tool set is Read, Grep, Write and Edit, with no shell, so scripts/lint_wiki.py could not be executed. I verified the relevant rules by reading the source instead: is_prose at scripts/lint_wiki.py:211-216 excludes the replacement's first line because it still opens with `[`, so the 188-191 paragraph is still measured alone at 50 words; the sources check at lines 284-286 tests only ABS_PATH, which a repo-relative path does not match; and wiki/installing.md exists, so the relative link resolves. Someone with a shell should still run the linter before the gate."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

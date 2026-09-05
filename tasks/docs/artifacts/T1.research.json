@@ -1,0 +1,276 @@
+{
+  "task_id": "T1",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/installing.md",
+      "sections": [
+        "### macOS (lines 39-46)",
+        "## The scan and the plan (lines 58-79, specifically the table at 68-72, the sentence at 74-75, and the sentences at 75-79)",
+        "## Choosing where it lives (lines 81-92, specifically lines 85-86)",
+        "## The download (lines 94-104, specifically lines 96-97 and line 100)"
+      ],
+      "why": "THIS TASK'S PAGE, the only one to edit. Four edit sites, of which two are defects and two are not. (1) Lines 76-78 state that on an 8 GB machine the persona will think and speak one at a time. That is the planner's !coexist warning string (crates/hearth-probe/src/plan.rs:144-148) and an 8 GB Apple Silicon Mac does not reach that branch, so the sentence is contradicted by source and by the pinned test at crates/hearth-probe/tests/plan_fixtures.rs:36-52; lines 39-42 in the same page are correct. (2) Lines 85-86 state the Windows default install root is `D:\\Hearth`. crates/hearth-probe/src/machine.rs:232-251 names no drive letter: on Windows it is `Hearth` on the roomiest non-removable non-system fixed drive, falling back to `%USERPROFILE%\\Hearth` on a single-drive machine; the macOS half of the sentence is correct. (3) Lines 96-97 name four things downloading beside a plan figure that counts two of them; the sentence is accurate about what provisioning does (desktop-client/src-tauri/src/provision.rs:1-14, desktop-client/src/lib/probe.ts:120-134) but the number the page prints at line 72 covers only the model weights and the OmniVoice weights (crates/hearth-probe/src/plan.rs:214-234). (4) The four figures at lines 42-44, 72 and 75 are NOT stale: 3.77 GB, 7.14 GB, 4.5 GB and 8.6 GB each reproduce a planner quantity under the product's own renderer, so they need no arithmetic change. One further defect sits inside the same `## The download` section: line 100's `Every file is verified against a published sha256 hash once it lands` is contradicted for the voice weights and the inference engine, which carry no hash."
+    },
+    {
+      "path": "wiki/clients/windows.md",
+      "sections": ["## What the installer gives you (line 151)"],
+      "why": "ALREADY OWNED BY T2, named here only so the record is complete. Line 151 states the install root is `D:\\Hearth` by default, the same claim contradicted by crates/hearth-probe/src/machine.rs:232-272. Not this task's edit."
+    },
+    {
+      "path": "wiki/first-run.md",
+      "sections": ["The install root (line 112)", "The scan reports back (lines 182-184)"],
+      "why": "ALREADY OWNED BY T3, named here only so the record is complete. Line 112 shows `<root>\\ the chosen folder, D:\\Hearth by default`, and lines 182-184 state that on 8 GB the brain and the voice cannot both stay resident. Both are contradicted by the same source citations that settle wiki/installing.md:76-78 and 85-86. Not this task's edit."
+    },
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": ["## Setting it up (lines 42, 97-99)", "## What installing gives you (lines 51-54)"],
+      "why": "ALREADY OWNED BY T4, named here only so the record is complete, with one correction the T4 author needs. The figures at line 42 (4.5 GB, 8.6 GB) and lines 97-99 (17,408 tokens, 3.77 GB, 65,536 tokens, 7.14 GB) all verify correct against source and must not be changed. The genuine defect on that page is lines 51-54, the same four-things sentence as wiki/installing.md:96-97, and lines 51-54 also state `~/Hearth` as the macOS default, which is correct per crates/hearth-probe/src/machine.rs:245-247. Not this task's edit."
+    },
+    {
+      "path": "wiki/install-macos.md",
+      "sections": ["Free disk (line 36)", "The plan table (lines 75-81)", "It downloads and provisions (lines 84-86)"],
+      "why": "NOT OWNED BY ANY FIX TASK. The tracker retires this page under T16 after salvage. It carries the same figures as wiki/installing.md (4.5 GB, 8.6 GB, 17,408 tokens, 3.77 GB, 7.14 GB), all of which verify correct, and the same four-things sentence at lines 84-86 that the plan figure under-counts. If T16 retires the page before a reader sees it, nothing needs doing; if the retirement slips, this page states the counting problem a third time."
+    },
+    {
+      "path": "wiki/backend/build-pipeline.md",
+      "sections": ["### The install root (line 106)", "The setup flow steps (line 158)"],
+      "why": "NOT OWNED BY ANY TASK, and found by this survey rather than named in the dispatch. Line 106 states the user chooses `D:\\Hearth` by default, contradicted by crates/hearth-probe/src/machine.rs:232-272. Line 158 states `On 8 GB they cannot` about the voice and the brain coexisting, the same claim contradicted at wiki/installing.md:76-78. Needs a tracker row."
+    },
+    {
+      "path": "wiki/backend/native-runtime.md",
+      "sections": ["## The install root, per platform (line 79)"],
+      "why": "NOT OWNED BY ANY TASK, and found by this survey rather than named in the dispatch. The layout block reads `Windows: <root> = D:\\Hearth (chosen at setup)`, contradicted by crates/hearth-probe/src/machine.rs:232-272. The macOS half, `~/Hearth`, is correct. Needs a tracker row."
+    },
+    {
+      "path": "wiki/features/second-brain.md",
+      "sections": ["Everything else you own (line 64)"],
+      "why": "NOT OWNED BY ANY TASK, and found by this survey rather than named in the dispatch. Line 64 names the Hearth home folder as `~/.hearth`. desktop-client/src-tauri/src/config_gen.rs:64 renders HEARTH_HOME as `<root>/home` using crates/hearth-probe/src/defaults.rs:46, and crates/hearth-probe/src/machine.rs:245-248 keeps the `.hearth` dotdir for Linux only, so `~/.hearth` is the WSL testbed shape rather than the installed product's. Needs a tracker row. Adjacent to T1 only because it is the same dotdir question."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs",
+      "covers": "The whole budget arithmetic. Reserves and the coexistence decision at lines 104-159; the context window at 163 and 279-283; the two-entry downloads[] and their sum at 214-234; disk_required as total plus a fifth at 236-237; the small-machine warning string at 144-148 and the branch that pushes it."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml",
+      "covers": "Every constant the arithmetic uses: reserves at 79-89, the per-platform voice engine at 91-129, tier 0 at 132-177 and tier 2 at 198-211, and the runtime artifacts at 27-67 whose bytes the planner never counts."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs",
+      "covers": "The default install root per platform at 224-272, and the fixtures the figures are quoted from at 275-360."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/lib.rs",
+      "covers": "human(), lines 24-35: every size the product prints is bytes divided by GiB under a `GB` label. This is what settles whether the page's figures are stale."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/tests/plan_fixtures.rs",
+      "covers": "The pinned contract for the 8 GB Air at lines 36-52, including the assertion that no `one at a time` warning is produced, and the context-window floor at 54-75."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/provision.rs",
+      "covers": "What is fetched outside the planner: the module contract at 1-14 and the backend, inference engine and Python runtime chains at 248-369."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/lib/probe.ts",
+      "covers": "The five provisioning rows at 120-134 and the client's own human() at 158-164, byte-identical to the Rust one."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/components/setup/SetupFlow.tsx",
+      "covers": "What the plan screen actually shows a reader: the per-item download rows and the `Download` total at 474-484 and 548, the context window and `Mind and voice` rows at 501-506, the panel title keyed on coexist at 446, and the install-root field seeded at 132."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/probe.rs",
+      "covers": "probe_install_root at 86-88, which is the default the setup screen displays, and the voice row that is counted but not fetched at 178-196."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/download.rs",
+      "covers": "The hash behaviour at 154-206: verification happens only where the dictionary carries a sha256, and a mismatch deletes the file and fails."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/config_gen.rs",
+      "covers": "HEARTH_HOME rendered as <root>/home at line 64, with the relative path from crates/hearth-probe/src/defaults.rs:46."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/page-types.md",
+      "covers": "The how-to shape at lines 96-128, which names wiki/installing.md as a how-to in the corpus. Nothing here settles a product behaviour."
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md",
+      "covers": "The recorded task state and the three open questions carried onto T1, at lines 268-312, and the ownership of T2 through T5."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/installing.md states, of the same machine, both that an 8 GB M2 MacBook Air runs the mind and the voice at once and that on an 8 GB machine the persona will think and speak one at a time.",
+      "status": "verified",
+      "evidence": "wiki/installing.md, ### macOS, lines 39-42; and ## The scan and the plan, lines 75-79. Both read in full."
+    },
+    {
+      "claim": "An 8 GB Apple Silicon Mac plans with the mind and the voice both resident, so lines 39-42 are the correct half of the contradiction.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:104-136. Pool for the m1-air-8gb fixture is ram_bytes, 8,589,934,592 (machine.rs:297-314, vram None so memory_pool falls to RAM at machine.rs:52-57). base = stt 805,306,368 + headroom 1,073,741,824 + os_unified 2,415,919,104 = 4,294,967,296 (dictionary.yaml:79-89, plan.rs:110-113). macOS is in cpp_platforms (dictionary.yaml:102) so voice_resident is 966,367,641 (dictionary.yaml:113, dict.rs:76-78). coexist_budget = 3,328,599,655, which holds tier 0 Q4_K_M at 3,106,738,272 (dictionary.yaml:162-165) with room for context, so best_fit succeeds on the coexist branch at plan.rs:128-136 and coexist is true. Pinned as a contract at crates/hearth-probe/tests/plan_fixtures.rs:36-52, which asserts p.coexist and asserts that no warning contains `one at a time`."
+    },
+    {
+      "claim": "wiki/installing.md:76-78 is contradicted: the take-turns phrasing is the planner's warning for the !coexist branch, which an 8 GB Mac does not reach.",
+      "status": "contradicted",
+      "evidence": "The page states it at wiki/installing.md:75-79. The opposite is stated by crates/hearth-probe/src/plan.rs:137-150, where the warning `Your persona will think and speak one at a time` is pushed only inside the sequential-budget branch, and by crates/hearth-probe/tests/plan_fixtures.rs:48-51, whose comment records that this test used to assert the opposite and changed when omnivoice.cpp replaced the torch voice."
+    },
+    {
+      "claim": "On macOS the !coexist branch is unreachable for any machine Hearth accepts, so no Mac produces the take-turns warning.",
+      "status": "verified",
+      "evidence": "Derived from crates/hearth-probe/src/plan.rs:110-159 with dictionary.yaml:79-89, 102, 113, 162-177. On unified memory the held-back base plus the C++ voice is a fixed 5,261,334,937 bytes. At 8 GB the remaining 3,328,599,655 already clears tier 0 Q4_K_M plus a context floor (3,157,069,920), and every larger Mac clears it by more; at 6 GB the sequential budget of 2,147,483,648 is below the smallest build plus floor (2,587,117,664) and plan.rs:151-157 refuses the machine outright. The band between refusal and coexistence is not a size any Apple Silicon Mac ships in. Arithmetic mine, from cited constants; not executed."
+    },
+    {
+      "claim": "The !coexist branch is nonetheless live code and is reached by a machine with roughly 4.5 to 5.4 GB of dedicated VRAM.",
+      "status": "verified",
+      "evidence": "Derived from crates/hearth-probe/src/plan.rs:110-159 with dictionary.yaml:79-89, 102, 113, 174-177. On a non-unified machine base is 1,879,048,192 and the C++ voice 966,367,641, so coexistence needs a pool above about 5.43 GB while a plan of any kind needs a pool above about 4.47 GB. A 5 GB card (5,368,709,120) has a coexist budget of 2,523,293,287, under the 2,587,117,664 the smallest build plus its context floor needs, and a sequential budget of 3,489,660,928, which holds tier 0 Q4_K_M. No fixture exercises this and it is not a Mac; recorded because it is what an honest replacement sentence at lines 76-78 can still say about a small machine. Arithmetic mine, from cited constants; not executed."
+    },
+    {
+      "claim": "An 8 GB Mac plans an n_ctx of 17,408, so the figure at wiki/installing.md:71 is correct.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:163 and ctx_for at 279-283. left = 3,328,599,655 - 3,106,738,272 = 221,861,383 bytes; divided by tier 0's kv_bytes_per_token of 12,288 (dictionary.yaml:141) that is 18,054 raw, clamped under max_ctx 32,768 (dictionary.yaml:140) and rounded down to a multiple of 1024 by plan.rs:282, giving 17,408. Cross-check on the method: the same constants render the planner's reason string at plan.rs:187-190 as `212 MB is left after the weights, which is about 17408 tokens of context at this model's rate`, because 221,861,383 bytes is 211.58 MiB and human() formats sub-GiB values to a whole MiB (crates/hearth-probe/src/lib.rs:26-34). That is the string the dispatching lead reported from an executed run, reproduced here from source alone."
+    },
+    {
+      "claim": "The plan table's model row for an 8 GB Mac, Gemma 4 E2B at Q4_K_M, is what the planner chooses.",
+      "status": "verified",
+      "evidence": "dictionary.yaml:134 names the model and 161-165 puts Q4_K_M first on the ladder; plan.rs:161-163 takes ladder[0] when it fits, and fit_at at plan.rs:308-321 accepts it because its 17,408-token window clears TARGET_CTX 16,384 (plan.rs:25, 299). Asserted at crates/hearth-probe/src/plan.rs:337-344."
+    },
+    {
+      "claim": "A 16 GB Mac plans Gemma 4 12B at a 65,536-token window, so wiki/installing.md:74-75 is correct on both counts.",
+      "status": "verified",
+      "evidence": "machine.rs:315-332 gives the m1-air-16gb fixture 17,179,869,184 bytes of RAM, so coexist_budget is 11,918,534,247. Tier 2's weights are 6,716,356,800 (dictionary.yaml:204), leaving 5,202,177,447 over a kv rate of 57,344 (dictionary.yaml:207), which is 90,718 raw and clamps to max_ctx 65,536 (dictionary.yaml:206) at plan.rs:282. Tier 3 does not fit: 14,249,047,104 plus its floor exceeds the budget (dictionary.yaml:224, plan.rs:310-314). Model name at dictionary.yaml:200."
+    },
+    {
+      "claim": "downloads[] carries exactly two entries, the model build and OmniVoice, and total_download_bytes is exactly their sum.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:214-234. The vec is literal and has two elements; the sum is `downloads.iter().map(|x| x.bytes).sum()` at line 234 and is assigned to total_download_bytes at line 267. This confirms what the dispatching lead reported from an executed run."
+    },
+    {
+      "claim": "The 3.77 GB at wiki/installing.md:72 is total_download_bytes for the 8 GB fixture as the product itself renders it, not a stale value.",
+      "status": "verified",
+      "evidence": "Bytes: 3,106,738,272 (dictionary.yaml:164) + 945,284,608 (dictionary.yaml:112, selected for macOS by dict.rs:70-72) = 4,052,022,880. crates/hearth-probe/src/lib.rs:26-34 divides by 1,073,741,824 and labels the result GB, giving `3.77 GB`; desktop-client/src/lib/probe.ts:158-164 is byte-identical and SetupFlow.tsx:482 and :548 render it in the plan card and on the button. The dispatching lead's 4.05 GB is the same 4,052,022,880 bytes expressed in decimal GB, a unit the product never prints."
+    },
+    {
+      "claim": "The 7.14 GB at wiki/installing.md:75 is total_download_bytes for the 16 GB fixture as the product renders it, not a stale value.",
+      "status": "verified",
+      "evidence": "6,716,356,800 (dictionary.yaml:204) + 945,284,608 (dictionary.yaml:112) = 7,661,641,408 bytes, which crates/hearth-probe/src/lib.rs:26-34 renders as `7.14 GB`. The dispatching lead's 7.66 GB is the same byte count in decimal GB."
+    },
+    {
+      "claim": "The free-disk figures at wiki/installing.md:42-44 name disk_required_bytes, and 4.5 GB and 8.6 GB are that quantity rendered and rounded to one decimal.",
+      "status": "verified",
+      "evidence": "disk_required = total + total/5 at crates/hearth-probe/src/plan.rs:236-237. 8 GB: 4,052,022,880 + 810,404,576 = 4,862,427,456, which lib.rs:26-34 renders as `4.53 GB`. 16 GB: 7,661,641,408 + 1,532,328,281 = 9,193,969,689, rendered `8.56 GB`. Those round to the page's 4.5 and 8.6. The alternative reading, total_download_bytes, would give 3.77 and 7.14, which the page prints separately at lines 72 and 75. plan.rs:238-242 confirms disk_required is the quantity compared against free disk and warned about. The lead's 4.86 GB and 9.19 GB are the same two byte counts in decimal GB."
+    },
+    {
+      "claim": "The dispatching lead's four figures contradict the page.",
+      "status": "contradicted",
+      "evidence": "They do not. 4,052,022,880 / 1e9 = 4.05, / 2^30 = 3.77; 4,862,427,456 / 1e9 = 4.86, / 2^30 = 4.53; 7,661,641,408 / 1e9 = 7.66, / 2^30 = 7.14; 9,193,969,689 / 1e9 = 9.19, / 2^30 = 8.56. The lead's figures and the page's figures are the same four byte counts under two unit conventions, and the convention the product prints is the page's (crates/hearth-probe/src/lib.rs:24-35, desktop-client/src/lib/probe.ts:158-164). Recorded as contradicted against the dispatch's premise, not against the page."
+    },
+    {
+      "claim": "wiki/installing.md:96-97 describes four things downloading and unpacking at once, and that description of provisioning is accurate.",
+      "status": "verified",
+      "evidence": "desktop-client/src-tauri/src/provision.rs:1-14 describes three chains starting alongside the model download, the bundled backend, the inference engine and the Python runtime, then a fork to the voice model and the voice environment. The five rows are named at desktop-client/src/lib/probe.ts:120-134 as `The backend`, `Inference engine`, `Python runtime`, `Voice model`, `Voice engine`, and the chains are implemented at provision.rs:248-369."
+    },
+    {
+      "claim": "The download figure printed beside that sentence covers only two of those items, because the inference engine and the Python runtime are fetched outside the planner.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs:214-234 counts the model build and the voice weights and nothing else. The engine and the interpreter come from dictionary.yaml:28-36 and 37-54 and are fetched by desktop-client/src-tauri/src/provision.rs, chain B at 281-322 (dict.runtime.llama_server) and chain C at 324-369 (dict.runtime.python); their bytes never enter total_download_bytes. On macOS that is a further 11,040,494 (dictionary.yaml:46) plus 25,285,557 (dictionary.yaml:35), about 35 MB. On Windows with CUDA it is 250,727,763 plus 391,443,627 (dictionary.yaml:49, 51) plus 47,056,137 (dictionary.yaml:31), about 657 MB, before the voice environment's pip installs, which have no recorded size at all (dictionary.yaml:59-67). So the sentence and the number are both defensible in isolation and misleading beside each other."
+    },
+    {
+      "claim": "The voice weights are counted in the plan total but are not fetched by the model-download step.",
+      "status": "verified",
+      "evidence": "The voice Download entry is built with url: None at crates/hearth-probe/src/plan.rs:230. The CLI prints `fetched by the runtime on first use, skipping here` for it at crates/hearth-probe/src/main.rs:167-169, and the client emits a `skipped` row with the message `installed by the Voice engine step` at desktop-client/src-tauri/src/probe.rs:183-193. The bytes are still summed into the total at plan.rs:234."
+    },
+    {
+      "claim": "The default install root on macOS is `Hearth` in the home directory.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:238-247: HOME or USERPROFILE joined with `Hearth` when the OS is macos or windows. Surfaced to the setup screen by desktop-client/src-tauri/src/probe.rs:86-88 and seeded into the destination field at desktop-client/src/components/setup/SetupFlow.tsx:132."
+    },
+    {
+      "claim": "The default install root on Windows is `D:\\Hearth`, as wiki/installing.md:85-86 states.",
+      "status": "contradicted",
+      "evidence": "The page states it at wiki/installing.md:85-86. crates/hearth-probe/src/machine.rs:232-237 states the opposite: on Windows the root is roomiest_non_system_drive() joined with `Hearth`, and that function at 256-272 filters out removable drives and the drive named by SystemDrive and then takes the one with the most free space. No drive letter appears anywhere in the file. When the machine has no such drive the function returns None and control falls through to lines 238-247, the visible `Hearth` in the user profile. The doc comment at 208-216 says the same in prose. `D:` is one possible outcome, never the default."
+    },
+    {
+      "claim": "The hidden `.hearth` dotdir survives only on Linux.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs:245-248: the visible `Hearth` is returned when the OS is macos or windows, and the `.hearth` dotdir is the return for everything else, with the comment at 239-244 recording that a dotdir on Windows was the bug. One caveat the page need not carry but the author should know: line 250 returns a bare relative `.hearth` on any platform when neither HOME nor USERPROFILE is set."
+    },
+    {
+      "claim": "wiki/installing.md:100, `Every file is verified against a published sha256 hash once it lands`, holds for every file.",
+      "status": "contradicted",
+      "evidence": "The page states it at wiki/installing.md:100. crates/hearth-probe/src/download.rs:154-166 hashes only when the caller passes a sha256, and the dictionary carries none for two of the fetched artifacts: both OmniVoice GGUFs are `sha256: null` at dictionary.yaml:117 and 120, with the FOLLOW-UP note at 126-128, and the llama.cpp archives at dictionary.yaml:44-54 carry no sha256 field at all, which the comment at 25-26 states outright. The model weights (dictionary.yaml:139, 165, 169, 173, 177) and the Python runtime (dictionary.yaml:32, 36) are hash-verified. Outside the task statement; recorded because it sits in a section T1 opens."
+    },
+    {
+      "claim": "wiki/installing.md:100-104, that a hash mismatch deletes the file and fails, and that a rerun resumes rather than refetching, is correct.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/download.rs:172-206: verify_sha256 removes the file and bails on mismatch. Resume from a `.part` file at download.rs:52-63 and the already-here skip at 34-49. Note that a size mismatch is deliberately not fatal (download.rs:127-140), which the page does not claim either way."
+    },
+    {
+      "claim": "wiki/installing.md:37-39, that Hearth fetches an arm64 inference engine and an aarch64 Python runtime on macOS, is correct.",
+      "status": "verified",
+      "evidence": "dictionary.yaml:45 names llama-b10358-bin-macos-arm64.tar.gz and dictionary.yaml:34 names cpython-3.13.14+20260805-aarch64-apple-darwin. Selected by OS at desktop-client/src-tauri/src/provision.rs:285-288 and 324-334."
+    },
+    {
+      "claim": "The same figures on wiki/clients/macos.md and wiki/install-macos.md are correct and need no arithmetic change.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md:42 and 97-99, and wiki/install-macos.md:36 and 75-81, print the identical four figures plus 17,408 and 65,536 tokens. Each matches the planner quantities established above from crates/hearth-probe/src/plan.rs and dictionary.yaml. Recorded for T4 and T16, whose dispatches may assume otherwise."
+    },
+    {
+      "claim": "wiki/backend/build-pipeline.md:158, `On 8 GB they cannot` coexist, and wiki/first-run.md:182-184 carry the same contradicted claim as wiki/installing.md:76-78.",
+      "status": "contradicted",
+      "evidence": "The pages state it at wiki/backend/build-pipeline.md:158 and wiki/first-run.md:182-184. Contradicted by crates/hearth-probe/src/plan.rs:128-136 and crates/hearth-probe/tests/plan_fixtures.rs:36-52, the same source that settles wiki/installing.md:76-78. first-run.md is owned by T3; build-pipeline.md is owned by nothing."
+    },
+    {
+      "claim": "wiki/backend/build-pipeline.md:106, wiki/backend/native-runtime.md:79, wiki/clients/windows.md:151 and wiki/first-run.md:112 all state the `D:\\Hearth` default.",
+      "status": "contradicted",
+      "evidence": "Each page states it at the line given, read this run. Contradicted by crates/hearth-probe/src/machine.rs:232-272. windows.md is owned by T2 and first-run.md by T3; the two backend pages are owned by nothing."
+    },
+    {
+      "claim": "wiki/features/second-brain.md:64 correctly names `~/.hearth` as the Hearth home folder.",
+      "status": "contradicted",
+      "evidence": "The page states it at wiki/features/second-brain.md:64. desktop-client/src-tauri/src/config_gen.rs:64 renders HEARTH_HOME as the install root joined with REL_HOME, which crates/hearth-probe/src/defaults.rs:46 defines as `home`, and backend/harness/valar/tools/handlers/second_brain.py:59-62 records `~/.hearth` as the systemd or WSL testbed layout rather than the installed product's. With crates/hearth-probe/src/machine.rs:245-248 the installed macOS path is `~/Hearth/home`."
+    },
+    {
+      "claim": "wiki/installing.md is correctly typed as a how-to.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md:96-104 names Installing Hearth as a how-to in the corpus, and the page declares `type: how-to` at wiki/installing.md:4. The page holds no numbered steps between lines 22 and 146, which is the shape defect wiki/page-types.md:108-116 describes, but that is T9's work and not T1's; the type itself is right."
+    }
+  ],
+  "gaps": [
+    "No page in the corpus states how many bytes the inference engine and the Python runtime add to an install. A reader who sizes their download from wiki/installing.md:72 under-counts by about 35 MB on macOS and about 657 MB on Windows with CUDA, and the voice environment's pip installs have no recorded size anywhere (dictionary.yaml:59-67).",
+    "No page and no source states a documentation unit policy. The product renders GiB under a `GB` label (crates/hearth-probe/src/lib.rs:24-35), the corpus follows it, and nothing records that as a decision, so the next reader to check a figure against a decimal-GB calculator will file the same defect this task was dispatched to fix.",
+    "No page states which machines actually take turns between the mind and the voice. The corpus attributes it to an 8 GB Mac, which is wrong, and nothing states the VRAM band where it is right.",
+    "No canonical or primary source outside the repository exists for any of this. Hearth reaches no external service and publishes no vendor reference, so `source` is the highest authority available and every behavioural claim above rests on it."
+  ],
+  "skeleton": [],
+  "recommended_type": "how-to",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Should wiki/installing.md keep the product's unit convention, GiB printed under a GB label, or restate its figures in decimal GB? The four figures at lines 42-44, 72 and 75 are correct under the first and wrong under the second, and the same bytes produce the dispatching lead's 4.05, 4.86, 7.66 and 9.19. Matching what the installer prints on screen argues for keeping the page as it is; nothing in wiki/style-guide.md or wiki/page-types.md states a rule, and this run found no source that settles which convention the corpus should use.",
+    "Does T1 correct the sentence at wiki/installing.md:96-97 by narrowing it to the two items the plan's number counts, or by keeping all four and separating the number from the sentence? Both are true statements; the choice is the author's and this stage does not make it. Whichever is chosen has to be made consistently across wiki/clients/macos.md:51-54 and wiki/install-macos.md:84-86, which say the same thing.",
+    "Does the corpus want to state the provisioning bytes the plan figure omits, roughly 35 MB on macOS and 657 MB on Windows with CUDA? It is a real gap for a reader on a metered connection, but naming it is new content rather than a correction, and T1 is a corrections-only task per tasks/docs/tracker.md:309-311.",
+    "Is wiki/installing.md:100, `Every file is verified against a published sha256 hash once it lands`, T1's to fix or a new tracker row? It is contradicted by source, it sits inside the `## The download` section T1 already opens, and it is outside the task statement. This stage records the defect and does not decide the ownership.",
+    "Do wiki/backend/build-pipeline.md:106 and :158, wiki/backend/native-runtime.md:79, and wiki/features/second-brain.md:64 get tracker rows? All four are contradicted by source, all four carry defects T1 through T5 are correcting elsewhere, and none is owned by any task in tasks/docs/tracker.md. build-pipeline.md:158 in particular is a fourth instance of the coexistence claim.",
+    "Is the coexistence sentence at wiki/clients/windows.md:199-201, carried as an open question on T2, correct? This run derived that an 8 GB dedicated GPU plans tier 1 with the voice resident and does not take turns, and that the !coexist branch is reached at roughly 4.5 to 5.4 GB of VRAM. That is arithmetic from crates/hearth-probe/src/plan.rs:110-159 and dictionary.yaml, not an executed planner run, and the page is T2's to settle, so it is passed on rather than answered."
+  ],
+  "notes": "TOOLS. Bash was available and used for all reading and searching (cat -n, sed -n, grep). I did not run cargo: the contract restricts Bash to search and read-only scripts, and building or running the probe is neither. Every planner figure below was therefore derived by hand from the formulas in crates/hearth-probe/src/plan.rs and the constants in crates/hearth-probe/dictionary.yaml rather than read off an executed run. The derivation validates against an independent point: it reproduces, exactly, the reason string the dispatching lead reported from a real run, `212 MB is left after the weights, which is about 17408 tokens of context at this model's rate`, including the 212 MB that only crates/hearth-probe/src/lib.rs:26-34 can produce from 221,861,383 bytes. I also did not run scripts/lint_wiki.py or scripts/doc_graph.py; neither bears on an affected-mode survey of one page, and no linter finding is in this artifact.\n\nSIZE. S, unchanged from the dispatch but for different reasons than the dispatch gave. Three sentence-level corrections on one page in three sections: wiki/installing.md:76-78 (the contradiction), :85-86 (the Windows root), :96-97 (the four-things sentence). Not XS, because 76-78 needs a new true sentence rather than a substitution and the three sites are in three different sections. Not M, because it is one page and the four figure corrections the dispatch anticipated at lines 42-44, 72 and 75 turn out to be no-ops. The task got smaller in one direction and did not get larger in any.\n\nTHE HEADLINE, because the dispatch's premise on it is wrong. The figures are not stale. 3.77 GB, 7.14 GB, 4.5 GB and 8.6 GB are total_download_bytes and disk_required_bytes for the two Mac fixtures rendered by human() at crates/hearth-probe/src/lib.rs:26-34, which divides by 2^30 and labels the result GB. The dispatching lead's 4.05, 7.66, 4.86 and 9.19 are the identical byte counts divided by 10^9. Both are right about the bytes; only one of them is what the installer prints, and it is the page's. Changing those four numbers would take a correct page and make it disagree with the screen it describes. The two genuine figure findings are that `free disk` at lines 42-44 does name disk_required_bytes and not the download, and that the download figure at line 72 counts two items where the sentence at 96-97 names four.\n\nTYPE PAIRING. Fix pairs with affected as the contract expects; no disagreement to record.\n\nKNOWN EVIDENCE. Every location in the dispatch resolved. Two line references are one line off from what I read and are recorded here so the author is not hunting: the dispatch cites the plan table at 68-72, which is the table including its header at 68-69 and its three rows at 70-72, and it cites the take-turns passage as 76-78, which begins mid-line at 75 (`Where a machine is`) and ends mid-line at 78 (`not a note about memory headroom.`). The tracker's own sizing evidence at tasks/docs/tracker.md:283 cites the same passage as 75-78. Nothing material turns on either.\n\nSCOPE. The survey found three pages carrying T1's defects that no tracker task owns: wiki/backend/build-pipeline.md (both the install root and the coexistence claim), wiki/backend/native-runtime.md (the install root), and wiki/features/second-brain.md (the dotdir). They are in affected_docs[] flagged as unowned, and they are not T1's to edit. It also found that wiki/clients/macos.md's figures, which T4 may be dispatched to correct, are correct as they stand.\n\nAUTHORITY. Every source of truth here is `source`. Hearth reaches no external service and publishes no vendor documentation, so nothing canonical or primary exists to cite and no web search was run; that absence is recorded in gaps[] rather than filled by relabelling a wiki page."
+}

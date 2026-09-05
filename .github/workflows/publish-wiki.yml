@@ -1,0 +1,32 @@
+name: Publish wiki
+
+# The in-repo wiki/ tree is the source. This renders it into the GitHub wiki
+# (Hearth.wiki.git) on every push to main that touches it, so the public wiki
+# is derived from main and never edited by hand. See scripts/publish_wiki.py.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wiki/**"
+      - "scripts/publish_wiki.py"
+      - ".github/workflows/publish-wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Render and push
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/publish_wiki.py --push \
+            --remote "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"

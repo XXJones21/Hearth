@@ -1,27 +1,28 @@
 ---
-title: First Run
-status: draft
-last_reviewed: 2026-08-06
+title: First run
+status: scoped
+type: decision-record
+last_reviewed: 2026-09-04
 related:
   - backend/build-pipeline.md
-  - backend/portability-ledger.md
   - _index.md
 sources:
-  - D:/Tools/Valinor/tasks/first-time-user.md
-  - D:/Tools/Valinor/hearth-pitch/mockups/hearth-setup-flow.html
+  - first-time-user.md (unpublished research)
+  - hearth-setup-flow.html (unpublished research)
+  - crates/hearth-probe/src/plan.rs
 ---
 
-# First Run
-
-What happens between someone downloading Hearth and having a companion that
-knows something about them. The visual reference is
-`hearth-pitch/mockups/hearth-setup-flow.html` in the Valinor repository,
-seventeen screens built against the real client shell.
+# First run
+Read the decisions behind Hearth's first run, the three beats it moves through,
+and the rules a live install test forced into the design.
 
 ## Three beats
 
 The whole experience is three movements, in this order, and the order is the
 design.
+
+The visual reference is a seventeen-screen mockup built against the real client
+shell.
 
 1. **Install.** The client is the installer. One download, a hardware scan, a
    model chosen for this machine, and a verification pass that proves it works.
@@ -46,8 +47,13 @@ the hardware and provisions everything to match.
 It also removes a question the draft had to ask. "Is this a client or a host
 machine?" is unanswerable by a stranger and unnecessary to ask: the client
 always installs, then either provisions a backend here or connects to one it
-found. Same-host detection, designed for a different reason in
-`tasks/desktop-client-macOS.md`, is the mechanism.
+found.
+
+Same-host detection is the intended mechanism and it is not built yet. The
+desktop client still declares its capabilities unconditionally, and nothing
+asks whether the house it is talking to runs on this machine. What survives of
+the design is `tasks/clients/desktop-client/file-capability-scope.md`. The
+Valinor document it was scoped in has been archived.
 
 ### A fresh install starts empty, and this is easy to get wrong
 
@@ -89,7 +95,7 @@ Two rules follow, and the second is the general one:
 Two mechanisms back the first rule beyond the flag, both added 2026-08-06:
 
 - **Hearth has its own port block.** The client defaults to `18700`, never the
-  internal Valinor stack's `8700`. Even if the flag is bypassed on a
+  development stack's `8700`. Even if the flag is bypassed on a
   development machine, the default dial finds nothing rather than the live
   house. The Hearth backend provisioner will bind the same block.
 - **The install record.** When a download completes, `hearth-install.json` is
@@ -111,7 +117,7 @@ folder the whole product lives under, in the tradition of an installer that
 asks once where things go and then owns everything beneath that answer.
 
 ```
-<root>\                     the chosen folder, D:\Hearth by default
+<root>\                     the install root; the default is computed
   hearth-install.json       the record: machine, plan, what landed, where
   models\                   weights, sha256-verified
   runtime\                  vendored Python, llama-server, the supervisor,
@@ -122,7 +128,7 @@ asks once where things go and then owns everything beneath that answer.
 ```
 
 The runtime is native on both platforms; see
-[`backend/native-runtime.md`](backend/native-runtime.md). An earlier draft of
+[Native runtime](backend/native-runtime.md). An earlier draft of
 this section imported a WSL distro under `<root>\wsl`; that is superseded.
 
 Three rules follow:
@@ -150,16 +156,13 @@ the VM boundary.
 Every hardware constant the portability ledger flags is a value this scan
 should produce instead: the model and quantization, the context size, the
 offload depth, the CUDA architecture, the accelerator backend, and whether the
-brain and the voice can be resident at the same time. Doing it once, at install,
+model and the voice can be resident at the same time. Doing it once, at install,
 is what turns a machine-specific configuration into a generated one.
 
-Two rules learned expensively and worth encoding:
+One rule learned expensively and worth encoding:
 
 - Use `nvidia-smi` for video memory, never WMI. `Win32_VideoController.AdapterRAM`
   reports 4 GB for a 16 GB card because the field is 32-bit and overflows.
-- Check free disk against Windows, not against the distro. Inside WSL the root
-  filesystem reports far more space than the host actually has, because the
-  distro disk is a growing virtual disk on the system drive.
 
 Three more encoded 2026-08-06:
 
@@ -181,14 +184,21 @@ Three more encoded 2026-08-06:
 ### Say what you found, and be honest about it
 
 The scan reports back rather than proceeding silently: the machine, the tier it
-implies, the itemised download, and one sentence on why that model. This is the
+implies, the itemized download, and one sentence on why that model. This is the
 moment the draft calls "cool, downloading this."
 
-Where the machine is small, say so plainly and in the user's language. On 8 GB
-the brain and the voice cannot both stay resident, and the honest phrasing is
-"your persona will think and speak one at a time," not a note about VRAM. The
-user then chooses knowingly instead of discovering a pause mid-sentence and
-assuming the product is broken.
+Where the machine is small, say so plainly and in your language. Where the model
+and the voice cannot both stay resident, the honest phrasing is "your persona
+will think and speak one at a time," not a note about VRAM. You then choose
+knowingly instead of discovering a pause mid-sentence and assuming the product
+is broken.
+
+Where the machine cannot run Hearth at all, the refusal is written the same
+way. It leads with what that means, then the arithmetic behind it: what the
+machine has to work with, what is left after the voice, speech recognition, and
+headroom, and how big the smallest model is.
+[Installing Hearth](installing.md) describes what the refusal tells you, and
+the shipped wording itself lives in `crates/hearth-probe/src/plan.rs`.
 
 ### Verification is part of the install
 
@@ -235,7 +245,7 @@ Loaded when a machine has exactly one persona and no history. It states what has
 to be true at the end and leaves the route open.
 
 **Come away with:** a name, a sense of what they are for, a temperament, a
-voice, a colour, and enough of a picture to write a system prompt in their voice
+voice, a color, and enough of a picture to write a system prompt in their voice
 rather than Sulivan's.
 
 **Getting there:** one thing at a time. Acknowledge what was just learned before
@@ -283,9 +293,9 @@ parameters:
   colour:        string   # hex; drives the entire visualization block
 ```
 
-Everything else is expanded by the handler: the visualization block is a colour
+Everything else is expanded by the handler: the visualization block is a color
 ramp from one hue producing the sphere, the particles, and all four state
-colours; the model paths come from the install scan rather than literals; chat
+colors; the model paths come from the install scan rather than literals; chat
 templates and stop tokens are boilerplate for the model family; tool grants are
 defaults for a resident persona.
 
@@ -329,7 +339,7 @@ the portability ledger, section 8.
 1. **How many beats in the persona conversation?** The mockup shows five. Four
    is probably right and the direction should express it as a budget rather than
    a script.
-2. **Which voices ship, and under what licence?** The mockup names four
+2. **Which voices ship, and under what license?** The mockup names four
    placeholders. The real list is whatever ships with the voice engine, and the
    licensing has not been answered.
 3. **Where does the second brain live by default?** The mockup shows a documents

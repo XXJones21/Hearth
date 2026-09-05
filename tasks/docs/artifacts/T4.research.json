@@ -1,0 +1,200 @@
+{
+  "task_id": "T4",
+  "mode": "affected",
+  "recommended_size": "S",
+  "affected_docs": [
+    {
+      "path": "wiki/clients/macos.md",
+      "sections": ["## What installing gives you", "## Status and limitations"],
+      "why": "Lines 51-54 state that opening Hearth for the first time downloads the model weights, a voice, the inference engine, and a private Python runtime together. All four are true of what provisioning fetches, but every download number on this page counts only two of them, and the page nowhere says so. Line 122 states 'The Windows install guide does not exist yet; only macOS is documented', which is a fact about the corpus rather than a limit of the macOS client, and wiki/whats-not-here.md:23-25 already registers that gap."
+    }
+  ],
+  "sources_of_truth": [
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/plan.rs",
+      "covers": "what the plan's download figure counts. The downloads vector at 214-233 has exactly two entries, the chosen model build (214-222) and the voice weights (223-232), and the total at 234 sums those two. disk_required at 237 is that total plus a fifth, which is the number the free-disk sentence quotes. ctx_for at 279-283 rounds the context window down to a 1024 multiple."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/provision.rs",
+      "covers": "what is fetched outside the planner. The module contract at 1-14 names three parallel chains. Chain A at 248-279 unpacks a bundled backend.tar.gz resolved from the Tauri resource directory at 213-215, so the backend is shipped inside the client rather than downloaded. Chain B at 281-322 fetches the inference engine from the dictionary's llama_server assets. Chain C at 324-369 fetches and unpacks the Python runtime. The voice weights are fetched by the forked chain at 371-380."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/lib.rs",
+      "covers": "human() at 24-35: bytes divided by 1_073_741_824 and formatted with a 'GB' label. This is what settles that the page's size figures are the planner's byte counts as the installer prints them."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src/lib/probe.ts",
+      "covers": "the client's own human() at 157-164, byte-identical to the Rust one, so the screen a reader sees uses the same divisor as the figures on this page."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/dictionary.yaml",
+      "covers": "every constant the figures rest on: the voice download at 109-120 (945,284,608 bytes), tier 0's Q4_K_M build at 161-165 (3,106,738,272 bytes), tier 2's build at 202-205 (6,716,356,800 bytes) with max_ctx 65536 at 206, tier 0's max_ctx 32768 at 140, and the runtime artifacts at 27-54 whose bytes the planner never counts (macOS Python 25,285,557 at 33-36, macOS Metal llama-server 11,040,494 at 44-46). The voice_env pip installs at 59-67 carry no recorded size at all."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/src/machine.rs",
+      "covers": "default_install_root at 232-251. On macOS the branch at 245-247 joins HOME to 'Hearth', which is the ~/Hearth default the page states."
+    },
+    {
+      "authority": "source",
+      "ref": "crates/hearth-probe/tests/plan_fixtures.rs",
+      "covers": "the pinned contract for the 8 GB M2 Air at 35-52: tier 0, the E2B repo, coexist true, metal, no CUDA arch, and no 'one at a time' warning. No fixture pins an exact context window; the shared test at 54-75 asserts only n_ctx >= 16384."
+    },
+    {
+      "authority": "source",
+      "ref": "desktop-client/src-tauri/src/probe.rs",
+      "covers": "the voice row at 182-195, counted in the plan's total but skipped by the model-download loop because it has no direct URL, and installed by the voice engine step instead."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/page-types.md",
+      "covers": "the platform-overview shape at 227-252. Section 6 at 239 defines 'What it cannot do yet' as honest limits on capability in the present tense. The rule at 246-248 forbids a dated status log and names 'as of 2026-08-06' as the failing pattern. The rule at 243-245 puts installation on the install page, which is T6's ground and not T4's."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/whats-not-here.md",
+      "covers": "the register of unwritten pages. Entry 1 at 23-25 already announces the missing Windows install page and points at install-macos.md as its shape."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/installing.md",
+      "covers": "the treatment T1 gave the same sentence, at 106-112 under '## The download', and a fourth surviving Windows-guide announcement at 156-159."
+    },
+    {
+      "authority": "contextual",
+      "ref": "wiki/install-macos.md",
+      "covers": "the third instance of the four-things sentence at 84-86, and the troubleshooting section at 135-155 that wiki/clients/macos.md:127-128 refers to."
+    },
+    {
+      "authority": "contextual",
+      "ref": "tasks/docs/tracker.md",
+      "covers": "recorded task state and ownership: T4 at 468-504, T6 at 537-574 (owns removing '## Installing' at lines 85-102), T12 at 762-789 (owns rewriting the whats-not-here.md Windows entry and states that T2 and T4 remove the other announcements), T16 at 874-906 (retires install-macos.md and lists the inbound references), and T1's completed record at 293-392."
+    }
+  ],
+  "claims": [
+    {
+      "claim": "wiki/clients/macos.md:51-54 states that opening Hearth for the first time downloads the model weights, a voice, the inference engine, and a private Python runtime together, into one folder with ~/Hearth as the macOS default.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md, '## What installing gives you', lines 51-54, read in full."
+    },
+    {
+      "claim": "All four of those items are in fact fetched or placed during provisioning, so the sentence is not false about what arrives on disk.",
+      "status": "verified",
+      "evidence": "Model weights and voice weights: crates/hearth-probe/src/plan.rs:214-232. Inference engine: desktop-client/src-tauri/src/provision.rs:281-322 (Chain B fetches the dictionary's llama_server assets and unpacks them to runtime/llama-server). Python runtime: desktop-client/src-tauri/src/provision.rs:324-369 (Chain C fetches py.url and unpacks it to runtime/python). Voice weights fetched by the forked chain at provision.rs:371-380."
+    },
+    {
+      "claim": "The plan's download figure counts two items only, the model build and the voice weights.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/plan.rs, the downloads vector at 214-233 holds exactly two Download entries, and the total at line 234 sums that vector. No runtime artifact appears in it."
+    },
+    {
+      "claim": "The line 51 sentence 'The client is the installer: there is no separate backend to download' is correct.",
+      "status": "verified",
+      "evidence": "desktop-client/src-tauri/src/provision.rs:213-215 resolves resources/backend.tar.gz from tauri::path::BaseDirectory::Resource, and Chain A at 255-260 untars it. The backend ships inside the client bundle and is never fetched."
+    },
+    {
+      "claim": "The macOS default install root at line 54 is ~/Hearth.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/machine.rs, default_install_root at 232-251. The Windows drive branch at 233-237 does not apply, and the branch at 245-247 returns HOME joined to 'Hearth' on macOS. The comment at 239-244 records that the folder is deliberately visible rather than a dotdir."
+    },
+    {
+      "claim": "The size figures at wiki/clients/macos.md line 42 and lines 97-99 are correct and must not be changed.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/src/lib.rs:26-34 divides bytes by 1_073_741_824 and labels the result GB; desktop-client/src/lib/probe.ts:158-164 uses the same divisor and label. Arithmetic on the dictionary constants reproduces every figure exactly. Tier 0 build 3,106,738,272 (dictionary.yaml:164) plus voice 945,284,608 (dictionary.yaml:112) is 4,052,022,880 bytes, which human() renders 3.77 GB, the figure at line 97. Tier 2 build 6,716,356,800 (dictionary.yaml:204) plus the same voice is 7,661,641,408 bytes, rendered 7.14 GB, the figure at lines 98-99. disk_required at plan.rs:237 is total plus total/5, so 4,862,427,456 bytes rendered 4.53 GB and 9,193,969,689 bytes rendered 8.56 GB, which is the 'roughly 4.5 GB' and '8.6 GB' at line 42. This is the third time this has been examined; it is not a defect."
+    },
+    {
+      "claim": "The 8 GB M2 Air plans exactly a 17,408-token context window, as line 97 states.",
+      "status": "unverifiable",
+      "evidence": "crates/hearth-probe/src/plan.rs:279-283 rounds the window down to a 1024 multiple and clamps it to the tier's max_ctx, and 17,408 is 17 x 1024, inside tier 0's max_ctx of 32,768 at crates/hearth-probe/dictionary.yaml:140, so the algorithm can produce it. But no fixture pins it: crates/hearth-probe/tests/plan_fixtures.rs:35-52 asserts tier, repo, coexist, backend and the absence of the take-turns warning and no n_ctx, and the shared test at 54-75 asserts only n_ctx >= 16384. I could not execute the planner, and this stage runs nothing that builds. The figure is consistent with source and is not contradicted by it. It is outside T4's statement and no part of this task should change it."
+    },
+    {
+      "claim": "The provisioning bytes the plan figure omits come to roughly 36 MB on macOS, plus pip installs of unrecorded size.",
+      "status": "verified",
+      "evidence": "crates/hearth-probe/dictionary.yaml:33-36 gives the macOS Python runtime as 25,285,557 bytes and 44-46 gives the macOS Metal llama-server asset as 11,040,494 bytes, summing to 36,326,051 bytes. The voice_env entry at 59-67 names pip packages (omnivoice==0.1.5, soundfile, websockets, and torch from an index) with no bytes field anywhere in the dictionary."
+    },
+    {
+      "claim": "wiki/installing.md resolved the same sentence by keeping all four items and adding one sentence naming what the plan figure counts.",
+      "status": "verified",
+      "evidence": "wiki/installing.md, '## The download', lines 108-112: 'Several things download and unpack at once: the model weights, the voice, the inference engine, and the Python runtime it needs. The download figure in the plan covers two of them, the model and the voice. The inference engine and the Python runtime are fetched alongside them and are not counted in that number.' The same page repeats the four-item list at 92-94 under '## Choosing where it lives' without the qualifier. The tracker records the author's reasoning at tasks/docs/tracker.md:383-386."
+    },
+    {
+      "claim": "wiki/install-macos.md:84-86 carries the same four-item sentence and is the third instance.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md, lines 84-86: 'It downloads and provisions. Several things happen at once: the model weights, the voice, the inference engine, and a private Python runtime. On a reasonable connection this is mostly download time.' That page is retired under tracker row T16 at tasks/docs/tracker.md:874-906."
+    },
+    {
+      "claim": "On wiki/clients/macos.md the four-item sentence and the plan's download figures sit in different sections, unlike wiki/installing.md where they sit in the same one.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md: the sentence is at 51-54 under '## What installing gives you'; the free-disk figure derived from the same two-item total is at 42 under '## What your Mac needs'; the 3.77 GB and 7.14 GB plan totals are at 97-99 under '## Installing'. wiki/installing.md keeps both the sentence and the qualifier inside '## The download' at 106-112."
+    },
+    {
+      "claim": "wiki/clients/macos.md:122 states 'The Windows install guide does not exist yet; only macOS is documented.'",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md, '## Status and limitations', line 122, read in full."
+    },
+    {
+      "claim": "wiki/page-types.md:246-248 forbids a dated status log on a platform overview.",
+      "status": "verified",
+      "evidence": "wiki/page-types.md, '**Rules:**' under the platform-overview shape, lines 246-248: 'No dated status log. \"What it cannot do yet\" is the honest-limits section, and it is written as capability rather than as a changelog. A section that reads \"as of 2026-08-06\" belongs in a decision record.'"
+    },
+    {
+      "claim": "Line 122 is a dated status log, and wiki/page-types.md:246-248 is therefore the rule that forbids it.",
+      "status": "contradicted",
+      "evidence": "The rule is real but does not squarely reach this line. wiki/clients/macos.md:122 carries no date. What the dated-status-log rule at wiki/page-types.md:246-248 does reach on this page is the section's opening at lines 118-120, 'The install guide reflects one real, end-to-end install on an 8 GB M2 Air, verified 2026-08-07.' The rule that reaches line 122 is the section's own definition at wiki/page-types.md:239, 'What it cannot do yet. Honest limits, in the present tense', read against 264, 'Platform overview: Describe what one client does, and its limits': line 122 states a limit of the wiki, not of the macOS client. tasks/docs/tracker.md:490-492 cites 246-248 for line 122, and that citation is off by a section."
+    },
+    {
+      "claim": "wiki/whats-not-here.md is the one register for unwritten work and already carries the Windows install gap.",
+      "status": "verified",
+      "evidence": "wiki/whats-not-here.md, '## Pages that are not written yet', lines 21-25: entry 1 is 'Installing on Windows. [Installing on macOS](install-macos.md) is the shape it will take. What differs is the numbers and the CUDA voice build. Until it exists, [Hearth on Windows](clients/windows.md) covers what the app does.' tasks/docs/tracker.md:786-789 states that this entry is the only place in the corpus that should announce the gap and that T2 and T4 remove the other announcements."
+    },
+    {
+      "claim": "T4 must add nothing to wiki/whats-not-here.md, because tracker row T12 is rewriting that entry.",
+      "status": "verified",
+      "evidence": "tasks/docs/tracker.md:762-789. T12 is 'Restate the Windows gap as steps inside Installing Hearth', Agent State Backlog, and its draft rewrites entry 1 so the gap is a section of wiki/installing.md rather than a separate page and stops naming install-macos.md as the shape. The gap is already registered, so removing line 122 loses nothing from the register. wiki/clients/macos.md contains no reference to whats-not-here.md today."
+    },
+    {
+      "claim": "The Windows-guide announcement appears on four pages, not three.",
+      "status": "verified",
+      "evidence": "A corpus grep outside wiki/raw/ returns wiki/clients/macos.md:122 (T4's), wiki/clients/windows.md:232-233 (T2's), and wiki/installing.md:156-159, 'A dedicated Windows install guide does not exist yet. [Hearth on Windows](clients/windows.md) covers what the Windows app does ... and is the best reference until that guide is written.' The fourth sits on a page whose task, T1, reads Complete at tasks/docs/tracker.md:307, so no open row owns it."
+    },
+    {
+      "claim": "wiki/clients/macos.md:127-128 accurately describes what wiki/install-macos.md's troubleshooting section covers.",
+      "status": "verified",
+      "evidence": "wiki/install-macos.md, '## When something goes wrong', lines 135-155, covers connection errors at 142-144, a silent voice at 146-148, and an interrupted or out-of-disk download at 150-152. The claim on wiki/clients/macos.md is accurate today; it breaks when T16 retires the page rather than being wrong now."
+    },
+    {
+      "claim": "wiki/clients/macos.md depends on wiki/install-macos.md at lines 7, 11, 29, 89 and 127 and nowhere else.",
+      "status": "verified",
+      "evidence": "grep -n 'install-macos|Installing on macOS' over wiki/clients/macos.md returns exactly five hits: line 7 under 'related:', line 11 under 'sources:', line 29 in the abstract's pointer, line 89 inside '## Installing', and line 127 in '## Status and limitations'. This matches the inbound list tracker row T16 records at tasks/docs/tracker.md:888. Of the five, line 89 sits inside the '## Installing' block that T6 owns; the other four do not."
+    },
+    {
+      "claim": "wiki/clients/macos.md declares type platform-overview.",
+      "status": "verified",
+      "evidence": "wiki/clients/macos.md frontmatter, line 4: 'type: platform-overview'. Line 3 reads 'status: scoped' and line 5 'last_reviewed: 2026-08-08'."
+    }
+  ],
+  "gaps": [
+    "No page states by how much the real macOS download exceeds the plan's figure. The measurable part is 36,326,051 bytes of Python runtime and Metal llama-server from crates/hearth-probe/dictionary.yaml:33-36 and 44-46; the voice environment's pip installs at dictionary.yaml:59-67 have no recorded size anywhere, so the total cannot be stated exactly from source.",
+    "No fixture pins the exact context window any machine plans. crates/hearth-probe/tests/plan_fixtures.rs asserts a floor of 16,384 and nothing tighter, so every exact token figure in the corpus rests on arithmetic rather than on a pinned contract.",
+    "The corpus states no unit convention. The figures on this page are GiB printed under a GB label because that is what crates/hearth-probe/src/lib.rs:26-34 does; nothing in wiki/style-guide.md or wiki/page-types.md records that as a rule. Tracker row T24 is opened for it.",
+    "wiki/clients/macos.md gives a reader no route to the register of unwritten pages. It links wiki/install-macos.md, wiki/updates.md, wiki/first-run.md and wiki/backend/native-runtime.md, and never wiki/whats-not-here.md."
+  ],
+  "skeleton": [],
+  "recommended_type": "platform-overview",
+  "objectives": [],
+  "journeys": [],
+  "consolidation": [],
+  "open_questions": [
+    "Does the qualifying sentence go beside the four-item list at wiki/clients/macos.md:51-54 only, or does the free-disk figure at line 42 need it too? On wiki/installing.md the sentence and the plan number share one section, so one qualifier covers both. On this page they are seventy lines and two sections apart: line 42's 'roughly 4.5 GB on an 8 GB Mac and 8.6 GB on a 16 GB Mac' is disk_required from crates/hearth-probe/src/plan.rs:237, which is the same two-item total plus a fifth, so a reader budgeting disk from line 42 is short by the engine and the runtime as well. This stage does not choose; both placements are defensible and the author owns the sentence.",
+    "Is the exact 17,408-token figure at wiki/clients/macos.md:97 pinned anywhere? It is consistent with crates/hearth-probe/src/plan.rs:279-283 and tier 0's max_ctx at crates/hearth-probe/dictionary.yaml:140, but crates/hearth-probe/tests/plan_fixtures.rs:35-75 asserts only tier, repo, coexist, backend and n_ctx >= 16384, and this stage executes nothing. Nothing contradicts the figure and no part of T4 should change it; the question is whether the corpus wants a fixture that pins it.",
+    "Does T4 also touch the dated provenance at wiki/clients/macos.md:118-120, 'The install guide reflects one real, end-to-end install on an 8 GB M2 Air, verified 2026-08-07'? Tracker row T4 cites wiki/page-types.md:246-248 as the ground for removing line 122, but 246-248 forbids a dated status log and line 122 carries no date, while lines 118-120 do. The rule that actually reaches line 122 is wiki/page-types.md:239 and 264, which make this section honest limits on the client's capability rather than on the wiki's coverage. T4's statement names the Windows-guide announcement and nothing else, and tracker row T6 at tasks/docs/tracker.md:537-574 already reworks this page's install material, so this stage reports the mismatch and does not assign it.",
+    "Who owns the fourth Windows-guide announcement at wiki/installing.md:156-159? Tracker row T12 at tasks/docs/tracker.md:786-789 says T2 and T4 remove 'the other three announcements', but the grep returns four: wiki/clients/macos.md:122, wiki/clients/windows.md:232-233, and wiki/installing.md:156-159. The third sits on T1's page, which reads Complete, and it names the Windows guide as a page rather than as the section T12 will define. No open row owns it.",
+    "When line 122 goes, does anything on wiki/clients/macos.md point a reader at wiki/whats-not-here.md? The gap stays registered at wiki/whats-not-here.md:23-25 and T12 rewrites that entry, so nothing is lost from the register, but this page currently has no link to it and a Windows reader who arrives here learns nothing about where the gap is tracked. Adding one is new content rather than a correction, and T4 is a corrections task."
+  ],
+  "notes": "Bash was available in this session, so the contract's search commands ran. I used grep, sed and ls only; nothing that builds, writes or starts a service. I did not run scripts/lint_wiki.py or scripts/doc_graph.py, because this task turns on the source tree and two named pages rather than on corpus-wide scores, so the linter's own findings are not in this artifact.\n\nSized S, not XS, and not M. One page changes, wiki/clients/macos.md, at two known locations: line 122 is deleted outright, and lines 51-54 take one added sentence matching wiki/installing.md:109-111. The deletion alone would be XS; the added sentence is not mechanical, because the author has to decide whether line 42's disk figure needs the same qualifier, so this is the size table's 'several small edits on the same page'. No second page changes: wiki/whats-not-here.md already registers the Windows gap at 23-25 and tracker row T12 owns rewriting it, and wiki/installing.md and wiki/install-macos.md are read here as precedent rather than edited.\n\nThe correction carried in the dispatch is confirmed at source and recorded, so it is not refiled a fourth time. crates/hearth-probe/src/lib.rs:26-34 divides by 1_073_741_824 and labels the result GB, desktop-client/src/lib/probe.ts:158-164 does the same, and arithmetic on the dictionary constants reproduces 3.77, 7.14, 4.53 and 8.56 exactly. The figures at line 42 and lines 97-99 are what the installer prints on screen. Nothing in T4 changes a number.\n\nThe task's own title is slightly off its work. 'Correct the download figure' reads as a numeric change, and there is none: the figure is right and the sentence around it is incomplete. What T4 corrects is the account of what downloads, not any digit.\n\nOne finding runs against the tracker's own reasoning and is recorded rather than smoothed over. Tracker row T4 cites wiki/page-types.md:246-248 as forbidding line 122; that rule forbids a dated status log, and line 122 carries no date. The dated line on this page is 118-120. The rule that does reach line 122 is the section definition at wiki/page-types.md:239 read with the type table at 264: a platform overview's limits are the client's limits, and 'the Windows install guide does not exist yet' is a limit of the wiki. The conclusion the tracker reaches is right; the citation behind it is not, and an author who follows it to page-types.md will not find what the tracker says is there.\n\nThe dispatch's scope discipline was held. wiki/clients/macos.md:89 is one of the five inbound references to wiki/install-macos.md and sits inside the '## Installing' block at 85-102, which tracker row T6 owns. It is reported in the inbound set and no removal is proposed for it. The other four references, at lines 7, 11, 29 and 127, are outside that block and all four break when T16 retires the page; none of them is T4's either, and T16's own record at tasks/docs/tracker.md:888 already lists them.\n\nKnown evidence was not empty: the orchestrator opened wiki/clients/macos.md and named lines 4, 7, 11, 29, 51-54, 56-64, 89, 122 and 127-128. Every one of them resolved to the file and section stated. The four source locations it named, crates/hearth-probe/src/lib.rs:26-34, desktop-client/src/lib/probe.ts:158-164, crates/hearth-probe/src/plan.rs:214-234 and desktop-client/src-tauri/src/provision.rs:248-369, all resolved and all state what the dispatch said they state."
+}

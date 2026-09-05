@@ -1,0 +1,45 @@
+{
+  "task_id": "T11",
+  "mode": "update",
+  "docs_written": [
+    {
+      "path": "wiki/_index.md",
+      "sections": ["## Getting started", "## Meeting your persona"]
+    }
+  ],
+  "sections": [],
+  "deviations": [
+    {
+      "from": "the Deliverable spec's option to leave the `## Getting started` prose unchanged once install-macos.md is removed",
+      "why": "With three clauses against three links the mapping is one to one, but the third clause, \"how an existing install becomes a newer one\", is the first half of wiki/updates.md's own abstract with its second half dropped. wiki/updates.md:15-17 states nothing in it is built yet, so the clause promised a reader a route that the page it maps to cannot give. The clause now describes wiki/updates.md by what it says it is, as the spec directed; the machine sentence at lines 24-26 is untouched."
+    },
+    {
+      "from": "the smallest possible edit to the `## Meeting your persona` prose, which would have been to append a clause",
+      "why": "The paragraph already ran 57 words against the linter's 60-word paragraph limit (scripts/lint_wiki.py:129, 383), so a fifth role could not be appended without introducing a long-paragraph warning on a page that carries none today. The second sentence was recast instead: it now gives one clause each to the walkthrough, the record, and the three companion pages, and holds the arc in the first sentence to the three beats it already named, as ruled."
+    }
+  ],
+  "unresolved": [
+    {
+      "what": "Where a reader who wants a newer build today should go. wiki/installing.md:247-250 carries the by-hand update procedure while wiki/updates.md:15-17 describes an unbuilt in-place mechanism, and no page reconciles the two.",
+      "why": "This is findings gaps[3]. The index now states honestly that updating in place is not built, but it does not route the reader to the by-hand steps, because the landing shape holds each section to one or two sentences of prose (wiki/page-types.md:83-86) and the paragraph has four words of headroom under the 60-word limit. The reconciliation belongs on wiki/installing.md or wiki/updates.md, neither of which this task may edit."
+    },
+    {
+      "what": "Whether wiki/first-run.md, a decision record, belongs in the reader-facing `## Meeting your persona` section now that the how-to sits above it.",
+      "why": "The findings mark this claim `unverifiable` and carry it as open_questions[2]: wiki/page-types.md:67-94 states no rule about which page types may sit in which index section, and wiki/_index.md:82-86 describes `## Looking under the hood` in prose rather than as a criterion. The dispatch ruled the page stays put for this task, which settles the action and not the question."
+    },
+    {
+      "what": "wiki/install-macos.md now publishes with no index link and no sidebar rail entry until T16 demotes it in Phase E.",
+      "why": "scripts/publish_wiki.py:63-76 publishes every page under wiki/ outside wiki/raw/ regardless of index membership, while scripts/publish_wiki.py:182-188 builds the rail only from this file. The gap between phases is deliberate per the tracker gating, and this task was directed to remove the link, so the orphan is a consequence to track rather than a decision to make here."
+    },
+    {
+      "what": "Nothing enforces wiki/page-types.md:93, the rule that every published page appears exactly once in exactly one index section.",
+      "why": "This is findings gaps[1]. scripts/lint_wiki.py:256-408 has no index-membership check and no once-and-only-once check, which is how wiki/meeting-your-persona.md published with a rail entry missing and produced zero findings. This edit fixes the one instance, not the class."
+    },
+    {
+      "what": "The linter was not run against the edited page.",
+      "why": "My tool set is Read, Grep, Write and Edit with no shell, so scripts/lint_wiki.py could not be executed. Both edited paragraphs were counted by hand at 56 and 57 words against PARAGRAPH_WORDS = 60 (scripts/lint_wiki.py:129), and both sections sit far under SECTION_WORDS = 200 (scripts/lint_wiki.py:128), but that is a hand check and not a linter run."
+    }
+  ],
+  "figures_requested": [],
+  "extraction_needed": []
+}

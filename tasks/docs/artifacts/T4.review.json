@@ -1,0 +1,361 @@
+{
+  "task_id": "T4",
+  "document": "wiki/clients/macos.md",
+  "tooling_note": "scripts/lint_wiki.py was NOT run. This session's tool set is Read, Grep, Write and Edit, with no command execution, so the linter could not be invoked and no finding below is claimed as a linter result. The linter's territory (em dashes, emojis, sentence case, spelling, terminology, dead links, frontmatter, reader drift, bold-lead blocks, long paragraphs, long sections) is deliberately excluded from found[]. Two consequences worth naming so they are not read as misses: the four bolded-lead paragraphs under '## What your Mac needs' at lines 33-47 are a bold-lead block the linter owns, and '## What installing gives you' at lines 49-89 is 41 lines, which may trip the long-section warning. Neither is filed here.",
+  "score_before": 1,
+  "score_after": 1,
+  "score_delta": 0,
+  "verdict": "FAIL",
+  "score_notes": "Baseline: 10 - (F1 2 + F2 2 + F3 2 + F4 2 + F5 1 + F6 1 + F7 1 + F8 0.5) = 10 - 11.5 = -1.5, floored and clamped to 1. After: 10 - (F1 2 + F2 2 + F3 2 + F4 2 + F6 1 + F9 1) = 10 - 10 = 0, clamped to 1. Delta 0. Accounted: F5, F7, F8 in changed[] (2.5 points cleared); F1, F2, F3, F4, F6 open in remaining[] as deferred restructure work; F9 discovered on regrade and open in remaining[]. The 2.5 points cleared are invisible in the score because the open structural penalty alone (9 before F9, 10 after) already exceeds 10, so both grades sit on the floor. The delta of 0 measures the page's shape, not the value of the edits.",
+  "dimensions": {
+    "voice": 8,
+    "clarity": 5,
+    "inclusive_language": 9,
+    "technical_notation": 8,
+    "grammar_mechanics": 9
+  },
+  "pass_scores": {
+    "type": 2,
+    "intent": 8,
+    "structure": 5,
+    "style": 9
+  },
+  "found": [
+    {
+      "id": "F1",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "whole page, against wiki/page-types.md:229-239",
+      "issue": "The platform-overview spine's section 2, 'What it does today' (present tense, capability only), is absent. The page's five sections are what the Mac needs, what installing puts on disk, how to install, how to update, and status. Nothing says what you do with Hearth once it is running: no conversation, no sessions, no journal, no window. wiki/clients/ios.md:33-61 carries this section, and wiki/clients/windows.md:27-142 carries the same material at length.",
+      "fix": "Add a 'What it does today' section before the requirements, describing a macOS turn in the present tense: you speak, the reply streams and is spoken back, what the window holds. Then reorder the page to the spine order at wiki/page-types.md:229-239.",
+      "detraction": 2,
+      "reason": "The type's reader 'has that device, or is deciding whether to use it'. A reader deciding cannot learn what the app does on their Mac from this page, only what it requires and where its files land.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F2",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "whole page, against wiki/page-types.md:232-233",
+      "issue": "The spine's section 3, 'The persona surface' (how the persona appears on this platform: the face, the voice, the window or the room), is absent. Sulivan appears only in the abstract at line 22, in install step 4 at lines 106-108, and in a limitations bullet at lines 130-131. The visual surface is described nowhere. wiki/clients/ios.md:63-89 is the model.",
+      "fix": "Add a persona-surface section describing what the persona looks like and sounds like in the macOS window, and carry a figure placeholder for it, for example ![Sulivan in the Hearth window](images/pending/macos-persona-window.png \"CAPTURE: Hearth main window, persona speaking, 1280x800\").",
+      "detraction": 2,
+      "reason": "The abstract promises a persona who holds a conversation and speaks in a cloned voice, and the page never shows or describes that surface. A reader is promised the product's centerpiece and never sees it.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F3",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "## What installing gives you, lines 62-70 and 76-85",
+      "issue": "The section carries an install-tree code block and a process-and-port list. wiki/page-types.md:249-250 says reference material (install trees, process trees, port tables) moves to a reference page: 'A platform overview describes; it does not catalog.' These two blocks are 19 of the page's 114 body lines.",
+      "fix": "Move the install tree and the five-program port list to a reference page, and leave one or two describing sentences plus a link. Do not delete the content.",
+      "detraction": 2,
+      "reason": "A reader who wants to know what the app does has to read a directory listing and a port table to get there, and a reader who wants the port table cannot find it because it is buried on an overview page.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F4",
+      "pass": "type",
+      "dimension": "clarity",
+      "location": "## Installing, lines 91-108",
+      "issue": "A four-step install procedure sits inline on a platform overview. wiki/page-types.md:243-245: 'Installation lives on the install page, not here. Link to it. A platform overview that grows an install procedure has become a second install guide, which is how the corpus ended up with two.'",
+      "fix": "Remove the numbered procedure and keep the link to the install guide. Owned by tracker row T6.",
+      "detraction": 2,
+      "reason": "Two install procedures for one platform drift apart, and the reader who follows the shorter one gets the older instructions. The unsigned-app right-click step at lines 98-101 is a real blocker that now lives in two places.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F5",
+      "pass": "intent",
+      "dimension": "clarity",
+      "location": "## What installing gives you, lines 55-58 (was 56-58)",
+      "issue": "The qualifier added by the author stage opened 'The download figure in the plan covers two of them'. The page had not introduced 'the plan' at that point: it is first named at line 93 and its figures are printed at lines 103-105, both inside '## Installing'. On wiki/installing.md the same two sentences work because the plan and its figure share one section; here they are 40 lines and two sections apart.",
+      "fix": "Introduce the plan in the same paragraph before referring to its figure, and replace the now-distant pronoun 'them' with 'those four'.",
+      "detraction": 1,
+      "reason": "The correction's whole purpose is to tell a reader what a number counts, and at the point it was made the reader had not seen the number or heard of the plan that prints it.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F6",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Status and limitations, lines 122-134",
+      "issue": "A status section on a page type that forbids one. wiki/page-types.md:246-248 requires honest limits written as capability rather than as a changelog, and the section opens with a status sentence and a dated provenance ('verified 2026-08-07', lines 124-125). The bullet at lines 130-131, about Sulivan interviewing you to build a persona, is a capability sitting in a limits list. The heading names status rather than the spine's 'What it cannot do yet'.",
+      "fix": "Rename the section to the spine's limits heading, move the pre-alpha and dated provenance out of it, and move the persona-interview bullet into the 'What it does today' section from F1.",
+      "detraction": 1,
+      "reason": "A reader scanning for what the client cannot do finds a release note, a date, and one thing it can do, mixed into the same list.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F7",
+      "pass": "style",
+      "dimension": "grammar_mechanics",
+      "location": "abstract, line 22",
+      "issue": "Comma splice in the page's second sentence: 'It gives you a persona, Sulivan is the one you meet first, who holds a conversation, remembers what you tell it, and speaks back in a cloned voice.' An independent clause was spliced in as an appositive, and the relative clause 'who holds a conversation' then reached back over it to 'a persona'.",
+      "fix": "Make the aside parenthetical, as wiki/style-guide.md:199 prescribes: 'a persona (Sulivan is the one you meet first) that holds a conversation, ...'.",
+      "detraction": 1,
+      "reason": "It is the first sentence about the product on the page, and it had to be re-read to parse.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F8",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## What installing gives you, lines 76-85",
+      "issue": "The lead says Hearth 'runs five local programs' and four bullets follow. The fifth was inside the fourth bullet, which named the voice engine and the voice service together and was the only bullet not shaped as name, port, purpose.",
+      "fix": "Name both the voice service and the voice engine in bold in that bullet, so five bold program names answer to the count of five.",
+      "detraction": 0.5,
+      "reason": "A reader who counts the list to check what is running on their machine found four things where the sentence promised five.",
+      "discovered": "baseline"
+    },
+    {
+      "id": "F9",
+      "pass": "structure",
+      "dimension": "clarity",
+      "location": "## Status and limitations, lines 132-133",
+      "issue": "'If something goes wrong, `install-macos.md` has a troubleshooting section covering connection errors, silent voice, and interrupted downloads.' The destination is named as a bare filename in code voice and is not a link, while the same page is linked by human title twice above (lines 29 and 95). wiki/style-guide.md:160-166 requires human titles as link text and notes that the wiki publishes flat, so a reader never sees a directory and cannot act on a filename.",
+      "fix": "Make it a link with a human title: 'see the troubleshooting section of [Installing on macOS](../install-macos.md)'. Coordinate with tracker row T16, which retires that page and already lists this line as an inbound reference.",
+      "detraction": 1,
+      "reason": "This is the sentence a reader reaches at the moment the install has failed, and it hands them a filename they cannot click and will not see in the sidebar.",
+      "discovered": "regrade"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "F5",
+      "action": "Introduce the plan before referring to its download figure, in the paragraph the author stage added under '## What installing gives you'.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Added 'Before it downloads anything, Hearth shows you a plan.' ahead of the qualifier, changed 'the plan' to 'that plan' and 'two of them' to 'two of those four', and split the folder sentence into its own paragraph so the colon still sits against the fence. No fact added or dropped: the plan-before-download statement already stood at line 93, and the qualifier's two sentences from wiki/installing.md:109-111 are otherwise unchanged. No size figure touched."
+    },
+    {
+      "id": "F1",
+      "action": "Add a 'What it does today' capability section and reorder the page to the platform-overview spine.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Writing a missing spine section and reordering the page is a restructure, which gotcha 8 puts outside a review run. No open tracker row owns this page's shape: T6 owns only the '## Installing' block and T16 owns wiki/install-macos.md, so this needs a new row against wiki/clients/macos.md in the author's restructure mode. wiki/clients/ios.md:33-61 is the model section."
+    },
+    {
+      "id": "F2",
+      "action": "Add a persona-surface section for macOS, with a figure placeholder for the persona window.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Same restructure row as F1. It also needs a fact this page does not carry and I did not verify: whether the macOS client draws the same face described in wiki/features/persona-face.md and wiki/clients/ios.md:63-89, or an orb. The section cannot be written accurately without settling that, so the new row should carry a research step. No figure placeholder was added here, because the page does not yet describe the surface a figure would show."
+    },
+    {
+      "id": "F3",
+      "action": "Move the install tree and the process-and-port list to a reference page.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Moving content to another page is a restructure, and the destination does not exist yet: no reference page in wiki/ catalogs the install tree or the port map, and wiki/clients/windows.md:154-182 carries its own copy of both. The row should decide whether one reference page serves both clients before either page is cut. Nothing was deleted here."
+    },
+    {
+      "id": "F4",
+      "action": "Remove the inline install procedure and keep the link to the install guide.",
+      "state": "deferred",
+      "owner": "T6",
+      "needs": "restructure",
+      "result": "Tracker row T6 owns this block and the dispatch ruled it untouched, so nothing in lines 91-108 was changed, including its link to wiki/install-macos.md. Two notes for T6. First, the unsigned-app right-click step at lines 98-101 is a blocker that also appears as a limits bullet at lines 128-129, so removing the procedure must not lose it. Second, the 3.77 GB and 7.14 GB plan figures live only inside this block, so when it goes, the qualifier now at lines 55-58 names a figure the page no longer prints and needs a sentence stating the numbers or a pointer to where they are shown."
+    },
+    {
+      "id": "F6",
+      "action": "Reshape '## Status and limitations' into the spine's limits section: rename, move the pre-alpha and dated provenance out, move the persona-interview capability into the capability section.",
+      "state": "deferred",
+      "owner": "orchestrator",
+      "needs": "restructure",
+      "result": "Renaming the heading on its own would have made the heading lie, because the section would still open with a status sentence and a dated provenance and would still list one capability among its limits, so it is not a real fix and gotcha 6 rules it out. The dated line at 124-125 is the part the orchestrator ruled out of T4's scope and no row owns it; the heading and the misplaced capability bullet have no owner either. All three belong on the same restructure row as F1, since the persona-interview bullet has nowhere to go until the capability section exists."
+    },
+    {
+      "id": "F8",
+      "action": "Make the fifth program visible in the four-bullet program list.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "Bolded both names in the last bullet: 'the **voice service** and the **voice engine** behind it, at 18702'. Five bold program names now answer to 'five local programs'. The relationship is unchanged (the service fronts the engine), the port is unchanged, and 'a small engine' was dropped only to avoid saying engine twice in one clause."
+    },
+    {
+      "id": "F7",
+      "action": "Fix the comma splice in the abstract by making the Sulivan clause parenthetical.",
+      "state": "done",
+      "owner": "reviewer",
+      "needs": null,
+      "result": "'a persona, Sulivan is the one you meet first, who holds' became 'a persona (Sulivan is the one you meet first) that holds', which is the parenthetical aside wiki/style-guide.md:199 prescribes. The relative clause now attaches to 'a persona', which is what 'remembers what you tell it' already assumed. Word count unchanged."
+    },
+    {
+      "id": "F9",
+      "action": "Turn the bare `install-macos.md` filename in the troubleshooting pointer into a linked human title.",
+      "state": "deferred",
+      "owner": "T16",
+      "needs": null,
+      "result": "The dispatch names this sentence as deliberately untouched and breaking under tracker row T16, which retires wiki/install-macos.md and already lists this line among the inbound references at tasks/docs/tracker.md:888. Linking it now would add a fifth inbound link to a page being retired. T16 should replace the sentence with a linked human title pointing at whatever survives as the troubleshooting home."
+    }
+  ],
+  "objective_gaps": [
+    {
+      "objective": "decide whether your Mac can run Hearth",
+      "bloom": "understand",
+      "taught": true,
+      "why": "'## What your Mac needs' states four facts a reader can check against their machine: Apple Silicon, 8 GB of memory, free disk, macOS 27. The level matches the platform-overview type.",
+      "needs": null
+    },
+    {
+      "objective": "describe what a Hearth install puts on your Mac",
+      "bloom": "understand",
+      "taught": true,
+      "why": "'## What installing gives you' delivers it, and the T4 correction now states correctly which two of the four downloaded things the plan's figure counts. The delivery is a catalog rather than a description, which is F3.",
+      "needs": null
+    },
+    {
+      "objective": "describe how updates work on macOS today",
+      "bloom": "understand",
+      "taught": true,
+      "why": "'## Updating' states there is no in-app updater, what to do instead, that home/ is never touched, and why the updater is unbuilt. It links wiki/updates.md for the design.",
+      "needs": null
+    },
+    {
+      "objective": "describe what Hearth on macOS does day to day",
+      "bloom": "understand",
+      "taught": false,
+      "why": "No section covers it. The abstract asserts the persona holds a conversation and remembers, and the page then moves to requirements, files, ports, install and update. A reader finishes knowing what Hearth costs them in disk and what it puts on it, and not what using it is like. This is F1, and it is the objective the type exists to serve (wiki/page-types.md:264, 'Platform overview: Describe what one client does, and its limits').",
+      "needs": "restructure"
+    },
+    {
+      "objective": "describe how the persona appears and sounds on your Mac",
+      "bloom": "understand",
+      "taught": false,
+      "why": "The voice is touched glancingly inside install step 4 (Sulivan speaking a first line, RTF 0.96), which is a step rather than a description, and the visual surface is absent entirely. Writing it needs a fact nobody in this task chain verified: whether the macOS client draws the face of wiki/features/persona-face.md or an orb. This is F2.",
+      "needs": "research"
+    },
+    {
+      "objective": "list what Hearth on macOS cannot do yet",
+      "bloom": "remember",
+      "taught": false,
+      "why": "Partially taught, and mixed. The section holds two real limits (unsigned app, no automatic updater), one dated provenance line, one status sentence, and one capability presented as a caveat. A reader cannot come away with a clean list of what the client cannot do. This is F6.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "install Hearth on macOS",
+      "bloom": "apply",
+      "taught": true,
+      "why": "Taught, and that is the problem. An apply-level objective implies a how-to (hearth-style skill, the Bloom table), and this page declares type platform-overview. The four numbered steps at 97-108 are the page teaching an objective its type does not carry, which is F4 and is owned by T6. The objective itself is served by wiki/install-macos.md.",
+      "needs": "restructure"
+    },
+    {
+      "objective": "look up the install tree and the local ports (content serving no objective this page should carry)",
+      "bloom": "remember",
+      "taught": true,
+      "why": "The install tree at 62-70 and the port list at 76-85 teach a remember-level lookup objective, which the Bloom table maps to a reference page. On this page they are 19 lines of catalog a describing page should not carry. Either a reference page claims them or the objective is dropped. This is F3.",
+      "needs": "restructure"
+    }
+  ],
+  "changed": [
+    {
+      "id": "F5",
+      "summary": "Introduced the plan before the qualifier refers to its download figure, and replaced the distant pronoun: 'Before it downloads anything, Hearth shows you a plan. The download figure in that plan covers two of those four, the model and the voice.' Split the folder sentence into its own paragraph."
+    },
+    {
+      "id": "F7",
+      "summary": "Fixed the comma splice in the abstract by making the Sulivan clause parenthetical."
+    },
+    {
+      "id": "F8",
+      "summary": "Bolded both the voice service and the voice engine so five program names answer to 'five local programs'."
+    }
+  ],
+  "remaining": [
+    {
+      "id": "F1",
+      "dimension": "clarity",
+      "issue": "The spine's 'What it does today' capability section is absent.",
+      "why_unfixed": "Writing a missing spine section is a restructure, which gotcha 8 puts outside a review run. No open tracker row owns this page's shape.",
+      "detraction": 2
+    },
+    {
+      "id": "F2",
+      "dimension": "clarity",
+      "issue": "The spine's persona-surface section is absent.",
+      "why_unfixed": "Restructure, and it needs an unverified fact first: whether the macOS client draws the persona face or an orb.",
+      "detraction": 2
+    },
+    {
+      "id": "F3",
+      "dimension": "clarity",
+      "issue": "Install tree and process-and-port list are reference material on a platform overview.",
+      "why_unfixed": "Moving content to another page is a restructure, and no reference page exists yet to receive it.",
+      "detraction": 2
+    },
+    {
+      "id": "F4",
+      "dimension": "clarity",
+      "issue": "A four-step install procedure sits inline on a platform overview.",
+      "why_unfixed": "Owned by tracker row T6 and ruled untouched by the dispatch.",
+      "detraction": 2
+    },
+    {
+      "id": "F6",
+      "dimension": "clarity",
+      "issue": "'## Status and limitations' mixes a status sentence, a dated provenance, a capability, and two limits.",
+      "why_unfixed": "A heading rename alone would make the heading lie while the dated line and the misplaced capability bullet stay, so it is not a real fix. The dated line was ruled out of T4's scope and the rest needs the F1 section to exist first.",
+      "detraction": 1
+    },
+    {
+      "id": "F9",
+      "dimension": "clarity",
+      "issue": "The troubleshooting pointer names a bare filename in code voice instead of a linked human title.",
+      "why_unfixed": "Discovered on regrade, and the dispatch names this sentence as deliberately untouched and owned by tracker row T16. It was visible at baseline and I did not file it on the first pass; recording it as a regrade discovery reflects when I found it, not a relabeling to protect the score, and it changes neither grade because both are already on the floor.",
+      "detraction": 1
+    }
+  ],
+  "detailed_review": {
+    "score_reasoning": "Baseline penalty sums every baseline finding: F1 2 (missing 'What it does today'), F2 2 (missing persona surface), F3 2 (catalog material on a describing page), F4 2 (inline install procedure), F5 1 (forward reference to 'the plan'), F6 1 (status section on a type that forbids one), F7 1 (comma splice in the abstract), F8 0.5 (five programs, four bullets) = 11.5. 10 - 11.5 = -1.5, floored and clamped to 1, so score_before is 1. Open penalty after the run: F1 2 + F2 2 + F3 2 + F4 2 + F6 1 + F9 1 = 10. 10 - 10 = 0, clamped to 1, so score_after is 1 and the delta is 0. That delta is not a claim that nothing improved. Three findings worth 2.5 points were fixed, but the five structural findings alone carry 9 points, which puts both grades on the floor, and F9 (found on regrade, owned by T16) adds a tenth. The score is a statement about the page's shape: wiki/clients/macos.md declares type platform-overview and is missing two of the six sections that type requires, while carrying two blocks the type explicitly sends elsewhere. No amount of sentence-level correction moves it off the floor, and the corrections T4 was dispatched to make were the right corrections on a page that needs a restructure.\n\nOn scope discipline: the size figures were not touched and were not re-filed. crates/hearth-probe/src/lib.rs:26-34 and desktop-client/src/lib/probe.ts:158-164 divide by 1,073,741,824 and label the result GB, and the research artifact reproduces 3.77, 7.14, 4.53 and 8.56 from the dictionary constants. The figure at line 42 and the plan totals at 103-105 are what the installer prints, and nothing in this run changed a digit.\n\nOn the judgement the dispatch asked me to test, whether qualifying only the four-item list leaves a reader misled about the free-disk figure at line 42: the author's call holds. Line 42 does not report a download. It reports how much free disk Hearth requires, and it says in the same breath that Hearth checks that space before it starts and warns if it is missing. That number is disk_required from crates/hearth-probe/src/plan.rs:237, the two-item total plus a fifth, which is precisely the threshold the installer enforces, so a reader who budgets from line 42 is budgeting against the check they will actually face. Qualifying it would need a magnitude no source supplies: the omitted engine and Python runtime are 36,326,051 bytes on macOS, but the voice environment's pip installs at crates/hearth-probe/dictionary.yaml:59-67 carry no recorded size anywhere, so the page cannot say whether the plan's one-fifth headroom (roughly 810 MB on the 8 GB tier) absorbs them. A bare warning with no number would leave a reader worse off than the accurate figure. The residual risk is real but it is a product question, not a page defect: if the pip installs ever exceed the headroom, an install can pass the check and still run out of disk. That belongs in a source task against the planner, not in a sentence on this page, and the author already recorded it in unresolved[]. No finding filed.\n\nOn the tracker citation the research stage corrected: I confirm it independently. wiki/page-types.md:246-248 forbids a dated status log, and the bullet T4 removed carried no date, so that citation did not reach it. The rule that reached it is :239 read with :264. What :246-248 does reach is still on the page, at lines 124-125, and it is F6.\n\nThe linter could not be run in this session (no execution tool). Nothing in found[] is a linter finding, and two items in its territory are named in tooling_note so they read as excluded rather than missed.",
+    "what_worked": "F5 was the finding worth this run's cost. The author stage copied two qualifying sentences verbatim from wiki/installing.md:109-111, which is exactly right as prose and wrong as placement: on that page the plan and its figure share one section, and on this page they are 40 lines and two sections apart, so the correction opened by referring to 'the plan' before the reader had met it and to 'them' across a paragraph break. The qualifier now introduces the plan in its own paragraph and names 'those four', so the correction lands where the reader can use it, and it no longer depends on a section that tracker row T6 is about to delete. F7 removed a comma splice from the first sentence a reader meets about the product. F8 reconciled 'five local programs' with a list of four bullets, so a reader checking what runs on their machine can count it. All three fixes preserved every figure, link, port, path and UI string on the page.",
+    "what_holds_score_down": "Five structural findings and one regrade finding, all open. The page is not shaped like the type it declares. It has no capability section (F1) and no persona-surface section (F2), which are sections 2 and 3 of the platform-overview spine and the two that wiki/clients/ios.md gets right. It carries an install tree and a port list (F3) that wiki/page-types.md:249-250 sends to a reference page, and a four-step install procedure (F4) that :243-245 sends to the install page and that tracker row T6 already owns. Its limits section (F6) is a status section with a date in it, which is the pattern :246-248 forbids, and it lists one capability among its caveats. F9, found on the regrade read, hands a reader a bare filename at the moment their install has failed.\n\nThe page's own abstract is the clearest evidence. Lines 27-29 say 'This page covers what your Mac needs, what the install puts on your disk, and how updates work.' That is an accurate description of what the page delivers, and it is a narrower promise than the type makes. The page is internally consistent and consistent with the wrong shape.",
+    "further_improvements": [
+      {
+        "action": "Open one restructure row against wiki/clients/macos.md covering F1, F2 and F6 together: write 'What it does today', write the persona surface, reshape the limits section, and reorder the page to the spine at wiki/page-types.md:229-239. Take wiki/clients/ios.md as the model, since it is the page that already conforms.",
+        "why": "Two of six required sections are missing and a third is mis-shaped, and the three cannot be done separately: the persona-interview bullet now sitting in the limits list has nowhere to move until the capability section exists.",
+        "expected_score_effect": "Clears F1 2, F2 2 and F6 1, taking the open penalty from 10 to 5"
+      },
+      {
+        "action": "Give that row a research step first, answering whether the macOS client draws the persona face described in wiki/features/persona-face.md or an orb, and what the macOS window holds beside the persona (sessions rail, journal, cards).",
+        "why": "The persona-surface section cannot be written accurately without it, and no page or artifact in this chain states it. Guessing here would put an invented product surface in front of a reader.",
+        "expected_score_effect": "Unblocks F2 rather than clearing a detraction on its own"
+      },
+      {
+        "action": "Decide where the install tree and the port map live, then move them (F3). wiki/clients/windows.md:154-182 carries its own copy of both, so the choice is one shared reference page or two, and it should be made once for both clients.",
+        "why": "wiki/page-types.md:249-250 keeps catalogs off describing pages, and the duplication across two client pages is how the two copies drift apart.",
+        "expected_score_effect": "Clears F3 2"
+      },
+      {
+        "action": "When tracker row T6 removes '## Installing' (F4), carry two things out of it: the unsigned-app right-click step, which is a first-launch blocker, and the 3.77 GB and 7.14 GB plan figures, which exist nowhere else on the page and which the T4 qualifier at lines 55-58 now refers to.",
+        "why": "Deleting the block as written would leave the qualifier describing a figure the page no longer prints, and would leave the limits bullet at 128-129 pointing at a 'right-click-Open step above' that is gone.",
+        "expected_score_effect": "Clears F4 2, and prevents the T4 correction from being orphaned"
+      },
+      {
+        "action": "When tracker row T16 retires wiki/install-macos.md, replace the bare `install-macos.md` in the troubleshooting sentence at lines 132-133 with a linked human title pointing at the surviving troubleshooting home (F9), and settle the other four inbound references at lines 7, 11, 29 and 95 in the same change.",
+        "why": "A reader whose install just failed is handed a filename they cannot click and will never see in a flat sidebar.",
+        "expected_score_effect": "Clears F9 1"
+      },
+      {
+        "action": "Record objectives for this page, in its frontmatter or in the next research artifact that touches it. The eight in objective_gaps[] here are derived by me, not authored: neither tasks/docs/artifacts/T4.research.json (objectives[] is empty) nor the page frontmatter carries any.",
+        "why": "Nothing downstream checks objectives, so a page with none recorded drifts without any stage noticing. The gap between what this page's abstract promises and what its type requires would have been caught at scoping if objectives had been written down.",
+        "expected_score_effect": "No direct detraction; prevents the recurrence of F1 and F2 on the other client pages"
+      },
+      {
+        "action": "Open a source-side question against crates/hearth-probe/src/plan.rs:237: whether disk_required's one-fifth headroom covers the voice environment's pip installs, which carry no recorded size at crates/hearth-probe/dictionary.yaml:59-67.",
+        "why": "The free-disk figure at line 42 is reported accurately and should not change, but if the unmeasured pip installs exceed the headroom, an install can pass the space check and still run out of disk. That is a planner question, not a wording question, and it is the one live residual behind the judgement the dispatch asked me to test.",
+        "expected_score_effect": "No detraction on this page; it settles whether a future finding exists at all"
+      },
+      {
+        "action": "Run scripts/lint_wiki.py against this page, and read the bold-lead result at lines 33-47 as real. The four bolded-lead paragraphs under '## What your Mac needs' are the exact pattern wiki/style-guide.md:59-93 calls the corpus's most common structural fault, and wiki/clients/ios.md:128-138 states the same requirements as a proper bullet list.",
+        "why": "I could not run the linter in this session, so I left its territory alone. That block is the one item in it whose reader cost is high enough to name here.",
+        "expected_score_effect": "No reviewer detraction; it is the linter's call to make"
+      }
+    ]
+  }
+}

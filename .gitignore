@@ -87,3 +87,20 @@ backend/harness/valar/tools/file_grants.yaml
 # A persona's own memory (notes, activity log, session index, archive) is
 # per-install state beside the manifest, never source.
 backend/personas/*/memory/
+
+# Working clone scripts/publish_wiki.py makes while rendering the GitHub wiki.
+.wiki-publish/
+
+# Agent configuration. The doc pipeline (orchestrator, researcher, author,
+# reviewer) and its style skill are working tooling for whoever is editing the
+# wiki, not part of the product a stranger installs. scripts/lint_wiki.py is
+# deliberately NOT here: the linter is a guardrail the repository should carry.
+CLAUDE.md
+.claude/
+
+# A backstop, not the convention. Reviewer artifacts belong beside the research
+# and author artifacts for their task, under tasks/docs/artifacts/, because the
+# tracker cites all three as evidence and an ignored artifact is a citation to a
+# file nobody else has. This rule catches a reviewer that regresses to writing
+# beside the document, so scoring output never lands in the published corpus.
+wiki/**/*.review.json

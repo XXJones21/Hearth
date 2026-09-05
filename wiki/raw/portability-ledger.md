@@ -1,7 +1,7 @@
 ---
-title: Portability Ledger
+title: Portability ledger
 status: draft
-last_reviewed: 2026-08-04
+last_reviewed: 2026-09-03
 related:
   - component-catalog.md
   - ../_index.md
@@ -9,11 +9,10 @@ sources:
   - D:/Tools/Valinor/wiki/raw/backend-audit-2026-08-04/
 ---
 
-# Portability Ledger
-
+# Portability ledger
 Every assumption the backend makes that is false on a machine other than the one
 it was built on. This is the projection of the component catalog's
-`assumes about this machine` column, reorganised by the kind of assumption
+`assumes about this machine` column, reorganized by the kind of assumption
 rather than by component, because that is how the work gets done: one pass fixes
 all the path literals, a different pass fixes all the hardware constants.
 
@@ -287,7 +286,7 @@ Listed last because it is the one that changes what gets built first.
 Every import of the `Server` package inside Valar is wrapped in a bare
 `except Exception` that logs and continues. Individually each of these is a
 reasonable resilience choice for a system whose operator built it and would
-recognise the symptom. Collectively they mean a stranger can complete an
+recognize the symptom. Collectively they mean a stranger can complete an
 install, see a healthy status, hold a conversation, and never discover that half
 the product is not running.
 

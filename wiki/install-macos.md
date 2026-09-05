@@ -1,6 +1,7 @@
 ---
 title: Installing on macOS
-status: draft
+status: decided
+type: how-to
 last_reviewed: 2026-08-07
 related:
   - first-run.md
@@ -109,7 +110,7 @@ Hearth/
 Nothing is installed outside it. No system directories, no login items, no
 background service that runs when Hearth is closed.
 
-While Hearth is open it runs five local programs: the gateway your client
+While Hearth is open it runs five local programs: the harness your client
 talks to, a supervisor, the language model, the voice engine, and the voice
 service in front of it. They listen only on `127.0.0.1` and only while Hearth
 is running. Nothing is sent anywhere.
